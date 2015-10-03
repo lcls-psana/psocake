@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 
 # Set up tolerance
 eps = np.finfo("float64").eps
+resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
+dMin = np.zeros_like(resolutionRingList)
 
 # Set up list of parameters
 exp_grp = 'Experiment information'
@@ -24,53 +26,35 @@ exp_name_str = 'Experiment Name'
 exp_run_str = 'Run Number'
 exp_evt_str = 'Event Number'
 exp_detInfo_str = 'Detector ID'
-disp_grp = 'Display information'
+
+disp_grp = 'Display'
 disp_log_str = 'Logscale'
-disp_resolution_rings_str = 'Resolution rings'
+disp_resolutionRings_str = 'Resolution rings'
+
+geom_grp = 'Diffraction geometry'
+geom_detectorDistance_str = 'Detector distance'
+geom_photonEnergy_str = 'Photon energy'
+geom_wavelength_str = "Wavelength"
+geom_pixelSize_str = 'Pixel size'
+
 params = [
     {'name': exp_grp, 'type': 'group', 'children': [
         {'name': exp_name_str, 'type': 'str', 'value': ""},
         {'name': exp_run_str, 'type': 'int', 'value': -1},
         {'name': exp_evt_str, 'type': 'int', 'value': -1},
         {'name': exp_detInfo_str, 'type': 'str', 'value': ""},
-        {'name': 'Float', 'type': 'float', 'value': 10.5, 'step': 0.1},
-        {'name': 'List', 'type': 'list', 'values': [1,2,3], 'value': 2},
-        {'name': 'Named List', 'type': 'list', 'values': \
-         {"one": 1, "two": "twosies", "three": [3,3,3]}, 'value': 2},
-        {'name': 'Boolean', 'type': 'bool', 'value': True, 'tip': "This is a checkbox"},
-        {'name': 'Color', 'type': 'color', 'value': "FF0", 'tip': "This is a color button"},
-        {'name': 'Gradient', 'type': 'colormap'},
-        {'name': 'Subgroup', 'type': 'group', 'children': [
-            {'name': 'Sub-param 1', 'type': 'int', 'value': 10},
-            {'name': 'Sub-param 2', 'type': 'float', 'value': 1.2e6},
-        ]},
-        {'name': 'Text Parameter', 'type': 'text', 'value': 'Some text...'},
-        {'name': 'Action Parameter', 'type': 'action'},
     ]},
     {'name': disp_grp, 'type': 'group', 'children': [
         {'name': disp_log_str, 'type': 'bool', 'value': False, 'tip': "Display in log10"},
-        {'name': disp_resolution_rings_str, 'type': 'bool', 'value': False, 'tip': "Display resolution rings"},
+        {'name': disp_resolutionRings_str, 'type': 'bool', 'value': False, 'tip': "Display resolution rings"},
     ]},
-    {'name': 'Numerical Parameter Options', 'type': 'group', 'children': [
-        {'name': 'Units + SI prefix', 'type': 'float', 'value': \
-         1.2e-6, 'step': 1e-6, 'siPrefix': True, 'suffix': 'V'},
-        {'name': 'Limits (min=7;max=15)', 'type': 'int', 'value': \
-         11, 'limits': (7, 15), 'default': -6},
-        {'name': 'DEC stepping', 'type': 'float', 'value': \
-         1.2e6, 'dec': True, 'step': 1, 'siPrefix': True, 'suffix': 'Hz'},
-        
-    ]},
-    {'name': 'Save/Restore functionality', 'type': 'group', 'children': [
-        {'name': 'Save State', 'type': 'action'},
-        {'name': 'Restore State', 'type': 'action', 'children': [
-            {'name': 'Add missing items', 'type': 'bool', 'value': True},
-            {'name': 'Remove extra items', 'type': 'bool', 'value': True},
-        ]},
-    ]},
-    {'name': 'Extra Parameter Options', 'type': 'group', 'children': [
-        {'name': 'Read-only', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'readonly': True},
-        {'name': 'Renamable', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'renamable': True},
-        {'name': 'Removable', 'type': 'float', 'value': 1.2e6, 'siPrefix': True, 'suffix': 'Hz', 'removable': True},
+]
+params1 = [
+    {'name': geom_grp, 'type': 'group', 'children': [
+        {'name': geom_detectorDistance_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'khsiFormat': (6,6), 'siPrefix': True, 'suffix': 'm'},
+        {'name': geom_photonEnergy_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'eV'},
+        {'name': geom_wavelength_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'm', 'readonly': True},
+        {'name': geom_pixelSize_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siPrefix': True, 'suffix': 'm'},
     ]},
 ]
 
@@ -80,11 +64,20 @@ class MainFrame(QtGui.QWidget):
     """        
     def __init__(self, arg_list):
         super(MainFrame, self).__init__()
+
         self.experimentName = "None"
         self.runNumber = 0
         self.eventNumber = 0
         self.detInfo = "None"
-        self.logscale = False
+
+        self.logscaleOn = False
+        self.resolutionRingsOn = False
+
+        self.detectorDistance = None
+        self.photonEnergy = None
+        self.wavelength = None
+        self.pixelSize = None
+
         self.hasExperientName = False
         self.hasRunNumber = False
         self.hasEventNumber = False
@@ -102,8 +95,12 @@ class MainFrame(QtGui.QWidget):
         self.win.setWindowTitle('psocake')
 
         ## Create tree of Parameter objects
-        self.p = Parameter.create(name='params', type='group', children=params)
+        self.p = Parameter.create(name='params', type='group', \
+                                  children=params, expanded=True)
+        self.p1 = Parameter.create(name='params1', type='group', \
+                                  children=params1, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
+        self.p1.sigTreeStateChanged.connect(self.change1)
 
         #self.p.param('Basic parameter data types', 'Event Number').sigTreeStateChanged.connect(self.change)
         #self.p.param('Basic parameter data types', 'Float').sigTreeStateChanged.connect(save)
@@ -121,7 +118,7 @@ class MainFrame(QtGui.QWidget):
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
-        self.area.addDock(self.d3, 'bottom', self.d1)## place d3 at bottom edge of d1
+        self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'bottom', self.d4)  ## place d5 at left edge of d1
         self.area.addDock(self.d6, 'top', self.d4)   ## place d6 at top edge of d4
@@ -132,22 +129,18 @@ class MainFrame(QtGui.QWidget):
         self.prevBtn = QtGui.QPushButton('Prev evt')
         self.wQ = pg.LayoutWidget()
         self.w1 = pg.ImageView(view=pg.PlotItem())
+        self.w1.getView().invertY(False)
         self.ring_feature = pg.ScatterPlotItem()
+        self.z_direction = pg.ScatterPlotItem()
+        self.z_direction1 = pg.ScatterPlotItem()
         #self.xy_feature = pg.PlotItem()
         self.w1.getView().addItem(self.ring_feature)
+        self.w1.getView().addItem(self.z_direction)
+        self.w1.getView().addItem(self.z_direction1)
         #self.w5.getView().addItem(self.xy_feature)
         self.wQ.addWidget(self.w1, row=0, colspan=2)
         self.wQ.addWidget(self.prevBtn, row=1, col=0)
         self.wQ.addWidget(self.nextBtn, row=1, col=1)
-
-        # Draw red rings at (100,100), (200,200)
-        cen = [100,200]
-        self.ring_feature.setData(cen, cen, symbol='o', \
-                                  size=20, brush=(255,255,255,0), pen='r', pxMode=False)
-
-        # Draw yellow xy axis at (100,100)
-        self.w1.getView().addLine(x=100, pen='y')
-        self.w1.getView().addLine(y=100, pen='y')
 
         def next():
             self.eventNumber += 1
@@ -201,7 +194,7 @@ class MainFrame(QtGui.QWidget):
             #y = radius * np.sin(theta)
             #plot.plot(x, y)
             #self.wQ.addWidget(plot, row=0, colspan=2)
-                        
+
         def prev():
             self.eventNumber -= 1
             self.data = self.getEvt(self.eventNumber)
@@ -223,18 +216,19 @@ class MainFrame(QtGui.QWidget):
 
         ## Dock 2: parameter
         self.w2 = ParameterTree()
-        self.w2.setParameters(self.p, showTop=True)
+        self.w2.setParameters(self.p, showTop=False)
         self.w2.setWindowTitle('Parameters')
         self.d2.addWidget(self.w2)
 
-        ## Hide title bar on dock 3
-        self.d3.hideTitleBar()
-        self.w3 = pg.PlotWidget(title="Plot inside dock with no title bar")
-        self.w3.plot(np.random.normal(size=100))
+        ## Dock 3
+        self.w3 = ParameterTree()
+        self.w3.setParameters(self.p1, showTop=False)
+        self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
 
-        ## Dock 4
-        self.w4 = pg.PlotWidget(title="Dock 4 plot")
+        ## Hide title bar on dock 4
+        self.d4.hideTitleBar()
+        self.w4 = pg.PlotWidget(title="Plot inside dock with no title bar")
         self.w4.plot(np.random.normal(size=100))
         self.d4.addWidget(self.w4)
 
@@ -270,15 +264,77 @@ class MainFrame(QtGui.QWidget):
             self.hasDetInfo = True
             self.p.param(exp_grp,exp_detInfo_str).setValue(self.detInfo)
 
+        self.drawLabCoordinates()
+
         self.win.show()
+
+    def drawLabCoordinates(self):
+        # Draw xy arrows
+        symbolSize = 40
+        cutoff=symbolSize/2
+        headLen=30
+        tailLen=30-cutoff
+        xArrow = pg.ArrowItem(angle=180, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='b', pxMode=False)
+        xArrow.setPos(2*headLen,0)
+        self.w1.getView().addItem(xArrow)
+        yArrow = pg.ArrowItem(angle=-90, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='r', pxMode=False)
+        yArrow.setPos(0,2*headLen)
+        self.w1.getView().addItem(yArrow)
+
+        # z-direction
+        self.z_direction.setData([0], [0], symbol='o', \
+                                 size=symbolSize, brush='w', \
+                                 pen={'color': 'k', 'width': 4}, pxMode=False)
+        self.z_direction1.setData([0], [0], symbol='o', \
+                                 size=symbolSize/6, brush='k', \
+                                 pen={'color': 'k', 'width': 4}, pxMode=False)
+        # Add xyz text
+        self.x_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #0000FF; font-size: 16pt;">x</span></div>', anchor=(0,0))
+        self.w1.getView().addItem(self.x_text)
+        self.x_text.setPos(2*headLen, 0)
+        self.y_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FF0000; font-size: 16pt;">y</span></div>', anchor=(1,1))
+        self.w1.getView().addItem(self.y_text)
+        self.y_text.setPos(0, 2*headLen)
+        self.z_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFFFFF; font-size: 16pt;">z</span></div>', anchor=(1,0))
+        self.w1.getView().addItem(self.z_text)
+        self.z_text.setPos(-headLen, 0)
+
+        # Draw xy axis at (0,0)
+        #self.w1.getView().addLine(x=0, pen='w')
+        #self.w1.getView().addLine(y=0, pen='w')
+
+        # Label xy axes
+        self.x_axis = self.w1.getView().getAxis('bottom')
+        self.x_axis.setLabel('X-axis (pixels)')
+        self.y_axis = self.w1.getView().getAxis('left')
+        self.y_axis.setLabel('Y-axis (pixels)')
 
     def updateImage(self):
         self.data = self.getEvt(self.eventNumber)
-        if self.logscale:
+        if self.logscaleOn:
             self.w1.setImage(np.log10(abs(self.data)+eps))
         else:
             self.w1.setImage(self.data)
         print "Done updateImage"
+
+    def updateRings(self):
+        if self.resolutionRingsOn:
+            detCenX = detCenY = 512 # TODO: find centre of detector
+            cen = np.ones_like(resolutionRingList)*detCenX
+            diameter = 2*resolutionRingList
+            self.ring_feature.setData(cen, cen, symbol='o', \
+                                      size=diameter, brush=(255,255,255,0), \
+                                      pen='r', pxMode=False)
+            self.text = []
+            for i,val in enumerate(dMin):
+                self.text.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
+                self.w1.getView().addItem(self.text[i])
+                self.text[i].setPos(resolutionRingList[i]+detCenX, detCenY)
+        else:
+            cen = [0,]
+            self.ring_feature.setData(cen, cen, size=0)
+            self.w1.getView().removeItem(self.text)
+        print "Done updateResolutionRings"
 
     def getEvt(self,evtNumber):
         if self.run is not None:
@@ -306,6 +362,16 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,data)
 
+    def change1(self, param, changes):
+        for param, change, data in changes:
+            path = self.p1.childPath(param)
+            print('  path: %s'% path)
+            #print('  parameter: %s'% childName)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,data)
+
     def update(self, path, data):
         print "path: ", path[0], path[1]
         if path[0] == exp_grp:
@@ -320,8 +386,16 @@ class MainFrame(QtGui.QWidget):
         if path[0] == disp_grp:
             if path[1] == disp_log_str:
                 self.updateLogscale(data)
-            #else:
-            #    print "Undefined parameter"                    
+            elif path[1] == disp_resolutionRings_str:
+                self.updateResolutionRings(data)
+        if path[0] == geom_grp:
+            if path[1] == geom_detectorDistance_str:
+                self.updateDetectorDistance(data)
+            elif path[1] == geom_photonEnergy_str:
+                self.updatePhotonEnergy(data)
+                print "photonEnergy: ", self.photonEnergy                   
+            elif path[1] == geom_pixelSize_str:
+                self.updatePixelSize(data)
 
     def updateEventName(self, data):
         self.experimentName = data
@@ -373,13 +447,56 @@ class MainFrame(QtGui.QWidget):
             print "Done setupExperiment"     
 
     def updateLogscale(self, data):
-        self.logscale = data
+        self.logscaleOn = data
         if self.hasExperimentInfo():
             self.updateImage()
-        print "Done updateLogscale: ", self.logscale
+        print "Done updateLogscale: ", self.logscaleOn
+
+    def updateResolutionRings(self, data):
+        self.resolutionRingsOn = data
+        if self.hasExperimentInfo():
+            self.updateRings()
+        print "Done updateResolutionRings: ", self.resolutionRingsOn
+
+    def updateDetectorDistance(self, data):
+        self.detectorDistance = data
+        if self.hasGeometryInfo():
+            self.updateGeometry()
+
+    def updatePhotonEnergy(self, data):
+        self.photonEnergy = data
+        # E = hc/lambda
+        h = 6.626070e-34 # J.m
+        c = 2.99792458e8 # m/s
+        joulesPerEv = 1.602176621e-19 #J/eV
+        self.wavelength = (h/joulesPerEv*c)/self.photonEnergy
+        print "wavelength: ", self.wavelength
+        self.p1.param(geom_grp,geom_wavelength_str).setValue(self.wavelength)
+        if self.hasGeometryInfo():
+            self.updateGeometry()
+
+    def updatePixelSize(self, data):
+        self.pixelSize = data
+        if self.hasGeometryInfo():
+            self.updateGeometry()
+
+    def hasGeometryInfo(self):
+        if self.detectorDistance is not None \
+           and self.photonEnergy is not None \
+           and self.pixelSize is not None:
+            return True
+        else:
+            return False
+
+    def updateGeometry(self):
+        for i, pix in enumerate(resolutionRingList):
+            thetaMax = np.arctan(pix*self.pixelSize/self.detectorDistance)
+            qMax = 2/self.wavelength*np.sin(thetaMax/2)
+            dMin[i] = 1/(2*qMax)
+            print i, thetaMax, qMax, dMin[i]
 
 def main():
-    signal.signal(signal.SIGINT, signal.SIG_DFL)    
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     app = QtGui.QApplication(sys.argv)
     ex = MainFrame(sys.argv)
     sys.exit(app.exec_())
