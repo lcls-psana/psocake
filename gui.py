@@ -15,6 +15,9 @@ from Detector.PyDetector import PyDetector
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import matplotlib.pyplot as plt
 
+from optics import *
+from pyqtgraph import Point
+
 # Set up tolerance
 eps = np.finfo("float64").eps
 resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
@@ -113,7 +116,7 @@ class MainFrame(QtGui.QWidget):
         self.d3 = Dock("Dock3", size=(200,200))
         self.d4 = Dock("Dock4 (tabbed) - Plot", size=(200,200))
         self.d5 = Dock("Dock5 ", size=(200,200))
-        self.d6 = Dock("Dock6 (tabbed) - Plot", size=(200,200))
+        self.d6 = Dock("Dock6 (tabbed) - Plot", size=(900,200))
         self.d7 = Dock("Dock7 - Console", size=(200,200), closable=True)
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
@@ -121,7 +124,7 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'bottom', self.d4)  ## place d5 at left edge of d1
-        self.area.addDock(self.d6, 'top', self.d4)   ## place d6 at top edge of d4
+        self.area.addDock(self.d6, 'bottom')   ## place d6 at top edge of d4
         self.area.addDock(self.d7, 'bottom', self.d4)   ## place d7 at left edge of d5
 
         ## Dock 1
@@ -238,9 +241,36 @@ class MainFrame(QtGui.QWidget):
         self.d5.addWidget(self.w5)
 
         ## Dock 6
-        self.w6 = pg.PlotWidget(title="Dock 6 plot")
-        self.w6.plot(np.random.normal(size=100))
-        self.d6.addWidget(self.w6)
+
+        self.w6 = pg.ImageView(view=pg.PlotItem())
+
+        ## Scan mirrors
+        self.scanx = 250
+        self.scany = 20
+        self.m1 = Mirror(dia=4.2, d=0.001, pos=(self.scanx, 0), angle=315)
+        self.m2 = Mirror(dia=8.4, d=0.001, pos=(self.scanx, self.scany), angle=135)
+
+        ## Scan lenses
+        self.l3 = Lens(r1=23.0, r2=0, d=5.8, pos=(self.scanx+50, self.scany), glass='Corning7980')  ## 50mm  UVFS  (LA4148)
+        self.l4 = Lens(r1=0, r2=69.0, d=3.2, pos=(self.scanx+250, self.scany), glass='Corning7980')  ## 150mm UVFS  (LA4874)
+
+        ## Objective
+        self.obj = Lens(r1=15, r2=15, d=10, dia=8, pos=(self.scanx+400, self.scany), glass='Corning7980')
+
+        self.IROptics = [self.m1, self.m2, self.l3, self.l4, self.obj]
+
+        for o in set(self.IROptics):
+            self.w6.getView().addItem(o)
+
+        self.IRRays = []
+        for dy in [-0.4, -0.15, 0, 0.15, 0.4]:
+            self.IRRays.append(Ray(start=Point(-50, dy), dir=(1, 0), wl=780))
+        for r in set(self.IRRays):
+            self.w6.getView().addItem(r)
+
+        self.IRTracer = Tracer(self.IRRays, self.IROptics)
+
+        self.d6.addWidget(self.w6, row=0, colspan=2)
 
         ## Dock 7: console
         self.w7 = pg.console.ConsoleWidget()
@@ -504,6 +534,6 @@ def main():
 ## Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':
     main()
-#    import sys
-#    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-#        QtGui.QApplication.instance().exec_()
+    #import sys
+    #if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+    #    QtGui.QApplication.instance().exec_()
