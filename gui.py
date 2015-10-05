@@ -1,5 +1,4 @@
-#self.ds = psana.DataSource('exp=cxif5315:run=169:idx') #('exp=amo86615:run=190:idx')
-#self.src = psana.Source('DetInfo(CxiDs2.0:Cspad.0)')#('DetInfo(Camp.0:pnCCD.1)')
+# TODO: Zoom in area
 
 import sys, signal
 import pyqtgraph as pg
@@ -127,12 +126,12 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d6, 'bottom')   ## place d6 at top edge of d4
         self.area.addDock(self.d7, 'bottom', self.d4)   ## place d7 at left edge of d5
 
-        ## Dock 1
+        ## Docke 1: Image Panel
         self.nextBtn = QtGui.QPushButton('Next evt')
         self.prevBtn = QtGui.QPushButton('Prev evt')
         self.wQ = pg.LayoutWidget()
         self.w1 = pg.ImageView(view=pg.PlotItem())
-        self.w1.getView().invertY(False)
+        self.w1.getView().invertY(True)#False)
         self.ring_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
         self.z_direction1 = pg.ScatterPlotItem()
@@ -142,13 +141,13 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.z_direction1)
         #self.w5.getView().addItem(self.xy_feature)
         self.wQ.addWidget(self.w1, row=0, colspan=2)
-        self.wQ.addWidget(self.prevBtn, row=1, col=0)
-        self.wQ.addWidget(self.nextBtn, row=1, col=1)
+        self.wQ.addWidget(self.prevBtn, row=2, col=0)
+        self.wQ.addWidget(self.nextBtn, row=2, col=1)
 
         def next():
             self.eventNumber += 1
             self.data = self.getEvt(self.eventNumber)
-            self.w1.setImage(self.data)
+            self.w1.setImage(self.data,autoLevels=None)
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
           ##### Hit finder #####
@@ -296,6 +295,36 @@ class MainFrame(QtGui.QWidget):
 
         self.drawLabCoordinates()
 
+        # Try crosshair
+        self.xhair = self.w1.getView()
+        self.vLine = pg.InfiniteLine(angle=90, movable=False)
+        self.hLine = pg.InfiniteLine(angle=0, movable=False)
+        self.xhair.addItem(self.vLine, ignoreBounds=True)
+        self.xhair.addItem(self.hLine, ignoreBounds=True)
+        self.vb = self.xhair.vb
+        self.label = pg.LabelItem(justify='right')
+        self.xhair.addItem(self.label)
+
+        def mouseMoved(evt):
+            pos = evt[0]  ## using signal proxy turns original arguments into a tuple
+            if self.xhair.sceneBoundingRect().contains(pos):
+                mousePoint = self.vb.mapSceneToView(pos)
+                indexX = int(mousePoint.x())
+                indexY = int(mousePoint.y())
+                #if index > 0:# and index < len(data1):
+                
+            # update crosshair position
+            self.vLine.setPos(mousePoint.x())
+            self.hLine.setPos(mousePoint.y())
+            # get pixel value, if data exists
+            if self.data is not None:
+                # FIXME: Assume data is 2D for now
+                if indexX >= 0 and indexX < self.data.shape[0] \
+                   and indexY >= 0 and indexY < self.data.shape[1]:
+                    self.label.setText("<span style='font-size: 36pt'>x=%0.1f y=%0.1f I=%0.1f </span>" % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
+
+        self.proxy = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
+
         self.win.show()
 
     def drawLabCoordinates(self):
@@ -355,16 +384,18 @@ class MainFrame(QtGui.QWidget):
             self.ring_feature.setData(cen, cen, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
-            self.text = []
+            self.resolutionText = []
             for i,val in enumerate(dMin):
-                self.text.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
-                self.w1.getView().addItem(self.text[i])
-                self.text[i].setPos(resolutionRingList[i]+detCenX, detCenY)
+                self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
+                self.w1.getView().addItem(self.resolutionText[i])
+                self.resolutionText[i].setPos(resolutionRingList[i]+detCenX, detCenY)
         else:
+            print "let's remove resolutionText"
             cen = [0,]
             self.ring_feature.setData(cen, cen, size=0)
-            self.w1.getView().removeItem(self.text)
-        print "Done updateResolutionRings"
+            for i,val in enumerate(dMin):
+                self.w1.getView().removeItem(self.resolutionText[i])
+        print "Done updateRings"
 
     def getEvt(self,evtNumber):
         if self.run is not None:
