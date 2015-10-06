@@ -540,28 +540,52 @@ class MainFrame(QtGui.QWidget):
                 self.updateClassify(data)
             elif path[2] == hitParam_alg1_npix_min_str:
                 self.hitParam_alg1_npix_min = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_npix_max_str:
                 self.hitParam_alg1_npix_max = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_amax_thr_str:
                 self.hitParam_alg1_amax_thr = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_atot_thr_str:
                 self.hitParam_alg1_atot_thr = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_son_min_str:
                 self.hitParam_alg1_son_min = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_thr_low_str:
                 self.hitParam_alg1_thr_low = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_thr_high_str:
                 self.hitParam_alg1_thr_high = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_radius_str:
                 self.hitParam_alg1_radius = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg1_dr_str:
                 self.hitParam_alg1_dr = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg2_thr_str:
                 self.hitParam_alg2_thr = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg2_r0_str:
                 self.hitParam_alg2_r0 = data
+                if self.classify:
+                    self.updateClassification()
             elif path[2] == hitParam_alg2_dr_str:
                 self.hitParam_alg2_dr = data
+                if self.classify:
+                    self.updateClassification()
         if path[0] == geom_grp:
             if path[1] == geom_detectorDistance_str:
                 self.updateDetectorDistance(data)
