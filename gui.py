@@ -1,5 +1,7 @@
 # TODO: Zoom in area
-# Multiple subplots
+# TODO: Multiple subplots
+# TODO: Display timestamp and fiducials
+# TODO: powder pattern generator
 
 import sys, signal
 import pyqtgraph as pg
@@ -14,9 +16,24 @@ import h5py
 from Detector.PyDetector import PyDetector
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import matplotlib.pyplot as plt
-
 from optics import *
 from pyqtgraph import Point
+import argparse
+
+import sys
+import logging
+import multiprocessing as mp
+from psmon import app, config, log_level_parse
+
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
+parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=0, type=int)
+parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
+parser.add_argument("-n","--evt", help="event number (e.g. 1), default=0",default=0, type=int)
+parser.add_argument("--localCalib", help="use local calib directory, default=False", action='store_true')
+args = parser.parse_args()
 
 # Set up tolerance
 eps = np.finfo("float64").eps
@@ -28,6 +45,9 @@ exp_grp = 'Experiment information'
 exp_name_str = 'Experiment Name'
 exp_run_str = 'Run Number'
 exp_evt_str = 'Event Number'
+exp_second_str = 'Seconds'
+exp_nanosecond_str = 'Nanoseconds'
+exp_fiducial_str = 'Fiducial'
 exp_detInfo_str = 'Detector ID'
 
 disp_grp = 'Display'
@@ -37,19 +57,19 @@ disp_resolutionRings_str = 'Resolution rings'
 hitParam_grp = 'Hit finder'
 hitParam_classify_str = 'Classify'
 hitParam_algorithm_str = 'Algorithm'
+hitParam_alg_npix_min_str = 'npix_min'
+hitParam_alg_npix_max_str = 'npix_max'
+hitParam_alg_amax_thr_str = 'amax_thr'
+hitParam_alg_atot_thr_str = 'atot_thr'
+hitParam_alg_son_min_str = 'son_min'
 # algorithm 1
 hitParam_algorithm1_str = 'Droplet'
-hitParam_alg1_npix_min_str = 'npix_min'
-hitParam_alg1_npix_max_str = 'npix_max'
-hitParam_alg1_amax_thr_str = 'amax_thr'
-hitParam_alg1_atot_thr_str = 'atot_thr'
-hitParam_alg1_son_min_str = 'son_min'
 hitParam_alg1_thr_low_str = 'thr_low'
 hitParam_alg1_thr_high_str = 'thr_high'
 hitParam_alg1_radius_str = 'radius'
 hitParam_alg1_dr_str = 'dr'
 # algorithm 2
-hitParam_algorithm2_str = 'Rank'
+hitParam_algorithm2_str = 'Flood-fill'
 hitParam_alg2_thr_str = 'thr'
 hitParam_alg2_r0_str = 'r0'
 hitParam_alg2_dr_str = 'dr'
@@ -69,6 +89,10 @@ paramsDiffractionGeometry = [
     ]},
 ]
 
+# Color scheme
+sandstone100_rgb = (221,207,153) # Sandstone
+cardinalRed_hex = str("#8C1515") # Cardinal red
+
 class MainFrame(QtGui.QWidget):
     """
     The main frame of the application
@@ -76,16 +100,18 @@ class MainFrame(QtGui.QWidget):
     def __init__(self, arg_list):
         super(MainFrame, self).__init__()
         # Init experiment parameters
-        self.experimentName = "None"
-        self.runNumber = 0
-        self.eventNumber = 0
-        self.detInfo = "None"
+        self.experimentName = args.exp
+        self.runNumber = int(args.run)
+        self.detInfo = args.det
+        self.eventNumber = int(args.evt)
+        self.eventSeconds = ""
+        self.eventNanoseconds = ""
+        self.eventFiducial = ""
         self.hasExperimentName = False
         self.hasRunNumber = False
-        self.hasEventNumber = False
         self.hasDetInfo = False
         # Init display parameters
-        self.logscaleOn = False
+        self.logscaleOn = True
         self.resolutionRingsOn = False
         # Init diffraction geometry parameters
         self.detectorDistance = None
@@ -93,16 +119,17 @@ class MainFrame(QtGui.QWidget):
         self.wavelength = None
         self.pixelSize = None
         # Init variables
-        self.eventNumber = 0
         self.data = None # assembled detector image
         self.calib = None # ndarray detector image
         # Init hit finding parameters
+        self.algInitDone = False
         self.algorithm = 1
-        self.hitParam_alg1_npix_min = 5.
-        self.hitParam_alg1_npix_max = 5000.
-        self.hitParam_alg1_amax_thr = 0.
-        self.hitParam_alg1_atot_thr = 0.
-        self.hitParam_alg1_son_min = 10.
+        self.classify = False
+        self.hitParam_alg_npix_min = 5.
+        self.hitParam_alg_npix_max = 5000.
+        self.hitParam_alg_amax_thr = 0.
+        self.hitParam_alg_atot_thr = 0.
+        self.hitParam_alg_son_min = 10.
         self.hitParam_alg1_thr_low = 10.
         self.hitParam_alg1_thr_high = 150.
         self.hitParam_alg1_radius = 5
@@ -112,24 +139,28 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg2_dr = 0.05
         self.params = [
             {'name': exp_grp, 'type': 'group', 'children': [
-                {'name': exp_name_str, 'type': 'str', 'value': ""},
-                {'name': exp_run_str, 'type': 'int', 'value': -1},
-                {'name': exp_evt_str, 'type': 'int', 'value': -1},
-                {'name': exp_detInfo_str, 'type': 'str', 'value': ""},
+                {'name': exp_name_str, 'type': 'str', 'value': self.experimentName},
+                {'name': exp_run_str, 'type': 'int', 'value': self.runNumber},
+                {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo},
+                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'children': [
+                    {'name': exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
+                    {'name': exp_nanosecond_str, 'type': 'str', 'value': self.eventNanoseconds, 'readonly': True},
+                    {'name': exp_fiducial_str, 'type': 'str', 'value': self.eventFiducial, 'readonly': True},
+                ]},
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
-                {'name': disp_log_str, 'type': 'bool', 'value': False, 'tip': "Display in log10"},
-                {'name': disp_resolutionRings_str, 'type': 'bool', 'value': False, 'tip': "Display resolution rings"},
+                {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
+                {'name': disp_resolutionRings_str, 'type': 'bool', 'value': self.resolutionRingsOn, 'tip': "Display resolution rings"},
             ]},
             {'name': hitParam_grp, 'type': 'group', 'children': [
-                {'name': hitParam_classify_str, 'type': 'bool', 'value': False, 'tip': "Classify current image as hit or miss"},
-                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {"Rank": 2, "Droplet": 1}, 'value': self.algorithm},
+                {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
+                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm2_str: 2, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': hitParam_alg1_npix_min_str, 'type': 'float', 'value': self.hitParam_alg1_npix_min},
-                    {'name': hitParam_alg1_npix_max_str, 'type': 'float', 'value': self.hitParam_alg1_npix_max},
-                    {'name': hitParam_alg1_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg1_amax_thr},
-                    {'name': hitParam_alg1_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg1_atot_thr},
-                    {'name': hitParam_alg1_son_min_str, 'type': 'float', 'value': self.hitParam_alg1_son_min},
+                    {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min},
+                    {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max},
+                    {'name': hitParam_alg_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg_amax_thr},
+                    {'name': hitParam_alg_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg_atot_thr},
+                    {'name': hitParam_alg_son_min_str, 'type': 'float', 'value': self.hitParam_alg_son_min},
                     {'name': hitParam_alg1_thr_low_str, 'type': 'float', 'value': self.hitParam_alg1_thr_low},
                     {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high},
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius},
@@ -171,7 +202,7 @@ class MainFrame(QtGui.QWidget):
         self.d2 = Dock("Dock2 - Parameters", size=(500,300))
         self.d3 = Dock("Dock3", size=(200,200))
         self.d4 = Dock("Dock4 (tabbed) - Plot", size=(200,200))
-        self.d5 = Dock("Dock5 ", size=(200,200))
+        self.d5 = Dock("Dock5 ", size=(50,50))
         self.d6 = Dock("Dock6 (tabbed) - Plot", size=(900,200))
         self.d7 = Dock("Dock7 - Console", size=(200,200), closable=True)
 
@@ -179,39 +210,65 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
         self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
-        self.area.addDock(self.d5, 'bottom', self.d4)  ## place d5 at left edge of d1
+        self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
         self.area.addDock(self.d6, 'bottom')   ## place d6 at top edge of d4
         self.area.addDock(self.d7, 'bottom', self.d4)   ## place d7 at left edge of d5
 
         ## Dock 1: Image Panel
         self.nextBtn = QtGui.QPushButton('Next evt')
         self.prevBtn = QtGui.QPushButton('Prev evt')
+        self.saveBtn = QtGui.QPushButton('Save evt')
         self.wQ = pg.LayoutWidget()
         self.w1 = pg.ImageView(view=pg.PlotItem())
-        self.w1.getView().invertY(True)#False)
+        self.w1.getView().invertY(False)
         self.ring_feature = pg.ScatterPlotItem()
+        self.peak_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
         self.z_direction1 = pg.ScatterPlotItem()
-        #self.xy_feature = pg.PlotItem()
         self.w1.getView().addItem(self.ring_feature)
+        self.w1.getView().addItem(self.peak_feature)
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
-        #self.w5.getView().addItem(self.xy_feature)
-        self.wQ.addWidget(self.w1, row=0, colspan=2)
+        self.wQ.addWidget(self.w1, row=1, colspan=2)
         self.wQ.addWidget(self.prevBtn, row=2, col=0)
         self.wQ.addWidget(self.nextBtn, row=2, col=1)
+        self.wQ.addWidget(self.saveBtn, row=3, col=0)
+
+        # Custom ROI for selecting an image region
+        self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True)
+        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
+        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.w1.getView().addItem(self.roi)
+        #self.roi.setZValue(10)  # make sure ROI is drawn above image
+
+        # Callbacks for handling user interaction
+        def updateRoiHistogram():
+            if self.data is not None:
+                selected, coord = self.roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                hist,bin = np.histogram(selected.flatten())
+                self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
+        self.roi.sigRegionChanged.connect(updateRoiHistogram)
 
         def next():
             self.eventNumber += 1
-            self.calib, self.data = self.getEvt(self.eventNumber)
-            self.w1.setImage(self.data,autoLevels=None)
+            #self.evt = self.getEvt(self.eventNumber)
+            self.calib, self.data = self.getDetImage(self.eventNumber)
+            self.w1.setImage(self.data)#,autoLevels=None)
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def prev():
             self.eventNumber -= 1
-            self.calib, self.data = self.getEvt(self.eventNumber)
+            #self.evt = self.getEvt(self.eventNumber)
+            self.calib, self.data = self.getDetImage(self.eventNumber)
             self.w1.setImage(self.data)
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+
+        def save():
+            outputName = "psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
+                         +str(self.eventNumber)+"_"+str(self.eventSeconds)+"_"+str(self.eventNanoseconds)+"_" \
+                         +str(self.eventFiducial)+".npy"
+            print "Saving detector image as numpy ndarray: ", outputName
+            np.save(outputName,self.calib)
 
           ##### Polar #####
             #plot = pg.plot()
@@ -238,11 +295,14 @@ class MainFrame(QtGui.QWidget):
         #f.close()
 
         # Reading from events
-        data = np.random.normal(size=(100, 200, 200))
+        #data = np.random.normal(size=(100, 200, 200))
 
+        data = np.zeros((10,500,500))
         self.w1.setImage(data, xvals=np.linspace(1., data.shape[0], data.shape[0]))
+
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
+        self.saveBtn.clicked.connect(save)
         self.d1.addWidget(self.wQ)
 
         ## Dock 2: parameter
@@ -257,15 +317,14 @@ class MainFrame(QtGui.QWidget):
         self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
 
-        ## Hide title bar on dock 4
-        self.d4.hideTitleBar()
+        ## Dock 4
         self.w4 = pg.PlotWidget(title="Plot inside dock with no title bar")
         self.w4.plot(np.random.normal(size=100))
         self.d4.addWidget(self.w4)
 
-        ## Dock 5
-        self.w5 = pg.PlotWidget(title="Dock 5 plot")
-        self.w5.plot(np.random.normal(size=100))
+        ## Dock 5 - intensity display
+        self.d5.hideTitleBar()
+        self.w5 = pg.GraphicsView(background=pg.mkColor(sandstone100_rgb))
         self.d5.addWidget(self.w5)
 
         ## Dock 6
@@ -304,24 +363,22 @@ class MainFrame(QtGui.QWidget):
         self.d7.addWidget(self.w7)
 
         # Setup input parameters
-        if len(sys.argv) == 5:
-            self.experimentName = str(sys.argv[1])
-            self.hasExperientName = True
+        if self.experimentName is not "":
+            self.hasExperimentName = True
             self.p.param(exp_grp,exp_name_str).setValue(self.experimentName)
-
-            self.runNumber = int(sys.argv[2])
+            self.updateEventName(self.experimentName)
+        if self.runNumber is not 0:
             self.hasRunNumber = True
             self.p.param(exp_grp,exp_run_str).setValue(self.runNumber)
-
-            self.eventNumber = int(sys.argv[3])
-            self.hasEventNumber = True
-            self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
-
-            self.detInfo = str(sys.argv[4])
+            self.updateRunNumber(self.runNumber)
+        if self.detInfo is not "":
             self.hasDetInfo = True
             self.p.param(exp_grp,exp_detInfo_str).setValue(self.detInfo)
+            self.updateDetInfo(self.detInfo)
+        self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+        self.updateEventNumber(self.eventNumber)
 
-        self.drawLabCoordinates()
+        self.drawLabCoordinates() # FIXME: This does not match the lab coordinates yet!
 
         # Try mouse over crosshair
         self.xhair = self.w1.getView()
@@ -330,8 +387,8 @@ class MainFrame(QtGui.QWidget):
         self.xhair.addItem(self.vLine, ignoreBounds=True)
         self.xhair.addItem(self.hLine, ignoreBounds=True)
         self.vb = self.xhair.vb
-        self.label = pg.LabelItem(justify='right')
-        self.xhair.addItem(self.label)
+        self.label = pg.LabelItem()
+        self.w5.addItem(self.label)
 
         def mouseMoved(evt):
             pos = evt[0]  ## using signal proxy turns original arguments into a tuple
@@ -339,17 +396,16 @@ class MainFrame(QtGui.QWidget):
                 mousePoint = self.vb.mapSceneToView(pos)
                 indexX = int(mousePoint.x())
                 indexY = int(mousePoint.y())
-                #if index > 0:# and index < len(data1):
                 
             # update crosshair position
             self.vLine.setPos(mousePoint.x())
             self.hLine.setPos(mousePoint.y())
             # get pixel value, if data exists
             if self.data is not None:
-                # FIXME: Assume data is 2D for now
                 if indexX >= 0 and indexX < self.data.shape[0] \
                    and indexY >= 0 and indexY < self.data.shape[1]:
-                    self.label.setText("<span style='font-size: 36pt'>x=%0.1f y=%0.1f I=%0.1f </span>" % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
+                    textInfo = "<span style='color: " + cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
+                    self.label.setText(textInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
 
         self.proxy = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
 
@@ -386,10 +442,6 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.z_text)
         self.z_text.setPos(-headLen, 0)
 
-        # Draw xy axis at (0,0)
-        #self.w1.getView().addLine(x=0, pen='w')
-        #self.w1.getView().addLine(y=0, pen='w')
-
         # Label xy axes
         self.x_axis = self.w1.getView().getAxis('bottom')
         self.x_axis.setLabel('X-axis (pixels)')
@@ -412,63 +464,57 @@ class MainFrame(QtGui.QWidget):
         # 15: noise
         # 16: signal over noise
 
-        winds = None
-        mask = None
-        alg = PyAlgos(windows=winds, mask=mask, pbits=0)
+        # Only initialize the hit finder algorithm once
+        if self.algInitDone is False:
+            winds = None
+            mask = None
+            self.alg = PyAlgos(windows=winds, mask=mask, pbits=0)
 
-        print "params: ", self.hitParam_alg1_thr_low, self.hitParam_alg2_thr
-        # set peak-selector parameters: #FIXME: is this unique to algorithm 1?
-        alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
-                                    amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
-                                    son_min=self.hitParam_alg1_son_min)
+            # set peak-selector parameters:
+            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
+                                        amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
+                                        son_min=self.hitParam_alg_son_min)
+            self.algInitDone = True
 
         if self.algorithm == 1:
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
             #                           around pixel with maximal intensity.
-            self.peaks = alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
+            self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                        radius=int(self.hitParam_alg1_radius), dr=self.hitParam_alg1_dr)
         elif self.algorithm == 2:
             # v2 - define peaks for regions of connected pixels above threshold
-            self.peaks = alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
+            self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
 
-        print "num peaks found: ", self.peaks.shape[0]
-        sys.stdout.flush()
+        self.numPeaksFound = self.peaks.shape[0]
+        print "peaks: ", self.peaks
+        print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+        #sys.stdout.flush()
         self.drawPeaks()
 
     def drawPeaks(self):
-        if self.peaks is not None:
-            # Pixel image indexes
-            iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64) #- xoffset
-            iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64) #- yoffset
+        if self.peaks is not None and self.numPeaksFound > 0:
+            iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
+            iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
             cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
             cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
             diameter = 5
-            self.ring_feature.setData(cenX, cenY, symbol='o', \
+            self.peak_feature.setData(cenX, cenY, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
-            self.resolutionText = []
-            for i,val in enumerate(dMin):
-                self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
-                self.w1.getView().addItem(self.resolutionText[i])
-                self.resolutionText[i].setPos(resolutionRingList[i]+detCenX, detCenY)
-        else:
-            cen = [0,]
-            self.ring_feature.setData(cen, cen, size=0)
-            for i,val in enumerate(dMin):
-                self.w1.getView().removeItem(self.resolutionText[i])
-        print "Done updateRings"
+        print "Done updatePeaks"
 
     def updateImage(self):
-        self.calib, self.data = self.getEvt(self.eventNumber)
-        if self.logscaleOn:
-            self.w1.setImage(np.log10(abs(self.data)+eps))
-        else:
-            self.w1.setImage(self.data)
+        if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
+            self.calib, self.data = self.getDetImage(self.eventNumber)
+            if self.logscaleOn:
+                self.w1.setImage(np.log10(abs(self.data)+eps))
+            else:
+                self.w1.setImage(self.data)
         print "Done updateImage"
 
     def updateRings(self):
         if self.resolutionRingsOn:
-            detCenX = detCenY = 512 # TODO: find centre of detector
+            detCenX = detCenY = 512 # FIXME: find centre of detector
             cen = np.ones_like(resolutionRingList)*detCenX
             diameter = 2*resolutionRingList
             self.ring_feature.setData(cen, cen, symbol='o', \
@@ -480,7 +526,6 @@ class MainFrame(QtGui.QWidget):
                 self.w1.getView().addItem(self.resolutionText[i])
                 self.resolutionText[i].setPos(resolutionRingList[i]+detCenX, detCenY)
         else:
-            print "let's remove resolutionText"
             cen = [0,]
             self.ring_feature.setData(cen, cen, size=0)
             for i,val in enumerate(dMin):
@@ -488,17 +533,47 @@ class MainFrame(QtGui.QWidget):
         print "Done updateRings"
 
     def getEvt(self,evtNumber):
+        print "getEvt: ", evtNumber
+        if self.hasRunNumber: #self.run is not None:
+            evt = self.run.event(self.times[evtNumber])
+            print "evt: ", evt
+            return evt
+        else:
+            return None
+
+    def getDetImage(self,evtNumber):
         if self.run is not None:
-            self.evt = self.run.event(self.times[evtNumber])
-            calib = self.det.calib(self.evt)
-            #self.det.common_mode_apply(self.evt, self.calib)
-        if calib is not None: 
-            data = self.det.image(self.evt,calib)
+            print "getDetImage: ", evtNumber
+            self.evt = self.getEvt(evtNumber)
+            calib = self.det.calib(self.evt, cmpars=(5,50))
+            calib *= self.det.gain(self.evt)
+        if calib is not None:
+
+            #raw = self.det.raw(self.evt)
+            #ped = self.det.pedestals(self.evt)
+
+            #calib = raw - ped
+
+            data = self.det.image(self.evt, calib)
+
+            # TODO: TEMPORARY
+            #raw = self.det.raw(self.evt)
+            #print "raw: ", raw.shape
+            #data = self.det.image(self.evt, raw)
+
             return calib, data
         else:
             return None
-    
-    ## If anything changes in the parameter tree, print a message
+
+    def getEventID(self,evt):
+        if evt is not None:
+            evtid = evt.get(psana.EventId)
+            seconds = evtid.time()[0]
+            nanoseconds = evtid.time()[1]
+            fiducials = evtid.fiducials()
+            return seconds, nanoseconds, fiducials
+
+    # If anything changes in the parameter tree, print a message
     def change(self, param, changes):
         for param, change, data in changes:
             path = self.p.childPath(param)
@@ -522,12 +597,20 @@ class MainFrame(QtGui.QWidget):
         if path[0] == exp_grp:
             if path[1] == exp_name_str:
                 self.updateEventName(data)
+                if self.classify:
+                    self.updateClassification()
             elif path[1] == exp_run_str:
                 self.updateRunNumber(data)
-            elif path[1] == exp_evt_str:
-                self.updateEventNumber(data)
+                if self.classify:
+                    self.updateClassification()
             elif path[1] == exp_detInfo_str:
                 self.updateDetInfo(data)
+                if self.classify:
+                    self.updateClassification()
+            elif path[1] == exp_evt_str and len(path) == 2:
+                self.updateEventNumber(data)
+                if self.classify:
+                    self.updateClassification()
         if path[0] == disp_grp:
             if path[1] == disp_log_str:
                 self.updateLogscale(data)
@@ -538,24 +621,29 @@ class MainFrame(QtGui.QWidget):
                 self.updateAlgorithm(data)
             elif path[1] == hitParam_classify_str:
                 self.updateClassify(data)
-            elif path[2] == hitParam_alg1_npix_min_str:
-                self.hitParam_alg1_npix_min = data
+            elif path[2] == hitParam_alg_npix_min_str:
+                self.hitParam_alg_npix_min = data
+                self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_npix_max_str:
-                self.hitParam_alg1_npix_max = data
+            elif path[2] == hitParam_alg_npix_max_str:
+                self.hitParam_alg_npix_max = data
+                self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_amax_thr_str:
-                self.hitParam_alg1_amax_thr = data
+            elif path[2] == hitParam_alg_amax_thr_str:
+                self.hitParam_alg_amax_thr = data
+                self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_atot_thr_str:
-                self.hitParam_alg1_atot_thr = data
+            elif path[2] == hitParam_alg_atot_thr_str:
+                self.hitParam_alg_atot_thr = data
+                self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_son_min_str:
-                self.hitParam_alg1_son_min = data
+            elif path[2] == hitParam_alg_son_min_str:
+                self.hitParam_alg_son_min = data
+                self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
             elif path[2] == hitParam_alg1_thr_low_str:
@@ -594,56 +682,65 @@ class MainFrame(QtGui.QWidget):
             elif path[1] == geom_pixelSize_str:
                 self.updatePixelSize(data)
 
+    ###################################
     ###### Experiment Parameters ######
+    ###################################
 
     def updateEventName(self, data):
         self.experimentName = data
         self.hasExperimentName = True
         self.setupExperiment()
-        if self.hasExperimentInfo():
-            self.updateImage()
-        print "Done updateEventName:", self.experimentName
+        self.updateImage()
+        print "Done updateExperimentName:", self.experimentName
 
     def updateRunNumber(self, data):
         self.runNumber = data
         self.hasRunNumber = True
         self.setupExperiment()
-        if self.hasExperimentInfo():
-            self.updateImage()
+        self.updateImage()
         print "Done updateRunNumber: ", self.runNumber
-
-    def updateEventNumber(self, data):
-        self.eventNumber = data
-        self.hasEventNumber = True
-        if self.hasExperimentInfo():
-            self.updateImage()
-        print "Done updateEventNumber: ", self.eventNumber
 
     def updateDetInfo(self, data):
         self.detInfo = data
         self.hasDetInfo = True
         self.setupExperiment()
-        if self.hasExperimentInfo():
-            self.updateImage()
+        self.updateImage()
         print "Done updateDetInfo: ", self.detInfo
 
+    def updateEventNumber(self, data):
+        self.eventNumber = data
+        # update timestamps and fiducial
+        self.evt = self.getEvt(self.eventNumber)
+        if self.evt is not None:
+            sec, nanosec, fid = self.getEventID(self.evt)
+            self.eventSeconds = str(sec)
+            self.eventNanoseconds = str(nanosec)
+            self.eventFiducial = str(fid)
+            self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+            self.updateImage()
+        print "Done updateEventNumber: ", self.eventNumber
+
     def hasExperimentInfo(self):
-        if self.hasExperimentName and self.hasRunNumber \
-           and self.hasEventNumber and self.hasDetInfo:
+        if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
+            print "hasExperimentInfo: True"
             return True
         else:
+            print "hasExperimentInfo: False"
             return False
 
     def setupExperiment(self):
         if self.hasExperimentInfo():
-            self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') #('exp=amo86615:run=190:idx')
-            self.src = psana.Source('DetInfo('+str(self.detInfo)+')') #('DetInfo(Camp.0:pnCCD.1)')
+            if args.localCalib:
+                print "Using local calib directory"
+                psana.setOption('psana.calib-dir','./calib')
+            self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx')
+            self.src = psana.Source('DetInfo('+str(self.detInfo)+')')
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.totalEvents = len(self.times)
             self.env = self.ds.env()
             self.det = PyDetector(self.src, self.env, pbits=0)
-            print "Done setupExperiment"     
+            print "Done setupExperiment"
 
     def updateLogscale(self, data):
         self.logscaleOn = data
@@ -657,7 +754,15 @@ class MainFrame(QtGui.QWidget):
             self.updateRings()
         print "Done updateResolutionRings: ", self.resolutionRingsOn
 
+    def updateEventID(self, sec, nanosec, fid):
+        print "sec: ", sec, nanosec, fid
+        self.p.param(exp_grp,exp_evt_str,exp_second_str).setValue(self.eventSeconds)
+        self.p.param(exp_grp,exp_evt_str,exp_nanosecond_str).setValue(self.eventNanoseconds)
+        self.p.param(exp_grp,exp_evt_str,exp_fiducial_str).setValue(self.eventFiducial)
+
+    ########################
     ###### Hit finder ######
+    ########################
 
     def updateAlgorithm(self, data):
         self.algorithm = data
@@ -671,7 +776,9 @@ class MainFrame(QtGui.QWidget):
             self.updateClassification()
         print "Done updateClassify: ", self.classify
 
+    ##################################
     ###### Diffraction Geometry ######
+    ##################################
 
     def updateDetectorDistance(self, data):
         self.detectorDistance = data
