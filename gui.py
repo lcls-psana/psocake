@@ -53,6 +53,12 @@ exp_detInfo_str = 'Detector ID'
 disp_grp = 'Display'
 disp_log_str = 'Logscale'
 disp_resolutionRings_str = 'Resolution rings'
+disp_commonMode_str = 'Common mode (override)'
+disp_overrideCommonMode_str = 'Apply common mode (override)'
+disp_commonModeParam0_str = 'parameters 0'
+disp_commonModeParam1_str = 'parameters 1'
+disp_commonModeParam2_str = 'parameters 2'
+disp_commonModeParam3_str = 'parameters 3'
 
 hitParam_grp = 'Hit finder'
 hitParam_classify_str = 'Classify'
@@ -113,6 +119,9 @@ class MainFrame(QtGui.QWidget):
         # Init display parameters
         self.logscaleOn = True
         self.resolutionRingsOn = False
+        self.hasCommonMode = False
+        self.applyCommonMode = False
+        self.commonModeParams = np.array([0,0,0,0])
         # Init diffraction geometry parameters
         self.detectorDistance = None
         self.photonEnergy = None
@@ -151,6 +160,13 @@ class MainFrame(QtGui.QWidget):
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
                 {'name': disp_resolutionRings_str, 'type': 'bool', 'value': self.resolutionRingsOn, 'tip': "Display resolution rings"},
+                {'name': disp_commonMode_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode, 'tip': "Apply common mode (override)"},
+                    {'name': disp_commonModeParam0_str, 'type': 'int', 'value': self.commonModeParams[0]},
+                    {'name': disp_commonModeParam1_str, 'type': 'int', 'value': self.commonModeParams[1]},
+                    {'name': disp_commonModeParam2_str, 'type': 'int', 'value': self.commonModeParams[2]},
+                    {'name': disp_commonModeParam3_str, 'type': 'int', 'value': self.commonModeParams[3]},
+                ]},
             ]},
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
@@ -543,11 +559,19 @@ class MainFrame(QtGui.QWidget):
 
     def getDetImage(self,evtNumber):
         if self.run is not None:
-            print "getDetImage: ", evtNumber
             self.evt = self.getEvt(evtNumber)
-            calib = self.det.calib(self.evt, cmpars=(5,50))
-            calib *= self.det.gain(self.evt)
+            if self.applyCommonMode:
+                if self.commonMode[0] == 5: # Algorithm 5
+                    calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1]))
+                else: # Algorithms 1 to 4
+                    print "Applying common mode: ", self.commonMode
+                    calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
+            else:
+                calib = self.det.calib(self.evt)
+
         if calib is not None:
+
+            calib *= self.det.gain(self.evt)
 
             #raw = self.det.raw(self.evt)
             #ped = self.det.pedestals(self.evt)
@@ -556,7 +580,6 @@ class MainFrame(QtGui.QWidget):
 
             data = self.det.image(self.evt, calib)
 
-            # TODO: TEMPORARY
             #raw = self.det.raw(self.evt)
             #print "raw: ", raw.shape
             #data = self.det.image(self.evt, raw)
@@ -616,6 +639,16 @@ class MainFrame(QtGui.QWidget):
                 self.updateLogscale(data)
             elif path[1] == disp_resolutionRings_str:
                 self.updateResolutionRings(data)
+            elif path[2] == disp_commonModeParam0_str:
+                self.updateCommonModeParam(data, 0)
+            elif path[2] == disp_commonModeParam1_str:
+                self.updateCommonModeParam(data, 1)
+            elif path[2] == disp_commonModeParam2_str:
+                self.updateCommonModeParam(data, 2)
+            elif path[2] == disp_commonModeParam3_str:
+                self.updateCommonModeParam(data, 3)
+            elif path[2] == disp_overrideCommonMode_str:
+                self.updateCommonMode(data)
         if path[0] == hitParam_grp:
             if path[1] == hitParam_algorithm_str:
                 self.updateAlgorithm(data)
@@ -753,6 +786,36 @@ class MainFrame(QtGui.QWidget):
         if self.hasExperimentInfo():
             self.updateRings()
         print "Done updateResolutionRings: ", self.resolutionRingsOn
+
+    def updateCommonModeParam(self, data, ind):
+        self.commonModeParams[ind] = data
+        self.updateCommonMode(self.applyCommonMode)
+        print "Done updateCommonModeParam: ", self.commonModeParams
+
+    def updateCommonMode(self, data):
+        self.applyCommonMode = data
+        print "applyCommonMode: ", self.applyCommonMode
+        if self.applyCommonMode:
+            self.commonMode = self.checkCommonMode(self.commonModeParams)
+            if self.hasExperimentInfo():
+                print "updateCommonMode calling updateImage!!!!!!"
+                self.updateImage()
+            print "Done updateCommonMode: ", self.commonMode
+
+    def checkCommonMode(self, _commonMode):
+        _alg = int(_commonMode[0])
+        if _alg >= 1 and _alg <= 4:
+            _param1 = int(_commonMode[1])
+            _param2 = int(_commonMode[2])
+            _param3 = int(_commonMode[3])
+            return (_alg,_param1,_param2,_param3)
+        elif _alg == 5 and _numParams == 2:
+            _param1 = int(_commonMode[1])
+            return (_alg,_param1)
+        else:
+            print "Undefined common mode algorithm"
+            return None
+
 
     def updateEventID(self, sec, nanosec, fid):
         print "sec: ", sec, nanosec, fid
