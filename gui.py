@@ -564,14 +564,16 @@ class MainFrame(QtGui.QWidget):
                 if self.commonMode[0] == 5: # Algorithm 5
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1]))
                 else: # Algorithms 1 to 4
-                    print "Applying common mode: ", self.commonMode
+                    print "### Applying common mode: ", self.commonMode
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
             else:
+                print "### NOT applying common mode"
                 calib = self.det.calib(self.evt)
 
         if calib is not None:
 
             calib *= self.det.gain(self.evt)
+            print "calib: ", calib[0:3,0:3]
 
             #raw = self.det.raw(self.evt)
             #ped = self.det.pedestals(self.evt)
@@ -794,13 +796,12 @@ class MainFrame(QtGui.QWidget):
 
     def updateCommonMode(self, data):
         self.applyCommonMode = data
-        print "applyCommonMode: ", self.applyCommonMode
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
-            if self.hasExperimentInfo():
-                print "updateCommonMode calling updateImage!!!!!!"
-                self.updateImage()
-            print "Done updateCommonMode: ", self.commonMode
+        if self.hasExperimentInfo():
+            self.setupExperiment()
+            self.updateImage()
+        print "Done updateCommonMode: ", self.commonMode
 
     def checkCommonMode(self, _commonMode):
         _alg = int(_commonMode[0])
