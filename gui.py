@@ -261,7 +261,7 @@ class MainFrame(QtGui.QWidget):
         def updateRoiHistogram():
             if self.data is not None:
                 selected, coord = self.roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
-                hist,bin = np.histogram(selected.flatten())
+                hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
         self.roi.sigRegionChanged.connect(updateRoiHistogram)
 
@@ -552,7 +552,6 @@ class MainFrame(QtGui.QWidget):
         print "getEvt: ", evtNumber
         if self.hasRunNumber: #self.run is not None:
             evt = self.run.event(self.times[evtNumber])
-            print "evt: ", evt
             return evt
         else:
             return None
@@ -573,7 +572,6 @@ class MainFrame(QtGui.QWidget):
         if calib is not None:
 
             calib *= self.det.gain(self.evt)
-            print "calib: ", calib[0:3,0:3]
 
             #raw = self.det.raw(self.evt)
             #ped = self.det.pedestals(self.evt)
@@ -618,7 +616,7 @@ class MainFrame(QtGui.QWidget):
             self.update(path,data)
 
     def update(self, path, data):
-        print "path: ", path[0], path[1]
+        print "path: ", path
         if path[0] == exp_grp:
             if path[1] == exp_name_str:
                 self.updateEventName(data)
@@ -819,7 +817,7 @@ class MainFrame(QtGui.QWidget):
 
 
     def updateEventID(self, sec, nanosec, fid):
-        print "sec: ", sec, nanosec, fid
+        print "eventID: ", sec, nanosec, fid
         self.p.param(exp_grp,exp_evt_str,exp_second_str).setValue(self.eventSeconds)
         self.p.param(exp_grp,exp_evt_str,exp_nanosecond_str).setValue(self.eventNanoseconds)
         self.p.param(exp_grp,exp_evt_str,exp_fiducial_str).setValue(self.eventFiducial)
