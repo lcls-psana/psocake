@@ -288,7 +288,7 @@ class MainFrame(QtGui.QWidget):
                 self.eventNumber = self.eventTotal-1
             else:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data)
+                self.w1.setImage(self.data-20)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def prev():
