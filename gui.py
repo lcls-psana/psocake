@@ -288,7 +288,7 @@ class MainFrame(QtGui.QWidget):
                 self.eventNumber = self.eventTotal-1
             else:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data-20)
+                self.w1.setImage(self.data)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def prev():
@@ -306,33 +306,6 @@ class MainFrame(QtGui.QWidget):
                          +str(self.eventFiducial)+".npy"
             print "Saving detector image as numpy ndarray: ", outputName
             np.save(outputName,self.calib)
-
-          ##### Polar #####
-            #plot = pg.plot()
-            #plot.setAspectLocked()
-            ## Add polar grid lines
-            #plot.addLine(x=10, pen='r') # y-line
-            #plot.addLine(y=0, pen='r') # x-line
-            #for r in range(2, 20, 2):
-            #    circle = pg.QtGui.QGraphicsEllipseItem(-r, -r, r*2, r*2)
-            #    circle.setPen(pg.mkPen('y', width=0.5, style=QtCore.Qt.DashLine))
-            #    plot.addItem(circle)
-            # make polar data
-            #theta = np.linspace(0, 2*np.pi, 100)
-            #radius = np.random.normal(loc=10, size=100)
-            # Transform to cartesian and plot
-            #x = radius * np.cos(theta)
-            #y = radius * np.sin(theta)
-            #plot.plot(x, y)
-            #self.wQ.addWidget(plot, row=0, colspan=2)
-
-        # Reading from HDF5
-        #f = h5py.File('/reg/d/psdm/amo/amo86615/scratch/yoon82/amo86615_89_139_class_v1.h5','r')
-        #data = np.array(f['/hitClass/adu'])
-        #f.close()
-
-        # Reading from events
-        #data = np.random.normal(size=(100, 200, 200))
 
         data = np.zeros((10,500,500))
         self.w1.setImage(data, xvals=np.linspace(1., data.shape[0], data.shape[0]))
