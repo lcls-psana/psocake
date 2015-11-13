@@ -1,7 +1,12 @@
-# TODO: Zoom in area
+# GUI for browsing LCLS area detectors. Tune hit finding parameters and common mode correction.
+
+# TODO: Zoom in area / numbers
 # TODO: Multiple subplots
-# TODO: Display timestamp and fiducials
 # TODO: powder pattern generator
+# TODO: 20 ADU display
+# TODO: jump to last event for out of index value
+# TODO: display number of events
+# TODO: dropdown menu for available detectors
 
 import sys, signal
 import pyqtgraph as pg
@@ -13,7 +18,6 @@ import pyqtgraph.parametertree.parameterTypes as pTypes
 from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
 import psana
 import h5py
-from Detector.PyDetector import PyDetector
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import matplotlib.pyplot as plt
 from optics import *
@@ -24,7 +28,7 @@ import sys
 import logging
 import multiprocessing as mp
 from psmon import app, config, log_level_parse
-
+from IPython import embed
 
 
 parser = argparse.ArgumentParser()
@@ -38,7 +42,6 @@ args = parser.parse_args()
 # Set up tolerance
 eps = np.finfo("float64").eps
 resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
-dMin = np.zeros_like(resolutionRingList)
 
 # Set up list of parameters
 exp_grp = 'Experiment information'
@@ -53,6 +56,7 @@ exp_detInfo_str = 'Detector ID'
 disp_grp = 'Display'
 disp_log_str = 'Logscale'
 disp_resolutionRings_str = 'Resolution rings'
+disp_resolution_str = 'Resolution (m)'
 disp_commonMode_str = 'Common mode (override)'
 disp_overrideCommonMode_str = 'Apply common mode (override)'
 disp_commonModeParam0_str = 'parameters 0'
@@ -119,6 +123,8 @@ class MainFrame(QtGui.QWidget):
         # Init display parameters
         self.logscaleOn = True
         self.resolutionRingsOn = False
+        self.resolution = None
+        self.hasUserDefinedResolution = False
         self.hasCommonMode = False
         self.applyCommonMode = False
         self.commonModeParams = np.array([0,0,0,0])
@@ -127,8 +133,11 @@ class MainFrame(QtGui.QWidget):
         self.photonEnergy = None
         self.wavelength = None
         self.pixelSize = None
+        self.resolutionText = []
         # Init variables
         self.data = None # assembled detector image
+        self.cx = None
+        self.cy = None
         self.calib = None # ndarray detector image
         # Init hit finding parameters
         self.algInitDone = False
@@ -159,7 +168,9 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': disp_resolutionRings_str, 'type': 'bool', 'value': self.resolutionRingsOn, 'tip': "Display resolution rings"},
+                {'name': disp_resolutionRings_str, 'type': 'bool', 'value': self.resolutionRingsOn, 'tip': "Display resolution rings", 'children': [
+                    {'name': disp_resolution_str, 'type': 'str', 'value': self.resolution},
+                ]},
                 {'name': disp_commonMode_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode, 'tip': "Apply common mode (override)"},
                     {'name': disp_commonModeParam0_str, 'type': 'int', 'value': self.commonModeParams[0]},
@@ -426,6 +437,7 @@ class MainFrame(QtGui.QWidget):
         self.proxy = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
 
         self.win.show()
+        embed()
 
     def drawLabCoordinates(self):
         # Draw xy arrows
@@ -530,23 +542,31 @@ class MainFrame(QtGui.QWidget):
 
     def updateRings(self):
         if self.resolutionRingsOn:
-            detCenX = detCenY = 512 # FIXME: find centre of detector
-            cen = np.ones_like(resolutionRingList)*detCenX
-            diameter = 2*resolutionRingList
-            self.ring_feature.setData(cen, cen, symbol='o', \
+            self.clearRings()
+            cenx = np.ones_like(self.myResolutionRingList)*self.cx
+            ceny = np.ones_like(self.myResolutionRingList)*self.cy
+            diameter = 2*self.myResolutionRingList
+            print "self.myResolutionRingList, diameter: ", self.myResolutionRingList, diameter
+            self.ring_feature.setData(cenx, ceny, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
-            self.resolutionText = []
-            for i,val in enumerate(dMin):
+            for i,val in enumerate(self.dMin):
                 self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
                 self.w1.getView().addItem(self.resolutionText[i])
-                self.resolutionText[i].setPos(resolutionRingList[i]+detCenX, detCenY)
+                self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.cx, self.cy)
+
         else:
+            self.clearRings()
+        print "Done updateRings"
+
+    def clearRings(self):
+        if self.resolutionText:
+            print "going to clear rings: ", self.resolutionText, len(self.resolutionText)
             cen = [0,]
             self.ring_feature.setData(cen, cen, size=0)
-            for i,val in enumerate(dMin):
+            for i,val in enumerate(self.resolutionText):
                 self.w1.getView().removeItem(self.resolutionText[i])
-        print "Done updateRings"
+            self.resolutionText = []
 
     def getEvt(self,evtNumber):
         print "getEvt: ", evtNumber
@@ -570,23 +590,20 @@ class MainFrame(QtGui.QWidget):
                 calib = self.det.calib(self.evt)
 
         if calib is not None:
-
             calib *= self.det.gain(self.evt)
-
-            #raw = self.det.raw(self.evt)
-            #ped = self.det.pedestals(self.evt)
-
-            #calib = raw - ped
-
             data = self.det.image(self.evt, calib)
 
-            #raw = self.det.raw(self.evt)
-            #print "raw: ", raw.shape
-            #data = self.det.image(self.evt, raw)
+            self.cx, self.cy = self.getCentre(data.shape)
+            print "cx,cy: ", self.cx, self.cy
 
             return calib, data
         else:
             return None
+
+    def getCentre(self, dim):
+        cx = dim[0]/2
+        cy = dim[1]/2
+        return cx,cy
 
     def getEventID(self,evt):
         if evt is not None:
@@ -637,8 +654,10 @@ class MainFrame(QtGui.QWidget):
         if path[0] == disp_grp:
             if path[1] == disp_log_str:
                 self.updateLogscale(data)
-            elif path[1] == disp_resolutionRings_str:
+            elif path[1] == disp_resolutionRings_str and len(path) == 2:
                 self.updateResolutionRings(data)
+            elif path[2] == disp_resolution_str:
+                self.updateResolution(data)
             elif path[2] == disp_commonModeParam0_str:
                 self.updateCommonModeParam(data, 0)
             elif path[2] == disp_commonModeParam1_str:
@@ -767,12 +786,17 @@ class MainFrame(QtGui.QWidget):
                 print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
             self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx')
-            self.src = psana.Source('DetInfo('+str(self.detInfo)+')')
+            #self.src = psana.Source('DetInfo('+str(self.detInfo)+')')
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.totalEvents = len(self.times)
             self.env = self.ds.env()
-            self.det = PyDetector(self.src, self.env, pbits=0)
+            self.det = psana.Detector(str(self.detInfo), self.env) #PyDetector(self.src, self.env, pbits=0)
+            # Get epics variable, clen
+            if "cxi" in self.experimentName:
+                self.epics = self.ds.env().epicsStore()
+                self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
+                print "clen: ", self.clen
             print "Done setupExperiment"
 
     def updateLogscale(self, data):
@@ -786,6 +810,24 @@ class MainFrame(QtGui.QWidget):
         if self.hasExperimentInfo():
             self.updateRings()
         print "Done updateResolutionRings: ", self.resolutionRingsOn
+
+    def updateResolution(self, data):
+        # convert to array of floats
+        _resolution = data.split(',')
+        self.resolution = np.zeros((len(_resolution,)))
+        for i in range(len(_resolution)):
+            self.resolution[i] = float(_resolution[i])
+
+        if len(_resolution) > 0:
+            self.hasUserDefinedResolution = True
+        else:
+            self.hasUserDefinedResolution = False
+
+        if self.hasGeometryInfo():
+            self.updateGeometry()
+        if self.hasExperimentInfo():
+            self.updateRings()
+        print "Done updateResolution: ", self.resolution, self.hasUserDefinedResolution
 
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
@@ -873,11 +915,18 @@ class MainFrame(QtGui.QWidget):
             return False
 
     def updateGeometry(self):
-        for i, pix in enumerate(resolutionRingList):
+        if self.hasUserDefinedResolution:
+            self.myResolutionRingList = self.resolution
+        else:
+            self.myResolutionRingList = resolutionRingList
+        self.dMin = np.zeros_like(self.myResolutionRingList)
+        for i, pix in enumerate(self.myResolutionRingList):
             thetaMax = np.arctan(pix*self.pixelSize/self.detectorDistance)
             qMax = 2/self.wavelength*np.sin(thetaMax/2)
-            dMin[i] = 1/(2*qMax)
-            print i, thetaMax, qMax, dMin[i]
+            self.dMin[i] = 1/(2*qMax)
+            print "updateGeometry: ", i, thetaMax, qMax, self.dMin[i]
+            if self.resolutionRingsOn:
+                self.updateRings()
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
