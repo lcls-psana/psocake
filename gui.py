@@ -4,8 +4,6 @@
 # TODO: Multiple subplots
 # TODO: powder pattern generator
 # TODO: 20 ADU display
-# TODO: jump to last event for out of index value
-# TODO: display number of events
 # TODO: dropdown menu for available detectors
 
 import sys, signal
@@ -23,6 +21,7 @@ import matplotlib.pyplot as plt
 from optics import *
 from pyqtgraph import Point
 import argparse
+import Detector.PyDetector
 
 import sys
 import logging
@@ -47,10 +46,12 @@ resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
 exp_grp = 'Experiment information'
 exp_name_str = 'Experiment Name'
 exp_run_str = 'Run Number'
+exp_det_str = 'DetInfo'
 exp_evt_str = 'Event Number'
 exp_second_str = 'Seconds'
 exp_nanosecond_str = 'Nanoseconds'
 exp_fiducial_str = 'Fiducial'
+exp_numEvents_str = 'Total Events'
 exp_detInfo_str = 'Detector ID'
 
 disp_grp = 'Display'
@@ -112,11 +113,14 @@ class MainFrame(QtGui.QWidget):
         # Init experiment parameters
         self.experimentName = args.exp
         self.runNumber = int(args.run)
+        #self.detInfoList = [1,2,3,4]
         self.detInfo = args.det
         self.eventNumber = int(args.evt)
+        print "$$$ num: ", self.eventNumber
         self.eventSeconds = ""
         self.eventNanoseconds = ""
         self.eventFiducial = ""
+        self.eventTotal = 0
         self.hasExperimentName = False
         self.hasRunNumber = False
         self.hasDetInfo = False
@@ -159,11 +163,13 @@ class MainFrame(QtGui.QWidget):
             {'name': exp_grp, 'type': 'group', 'children': [
                 {'name': exp_name_str, 'type': 'str', 'value': self.experimentName},
                 {'name': exp_run_str, 'type': 'int', 'value': self.runNumber},
+                #{'name': exp_det_str, 'type': 'list', 'values': self.detInfoList, 'value': 0},
                 {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo},
-                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'children': [
+                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'limits': (0, 0), 'children': [
                     {'name': exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
                     {'name': exp_nanosecond_str, 'type': 'str', 'value': self.eventNanoseconds, 'readonly': True},
                     {'name': exp_fiducial_str, 'type': 'str', 'value': self.eventFiducial, 'readonly': True},
+                    {'name': exp_numEvents_str, 'type': 'str', 'value': self.eventTotal, 'readonly': True},
                 ]},
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
@@ -278,17 +284,21 @@ class MainFrame(QtGui.QWidget):
 
         def next():
             self.eventNumber += 1
-            #self.evt = self.getEvt(self.eventNumber)
-            self.calib, self.data = self.getDetImage(self.eventNumber)
-            self.w1.setImage(self.data)#,autoLevels=None)
-            self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+            if self.eventNumber >= self.eventTotal:
+                self.eventNumber = self.eventTotal-1
+            else:
+                self.calib, self.data = self.getDetImage(self.eventNumber)
+                self.w1.setImage(self.data)
+                self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def prev():
             self.eventNumber -= 1
-            #self.evt = self.getEvt(self.eventNumber)
-            self.calib, self.data = self.getDetImage(self.eventNumber)
-            self.w1.setImage(self.data)
-            self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+            if self.eventNumber < 0:
+                self.eventNumber = 0
+            else:
+                self.calib, self.data = self.getDetImage(self.eventNumber)
+                self.w1.setImage(self.data)
+                self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def save():
             outputName = "psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
@@ -393,7 +403,7 @@ class MainFrame(QtGui.QWidget):
         if self.experimentName is not "":
             self.hasExperimentName = True
             self.p.param(exp_grp,exp_name_str).setValue(self.experimentName)
-            self.updateEventName(self.experimentName)
+            self.updateExpName(self.experimentName)
         if self.runNumber is not 0:
             self.hasRunNumber = True
             self.p.param(exp_grp,exp_run_str).setValue(self.runNumber)
@@ -437,7 +447,7 @@ class MainFrame(QtGui.QWidget):
         self.proxy = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
 
         self.win.show()
-        embed()
+        #embed()
 
     def drawLabCoordinates(self):
         # Draw xy arrows
@@ -583,10 +593,9 @@ class MainFrame(QtGui.QWidget):
                 if self.commonMode[0] == 5: # Algorithm 5
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1]))
                 else: # Algorithms 1 to 4
-                    print "### Applying common mode: ", self.commonMode
+                    print "### Overriding common mode: ", self.commonMode
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
             else:
-                print "### NOT applying common mode"
                 calib = self.det.calib(self.evt)
 
         if calib is not None:
@@ -621,7 +630,7 @@ class MainFrame(QtGui.QWidget):
             print('  change:    %s'% change)
             print('  data:      %s'% str(data))
             print('  ----------')
-            self.update(path,data)
+            self.update(path,change,data)
 
     def changeGeomParam(self, param, changes):
         for param, change, data in changes:
@@ -632,11 +641,11 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,data)
 
-    def update(self, path, data):
+    def update(self, path, change, data):
         print "path: ", path
         if path[0] == exp_grp:
             if path[1] == exp_name_str:
-                self.updateEventName(data)
+                self.updateExpName(data)
                 if self.classify:
                     self.updateClassification()
             elif path[1] == exp_run_str:
@@ -647,7 +656,7 @@ class MainFrame(QtGui.QWidget):
                 self.updateDetInfo(data)
                 if self.classify:
                     self.updateClassification()
-            elif path[1] == exp_evt_str and len(path) == 2:
+            elif path[1] == exp_evt_str and len(path) == 2 and change is 'value':
                 self.updateEventNumber(data)
                 if self.classify:
                     self.updateClassification()
@@ -738,17 +747,21 @@ class MainFrame(QtGui.QWidget):
     ###### Experiment Parameters ######
     ###################################
 
-    def updateEventName(self, data):
+    def updateExpName(self, data):
         self.experimentName = data
         self.hasExperimentName = True
+
         self.setupExperiment()
+
         self.updateImage()
         print "Done updateExperimentName:", self.experimentName
 
     def updateRunNumber(self, data):
         self.runNumber = data
         self.hasRunNumber = True
+
         self.setupExperiment()
+
         self.updateImage()
         print "Done updateRunNumber: ", self.runNumber
 
@@ -761,6 +774,8 @@ class MainFrame(QtGui.QWidget):
 
     def updateEventNumber(self, data):
         self.eventNumber = data
+        if self.eventNumber >= self.eventTotal:
+            self.eventNumber = self.eventTotal-1
         # update timestamps and fiducial
         self.evt = self.getEvt(self.eventNumber)
         if self.evt is not None:
@@ -769,29 +784,50 @@ class MainFrame(QtGui.QWidget):
             self.eventNanoseconds = str(nanosec)
             self.eventFiducial = str(fid)
             self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+            self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
             self.updateImage()
         print "Done updateEventNumber: ", self.eventNumber
 
-    def hasExperimentInfo(self):
-        if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            print "hasExperimentInfo: True"
+    def hasExpRunInfo(self):
+        if self.hasExperimentName and self.hasRunNumber:
+            print "hasExpRunInfo: True"
             return True
         else:
-            print "hasExperimentInfo: False"
+            print "hasExpRunInfo: False"
+            return False
+
+    def hasExpRunDetInfo(self):
+        if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
+            print "hasExpRunDetInfo: True"
+            return True
+        else:
+            print "hasExpRunDetInfo: False"
             return False
 
     def setupExperiment(self):
-        if self.hasExperimentInfo():
+        if self.hasExpRunInfo():
             if args.localCalib:
                 print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
             self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx')
-            #self.src = psana.Source('DetInfo('+str(self.detInfo)+')')
             self.run = self.ds.runs().next()
             self.times = self.run.times()
-            self.totalEvents = len(self.times)
+            self.eventTotal = len(self.times)
+            self.p.param(exp_grp,exp_evt_str).setLimits((0,self.eventTotal-1))
+            self.p.param(exp_grp,exp_evt_str,exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
-            self.det = psana.Detector(str(self.detInfo), self.env) #PyDetector(self.src, self.env, pbits=0)
+
+            evt = self.run.event(self.times[0])
+            myAreaDetectors = []
+            for k in evt.keys():
+                if Detector.PyDetector.isAreaDetector(k.src()):
+                    myAreaDetectors.append(k.alias())
+            self.detInfoList = list(set(myAreaDetectors))
+            print "# Available detectors: ", self.detInfoList
+
+        if self.hasExpRunDetInfo():
+            self.det = psana.Detector(str(self.detInfo), self.env)
+
             # Get epics variable, clen
             if "cxi" in self.experimentName:
                 self.epics = self.ds.env().epicsStore()
@@ -801,13 +837,13 @@ class MainFrame(QtGui.QWidget):
 
     def updateLogscale(self, data):
         self.logscaleOn = data
-        if self.hasExperimentInfo():
+        if self.hasExpRunDetInfo():
             self.updateImage()
         print "Done updateLogscale: ", self.logscaleOn
 
     def updateResolutionRings(self, data):
         self.resolutionRingsOn = data
-        if self.hasExperimentInfo():
+        if self.hasExpRunDetInfo():
             self.updateRings()
         print "Done updateResolutionRings: ", self.resolutionRingsOn
 
@@ -825,7 +861,7 @@ class MainFrame(QtGui.QWidget):
 
         if self.hasGeometryInfo():
             self.updateGeometry()
-        if self.hasExperimentInfo():
+        if self.hasExpRunDetInfo():
             self.updateRings()
         print "Done updateResolution: ", self.resolution, self.hasUserDefinedResolution
 
@@ -838,7 +874,7 @@ class MainFrame(QtGui.QWidget):
         self.applyCommonMode = data
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
-        if self.hasExperimentInfo():
+        if self.hasExpRunDetInfo():
             self.setupExperiment()
             self.updateImage()
         print "Done updateCommonMode: ", self.commonMode
