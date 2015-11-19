@@ -5,6 +5,7 @@
 # TODO: powder pattern generator
 # TODO: 20 ADU display
 # TODO: dropdown menu for available detectors
+# TODO: Turn it into an app
 
 import sys, signal
 import pyqtgraph as pg
@@ -18,7 +19,6 @@ import psana
 import h5py
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import matplotlib.pyplot as plt
-from optics import *
 from pyqtgraph import Point
 import argparse
 import Detector.PyDetector
@@ -26,8 +26,6 @@ import Detector.PyDetector
 import sys
 import logging
 import multiprocessing as mp
-from psmon import app, config, log_level_parse
-from IPython import embed
 
 
 parser = argparse.ArgumentParser()
@@ -116,7 +114,6 @@ class MainFrame(QtGui.QWidget):
         #self.detInfoList = [1,2,3,4]
         self.detInfo = args.det
         self.eventNumber = int(args.evt)
-        print "$$$ num: ", self.eventNumber
         self.eventSeconds = ""
         self.eventNanoseconds = ""
         self.eventFiducial = ""
@@ -235,17 +232,13 @@ class MainFrame(QtGui.QWidget):
         self.d2 = Dock("Dock2 - Parameters", size=(500,300))
         self.d3 = Dock("Dock3", size=(200,200))
         self.d4 = Dock("Dock4 (tabbed) - Plot", size=(200,200))
-        self.d5 = Dock("Dock5 ", size=(50,50))
-        self.d6 = Dock("Dock6 (tabbed) - Plot", size=(900,200))
-        self.d7 = Dock("Dock7 - Console", size=(200,200), closable=True)
+        self.d5 = Dock("Dock5 ", size=(50,50), closable=True)
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
         self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
-        self.area.addDock(self.d6, 'bottom')   ## place d6 at top edge of d4
-        self.area.addDock(self.d7, 'bottom', self.d4)   ## place d7 at left edge of d5
 
         ## Dock 1: Image Panel
         self.nextBtn = QtGui.QPushButton('Next evt')
@@ -328,7 +321,7 @@ class MainFrame(QtGui.QWidget):
         self.d3.addWidget(self.w3)
 
         ## Dock 4
-        self.w4 = pg.PlotWidget(title="Plot inside dock with no title bar")
+        self.w4 = pg.PlotWidget(title="ROI histogram")
         self.w4.plot(np.random.normal(size=100))
         self.d4.addWidget(self.w4)
 
@@ -336,41 +329,6 @@ class MainFrame(QtGui.QWidget):
         self.d5.hideTitleBar()
         self.w5 = pg.GraphicsView(background=pg.mkColor(sandstone100_rgb))
         self.d5.addWidget(self.w5)
-
-        ## Dock 6
-        self.w6 = pg.ImageView(view=pg.PlotItem())
-
-        ## Scan mirrors
-        self.scanx = 250
-        self.scany = 20
-        self.m1 = Mirror(dia=4.2, d=0.001, pos=(self.scanx, 0), angle=315)
-        self.m2 = Mirror(dia=8.4, d=0.001, pos=(self.scanx, self.scany), angle=135)
-
-        ## Scan lenses
-        self.l3 = Lens(r1=23.0, r2=0, d=5.8, pos=(self.scanx+50, self.scany), glass='Corning7980')  ## 50mm  UVFS  (LA4148)
-        self.l4 = Lens(r1=0, r2=69.0, d=3.2, pos=(self.scanx+250, self.scany), glass='Corning7980')  ## 150mm UVFS  (LA4874)
-
-        ## Objective
-        self.obj = Lens(r1=15, r2=15, d=10, dia=8, pos=(self.scanx+400, self.scany), glass='Corning7980')
-
-        self.IROptics = [self.m1, self.m2, self.l3, self.l4, self.obj]
-
-        for o in set(self.IROptics):
-            self.w6.getView().addItem(o)
-
-        self.IRRays = []
-        for dy in [-0.4, -0.15, 0, 0.15, 0.4]:
-            self.IRRays.append(Ray(start=Point(-50, dy), dir=(1, 0), wl=780))
-        for r in set(self.IRRays):
-            self.w6.getView().addItem(r)
-
-        self.IRTracer = Tracer(self.IRRays, self.IROptics)
-
-        self.d6.addWidget(self.w6, row=0, colspan=2)
-
-        ## Dock 7: console
-        self.w7 = pg.console.ConsoleWidget()
-        self.d7.addWidget(self.w7)
 
         # Setup input parameters
         if self.experimentName is not "":
@@ -824,10 +782,11 @@ class MainFrame(QtGui.QWidget):
         # convert to array of floats
         _resolution = data.split(',')
         self.resolution = np.zeros((len(_resolution,)))
-        for i in range(len(_resolution)):
-            self.resolution[i] = float(_resolution[i])
+        if data != '':
+            for i in range(len(_resolution)):
+                self.resolution[i] = float(_resolution[i])
 
-        if len(_resolution) > 0:
+        if data != '':
             self.hasUserDefinedResolution = True
         else:
             self.hasUserDefinedResolution = False
