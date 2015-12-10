@@ -3,7 +3,6 @@
 # TODO: Zoom in area / numbers
 # TODO: Multiple subplots
 # TODO: powder pattern generator
-# TODO: 20 ADU display
 # TODO: dropdown menu for available detectors
 # TODO: Turn it into an app
 
@@ -54,6 +53,7 @@ exp_detInfo_str = 'Detector ID'
 
 disp_grp = 'Display'
 disp_log_str = 'Logscale'
+disp_aduThresh_str = 'ADU threshold'
 disp_resolutionRings_str = 'Resolution rings'
 disp_resolution_str = 'Resolution (m)'
 disp_commonMode_str = 'Common mode (override)'
@@ -124,6 +124,7 @@ class MainFrame(QtGui.QWidget):
         self.hasDetInfo = False
         # Init display parameters
         self.logscaleOn = True
+        self.aduThresh = 20.
         self.resolutionRingsOn = False
         self.resolution = None
         self.hasUserDefinedResolution = False
@@ -173,6 +174,7 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
+                {'name': disp_aduThresh_str, 'type': 'float', 'value': self.aduThresh, 'tip': "Do not display ADUs below the threshold"},
                 {'name': disp_resolutionRings_str, 'type': 'bool', 'value': self.resolutionRingsOn, 'tip': "Display resolution rings", 'children': [
                     {'name': disp_resolution_str, 'type': 'str', 'value': self.resolution},
                 ]},
@@ -553,8 +555,8 @@ class MainFrame(QtGui.QWidget):
             # TEMPORARY HACK
             #calib = np.load('amo87215_0019_Camp.0:pnCCD.0.npy')
 
-            # Delete non-photon ADUs
-            calib[np.where(calib<17)]=0
+            # Do not display ADUs below threshold
+            calib[np.where(calib<self.aduThresh)]=0
 
             data = self.det.image(self.evt, calib)
 
@@ -564,6 +566,8 @@ class MainFrame(QtGui.QWidget):
 
         else: # is opal
             data = self.det.raw(self.evt)
+            # Do not display ADUs below threshold
+            data[np.where(data<self.aduThresh)]=0
             print "got here: ", data.shape
 
             self.cx, self.cy = self.getCentre(data.shape)
@@ -624,6 +628,8 @@ class MainFrame(QtGui.QWidget):
         if path[0] == disp_grp:
             if path[1] == disp_log_str:
                 self.updateLogscale(data)
+            elif path[1] == disp_aduThresh_str:
+                self.updateAduThreshold(data)
             elif path[1] == disp_resolutionRings_str and len(path) == 2:
                 self.updateResolutionRings(data)
             elif path[2] == disp_resolution_str:
@@ -802,6 +808,12 @@ class MainFrame(QtGui.QWidget):
             self.firstUpdate = True # clicking logscale resets plot colorscale
             self.updateImage()
         print "Done updateLogscale: ", self.logscaleOn
+
+    def updateAduThreshold(self, data):
+        self.aduThresh = data
+        if self.hasExpRunDetInfo():
+            self.updateImage()
+        print "Done updateAduThreshold: ", self.aduThresh
 
     def updateResolutionRings(self, data):
         self.resolutionRingsOn = data
