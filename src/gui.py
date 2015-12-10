@@ -2,15 +2,15 @@
 
 # TODO: Zoom in area / numbers
 # TODO: Multiple subplots
+# TODO: grid of images
 # TODO: powder pattern generator
 # TODO: dropdown menu for available detectors
-# TODO: Turn it into an app
 
 import sys, signal
+import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.console
-import numpy as np
 from pyqtgraph.dockarea import *
 import pyqtgraph.parametertree.parameterTypes as pTypes
 from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
@@ -21,11 +21,8 @@ import matplotlib.pyplot as plt
 from pyqtgraph import Point
 import argparse
 import Detector.PyDetector
-
-import sys
 import logging
 import multiprocessing as mp
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
@@ -285,7 +282,6 @@ class MainFrame(QtGui.QWidget):
                 self.eventNumber = self.eventTotal-1
             else:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
-                print "################################# 5"
                 self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
@@ -295,7 +291,6 @@ class MainFrame(QtGui.QWidget):
                 self.eventNumber = 0
             else:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
-                print "################################# 4"
                 self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
@@ -306,10 +301,7 @@ class MainFrame(QtGui.QWidget):
             print "Saving detector image as numpy ndarray: ", outputName
             np.save(outputName,self.calib)
 
-        #data = np.zeros((10,500,500))
-        #print "################################# 3"
-        #self.w1.setImage(data, autoRange=False,autoLevels=False,autoHistogramRange=False) #xvals=np.linspace(1., data.shape[0], data.shape[0]))
-
+        # Connect listeners to functions
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
         self.saveBtn.clicked.connect(save)
@@ -934,7 +926,7 @@ class MainFrame(QtGui.QWidget):
         for i, pix in enumerate(self.myResolutionRingList):
             thetaMax = np.arctan(pix*self.pixelSize/self.detectorDistance)
             qMax = 2/self.wavelength*np.sin(thetaMax/2)
-            self.dMin[i] = 1/(2*qMax)
+            self.dMin[i] = 1/qMax
             print "updateGeometry: ", i, thetaMax, qMax, self.dMin[i]
             if self.resolutionRingsOn:
                 self.updateRings()
