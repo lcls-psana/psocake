@@ -108,6 +108,7 @@ class MainFrame(QtGui.QWidget):
     """        
     def __init__(self, arg_list):
         super(MainFrame, self).__init__()
+        self.firstUpdate = True
         # Init experiment parameters
         self.experimentName = args.exp
         self.runNumber = int(args.run)
@@ -282,7 +283,8 @@ class MainFrame(QtGui.QWidget):
                 self.eventNumber = self.eventTotal-1
             else:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data)
+                print "################################# 5"
+                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def prev():
@@ -291,7 +293,8 @@ class MainFrame(QtGui.QWidget):
                 self.eventNumber = 0
             else:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data)
+                print "################################# 4"
+                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
         def save():
@@ -301,8 +304,9 @@ class MainFrame(QtGui.QWidget):
             print "Saving detector image as numpy ndarray: ", outputName
             np.save(outputName,self.calib)
 
-        data = np.zeros((10,500,500))
-        self.w1.setImage(data, xvals=np.linspace(1., data.shape[0], data.shape[0]))
+        #data = np.zeros((10,500,500))
+        #print "################################# 3"
+        #self.w1.setImage(data, autoRange=False,autoLevels=False,autoHistogramRange=False) #xvals=np.linspace(1., data.shape[0], data.shape[0]))
 
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
@@ -476,10 +480,22 @@ class MainFrame(QtGui.QWidget):
     def updateImage(self):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
             self.calib, self.data = self.getDetImage(self.eventNumber)
-            if self.logscaleOn:
-                self.w1.setImage(np.log10(abs(self.data)+eps))
+            if self.firstUpdate:
+                if self.logscaleOn:
+                    print "################################# 11"
+                    self.w1.setImage(np.log10(abs(self.data)+eps))
+                    self.firstUpdate = False
+                else:
+                    print "################################# 22"
+                    self.w1.setImage(self.data)
+                    self.firstUpdate = False
             else:
-                self.w1.setImage(self.data)
+                if self.logscaleOn:
+                    print "################################# 1"
+                    self.w1.setImage(np.log10(abs(self.data)+eps),autoRange=False,autoLevels=False,autoHistogramRange=False)
+                else:
+                    print "################################# 2"
+                    self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         print "Done updateImage"
 
     def updateRings(self):
@@ -783,6 +799,7 @@ class MainFrame(QtGui.QWidget):
     def updateLogscale(self, data):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
+            self.firstUpdate = True # clicking logscale resets plot colorscale
             self.updateImage()
         print "Done updateLogscale: ", self.logscaleOn
 
