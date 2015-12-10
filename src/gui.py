@@ -128,6 +128,7 @@ class MainFrame(QtGui.QWidget):
         self.hasUserDefinedResolution = False
         self.hasCommonMode = False
         self.applyCommonMode = False
+        self.commonMode = np.array([0,0,0,0])
         self.commonModeParams = np.array([0,0,0,0])
         # Init diffraction geometry parameters
         self.detectorDistance = None
@@ -530,15 +531,28 @@ class MainFrame(QtGui.QWidget):
                 calib = self.det.calib(self.evt)
 
         if calib is not None:
+            print "calib.shape: ", calib.shape
             calib *= self.det.gain(self.evt)
+
+            # TEMPORARY HACK
+            #calib = np.load('amo87215_0019_Camp.0:pnCCD.0.npy')
+
+            # Delete non-photon ADUs
+            calib[np.where(calib<17)]=0
+
             data = self.det.image(self.evt, calib)
 
             self.cx, self.cy = self.getCentre(data.shape)
             print "cx,cy: ", self.cx, self.cy
-
             return calib, data
-        else:
-            return None
+
+        else: # is opal
+            data = self.det.raw(self.evt)
+            print "got here: ", data.shape
+
+            self.cx, self.cy = self.getCentre(data.shape)
+            print "cx,cy: ", self.cx, self.cy
+            return data, data
 
     def getCentre(self, dim):
         cx = dim[0]/2
@@ -570,7 +584,7 @@ class MainFrame(QtGui.QWidget):
             print('  change:    %s'% change)
             print('  data:      %s'% str(data))
             print('  ----------')
-            self.update(path,data)
+            self.update(path,change,data)
 
     def update(self, path, change, data):
         print "path: ", path
@@ -812,6 +826,7 @@ class MainFrame(QtGui.QWidget):
         print "Done updateCommonMode: ", self.commonMode
 
     def checkCommonMode(self, _commonMode):
+        # TODO: cspad2x2 can only use algorithms 1 and 5
         _alg = int(_commonMode[0])
         if _alg >= 1 and _alg <= 4:
             _param1 = int(_commonMode[1])
@@ -824,7 +839,6 @@ class MainFrame(QtGui.QWidget):
         else:
             print "Undefined common mode algorithm"
             return None
-
 
     def updateEventID(self, sec, nanosec, fid):
         print "eventID: ", sec, nanosec, fid
