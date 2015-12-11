@@ -347,8 +347,8 @@ class MainFrame(QtGui.QWidget):
             else:
                 print "got npy"
                 self.calib = np.load(fname)
-            self.data = self.getAssembledImage(self.calib)
-            self.updateImage(self.calib,self.data)
+            #self.data = self.getAssembledImage(self.calib)
+            self.updateImage(self.calib)
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
         self.saveBtn.clicked.connect(save)
@@ -513,13 +513,13 @@ class MainFrame(QtGui.QWidget):
                                       pen='r', pxMode=False)
         print "Done updatePeaks"
 
-    def updateImage(self,calib=None,data=None):
+    def updateImage(self,calib=None):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            if calib is None and data is None:
+            if calib is None:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
             else:
-                self.calib = calib
-                self.data = data
+                self.calib, self.data = self.getDetImage(self.eventNumber,calib=calib)
+
             if self.firstUpdate:
                 if self.logscaleOn:
                     print "################################# 11"
@@ -590,16 +590,18 @@ class MainFrame(QtGui.QWidget):
             return None
 
     def getAssembledImage(self,calib):
+        _calib = calib.copy()
         # Apply gain if available
         if self.det.gain(self.evt) is not None:
-            calib *= self.det.gain(self.evt)
+            _calib *= self.det.gain(self.evt)
         # Do not display ADUs below threshold
-        calib[np.where(calib<self.aduThresh)]=0
-        data = self.det.image(self.evt, calib)
+        _calib[np.where(_calib<self.aduThresh)]=0
+        data = self.det.image(self.evt, _calib)
         return data
 
-    def getDetImage(self,evtNumber):
-        calib = self.getCalib(evtNumber)
+    def getDetImage(self,evtNumber,calib=None):
+        if calib is None:
+            calib = self.getCalib(evtNumber)
         if calib is not None:
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.getCentre(data.shape)
@@ -845,13 +847,13 @@ class MainFrame(QtGui.QWidget):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
             self.firstUpdate = True # clicking logscale resets plot colorscale
-            self.updateImage(self.calib,self.data)
+            self.updateImage()
         print "Done updateLogscale: ", self.logscaleOn
 
     def updateAduThreshold(self, data):
         self.aduThresh = data
         if self.hasExpRunDetInfo():
-            self.updateImage(self.calib,self.data)
+            self.updateImage(self.calib)
         print "Done updateAduThreshold: ", self.aduThresh
 
     def updateResolutionRings(self, data):
