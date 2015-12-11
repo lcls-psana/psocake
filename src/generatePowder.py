@@ -1,4 +1,3 @@
-#bsub -q psanaq -a mympi -n 36 -o %J.log python max_det_orig.py exp=amo87215:run=15
 #bsub -q psanaq -a mympi -n 36 -o %J.log python max_det_orig.py exp=amo87215:run=15 -d pnccdFront
 
 from psana import *
