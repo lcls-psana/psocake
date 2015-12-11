@@ -5,6 +5,7 @@
 # TODO: grid of images
 # TODO: powder pattern generator
 # TODO: dropdown menu for available detectors
+# TODO: When front and back detectors given, display both
 
 import sys, signal
 import numpy as np
@@ -23,6 +24,7 @@ import argparse
 import Detector.PyDetector
 import logging
 import multiprocessing as mp
+import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
@@ -204,8 +206,21 @@ class MainFrame(QtGui.QWidget):
                 ]},
             ]},
         ]
-
         self.initUI()
+
+    def updateUi(self):
+        print "updateUi!!!!!!"
+    def addImage(self):
+        print "##### addImage!!!!!!"
+        self.w1.setImage(self.thread.data)
+        self.generatePowderBtn.setEnabled(True)
+        print "#%@$%@# Done addImage!!!!!"
+
+    def makePicture(self):
+        print "makePicture!!!!!!"
+        self.thread.computePowder(10)
+        self.generatePowderBtn.setEnabled(False)
+        print "done makePicture!!!!!!"
 
     def initUI(self):
         ## Define a top-level widget to hold everything
@@ -234,18 +249,16 @@ class MainFrame(QtGui.QWidget):
         self.d3 = Dock("Dock3", size=(200,200))
         self.d4 = Dock("Dock4 (tabbed) - Plot", size=(200,200))
         self.d5 = Dock("Dock5 ", size=(50,50), closable=True)
+        self.d6 = Dock("Image control", size=(100, 100))
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
+        self.area.addDock(self.d6, 'bottom', self.d1)      ## place d1 at left edge of dock area
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
         self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
 
         ## Dock 1: Image Panel
-        self.nextBtn = QtGui.QPushButton('Next evt')
-        self.prevBtn = QtGui.QPushButton('Prev evt')
-        self.saveBtn = QtGui.QPushButton('Save evt')
-        self.wQ = pg.LayoutWidget()
         self.w1 = pg.ImageView(view=pg.PlotItem())
         self.w1.getView().invertY(False)
         self.ring_feature = pg.ScatterPlotItem()
@@ -256,18 +269,12 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.peak_feature)
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
-        self.wQ.addWidget(self.w1, row=1, colspan=2)
-        self.wQ.addWidget(self.prevBtn, row=2, col=0)
-        self.wQ.addWidget(self.nextBtn, row=2, col=1)
-        self.wQ.addWidget(self.saveBtn, row=3, col=0)
-
         # Custom ROI for selecting an image region
         self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True)
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.w1.getView().addItem(self.roi)
         #self.roi.setZValue(10)  # make sure ROI is drawn above image
-
         # Callbacks for handling user interaction
         def updateRoiHistogram():
             if self.data is not None:
@@ -275,37 +282,8 @@ class MainFrame(QtGui.QWidget):
                 hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
         self.roi.sigRegionChanged.connect(updateRoiHistogram)
-
-        def next():
-            self.eventNumber += 1
-            if self.eventNumber >= self.eventTotal:
-                self.eventNumber = self.eventTotal-1
-            else:
-                self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
-
-        def prev():
-            self.eventNumber -= 1
-            if self.eventNumber < 0:
-                self.eventNumber = 0
-            else:
-                self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
-
-        def save():
-            outputName = "psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
-                         +str(self.eventNumber)+"_"+str(self.eventSeconds)+"_"+str(self.eventNanoseconds)+"_" \
-                         +str(self.eventFiducial)+".npy"
-            print "Saving detector image as numpy ndarray: ", outputName
-            np.save(outputName,self.calib)
-
         # Connect listeners to functions
-        self.nextBtn.clicked.connect(next)
-        self.prevBtn.clicked.connect(prev)
-        self.saveBtn.clicked.connect(save)
-        self.d1.addWidget(self.wQ)
+        self.d1.addWidget(self.w1)
 
         ## Dock 2: parameter
         self.w2 = ParameterTree()
@@ -325,9 +303,67 @@ class MainFrame(QtGui.QWidget):
         self.d4.addWidget(self.w4)
 
         ## Dock 5 - intensity display
-        self.d5.hideTitleBar()
+        #self.d5.hideTitleBar()
         self.w5 = pg.GraphicsView(background=pg.mkColor(sandstone100_rgb))
         self.d5.addWidget(self.w5)
+
+        ## Dock 6: Image Control
+        self.nextBtn = QtGui.QPushButton('Next evt')
+        self.prevBtn = QtGui.QPushButton('Prev evt')
+        self.saveBtn = QtGui.QPushButton('Save evt')
+        self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
+        self.loadBtn = QtGui.QPushButton('Load image')
+        self.nextSetBtn = QtGui.QPushButton('Next set')
+        self.prevSetBtn = QtGui.QPushButton('Prev set')
+        def next():
+            self.eventNumber += 1
+            if self.eventNumber >= self.eventTotal:
+                self.eventNumber = self.eventTotal-1
+            else:
+                self.calib, self.data = self.getDetImage(self.eventNumber)
+                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+        def prev():
+            self.eventNumber -= 1
+            if self.eventNumber < 0:
+                self.eventNumber = 0
+            else:
+                self.calib, self.data = self.getDetImage(self.eventNumber)
+                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+        def save():
+            outputName = "psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
+                         +str(self.eventNumber)+"_"+str(self.eventSeconds)+"_"+str(self.eventNanoseconds)+"_" \
+                         +str(self.eventFiducial)+".npy"
+            fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', outputName, 'ndarray image (*.npy)')
+            np.save(str(fname),self.calib)
+        def load():
+            fname = QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy)')
+            self.calib = np.load(str(fname))
+            print self.calib
+            self.data = self.getAssembledImage(self.calib)
+            self.updateImage(self.calib,self.data)
+        self.nextBtn.clicked.connect(next)
+        self.prevBtn.clicked.connect(prev)
+        self.saveBtn.clicked.connect(save)
+        self.loadBtn.clicked.connect(load)
+        # Layout
+        self.w6 = pg.LayoutWidget()
+        self.w6.addWidget(self.prevBtn, row=1, col=0)
+        self.w6.addWidget(self.nextBtn, row=1, col=1)
+        self.w6.addWidget(self.saveBtn, row=2, col=0)
+        self.w6.addWidget(self.prevSetBtn, row=3, col=0)
+        self.w6.addWidget(self.nextSetBtn, row=3, col=1)
+        self.w6.addWidget(self.generatePowderBtn, row=4, col=0)
+        self.w6.addWidget(self.loadBtn, row=4, col=1)
+        self.d6.addWidget(self.w6)
+
+        ### Threads
+        self.thread = Worker(self) # send parent parameters
+        self.connect(self.thread, QtCore.SIGNAL("finished()"), self.addImage)
+        #self.connect(self.thread, QtCore.SIGNAL("terminated()"), self.updateUi)
+        #self.connect(self.thread, QtCore.SIGNAL("done"), self.addImage)
+        self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePicture)
 
         # Setup input parameters
         if self.experimentName is not "":
@@ -471,9 +507,13 @@ class MainFrame(QtGui.QWidget):
                                       pen='r', pxMode=False)
         print "Done updatePeaks"
 
-    def updateImage(self):
+    def updateImage(self,calib=None,data=None):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            self.calib, self.data = self.getDetImage(self.eventNumber)
+            if calib is None and data is None:
+                self.calib, self.data = self.getDetImage(self.eventNumber)
+            else:
+                self.calib = calib
+                self.data = data
             if self.firstUpdate:
                 if self.logscaleOn:
                     print "################################# 11"
@@ -528,7 +568,7 @@ class MainFrame(QtGui.QWidget):
         else:
             return None
 
-    def getDetImage(self,evtNumber):
+    def getCalib(self,evtNumber):
         if self.run is not None:
             self.evt = self.getEvt(evtNumber)
             if self.applyCommonMode:
@@ -539,29 +579,30 @@ class MainFrame(QtGui.QWidget):
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
             else:
                 calib = self.det.calib(self.evt)
+            return calib
+        else:
+            return None
 
-        if calib is not None:
-            print "calib.shape: ", calib.shape
+    def getAssembledImage(self,calib):
+        # Apply gain if available
+        if self.det.gain(self.evt) is not None:
             calib *= self.det.gain(self.evt)
+        # Do not display ADUs below threshold
+        calib[np.where(calib<self.aduThresh)]=0
+        data = self.det.image(self.evt, calib)
+        return data
 
-            # TEMPORARY HACK
-            #calib = np.load('amo87215_0019_Camp.0:pnCCD.0.npy')
-
-            # Do not display ADUs below threshold
-            calib[np.where(calib<self.aduThresh)]=0
-
-            data = self.det.image(self.evt, calib)
-
+    def getDetImage(self,evtNumber):
+        calib = self.getCalib(evtNumber)
+        if calib is not None:
+            data = self.getAssembledImage(calib)
             self.cx, self.cy = self.getCentre(data.shape)
             print "cx,cy: ", self.cx, self.cy
             return calib, data
-
         else: # is opal
             data = self.det.raw(self.evt)
             # Do not display ADUs below threshold
             data[np.where(data<self.aduThresh)]=0
-            print "got here: ", data.shape
-
             self.cx, self.cy = self.getCentre(data.shape)
             print "cx,cy: ", self.cx, self.cy
             return data, data
@@ -930,6 +971,91 @@ class MainFrame(QtGui.QWidget):
             print "updateGeometry: ", i, thetaMax, qMax, self.dMin[i]
             if self.resolutionRingsOn:
                 self.updateRings()
+
+class Worker(QtCore.QThread):
+    def __init__(self, parent = None):
+        QtCore.QThread.__init__(self, parent)
+        print "WORKER!!!!!!!!!!"
+        print "parent: ", parent, parent.hitParam_alg_npix_max
+        self.parent = parent
+        self.numImages = 0
+        self.calib = None
+        self.data = None
+
+    def computePowder(self, numImages):
+        self.numImages = numImages
+        self.start()
+
+    def run(self):
+        print "Doing WORK!!!!!!!!!!!!"
+        #time.sleep(5)
+        counter = 0
+        for evtNumber in range(5):
+            if counter == 0:
+                if self.parent.run is not None:
+                    self.parent.evt = self.parent.getEvt(evtNumber)
+                    if self.parent.applyCommonMode:
+                        if self.parent.commonMode[0] == 5: # Algorithm 5
+                            self.calib = self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1]))
+                        else: # Algorithms 1 to 4
+                            print "### Overriding common mode: ", self.commonMode
+                            self.calib = self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1],self.parent.commonMode[2],self.parent.commonMode[3]))
+                    else:
+                        self.calib = self.parent.det.calib(self.parent.evt)
+            else:
+                if self.parent.run is not None:
+                    self.parent.evt = self.parent.getEvt(evtNumber)
+                    if self.parent.applyCommonMode:
+                        if self.parent.commonMode[0] == 5: # Algorithm 5
+                            self.calib += self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1]))
+                        else: # Algorithms 1 to 4
+                            print "### Overriding common mode: ", self.commonMode
+                            self.calib += self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1],self.parent.commonMode[2],self.parent.commonMode[3]))
+                    else:
+                        self.calib += self.parent.det.calib(self.parent.evt)
+
+            print "evtNumber: ", evtNumber, self.calib.shape
+
+        self.data = self.parent.det.image(self.parent.evt, self.calib)
+
+        print "Done WORKING!!!!!!!!!!"
+        import subprocess
+        import os.path
+        # Command for submitting to batch
+        cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp="+self.parent.experimentName+\
+              ":run="+str(self.parent.runNumber)+" -d "+self.parent.detInfo
+        print "Submitting batch job: ", cmd
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        jobid = out.split("<")[1].split(">")[0]
+        myLog = jobid+".log"
+        myKeyString = "The output (if any) is above this job summary."
+        mySuccessString = "Successfully completed."
+        notDone = 1
+        havePowder = 0
+        while notDone:
+            if os.path.isfile(myLog):
+                p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
+                output = p.communicate()[0]
+                if myKeyString in output: # job has finished
+                    # check job was a success or a failure
+                    p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
+                    output = p.communicate()[0]
+                    if mySuccessString in output: # success
+                        print "successfully done"
+                        havePowder = 1
+                    else:
+                        print "failed attempt"
+                    notDone = 0
+                else:
+                    print "job hasn't finished yet"
+                    time.sleep(10)
+            else:
+                print "no such file yet"
+                time.sleep(10)
+
+        # emit done signal
+        #self.emit(SIGNAL("done"),calib)
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)

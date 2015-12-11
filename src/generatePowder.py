@@ -1,5 +1,6 @@
-#bsub -q psanaq -a mympi -n 36 -o %J.log python max_det_orig.py exp=amo87215:run=15 -d pnccdFront
+#bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp=amo87215:run=15 -d pnccdFront
 
+#TODO: add getMyShare
 from psana import *
 import numpy as np
 import sys
