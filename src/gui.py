@@ -347,7 +347,6 @@ class MainFrame(QtGui.QWidget):
             else:
                 print "got npy"
                 self.calib = np.load(fname)
-            print "calib: ", self.calib
             self.data = self.getAssembledImage(self.calib)
             self.updateImage(self.calib,self.data)
         self.nextBtn.clicked.connect(next)
@@ -846,13 +845,13 @@ class MainFrame(QtGui.QWidget):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
             self.firstUpdate = True # clicking logscale resets plot colorscale
-            self.updateImage()
+            self.updateImage(self.calib,self.data)
         print "Done updateLogscale: ", self.logscaleOn
 
     def updateAduThreshold(self, data):
         self.aduThresh = data
         if self.hasExpRunDetInfo():
-            self.updateImage()
+            self.updateImage(self.calib,self.data)
         print "Done updateAduThreshold: ", self.aduThresh
 
     def updateResolutionRings(self, data):
