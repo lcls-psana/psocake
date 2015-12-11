@@ -338,9 +338,16 @@ class MainFrame(QtGui.QWidget):
             fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', outputName, 'ndarray image (*.npy)')
             np.save(str(fname),self.calib)
         def load():
-            fname = QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy)')
-            self.calib = np.load(str(fname))
-            print self.calib
+            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
+            print "fname: ", fname, fname.split('.')[-1]
+            if fname.split('.')[-1] in '.npz':
+                print "got npz"
+                temp = np.load(fname)
+                self.calib = temp['max']
+            else:
+                print "got npy"
+                self.calib = np.load(fname)
+            print "calib: ", self.calib
             self.data = self.getAssembledImage(self.calib)
             self.updateImage(self.calib,self.data)
         self.nextBtn.clicked.connect(next)
