@@ -235,10 +235,10 @@ class MainFrame(QtGui.QWidget):
         self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
         self.d2 = Dock("Experiment Parameters", size=(500,300))
         self.d3 = Dock("Diffraction Geometry", size=(200,200))
-        self.d4 = Dock("ROI histogram", size=(200,200))
-        self.d5 = Dock("Dock5 ", size=(50,50), closable=True)
-        self.d6 = Dock("Image control", size=(100, 100))
-        self.d7 = Dock("Image scroll", size=(500,500))
+        self.d4 = Dock("ROI Histogram", size=(200,200))
+        self.d5 = Dock("Mouse Position", size=(50,50), closable=True)
+        self.d6 = Dock("Image Control", size=(100, 100))
+        self.d7 = Dock("Image Scroll", size=(500,500))
         #self.d8 = Dock("Console", size=(100,100))
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
@@ -296,7 +296,7 @@ class MainFrame(QtGui.QWidget):
         #self.w4.plot(np.random.normal(size=100))
         self.d4.addWidget(self.w4)
 
-        ## Dock 5 - intensity display
+        ## Dock 5 - mouse intensity display
         #self.d5.hideTitleBar()
         self.w5 = pg.GraphicsView(background=pg.mkColor(sandstone100_rgb))
         self.d5.addWidget(self.w5)
@@ -400,7 +400,12 @@ class MainFrame(QtGui.QWidget):
         self.stackStart = 0
         def displayImageStack():
             print "display image stack!!!!!!"
-            self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
+            if self.logscaleOn:
+                self.w7.setImage(np.log10(abs(self.threadpool.data)+eps), xvals=np.linspace(self.stackStart,
+                                                                     self.stackStart+self.threadpool.data.shape[0]-1,
+                                                                     self.threadpool.data.shape[0]))
+            else:
+                self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
                                                                      self.threadpool.data.shape[0]))
             self.startBtn.setEnabled(True)
@@ -409,8 +414,9 @@ class MainFrame(QtGui.QWidget):
             print "loading stack!!!!!!"
             self.stackStart = self.spinBox.value()
             self.threadpool.load(self.stackStart,self.loadSize)
-            #self.threadpool[1].load(10,10)
             self.startBtn.setEnabled(False)
+            self.w7.getView().setTitle("exp="+self.experimentName+":run="+str(self.runNumber)+":evt"+str(self.stackStart)+"-"
+                                       +str(self.stackStart+self.loadSize))
             print "done loading stack!!!!!!"
 
         self.threadpool = stackProducer(self) # send parent parameters
@@ -866,7 +872,7 @@ class MainFrame(QtGui.QWidget):
             if args.localCalib:
                 print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
-            self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx')
+            self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') # FIXME: psana crashes if runNumber is non-existent
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.eventTotal = len(self.times)
