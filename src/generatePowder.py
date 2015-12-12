@@ -41,6 +41,15 @@ class Stats:
             comm.Reduce(self.sumsq,self.sumsq)
             comm.Reduce(self.maximum,self.maximum,op=MPI.MAX)
 
+def getMyUnfairShare(numJobs,numWorkers,rank):
+    """Returns number of events assigned to the slave calling this function."""
+    assert(numJobs >= numWorkers)
+    allJobs = np.arange(numJobs)
+    jobChunks = np.array_split(allJobs,numWorkers)
+    myChunk = jobChunks[rank]
+    myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
+    return myJobs
+
 def detList(s):
     try:
         return s.split(',')
@@ -51,6 +60,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd7114:run=43)")
 parser.add_argument('-d','--detList', help="list of detectors separated with comma (e.g. pnccdFront,pnccdBack)", dest="detList", type=detList, nargs=1)
+parser.add_argument("-n","--noe",help="number of events to process",default=0, type=int)
 args = parser.parse_args()
 
 ds = DataSource(args.exprun+':idx')
@@ -76,14 +86,20 @@ for run in ds.runs():
     runnumber = run.run()
     # list of all events
     times = run.times()
-    nevents = min(len(times),maxevents)
-    mylength = nevents/size # easy but sloppy. lose few events at end of run.
+    if args.noe == 0:
+        numJobs = len(times)
+    else:
+        if args.noe <= len(times):
+            numJobs = args.noe
+        else:
+            numJobs = len(times)
 
-    # chop the list into pieces, depending on rank
-    mytimes= times[rank*mylength:(rank+1)*mylength]
-    for i in range(mylength):
-        if i%100==0: print 'Rank',rank,'processing event',rank*mylength+i
-        evt = run.event(mytimes[i])
+    ind = getMyUnfairShare(len(times),size,rank)
+    mytimes = times[ind[0]:ind[-1]+1]
+
+    for i,time in enumerate(mytimes):
+        if i%100==0: print 'Rank',rank,'processing event', i
+        evt = run.event(time)
         # very useful for seeing what data is in the event
         #print evt.keys()
         if evt is None:
