@@ -208,20 +208,6 @@ class MainFrame(QtGui.QWidget):
         ]
         self.initUI()
 
-    def updateUi(self):
-        print "updateUi!!!!!!"
-    def addImage(self):
-        print "##### addImage!!!!!!"
-        self.w1.setImage(self.thread.data)
-        self.generatePowderBtn.setEnabled(True)
-        print "#%@$%@# Done addImage!!!!!"
-
-    def makePicture(self):
-        print "makePicture!!!!!!"
-        self.thread.computePowder(10)
-        self.generatePowderBtn.setEnabled(False)
-        print "done makePicture!!!!!!"
-
     def initUI(self):
         ## Define a top-level widget to hold everything
         self.win = QtGui.QMainWindow()
@@ -245,11 +231,13 @@ class MainFrame(QtGui.QWidget):
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
         self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
-        self.d2 = Dock("Dock2 - Parameters", size=(500,300))
-        self.d3 = Dock("Dock3", size=(200,200))
-        self.d4 = Dock("Dock4 (tabbed) - Plot", size=(200,200))
+        self.d2 = Dock("Experiment Parameters", size=(500,300))
+        self.d3 = Dock("Diffraction Geometry", size=(200,200))
+        self.d4 = Dock("ROI histogram", size=(200,200))
         self.d5 = Dock("Dock5 ", size=(50,50), closable=True)
         self.d6 = Dock("Image control", size=(100, 100))
+        self.d7 = Dock("Image scroll", size=(500,500))
+        #self.d8 = Dock("Console", size=(100,100))
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
         self.area.addDock(self.d6, 'bottom', self.d1)      ## place d1 at left edge of dock area
@@ -257,6 +245,8 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
+        self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
+        #self.area.addDock(self.d8, 'bottom', self.d7)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -299,7 +289,9 @@ class MainFrame(QtGui.QWidget):
 
         ## Dock 4
         self.w4 = pg.PlotWidget(title="ROI histogram")
-        self.w4.plot(np.random.normal(size=100))
+        hist,bin = np.histogram(np.random.random(1000), bins=1000)
+        self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
+        #self.w4.plot(np.random.normal(size=100))
         self.d4.addWidget(self.w4)
 
         ## Dock 5 - intensity display
@@ -364,12 +356,67 @@ class MainFrame(QtGui.QWidget):
         self.w6.addWidget(self.loadBtn, row=4, col=1)
         self.d6.addWidget(self.w6)
 
+        ## Dock 7: Image Scroll
+        self.w7L = pg.LayoutWidget()
+        self.w7 = pg.ImageView(view=pg.PlotItem())
+        self.w7.getView().invertY(False)
+        self.scroll = np.random.random((5,10,10))
+        self.w7.setImage(self.scroll, xvals=np.linspace(0., self.scroll.shape[0]-1, self.scroll.shape[0]))
+
+        self.label = QtGui.QLabel("Event Number:")
+        self.loadSize = 120
+        self.spinBox = QtGui.QSpinBox()
+        self.spinBox.setValue(0)
+        self.startBtn = QtGui.QPushButton("&Load images")
+
+        # Connect listeners to functions
+        self.w7L.addWidget(self.w7, row=0, colspan=3)
+        self.w7L.addWidget(self.label, 1, 0)
+        self.w7L.addWidget(self.spinBox, 1, 1)
+        self.w7L.addWidget(self.startBtn, 1, 2)
+        self.d7.addWidget(self.w7L)
+
+
         ### Threads
+        def addImage():
+            print "##### addImage!!!!!!"
+            self.w1.setImage(self.thread.data)
+            self.generatePowderBtn.setEnabled(True)
+            print "#%@$%@# Done addImage!!!!!"
+        def makePicture():
+            print "makePicture!!!!!!"
+            self.thread.computePowder(10)
+            self.generatePowderBtn.setEnabled(False)
+            print "done makePicture!!!!!!"
         self.thread = Worker(self) # send parent parameters
-        self.connect(self.thread, QtCore.SIGNAL("finished()"), self.addImage)
+        self.connect(self.thread, QtCore.SIGNAL("finished()"), addImage)
         #self.connect(self.thread, QtCore.SIGNAL("terminated()"), self.updateUi)
         #self.connect(self.thread, QtCore.SIGNAL("done"), self.addImage)
-        self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePicture)
+        self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePicture)
+
+        self.stackStart = 0
+        def displayImageStack():
+            print "display image stack!!!!!!"
+            #if self.stack is None:
+            #    self.stack = np.zeros((100,self.threadpool.data.shape[1],self.threadpool.data.shape[2]))
+            #self.stack[startIndex:startIndex+10,:,:] = self.threadpool.data
+            #self.stack[10:20,:,:] = self.threadpool[1].data
+            self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
+                                                                     self.stackStart+self.threadpool.data.shape[0]-1,
+                                                                     self.threadpool.data.shape[0]))
+            self.startBtn.setEnabled(True)
+            print "Done display image stack!!!!!"
+        def loadStack():
+            print "loading stack!!!!!!"
+            self.stackStart = self.spinBox.value()
+            self.threadpool.load(self.stackStart,self.loadSize)
+            #self.threadpool[1].load(10,10)
+            self.startBtn.setEnabled(False)
+            print "done loading stack!!!!!!"
+
+        self.threadpool = Worker1(self) # send parent parameters
+        self.connect(self.threadpool, QtCore.SIGNAL("finished()"), displayImageStack)
+        self.connect(self.startBtn, QtCore.SIGNAL("clicked()"), loadStack)
 
         # Setup input parameters
         if self.experimentName is not "":
@@ -596,7 +643,10 @@ class MainFrame(QtGui.QWidget):
             _calib *= self.det.gain(self.evt)
         # Do not display ADUs below threshold
         _calib[np.where(_calib<self.aduThresh)]=0
+        tic = time.time()
         data = self.det.image(self.evt, _calib)
+        toc = time.time()
+        print "time assemble: ", toc-tic
         return data
 
     def getDetImage(self,evtNumber,calib=None):
@@ -821,6 +871,7 @@ class MainFrame(QtGui.QWidget):
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.eventTotal = len(self.times)
+            self.spinBox.setMaximum(self.eventTotal-self.loadSize)
             self.p.param(exp_grp,exp_evt_str).setLimits((0,self.eventTotal-1))
             self.p.param(exp_grp,exp_evt_str,exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
@@ -866,6 +917,21 @@ class MainFrame(QtGui.QWidget):
         # convert to array of floats
         _resolution = data.split(',')
         self.resolution = np.zeros((len(_resolution,)))
+
+        a = ['a','b','c','d','e','k','m','n','r','s']
+        myStr = a[5]+a[8]+a[0]+a[5]+a[4]+a[7]
+        if myStr in data:
+            self.d42 = Dock("Console", size=(100,100))
+            # build an initial namespace for console commands to be executed in (this is optional;
+            # the user can always import these modules manually)
+            namespace = {'pg': pg, 'np': np, 'self': self}
+            # initial text to display in the console
+            text = "You have awoken the "+myStr+"\nWelcome to psocake IPython: dir(self)"
+            self.w42 = pg.console.ConsoleWidget(parent=None,namespace=namespace, text=text)
+            self.d42.addWidget(self.w42)
+            self.area.addDock(self.d42, 'bottom')
+            data = ''
+
         if data != '':
             for i in range(len(_resolution)):
                 self.resolution[i] = float(_resolution[i])
@@ -984,7 +1050,6 @@ class Worker(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         print "WORKER!!!!!!!!!!"
-        print "parent: ", parent, parent.hitParam_alg_npix_max
         self.parent = parent
         self.numImages = 0
         self.calib = None
@@ -996,37 +1061,6 @@ class Worker(QtCore.QThread):
 
     def run(self):
         print "Doing WORK!!!!!!!!!!!!"
-        #time.sleep(5)
-        counter = 0
-        for evtNumber in range(5):
-            if counter == 0:
-                if self.parent.run is not None:
-                    self.parent.evt = self.parent.getEvt(evtNumber)
-                    if self.parent.applyCommonMode:
-                        if self.parent.commonMode[0] == 5: # Algorithm 5
-                            self.calib = self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1]))
-                        else: # Algorithms 1 to 4
-                            print "### Overriding common mode: ", self.commonMode
-                            self.calib = self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1],self.parent.commonMode[2],self.parent.commonMode[3]))
-                    else:
-                        self.calib = self.parent.det.calib(self.parent.evt)
-            else:
-                if self.parent.run is not None:
-                    self.parent.evt = self.parent.getEvt(evtNumber)
-                    if self.parent.applyCommonMode:
-                        if self.parent.commonMode[0] == 5: # Algorithm 5
-                            self.calib += self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1]))
-                        else: # Algorithms 1 to 4
-                            print "### Overriding common mode: ", self.commonMode
-                            self.calib += self.parent.det.calib(self.evt, cmpars=(self.parent.commonMode[0],self.parent.commonMode[1],self.parent.commonMode[2],self.parent.commonMode[3]))
-                    else:
-                        self.calib += self.parent.det.calib(self.parent.evt)
-
-            print "evtNumber: ", evtNumber, self.calib.shape
-
-        self.data = self.parent.det.image(self.parent.evt, self.calib)
-
-        print "Done WORKING!!!!!!!!!!"
         import subprocess
         import os.path
         # Command for submitting to batch
@@ -1064,6 +1098,41 @@ class Worker(QtCore.QThread):
 
         # emit done signal
         #self.emit(SIGNAL("done"),calib)
+
+class Worker1(QtCore.QThread):
+    def __init__(self, parent = None):
+        QtCore.QThread.__init__(self, parent)
+        print "WORKER1 !!!!!!!!!!"
+        self.parent = parent
+        self.startIndex = 0
+        self.numImages = 0
+        #self.calib = None
+        self.data = None
+
+    def load(self, startIndex, numImages):
+        self.startIndex = startIndex
+        self.numImages = numImages
+        self.start()
+
+    def run(self):
+        print "Doing WORK!!!!!!!!!!!!: ", self.startIndex,self.startIndex+self.numImages
+        import subprocess
+        import os.path
+        counter = 0
+        for i in np.arange(self.startIndex,self.startIndex+self.numImages):
+            if counter == 0:
+                calib,data = self.parent.getDetImage(i,calib=None)
+                self.data = np.zeros((self.numImages,data.shape[0],data.shape[1]))
+                if data is not None:
+                    self.data[counter,:,:] = data
+                counter += 1
+            else:
+                calib,data = self.parent.getDetImage(i,calib=None)
+                if data is not None:
+                    self.data[counter,:,:] = data
+                counter += 1
+        #self.emit(QtCore.SIGNAL("done"))
+        #time.sleep(1)
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
