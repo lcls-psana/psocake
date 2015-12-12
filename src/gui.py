@@ -25,6 +25,8 @@ import Detector.PyDetector
 import logging
 import multiprocessing as mp
 import time
+import subprocess
+import os.path
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
@@ -305,8 +307,6 @@ class MainFrame(QtGui.QWidget):
         self.saveBtn = QtGui.QPushButton('Save evt')
         self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
         self.loadBtn = QtGui.QPushButton('Load image')
-        self.nextSetBtn = QtGui.QPushButton('Next set')
-        self.prevSetBtn = QtGui.QPushButton('Prev set')
         def next():
             self.eventNumber += 1
             if self.eventNumber >= self.eventTotal:
@@ -347,13 +347,11 @@ class MainFrame(QtGui.QWidget):
         self.loadBtn.clicked.connect(load)
         # Layout
         self.w6 = pg.LayoutWidget()
-        self.w6.addWidget(self.prevBtn, row=1, col=0)
-        self.w6.addWidget(self.nextBtn, row=1, col=1)
-        self.w6.addWidget(self.saveBtn, row=2, col=0)
-        self.w6.addWidget(self.prevSetBtn, row=3, col=0)
-        self.w6.addWidget(self.nextSetBtn, row=3, col=1)
-        self.w6.addWidget(self.generatePowderBtn, row=4, col=0)
-        self.w6.addWidget(self.loadBtn, row=4, col=1)
+        self.w6.addWidget(self.prevBtn, row=0, col=0)
+        self.w6.addWidget(self.nextBtn, row=0, col=1)
+        self.w6.addWidget(self.saveBtn, row=1, colspan=2)
+        self.w6.addWidget(self.generatePowderBtn, row=2, col=0)
+        self.w6.addWidget(self.loadBtn, row=2, col=1)
         self.d6.addWidget(self.w6)
 
         ## Dock 7: Image Scroll
@@ -367,7 +365,7 @@ class MainFrame(QtGui.QWidget):
         self.loadSize = 120
         self.spinBox = QtGui.QSpinBox()
         self.spinBox.setValue(0)
-        self.startBtn = QtGui.QPushButton("&Load images")
+        self.startBtn = QtGui.QPushButton("&Load image stack")
 
         # Connect listeners to functions
         self.w7L.addWidget(self.w7, row=0, colspan=3)
@@ -376,31 +374,32 @@ class MainFrame(QtGui.QWidget):
         self.w7L.addWidget(self.startBtn, 1, 2)
         self.d7.addWidget(self.w7L)
 
-
         ### Threads
+        self.thread = []
+        self.threadCounter = 0
         def addImage():
             print "##### addImage!!!!!!"
-            self.w1.setImage(self.thread.data)
-            self.generatePowderBtn.setEnabled(True)
+            self.w1.setImage(self.thread[0].data)
+            #self.generatePowderBtn.setEnabled(True)
             print "#%@$%@# Done addImage!!!!!"
-        def makePicture():
-            print "makePicture!!!!!!"
-            self.thread.computePowder(10)
-            self.generatePowderBtn.setEnabled(False)
-            print "done makePicture!!!!!!"
-        self.thread = Worker(self) # send parent parameters
-        self.connect(self.thread, QtCore.SIGNAL("finished()"), addImage)
+        def makePowder():
+            print "makePowder!!!!!!"
+            self.thread.append(Worker(self))
+            self.connect(self.thread[self.threadCounter], QtCore.SIGNAL("finished()"), addImage)
+
+            self.thread[self.threadCounter].computePowder(self.experimentName,self.runNumber,self.detInfo)
+            self.threadCounter+=1
+            #self.generatePowderBtn.setEnabled(False)
+            print "done makePowder!!!!!!"
+        #self.thread = Worker(self) # send parent parameters
+        #self.connect(self.thread, QtCore.SIGNAL("finished()"), addImage)
         #self.connect(self.thread, QtCore.SIGNAL("terminated()"), self.updateUi)
         #self.connect(self.thread, QtCore.SIGNAL("done"), self.addImage)
-        self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePicture)
+        self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
 
         self.stackStart = 0
         def displayImageStack():
             print "display image stack!!!!!!"
-            #if self.stack is None:
-            #    self.stack = np.zeros((100,self.threadpool.data.shape[1],self.threadpool.data.shape[2]))
-            #self.stack[startIndex:startIndex+10,:,:] = self.threadpool.data
-            #self.stack[10:20,:,:] = self.threadpool[1].data
             self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
                                                                      self.threadpool.data.shape[0]))
@@ -414,7 +413,7 @@ class MainFrame(QtGui.QWidget):
             self.startBtn.setEnabled(False)
             print "done loading stack!!!!!!"
 
-        self.threadpool = Worker1(self) # send parent parameters
+        self.threadpool = stackProducer(self) # send parent parameters
         self.connect(self.threadpool, QtCore.SIGNAL("finished()"), displayImageStack)
         self.connect(self.startBtn, QtCore.SIGNAL("clicked()"), loadStack)
 
@@ -1050,22 +1049,22 @@ class Worker(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         print "WORKER!!!!!!!!!!"
-        self.parent = parent
-        self.numImages = 0
-        self.calib = None
-        self.data = None
+        #self.parent = parent
+        self.experimentName = None
+        self.runNumber = None
+        self.detInfo = None
 
-    def computePowder(self, numImages):
-        self.numImages = numImages
+    def computePowder(self,experimentName,runNumber,detInfo):
+        self.experimentName = experimentName
+        self.runNumber = runNumber
+        self.detInfo = detInfo
         self.start()
 
     def run(self):
         print "Doing WORK!!!!!!!!!!!!"
-        import subprocess
-        import os.path
         # Command for submitting to batch
-        cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp="+self.parent.experimentName+\
-              ":run="+str(self.parent.runNumber)+" -d "+self.parent.detInfo
+        cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp="+self.experimentName+\
+              ":run="+str(self.runNumber)+" -d "+self.detInfo
         print "Submitting batch job: ", cmd
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
@@ -1079,10 +1078,12 @@ class Worker(QtCore.QThread):
             if os.path.isfile(myLog):
                 p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
                 output = p.communicate()[0]
+                p.stdout.close()
                 if myKeyString in output: # job has finished
                     # check job was a success or a failure
                     p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
                     output = p.communicate()[0]
+                    p.stdout.close()
                     if mySuccessString in output: # success
                         print "successfully done"
                         havePowder = 1
@@ -1096,17 +1097,15 @@ class Worker(QtCore.QThread):
                 print "no such file yet"
                 time.sleep(10)
 
-        # emit done signal
-        #self.emit(SIGNAL("done"),calib)
 
-class Worker1(QtCore.QThread):
+class stackProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         print "WORKER1 !!!!!!!!!!"
         self.parent = parent
         self.startIndex = 0
         self.numImages = 0
-        #self.calib = None
+        self.evt = None
         self.data = None
 
     def load(self, startIndex, numImages):
@@ -1116,8 +1115,6 @@ class Worker1(QtCore.QThread):
 
     def run(self):
         print "Doing WORK!!!!!!!!!!!!: ", self.startIndex,self.startIndex+self.numImages
-        import subprocess
-        import os.path
         counter = 0
         for i in np.arange(self.startIndex,self.startIndex+self.numImages):
             if counter == 0:
