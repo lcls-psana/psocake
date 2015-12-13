@@ -1,6 +1,5 @@
 #bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp=amo87215:run=15 -d pnccdFront
 
-#TODO: add getMyShare
 from psana import *
 import numpy as np
 import sys
@@ -75,7 +74,6 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 detname = args.detList[0] #['Camp.0:pnCCD.0']#,'Camp.0:pnCCD.1']
-print "detname: ", detname
 detlist = [Detector(s, env) for s in detname]
 for d,n in zip(detlist,detname):
     d.detname = n
