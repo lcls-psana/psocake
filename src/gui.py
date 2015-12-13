@@ -83,6 +83,11 @@ hitParam_algorithm2_str = 'Flood-fill'
 hitParam_alg2_thr_str = 'thr'
 hitParam_alg2_r0_str = 'r0'
 hitParam_alg2_dr_str = 'dr'
+# algorithm 3
+hitParam_algorithm3_str = 'Ranker'
+hitParam_alg3_rank_str = 'rank'
+hitParam_alg3_r0_str = 'r0'
+hitParam_alg3_dr_str = 'dr'
 
 geom_grp = 'Diffraction geometry'
 geom_detectorDistance_str = 'Detector distance'
@@ -160,11 +165,13 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg2_thr = 10.
         self.hitParam_alg2_r0 = 5.
         self.hitParam_alg2_dr = 0.05
+        self.hitParam_alg3_rank = 3
+        self.hitParam_alg3_r0 = 5.
+        self.hitParam_alg3_dr = 0.05
         self.params = [
             {'name': exp_grp, 'type': 'group', 'children': [
                 {'name': exp_name_str, 'type': 'str', 'value': self.experimentName},
                 {'name': exp_run_str, 'type': 'int', 'value': self.runNumber},
-                #{'name': exp_det_str, 'type': 'list', 'values': self.detInfoList, 'value': 0},
                 {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo},
                 {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'limits': (0, 0), 'children': [
                     {'name': exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
@@ -189,7 +196,7 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
-                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm2_str: 2, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
+                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3, hitParam_algorithm2_str: 2, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min},
                     {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max},
@@ -205,6 +212,11 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr},
                     {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0},
                     {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr},
+                ]},
+                {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': hitParam_alg3_rank_str, 'type': 'int', 'value': self.hitParam_alg3_rank},
+                    {'name': hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
+                    {'name': hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
                 ]},
             ]},
         ]
@@ -361,17 +373,22 @@ class MainFrame(QtGui.QWidget):
         self.scroll = np.random.random((5,10,10))
         self.w7.setImage(self.scroll, xvals=np.linspace(0., self.scroll.shape[0]-1, self.scroll.shape[0]))
 
-        self.label = QtGui.QLabel("Event Number:")
-        self.loadSize = 120
+        #self.label = QtGui.QLabel("Event Number:")
         self.spinBox = QtGui.QSpinBox()
         self.spinBox.setValue(0)
+        self.stackSize = 120
+        self.label = QtGui.QLabel("Event Number:")
+        self.stackSizeBox = QtGui.QSpinBox()
+        self.stackSizeBox.setMaximum(self.stackSize)
+        self.stackSizeBox.setValue(self.stackSize)
         self.startBtn = QtGui.QPushButton("&Load image stack")
 
         # Connect listeners to functions
-        self.w7L.addWidget(self.w7, row=0, colspan=3)
+        self.w7L.addWidget(self.w7, row=0, colspan=4)
         self.w7L.addWidget(self.label, 1, 0)
         self.w7L.addWidget(self.spinBox, 1, 1)
-        self.w7L.addWidget(self.startBtn, 1, 2)
+        self.w7L.addWidget(self.stackSizeBox, 1, 2)
+        self.w7L.addWidget(self.startBtn, 1, 3)
         self.d7.addWidget(self.w7L)
 
         ### Threads
@@ -413,10 +430,11 @@ class MainFrame(QtGui.QWidget):
         def loadStack():
             print "loading stack!!!!!!"
             self.stackStart = self.spinBox.value()
-            self.threadpool.load(self.stackStart,self.loadSize)
+            self.stackSize = self.stackSizeBox.value()
+            self.threadpool.load(self.stackStart,self.stackSize)
             self.startBtn.setEnabled(False)
             self.w7.getView().setTitle("exp="+self.experimentName+":run="+str(self.runNumber)+":evt"+str(self.stackStart)+"-"
-                                       +str(self.stackStart+self.loadSize))
+                                       +str(self.stackStart+self.stackSize))
             print "done loading stack!!!!!!"
 
         self.threadpool = stackProducer(self) # send parent parameters
@@ -528,11 +546,12 @@ class MainFrame(QtGui.QWidget):
 
         # Only initialize the hit finder algorithm once
         if self.algInitDone is False:
-            winds = None
-            mask = None
-            self.alg = PyAlgos(windows=winds, mask=mask, pbits=0)
+            self.windows = None
+            self.mask = None
+            self.alg = PyAlgos(windows=self.windows, mask=self.mask, pbits=0)
 
             # set peak-selector parameters:
+            #alg.set_peak_selection_pars(npix_min=2, npix_max=50, amax_thr=10, atot_thr=20, son_min=5)
             self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
                                         amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
                                         son_min=self.hitParam_alg_son_min)
@@ -541,11 +560,14 @@ class MainFrame(QtGui.QWidget):
         if self.algorithm == 1:
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
             #                           around pixel with maximal intensity.
+            #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
             self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                        radius=int(self.hitParam_alg1_radius), dr=self.hitParam_alg1_dr)
         elif self.algorithm == 2:
             # v2 - define peaks for regions of connected pixels above threshold
             self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
+        elif self.algorithm == 3:
+            self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
 
         self.numPeaksFound = self.peaks.shape[0]
         print "peaks: ", self.peaks
@@ -559,10 +581,10 @@ class MainFrame(QtGui.QWidget):
             iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
             cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
             cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
-            diameter = 5
+            diameter = 8
             self.peak_feature.setData(cenX, cenY, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
-                                      pen='r', pxMode=False)
+                                      pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
         print "Done updatePeaks"
 
     def updateImage(self,calib=None):
@@ -798,6 +820,18 @@ class MainFrame(QtGui.QWidget):
                 self.hitParam_alg2_dr = data
                 if self.classify:
                     self.updateClassification()
+            elif path[2] == hitParam_alg3_rank_str:
+                self.hitParam_alg3_rank = data
+                if self.classify:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg3_r0_str:
+                self.hitParam_alg3_r0 = data
+                if self.classify:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg3_dr_str:
+                self.hitParam_alg3_dr = data
+                if self.classify:
+                    self.updateClassification()
         if path[0] == geom_grp:
             if path[1] == geom_detectorDistance_str:
                 self.updateDetectorDistance(data)
@@ -876,7 +910,7 @@ class MainFrame(QtGui.QWidget):
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.eventTotal = len(self.times)
-            self.spinBox.setMaximum(self.eventTotal-self.loadSize)
+            self.spinBox.setMaximum(self.eventTotal-self.stackSize)
             self.p.param(exp_grp,exp_evt_str).setLimits((0,self.eventTotal-1))
             self.p.param(exp_grp,exp_evt_str,exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
