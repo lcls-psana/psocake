@@ -55,8 +55,7 @@ exp_detInfo_str = 'Detector ID'
 disp_grp = 'Display'
 disp_log_str = 'Logscale'
 disp_aduThresh_str = 'ADU threshold'
-disp_resolutionRings_str = 'Resolution rings'
-disp_resolution_str = 'Resolution (m)'
+
 disp_commonMode_str = 'Common mode (override)'
 disp_overrideCommonMode_str = 'Apply common mode (override)'
 disp_commonModeParam0_str = 'parameters 0'
@@ -94,6 +93,8 @@ geom_detectorDistance_str = 'Detector distance'
 geom_photonEnergy_str = 'Photon energy'
 geom_wavelength_str = "Wavelength"
 geom_pixelSize_str = 'Pixel size'
+geom_resolutionRings_str = 'Resolution rings'
+geom_resolution_str = 'Resolution (pixels)'
 
 paramsDiffractionGeometry = [
     {'name': geom_grp, 'type': 'group', 'children': [
@@ -101,6 +102,9 @@ paramsDiffractionGeometry = [
         {'name': geom_photonEnergy_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'eV'},
         {'name': geom_wavelength_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'm', 'readonly': True},
         {'name': geom_pixelSize_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siPrefix': True, 'suffix': 'm'},
+        {'name': geom_resolutionRings_str, 'type': 'bool', 'value': False, 'tip': "Display resolution rings", 'children': [
+            {'name': geom_resolution_str, 'type': 'str', 'value': None},
+        ]},
     ]},
 ]
 
@@ -131,8 +135,7 @@ class MainFrame(QtGui.QWidget):
         # Init display parameters
         self.logscaleOn = True
         self.aduThresh = 20.
-        self.resolutionRingsOn = False
-        self.resolution = None
+
         self.hasUserDefinedResolution = False
         self.hasCommonMode = False
         self.applyCommonMode = False
@@ -143,6 +146,8 @@ class MainFrame(QtGui.QWidget):
         self.photonEnergy = None
         self.wavelength = None
         self.pixelSize = None
+        self.resolutionRingsOn = False
+        self.resolution = None
         self.resolutionText = []
         # Init variables
         self.data = None # assembled detector image
@@ -183,9 +188,6 @@ class MainFrame(QtGui.QWidget):
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
                 {'name': disp_aduThresh_str, 'type': 'float', 'value': self.aduThresh, 'tip': "Do not display ADUs below the threshold"},
-                {'name': disp_resolutionRings_str, 'type': 'bool', 'value': self.resolutionRingsOn, 'tip': "Display resolution rings", 'children': [
-                    {'name': disp_resolution_str, 'type': 'str', 'value': self.resolution},
-                ]},
                 {'name': disp_commonMode_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode, 'tip': "Apply common mode (override)"},
                     {'name': disp_commonModeParam0_str, 'type': 'int', 'value': self.commonModeParams[0]},
@@ -246,9 +248,9 @@ class MainFrame(QtGui.QWidget):
         ## fill the entire dock area and obey the limits of their internal widgets.
         self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
         self.d2 = Dock("Experiment Parameters", size=(500,300))
-        self.d3 = Dock("Diffraction Geometry", size=(200,200))
+        self.d3 = Dock("Diffraction Geometry", size=(150,150))
         self.d4 = Dock("ROI Histogram", size=(200,200))
-        self.d5 = Dock("Mouse Position", size=(50,50), closable=True)
+        self.d5 = Dock("Mouse Position", size=(100,50), closable=True)
         self.d6 = Dock("Image Control", size=(100, 100))
         self.d7 = Dock("Image Scroll", size=(500,500))
         #self.d8 = Dock("Console", size=(100,100))
@@ -476,15 +478,15 @@ class MainFrame(QtGui.QWidget):
                 indexX = int(mousePoint.x())
                 indexY = int(mousePoint.y())
                 
-            # update crosshair position
-            self.vLine.setPos(mousePoint.x())
-            self.hLine.setPos(mousePoint.y())
-            # get pixel value, if data exists
-            if self.data is not None:
-                if indexX >= 0 and indexX < self.data.shape[0] \
-                   and indexY >= 0 and indexY < self.data.shape[1]:
-                    textInfo = "<span style='color: " + cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
-                    self.label.setText(textInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
+                # update crosshair position
+                self.vLine.setPos(mousePoint.x())
+                self.hLine.setPos(mousePoint.y())
+                # get pixel value, if data exists
+                if self.data is not None:
+                    if indexX >= 0 and indexX < self.data.shape[0] \
+                       and indexY >= 0 and indexY < self.data.shape[1]:
+                        textInfo = "<span style='color: " + cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
+                        self.label.setText(textInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
 
         self.proxy = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
 
@@ -664,7 +666,7 @@ class MainFrame(QtGui.QWidget):
             return None
 
     def getAssembledImage(self,calib):
-        _calib = calib.copy()
+        _calib = calib.copy() # this is important
         # Apply gain if available
         if self.det.gain(self.evt) is not None:
             _calib *= self.det.gain(self.evt)
@@ -748,10 +750,7 @@ class MainFrame(QtGui.QWidget):
                 self.updateLogscale(data)
             elif path[1] == disp_aduThresh_str:
                 self.updateAduThreshold(data)
-            elif path[1] == disp_resolutionRings_str and len(path) == 2:
-                self.updateResolutionRings(data)
-            elif path[2] == disp_resolution_str:
-                self.updateResolution(data)
+
             elif path[2] == disp_commonModeParam0_str:
                 self.updateCommonModeParam(data, 0)
             elif path[2] == disp_commonModeParam1_str:
@@ -839,6 +838,12 @@ class MainFrame(QtGui.QWidget):
                 self.updatePhotonEnergy(data)
             elif path[1] == geom_pixelSize_str:
                 self.updatePixelSize(data)
+            elif path[1] == geom_wavelength_str:
+                pass
+            elif path[1] == geom_resolutionRings_str and len(path) == 2:
+                self.updateResolutionRings(data)
+            elif path[2] == geom_resolution_str:
+                self.updateResolution(data)
 
     ###################################
     ###### Experiment Parameters ######
@@ -1141,7 +1146,7 @@ class Worker(QtCore.QThread):
 class stackProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
-        print "WORKER1 !!!!!!!!!!"
+        print "stack producer !!!!!!!!!!"
         self.parent = parent
         self.startIndex = 0
         self.numImages = 0
@@ -1180,6 +1185,3 @@ def main():
 ## Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':
     main()
-    #import sys
-    #if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-    #    QtGui.QApplication.instance().exec_()
