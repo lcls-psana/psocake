@@ -174,6 +174,9 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg3_rank = 3
         self.hitParam_alg3_r0 = 5.
         self.hitParam_alg3_dr = 0.05
+        # Threads
+        self.stackStart = 0
+        self.stackSize = 60
         self.params = [
             {'name': exp_grp, 'type': 'group', 'children': [
                 {'name': exp_name_str, 'type': 'str', 'value': self.experimentName},
@@ -255,17 +258,18 @@ class MainFrame(QtGui.QWidget):
         self.d6 = Dock("Image Control", size=(100, 100))
         self.d7 = Dock("Image Scroll", size=(500,500))
 
+        # Set the color scheme
         def updateStylePatched(self):
             r = '3px'
             if self.dim:
-                fg = '#b0b0b0'
-                bg = '#94f5bb'
-                border = '#94f5bb'
-                # border = '#7cf3ac'
+                fg = cardinalRed_hex
+                bg = sandstone100_rgb
+                border = "white"
+                pass
             else:
                 fg = cardinalRed_hex
                 bg = sandstone100_rgb
-                border = '#10b151'
+                border = "white" #sandstone100_rgb
 
             if self.orientation == 'vertical':
                 self.vStyle = """DockLabel {
@@ -299,6 +303,7 @@ class MainFrame(QtGui.QWidget):
                 self.setStyleSheet(self.hStyle)
         DockLabel.updateStyle = updateStylePatched
 
+        # Dock positions on the main frame
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
         self.area.addDock(self.d6, 'bottom', self.d1)      ## place d1 at left edge of dock area
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
@@ -306,7 +311,6 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
         self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
-        #self.area.addDock(self.d8, 'bottom', self.d7)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -351,7 +355,6 @@ class MainFrame(QtGui.QWidget):
         self.w4 = pg.PlotWidget(title="ROI histogram")
         hist,bin = np.histogram(np.random.random(1000), bins=1000)
         self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
-        #self.w4.plot(np.random.normal(size=100))
         self.d4.addWidget(self.w4)
 
         ## Dock 5 - mouse intensity display
@@ -422,7 +425,6 @@ class MainFrame(QtGui.QWidget):
         #self.label = QtGui.QLabel("Event Number:")
         self.spinBox = QtGui.QSpinBox()
         self.spinBox.setValue(0)
-        self.stackSize = 120
         self.label = QtGui.QLabel("Event Number:")
         self.stackSizeBox = QtGui.QSpinBox()
         self.stackSizeBox.setMaximum(self.stackSize)
@@ -437,7 +439,9 @@ class MainFrame(QtGui.QWidget):
         self.w7L.addWidget(self.startBtn, 1, 3)
         self.d7.addWidget(self.w7L)
 
-        ### Threads
+        ###############
+        ### Threads ###
+        ###############
         self.thread = []
         self.threadCounter = 0
         def addImage():
@@ -447,20 +451,17 @@ class MainFrame(QtGui.QWidget):
             print "#%@$%@# Done addImage!!!!!"
         def makePowder():
             print "makePowder!!!!!!"
-            self.thread.append(Worker(self))
+            self.thread.append(Worker(self)) # send parent parameters with self
             self.connect(self.thread[self.threadCounter], QtCore.SIGNAL("finished()"), addImage)
-
             self.thread[self.threadCounter].computePowder(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
             #self.generatePowderBtn.setEnabled(False)
             print "done makePowder!!!!!!"
-        #self.thread = Worker(self) # send parent parameters
         #self.connect(self.thread, QtCore.SIGNAL("finished()"), addImage)
         #self.connect(self.thread, QtCore.SIGNAL("terminated()"), self.updateUi)
         #self.connect(self.thread, QtCore.SIGNAL("done"), self.addImage)
         self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
 
-        self.stackStart = 0
         def displayImageStack():
             print "display image stack!!!!!!"
             if self.logscaleOn:
