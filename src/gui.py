@@ -13,6 +13,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.console
 from pyqtgraph.dockarea import *
+from pyqtgraph.dockarea.Dock import DockLabel
 import pyqtgraph.parametertree.parameterTypes as pTypes
 from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
 import psana
@@ -250,10 +251,53 @@ class MainFrame(QtGui.QWidget):
         self.d2 = Dock("Experiment Parameters", size=(500,300))
         self.d3 = Dock("Diffraction Geometry", size=(150,150))
         self.d4 = Dock("ROI Histogram", size=(200,200))
-        self.d5 = Dock("Mouse Position", size=(100,50), closable=True)
+        self.d5 = Dock("Mouse", size=(100,50), closable=False)
         self.d6 = Dock("Image Control", size=(100, 100))
         self.d7 = Dock("Image Scroll", size=(500,500))
-        #self.d8 = Dock("Console", size=(100,100))
+
+        def updateStylePatched(self):
+            r = '3px'
+            if self.dim:
+                fg = '#b0b0b0'
+                bg = '#94f5bb'
+                border = '#94f5bb'
+                # border = '#7cf3ac'
+            else:
+                fg = cardinalRed_hex
+                bg = sandstone100_rgb
+                border = '#10b151'
+
+            if self.orientation == 'vertical':
+                self.vStyle = """DockLabel {
+                    background-color : %s;
+                    color : %s;
+                    border-top-right-radius: 0px;
+                    border-top-left-radius: %s;
+                    border-bottom-right-radius: 0px;
+                    border-bottom-left-radius: %s;
+                    border-width: 0px;
+                    border-right: 2px solid %s;
+                    padding-top: 3px;
+                    padding-bottom: 3px;
+                    font-size: 18px;
+                }""" % (bg, fg, r, r, border)
+                self.setStyleSheet(self.vStyle)
+            else:
+                self.hStyle = """DockLabel {
+                    background-color : %s;
+                    color : %s;
+                    border-top-right-radius: %s;
+                    border-top-left-radius: %s;
+                    border-bottom-right-radius: 0px;
+                    border-bottom-left-radius: 0px;
+                    border-width: 0px;
+                    border-bottom: 2px solid %s;
+                    padding-left: 13px;
+                    padding-right: 13px;
+                    font-size: 18px
+                }""" % (bg, fg, r, r, border)
+                self.setStyleSheet(self.hStyle)
+        DockLabel.updateStyle = updateStylePatched
 
         self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
         self.area.addDock(self.d6, 'bottom', self.d1)      ## place d1 at left edge of dock area
