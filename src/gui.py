@@ -465,9 +465,11 @@ class MainFrame(QtGui.QWidget):
         def displayImageStack():
             print "display image stack!!!!!!"
             if self.logscaleOn:
+                print "applying logscale..."
                 self.w7.setImage(np.log10(abs(self.threadpool.data)+eps), xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
                                                                      self.threadpool.data.shape[0]))
+                print "done applying logscale"
             else:
                 self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
