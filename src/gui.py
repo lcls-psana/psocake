@@ -444,15 +444,9 @@ class MainFrame(QtGui.QWidget):
         ###############
         self.thread = []
         self.threadCounter = 0
-        def addImage():
-            print "##### addImage!!!!!!"
-            self.w1.setImage(self.thread[0].data)
-            #self.generatePowderBtn.setEnabled(True)
-            print "#%@$%@# Done addImage!!!!!"
         def makePowder():
             print "makePowder!!!!!!"
             self.thread.append(Worker(self)) # send parent parameters with self
-            self.connect(self.thread[self.threadCounter], QtCore.SIGNAL("finished()"), addImage)
             self.thread[self.threadCounter].computePowder(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
             #self.generatePowderBtn.setEnabled(False)
@@ -1146,6 +1140,11 @@ class Worker(QtCore.QThread):
         self.runNumber = None
         self.detInfo = None
 
+    def __del__(self):
+        print "del powderProducer #$!@#$!#"
+        self.exiting = True
+        self.wait()
+
     def computePowder(self,experimentName,runNumber,detInfo):
         self.experimentName = experimentName
         self.runNumber = runNumber
@@ -1194,11 +1193,17 @@ class stackProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         print "stack producer !!!!!!!!!!"
+        self.exiting = False
         self.parent = parent
         self.startIndex = 0
         self.numImages = 0
         self.evt = None
         self.data = None
+
+    def __del__(self):
+        print "del stackProducer #$!@#$!#"
+        self.exiting = True
+        self.wait()
 
     def load(self, startIndex, numImages):
         self.startIndex = startIndex
