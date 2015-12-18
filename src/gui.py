@@ -84,6 +84,11 @@ hitParam_alg2_thr_str = 'thr'
 hitParam_alg2_r0_str = 'r0'
 hitParam_alg2_dr_str = 'dr'
 # algorithm 3
+hitParam_alg3_npix_min_str = 'npix_min'
+hitParam_alg3_npix_max_str = 'npix_max'
+hitParam_alg3_amax_thr_str = 'amax_thr'
+hitParam_alg3_atot_thr_str = 'atot_thr'
+hitParam_alg3_son_min_str = 'son_min'
 hitParam_algorithm3_str = 'Ranker'
 hitParam_alg3_rank_str = 'rank'
 hitParam_alg3_r0_str = 'r0'
@@ -171,6 +176,12 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg2_thr = 10.
         self.hitParam_alg2_r0 = 5.
         self.hitParam_alg2_dr = 0.05
+
+        self.hitParam_alg3_npix_min = 5.
+        self.hitParam_alg3_npix_max = 5000.
+        self.hitParam_alg3_amax_thr = 0.
+        self.hitParam_alg3_atot_thr = 0.
+        self.hitParam_alg3_son_min = 10.
         self.hitParam_alg3_rank = 3
         self.hitParam_alg3_r0 = 5.
         self.hitParam_alg3_dr = 0.05
@@ -220,6 +231,11 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr},
                 ]},
                 {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
+                    {'name': hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
+                    {'name': hitParam_alg3_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg3_amax_thr},
+                    {'name': hitParam_alg3_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg3_atot_thr},
+                    {'name': hitParam_alg3_son_min_str, 'type': 'float', 'value': self.hitParam_alg3_son_min},
                     {'name': hitParam_alg3_rank_str, 'type': 'int', 'value': self.hitParam_alg3_rank},
                     {'name': hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
                     {'name': hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
@@ -368,6 +384,7 @@ class MainFrame(QtGui.QWidget):
         self.saveBtn = QtGui.QPushButton('Save evt')
         self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
         self.loadBtn = QtGui.QPushButton('Load image')
+        self.launchBtn = QtGui.QPushButton('Find hits')
         def next():
             self.eventNumber += 1
             if self.eventNumber >= self.eventTotal:
@@ -389,7 +406,10 @@ class MainFrame(QtGui.QWidget):
                          +str(self.eventNumber)+"_"+str(self.eventSeconds)+"_"+str(self.eventNanoseconds)+"_" \
                          +str(self.eventFiducial)+".npy"
             fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', outputName, 'ndarray image (*.npy)')
-            np.save(str(fname),self.calib)
+            if self.logscaleOn:
+                np.save(str(fname),np.log10(abs(self.calib)+eps))
+            else:
+                np.save(str(fname),self.calib)
         def load():
             fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
             print "fname: ", fname, fname.split('.')[-1]
@@ -402,10 +422,14 @@ class MainFrame(QtGui.QWidget):
                 self.calib = np.load(fname)
             #self.data = self.getAssembledImage(self.calib)
             self.updateImage(self.calib)
+        def launch():
+            print "launch job"
+            pass
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
         self.saveBtn.clicked.connect(save)
         self.loadBtn.clicked.connect(load)
+        self.launchBtn.clicked.connect(launch)
         # Layout
         self.w6 = pg.LayoutWidget()
         self.w6.addWidget(self.prevBtn, row=0, col=0)
@@ -413,6 +437,7 @@ class MainFrame(QtGui.QWidget):
         self.w6.addWidget(self.saveBtn, row=1, colspan=2)
         self.w6.addWidget(self.generatePowderBtn, row=2, col=0)
         self.w6.addWidget(self.loadBtn, row=2, col=1)
+        self.w6.addWidget(self.launchBtn, row=3, col=0)
         self.d6.addWidget(self.w6)
 
         ## Dock 7: Image Scroll
@@ -591,13 +616,20 @@ class MainFrame(QtGui.QWidget):
         if self.algInitDone is False:
             self.windows = None
             self.mask = None
+            self.alg = []
             self.alg = PyAlgos(windows=self.windows, mask=self.mask, pbits=0)
 
             # set peak-selector parameters:
             #alg.set_peak_selection_pars(npix_min=2, npix_max=50, amax_thr=10, atot_thr=20, son_min=5)
-            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
+            if self.algorithm == 1:
+                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
                                         amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
                                         son_min=self.hitParam_alg_son_min)
+            elif self.algorithm == 3:
+                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
+                                        amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
+                                        son_min=self.hitParam_alg3_son_min)
+
             self.algInitDone = True
 
         if self.algorithm == 1:
@@ -606,9 +638,9 @@ class MainFrame(QtGui.QWidget):
             #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
             self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                        radius=int(self.hitParam_alg1_radius), dr=self.hitParam_alg1_dr)
-        elif self.algorithm == 2:
-            # v2 - define peaks for regions of connected pixels above threshold
-            self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
+        #elif self.algorithm == 2:
+        #    # v2 - define peaks for regions of connected pixels above threshold
+        #    self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
         elif self.algorithm == 3:
             self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
 
@@ -807,6 +839,7 @@ class MainFrame(QtGui.QWidget):
                 self.updateAlgorithm(data)
             elif path[1] == hitParam_classify_str:
                 self.updateClassify(data)
+
             elif path[2] == hitParam_alg_npix_min_str:
                 self.hitParam_alg_npix_min = data
                 self.algInitDone = False
@@ -832,6 +865,7 @@ class MainFrame(QtGui.QWidget):
                 self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
+
             elif path[2] == hitParam_alg1_thr_low_str:
                 self.hitParam_alg1_thr_low = data
                 if self.classify:
@@ -860,6 +894,33 @@ class MainFrame(QtGui.QWidget):
                 self.hitParam_alg2_dr = data
                 if self.classify:
                     self.updateClassification()
+
+            elif path[2] == hitParam_alg3_npix_min_str:
+                self.hitParam_alg3_npix_min = data
+                self.algInitDone = False
+                if self.classify:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg3_npix_max_str:
+                self.hitParam_alg3_npix_max = data
+                self.algInitDone = False
+                if self.classify:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg3_amax_thr_str:
+                self.hitParam_alg3_amax_thr = data
+                self.algInitDone = False
+                if self.classify:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg3_atot_thr_str:
+                self.hitParam_alg3_atot_thr = data
+                self.algInitDone = False
+                if self.classify:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg3_son_min_str:
+                self.hitParam_alg3_son_min = data
+                self.algInitDone = False
+                if self.classify:
+                    self.updateClassification()
+
             elif path[2] == hitParam_alg3_rank_str:
                 self.hitParam_alg3_rank = data
                 if self.classify:
