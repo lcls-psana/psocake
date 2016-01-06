@@ -213,7 +213,7 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
-                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3, hitParam_algorithm2_str: 2, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
+                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min},
                     {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max},
@@ -225,11 +225,11 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius},
                     {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr},
                 ]},
-                {'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr},
-                    {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0},
-                    {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr},
-                ]},
+                #{'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                #    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr},
+                #    {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0},
+                #    {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr},
+                #]},
                 {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
                     {'name': hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
@@ -660,6 +660,8 @@ class MainFrame(QtGui.QWidget):
             self.peak_feature.setData(cenX, cenY, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
+        else:
+            self.peak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
 
     def updateImage(self,calib=None):
