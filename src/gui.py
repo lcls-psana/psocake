@@ -193,7 +193,7 @@ class MainFrame(QtGui.QWidget):
                 {'name': exp_name_str, 'type': 'str', 'value': self.experimentName},
                 {'name': exp_run_str, 'type': 'int', 'value': self.runNumber},
                 {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo},
-                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'limits': (0, 0), 'children': [
+                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'children': [
                     {'name': exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
                     {'name': exp_nanosecond_str, 'type': 'str', 'value': self.eventNanoseconds, 'readonly': True},
                     {'name': exp_fiducial_str, 'type': 'str', 'value': self.eventFiducial, 'readonly': True},
