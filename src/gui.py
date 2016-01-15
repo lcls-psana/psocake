@@ -636,13 +636,17 @@ class MainFrame(QtGui.QWidget):
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
             #                           around pixel with maximal intensity.
             #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
+            self.peakRadius = int(self.hitParam_alg1_radius)
             self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
-                                       radius=int(self.hitParam_alg1_radius), dr=self.hitParam_alg1_dr)
+                                       radius=self.peakRadius, dr=self.hitParam_alg1_dr)
         #elif self.algorithm == 2:
         #    # v2 - define peaks for regions of connected pixels above threshold
         #    self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
         elif self.algorithm == 3:
-            self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
+            print "#$@#$ got here"
+            self.peakRadius = int(self.hitParam_alg3_r0)
+            print "peakRadius: ", self.peakRadius, self.hitParam_alg3_r0
+            self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
 
         self.numPeaksFound = self.peaks.shape[0]
         print "peaks: ", self.peaks
@@ -656,7 +660,8 @@ class MainFrame(QtGui.QWidget):
             iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
             cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
             cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
-            diameter = 8
+            diameter = self.peakRadius*2
+            print "diameter: ", diameter, self.peakRadius
             self.peak_feature.setData(cenX, cenY, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
@@ -837,9 +842,12 @@ class MainFrame(QtGui.QWidget):
             elif path[2] == disp_overrideCommonMode_str:
                 self.updateCommonMode(data)
         if path[0] == hitParam_grp:
+            print "yes, hitParam_grp"
             if path[1] == hitParam_algorithm_str:
+                print "1"
                 self.updateAlgorithm(data)
             elif path[1] == hitParam_classify_str:
+                print "2"
                 self.updateClassify(data)
 
             elif path[2] == hitParam_alg_npix_min_str:
@@ -884,6 +892,7 @@ class MainFrame(QtGui.QWidget):
                 self.hitParam_alg1_dr = data
                 if self.classify:
                     self.updateClassification()
+
             elif path[2] == hitParam_alg2_thr_str:
                 self.hitParam_alg2_thr = data
                 if self.classify:
@@ -898,6 +907,7 @@ class MainFrame(QtGui.QWidget):
                     self.updateClassification()
 
             elif path[2] == hitParam_alg3_npix_min_str:
+                print "3"
                 self.hitParam_alg3_npix_min = data
                 self.algInitDone = False
                 if self.classify:
@@ -928,7 +938,9 @@ class MainFrame(QtGui.QWidget):
                 if self.classify:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_r0_str:
+                print "4"
                 self.hitParam_alg3_r0 = data
+                print "update alg3 r0: ", self.hitParam_alg3_r0, data
                 if self.classify:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_dr_str:
@@ -1027,8 +1039,12 @@ class MainFrame(QtGui.QWidget):
             evt = self.run.event(self.times[0])
             myAreaDetectors = []
             for k in evt.keys():
-                if Detector.PyDetector.isAreaDetector(k.src()):
-                    myAreaDetectors.append(k.alias())
+                try:
+                    if Detector.PyDetector.dettype(k.alias(), self.env) == Detector.AreaDetector.AreaDetector: #Detector.PyDetector.isAreaDetector(k.src()): # FIXME: deprecated function
+                        print "###### dettype TRUE!!!"
+                        myAreaDetectors.append(k.alias())
+                except ValueError:
+                    continue
             self.detInfoList = list(set(myAreaDetectors))
             print "# Available detectors: ", self.detInfoList
 
