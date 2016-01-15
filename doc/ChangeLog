@@ -6,10 +6,14 @@
 #  ChangeLog file for package psocake
 #------------------------------------------------------------------------
 
-Package author: Chunhong Yoon
+Package author: Chunhong "Chuck" Yoon
 
 Please describe any modifications that you made to the package in the
 reverse time order.
+
+Tag: V00-00-02
+2015-11-18 Chunhong Yoon
+- Works with the new detector interface, dettype
 
 Tag: V00-00-01
 2015-11-18 Chunhong Yoon
