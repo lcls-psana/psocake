@@ -94,6 +94,7 @@ hitParam_alg3_rank_str = 'rank'
 hitParam_alg3_r0_str = 'r0'
 hitParam_alg3_dr_str = 'dr'
 
+# Diffraction geometry parameter tree
 geom_grp = 'Diffraction geometry'
 geom_detectorDistance_str = 'Detector distance'
 geom_photonEnergy_str = 'Photon energy'
@@ -113,6 +114,12 @@ paramsDiffractionGeometry = [
         ]},
     ]},
 ]
+
+# Quantifier parameter tree
+quantifier_grp = 'Quantifier'
+quantifier_filename_str = 'filename'
+quantifier_dataset_str = 'metric_dataset'
+quantifier_sort_str = 'sort'
 
 # Color scheme
 sandstone100_rgb = (221,207,153) # Sandstone
@@ -185,6 +192,12 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg3_rank = 3
         self.hitParam_alg3_r0 = 5.
         self.hitParam_alg3_dr = 0.05
+
+        self.quantifier_filename = ''
+        self.quantifier_dataset = ''
+        self.quantifier_sort = False
+        self.quantifierFileOpen = False
+        self.quantifierHasData = False
         # Threads
         self.stackStart = 0
         self.stackSize = 60
@@ -242,6 +255,13 @@ class MainFrame(QtGui.QWidget):
                 ]},
             ]},
         ]
+        self.paramsQuantifier = [
+            {'name': quantifier_grp, 'type': 'group', 'children': [
+                {'name': quantifier_filename_str, 'type': 'str', 'value': self.quantifier_filename, 'tip': "Full path Hdf5 filename"},
+                {'name': quantifier_dataset_str, 'type': 'str', 'value': self.quantifier_dataset, 'tip': "Hdf5 dataset metric"},
+                {'name': quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
+            ]},
+        ]
         self.initUI()
 
     def initUI(self):
@@ -257,12 +277,12 @@ class MainFrame(QtGui.QWidget):
                                   children=self.params, expanded=True)
         self.p1 = Parameter.create(name='paramsDiffractionGeometry', type='group', \
                                   children=paramsDiffractionGeometry, expanded=True)
+        self.p2 = Parameter.create(name='paramsQuantifier', type='group', \
+                                  children=self.paramsQuantifier, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.changeGeomParam)
+        self.p2.sigTreeStateChanged.connect(self.changeMetric)
 
-        #self.p.param('Basic parameter data types', 'Event Number').sigTreeStateChanged.connect(self.change)
-        #self.p.param('Basic parameter data types', 'Float').sigTreeStateChanged.connect(save)
-        
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
@@ -273,6 +293,7 @@ class MainFrame(QtGui.QWidget):
         self.d5 = Dock("Mouse", size=(100,50), closable=False)
         self.d6 = Dock("Image Control", size=(100, 100))
         self.d7 = Dock("Image Scroll", size=(500,500))
+        self.d8 = Dock("Quantifier", size=(100,100))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -327,6 +348,7 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
         self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
+        self.area.addDock(self.d8, 'bottom', self.d3)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -463,6 +485,27 @@ class MainFrame(QtGui.QWidget):
         self.w7L.addWidget(self.stackSizeBox, 1, 2)
         self.w7L.addWidget(self.startBtn, 1, 3)
         self.d7.addWidget(self.w7L)
+
+        ## Dock 8
+        self.w8 = ParameterTree()
+        self.w8.setParameters(self.p2, showTop=False)
+        self.d8.addWidget(self.w8)
+        # Add plot
+        def clicked(item,points):
+            print("curve clicked",points)
+            print "index: ", points
+            self.item = item
+            self.points = points
+            #print "aL: ", self.curve.listDataItems()
+        def clicked1(points):
+            print("curve clicked1",points)
+            self.points = points
+        self.w9 = pg.PlotWidget(title="Metric")
+        self.curve = self.w9.plot(np.arange(5), pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        self.curve.curve.setClickable(True)
+        #self.curve.sigPointsClicked.connect(clicked)
+        self.curve.sigClicked.connect(clicked1)
+        self.d8.addWidget(self.w9)
 
         ###############
         ### Threads ###
@@ -806,6 +849,15 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,change,data)
 
+    def changeMetric(self, param, changes):
+        for param, change, data in changes:
+            path = self.p2.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
     def update(self, path, change, data):
         print "path: ", path
         if path[0] == exp_grp:
@@ -960,6 +1012,13 @@ class MainFrame(QtGui.QWidget):
                 self.updateResolutionRings(data)
             elif path[2] == geom_resolution_str:
                 self.updateResolution(data)
+        if path[0] == quantifier_grp:
+            if path[1] == quantifier_filename_str:
+                self.updateQuantifierFilename(data)
+            elif path[1] == quantifier_dataset_str:
+                self.updateQuantifierDataset(data)
+            elif path[1] == quantifier_sort_str:
+                self.updateQuantifierSort(data)
 
     ###################################
     ###### Experiment Parameters ######
@@ -1209,6 +1268,32 @@ class MainFrame(QtGui.QWidget):
             print "updateGeometry: ", i, thetaMax, qMax, self.dMin[i]
             if self.resolutionRingsOn:
                 self.updateRings()
+
+    def updateQuantifierFilename(self, data):
+        # close previously open file
+        if self.quantifier_filename is not data and self.quantifierFileOpen:
+            self.quantifierFile.close()
+        self.quantifier_filename = data
+        self.quantifierFile = h5py.File(self.quantifier_filename,'r')
+        self.quantifierFileOpen = True
+
+    def updateQuantifierDataset(self, data):
+        self.quantifier_dataset = data
+        if self.quantifierFileOpen:
+            self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
+            self.quantifierHasData = True
+
+    def updateQuantifierSort(self, data):
+        self.quantifier_sort = data
+        if self.quantifierHasData:
+            if data is True:
+                self.quantifierInd = np.argsort(self.quantifierFile[self.quantifier_dataset].value)
+                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset][self.quantifierInd]
+            else:
+                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
+                self.quantifierInd = np.arange(len(self.quantifierMetric))
+        print "metric: ", self.quantifierMetric
+        print "ind: ", self.quantifierInd
 
 class Worker(QtCore.QThread):
     def __init__(self, parent = None):
