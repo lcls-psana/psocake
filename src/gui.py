@@ -60,6 +60,10 @@ disp_adu_str = 'adu'
 disp_gain_str = 'gain'
 disp_coordx_str = 'coord_x'
 disp_coordy_str = 'coord_y'
+disp_quad_str = 'quad number'
+disp_seg_str = 'seg number'
+disp_row_str = 'row number'
+disp_col_str = 'col number'
 disp_aduThresh_str = 'ADU threshold'
 
 disp_commonMode_str = 'Common mode (override)'
@@ -142,6 +146,7 @@ class MainFrame(QtGui.QWidget):
         self.runNumber = int(args.run)
         #self.detInfoList = [1,2,3,4]
         self.detInfo = args.det
+        self.isCspad = False
         self.eventNumber = int(args.evt)
         self.eventSeconds = ""
         self.eventNanoseconds = ""
@@ -222,7 +227,11 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': disp_image_str, 'type': 'list', 'values': {disp_gain_str: 4,
+                {'name': disp_image_str, 'type': 'list', 'values': {disp_col_str: 8,
+                                                                    disp_row_str: 7,
+                                                                    disp_seg_str: 6,
+                                                                    disp_quad_str: 5,
+                                                                    disp_gain_str: 4,
                                                                     disp_coordy_str: 3,
                                                                     disp_coordx_str: 2,
                                                                     disp_adu_str: 1},
@@ -239,7 +248,9 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
-                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
+                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3,
+                                                                            hitParam_algorithm1_str: 1},
+                 'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
                     {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
@@ -375,11 +386,17 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True)
+        self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 6})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.w1.getView().addItem(self.roi)
-        #self.roi.setZValue(10)  # make sure ROI is drawn above image
+        # Beam mask
+        self.beamROI = pg.ROI([800,800], size=[150, 50], pen={'color': 'r', 'width': 6})
+        self.beamROI.addRotateHandle([1, 1], [0.5, 0.5])
+        self.beamROI.addScaleHandle([0.5, 1], [0.5, 0.5])
+        self.beamROI.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.w1.getView().addItem(self.beamROI)
+
         # Callbacks for handling user interaction
         def updateRoiHistogram():
             if self.data is not None:
@@ -387,6 +404,21 @@ class MainFrame(QtGui.QWidget):
                 hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
         self.roi.sigRegionChanged.connect(updateRoiHistogram)
+
+        #def updateBeamMask():
+        #    if self.data is not None:
+        #        beamSelected, beamCoord = self.beamROI.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+        #        print "beamSelected: ", beamSelected, beamSelected.shape
+        #        print "beamCoord: ", beamCoord, beamCoord.shape
+        #        row=beamCoord[0,:,:].flatten()
+        #        col=beamCoord[1,:,:].flatten()
+        #        print "rows: ", row
+        #        print "cols: ", col
+        #        for i,val in enumerate(row):
+        #            self.data[row[i],col[i]] = 0
+        #        self.updateImage(calib=self.calib)
+        #self.beamROI.sigRegionChanged.connect(updateBeamMask)
+
         # Connect listeners to functions
         self.d1.addWidget(self.w1)
 
@@ -616,35 +648,36 @@ class MainFrame(QtGui.QWidget):
         #embed()
 
     def drawLabCoordinates(self):
+        (cenX,cenY) = (0,0) # no offset
         # Draw xy arrows
         symbolSize = 40
         cutoff=symbolSize/2
         headLen=30
         tailLen=30-cutoff
         xArrow = pg.ArrowItem(angle=180, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='b', pxMode=False)
-        xArrow.setPos(2*headLen,0)
+        xArrow.setPos(2*headLen+cenX,0+cenY)
         self.w1.getView().addItem(xArrow)
         yArrow = pg.ArrowItem(angle=-90, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='r', pxMode=False)
-        yArrow.setPos(0,2*headLen)
+        yArrow.setPos(0+cenX,2*headLen+cenY)
         self.w1.getView().addItem(yArrow)
 
         # z-direction
-        self.z_direction.setData([0], [0], symbol='o', \
+        self.z_direction.setData([0+cenX], [0+cenY], symbol='o', \
                                  size=symbolSize, brush='w', \
                                  pen={'color': 'k', 'width': 4}, pxMode=False)
-        self.z_direction1.setData([0], [0], symbol='o', \
+        self.z_direction1.setData([0+cenX], [0+cenY], symbol='o', \
                                  size=symbolSize/6, brush='k', \
                                  pen={'color': 'k', 'width': 4}, pxMode=False)
         # Add xyz text
         self.x_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #0000FF; font-size: 16pt;">x</span></div>', anchor=(0,0))
         self.w1.getView().addItem(self.x_text)
-        self.x_text.setPos(2*headLen, 0)
+        self.x_text.setPos(2*headLen+cenX, 0+cenY)
         self.y_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FF0000; font-size: 16pt;">y</span></div>', anchor=(1,1))
         self.w1.getView().addItem(self.y_text)
-        self.y_text.setPos(0, 2*headLen)
+        self.y_text.setPos(0+cenX, 2*headLen+cenY)
         self.z_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFFFFF; font-size: 16pt;">z</span></div>', anchor=(1,0))
         self.w1.getView().addItem(self.z_text)
-        self.z_text.setPos(-headLen, 0)
+        self.z_text.setPos(-headLen+cenX, 0+cenY)
 
         # Label xy axes
         self.x_axis = self.w1.getView().getAxis('bottom')
@@ -711,10 +744,10 @@ class MainFrame(QtGui.QWidget):
 
                 print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
                              rmin, rmax, cmin, cmax, bkgd, rms, son)
-
-                cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                print cheetahRow, cheetahCol,atot,atot-(npix*bkgd*2)
-                print "^^^^"
+                if self.isCspad:
+                    cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                    print "cheetahRow,Col", cheetahRow #, cheetahCol,atot,atot-(npix*bkgd*2)
+                    print "^^^^"
 
         print "num peaks found: ", self.numPeaksFound, self.peaks.shape
         self.drawPeaks()
@@ -738,7 +771,7 @@ class MainFrame(QtGui.QWidget):
             print "cenX: ", cenX
             print "cenY: ", cenY
             print "diameter: ", diameter, self.peakRadius
-            self.peak_feature.setData(cenX, cenY, symbol='o', \
+            self.peak_feature.setData(cenX, cenY, symbol='s', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
         else:
@@ -843,14 +876,30 @@ class MainFrame(QtGui.QWidget):
             calib = self.det.coords_y(self.evt)
         elif self.image_property == 4: # gain
             calib = self.det.gain(self.evt)
+        elif self.image_property == 5 and self.isCspad: # quad ind
+            calib = np.zeros((32,185,388))
+            for i in range(32):
+                calib[i,:,:] = int(i)%8
+        elif self.image_property == 6 and self.isCspad: # seg ind
+            calib = np.zeros((32,185,388))
+            for i in range(32):
+                calib[i,:,:] = int(i)/8
+        elif self.image_property == 7 and self.isCspad: # row ind
+            calib = np.zeros((32,185,388))
+            for i in range(185):
+                    calib[:,i,:] = i
+        elif self.image_property == 8 and self.isCspad: # col ind
+            calib = np.zeros((32,185,388))
+            for i in range(388):
+                    calib[:,:,i] = i
 
         if calib is not None:
             # apply mask
-            calib *= self.mask
+            if self.mask is not None:
+                calib *= self.mask
             # assemble image
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.getCentre(data.shape)
-            print "cx,cy: ", self.cx, self.cy
             return calib, data
         else: # TODO: this is a hack that assumes opal is the only detector without calib
             # we have an opal
@@ -858,12 +907,11 @@ class MainFrame(QtGui.QWidget):
             # Do not display ADUs below threshold
             data[np.where(data<self.aduThresh)]=0
             self.cx, self.cy = self.getCentre(data.shape)
-            print "cx,cy: ", self.cx, self.cy
             return data, data
 
-    def getCentre(self, dim):
-        cx = dim[0]/2
-        cy = dim[1]/2
+    def getCentre(self,shape):
+        cx = shape[1]/2
+        cy = shape[0]/2
         return cx,cy
 
     def getEventID(self,evt):
@@ -1090,6 +1138,8 @@ class MainFrame(QtGui.QWidget):
 
     def updateDetInfo(self, data):
         self.detInfo = data
+        if data == 'DscCsPad' or data == 'DsdCsPad':
+            self.isCspad = True
         self.hasDetInfo = True
         self.setupExperiment()
         self.updateImage()
