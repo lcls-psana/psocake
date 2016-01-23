@@ -55,6 +55,11 @@ exp_detInfo_str = 'Detector ID'
 
 disp_grp = 'Display'
 disp_log_str = 'Logscale'
+disp_image_str = 'Image properties'
+disp_adu_str = 'adu'
+disp_gain_str = 'gain'
+disp_coordx_str = 'coord_x'
+disp_coordy_str = 'coord_y'
 disp_aduThresh_str = 'ADU threshold'
 
 disp_commonMode_str = 'Common mode (override)'
@@ -147,6 +152,7 @@ class MainFrame(QtGui.QWidget):
         self.hasDetInfo = False
         # Init display parameters
         self.logscaleOn = True
+        self.image_property = 1
         self.aduThresh = 20.
 
         self.hasUserDefinedResolution = False
@@ -167,6 +173,7 @@ class MainFrame(QtGui.QWidget):
         self.cx = None
         self.cy = None
         self.calib = None # ndarray detector image
+        self.mask = None
         # Init hit finding parameters
         self.algInitDone = False
         self.algorithm = 1
@@ -215,9 +222,15 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': disp_aduThresh_str, 'type': 'float', 'value': self.aduThresh, 'tip': "Do not display ADUs below the threshold"},
+                {'name': disp_image_str, 'type': 'list', 'values': {disp_gain_str: 4,
+                                                                    disp_coordy_str: 3,
+                                                                    disp_coordx_str: 2,
+                                                                    disp_adu_str: 1},
+                 'value': self.image_property, 'tip': "Choose image property to display"},
+                {'name': disp_aduThresh_str, 'type': 'float', 'value': self.aduThresh, 'tip': "Only display ADUs above this threshold"},
                 {'name': disp_commonMode_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode, 'tip': "Apply common mode (override)"},
+                    {'name': disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode,
+                     'tip': "Click to play around with common mode settings.\n This does not change your deployed calib file."},
                     {'name': disp_commonModeParam0_str, 'type': 'int', 'value': self.commonModeParams[0]},
                     {'name': disp_commonModeParam1_str, 'type': 'int', 'value': self.commonModeParams[1]},
                     {'name': disp_commonModeParam2_str, 'type': 'int', 'value': self.commonModeParams[2]},
@@ -658,7 +671,6 @@ class MainFrame(QtGui.QWidget):
         # Only initialize the hit finder algorithm once
         if self.algInitDone is False:
             self.windows = None
-            self.mask = None
             self.alg = []
             self.alg = PyAlgos(windows=self.windows, mask=self.mask, pbits=0)
 
@@ -692,10 +704,29 @@ class MainFrame(QtGui.QWidget):
             self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
 
         self.numPeaksFound = self.peaks.shape[0]
-        print "peaks: ", self.peaks
+
+        fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f  %6.2f %4d %4d %4d %4d  %6.2f  %6.2f  %6.2f'
+        for peak in self.peaks :
+                seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
+
+                print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
+                             rmin, rmax, cmin, cmax, bkgd, rms, son)
+
+                cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                print cheetahRow, cheetahCol,atot,atot-(npix*bkgd*2)
+                print "^^^^"
+
         print "num peaks found: ", self.numPeaksFound, self.peaks.shape
-        #sys.stdout.flush()
         self.drawPeaks()
+
+    def convert_peaks_to_cheetah(self, s, r, c) :
+        """Converts seg, row, col assuming (32,185,388)
+           to cheetah 2-d table row and col (8*185, 4*388)
+        """
+        segs, rows, cols = (32,185,388)
+        row2d = (int(s)%8) * rows + int(r) # where s%8 is a segment in quad number [0,7]
+        col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
+        return row2d, col2d
 
     def drawPeaks(self):
         if self.peaks is not None and self.numPeaksFound > 0:
@@ -776,7 +807,7 @@ class MainFrame(QtGui.QWidget):
     def getCalib(self,evtNumber):
         if self.run is not None:
             self.evt = self.getEvt(evtNumber)
-            if self.applyCommonMode:
+            if self.applyCommonMode: # play with different common mode
                 if self.commonMode[0] == 5: # Algorithm 5
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1]))
                 else: # Algorithms 1 to 4
@@ -802,14 +833,25 @@ class MainFrame(QtGui.QWidget):
         return data
 
     def getDetImage(self,evtNumber,calib=None):
-        if calib is None:
+        if self.image_property == 1 and calib is None:
             calib = self.getCalib(evtNumber)
+        elif self.image_property == 2: # coords_x
+            calib = self.det.coords_x(self.evt)
+        elif self.image_property == 3: # coords_y
+            calib = self.det.coords_y(self.evt)
+        elif self.image_property == 4: # gain
+            calib = self.det.gain(self.evt)
+
         if calib is not None:
+            # apply mask
+            calib *= self.mask
+            # assemble image
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.getCentre(data.shape)
             print "cx,cy: ", self.cx, self.cy
             return calib, data
-        else: # is opal
+        else: # TODO: this is a hack that assumes opal is the only detector without calib
+            # we have an opal
             data = self.det.raw(self.evt)
             # Do not display ADUs below threshold
             data[np.where(data<self.aduThresh)]=0
@@ -880,6 +922,8 @@ class MainFrame(QtGui.QWidget):
         if path[0] == disp_grp:
             if path[1] == disp_log_str:
                 self.updateLogscale(data)
+            elif path[1] == disp_image_str:
+                self.updateImageProperty(data)
             elif path[1] == disp_aduThresh_str:
                 self.updateAduThreshold(data)
 
@@ -1099,8 +1143,7 @@ class MainFrame(QtGui.QWidget):
             myAreaDetectors = []
             for k in evt.keys():
                 try:
-                    if Detector.PyDetector.dettype(k.alias(), self.env) == Detector.AreaDetector.AreaDetector: #Detector.PyDetector.isAreaDetector(k.src()): # FIXME: deprecated function
-                        print "###### dettype TRUE!!!"
+                    if Detector.PyDetector.dettype(k.alias(), self.env) == Detector.AreaDetector.AreaDetector:
                         myAreaDetectors.append(k.alias())
                 except ValueError:
                     continue
@@ -1115,6 +1158,7 @@ class MainFrame(QtGui.QWidget):
                 self.epics = self.ds.env().epicsStore()
                 self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
                 print "clen: ", self.clen
+                self.mask = self.det.mask(evt, calib=False, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
             print "Done setupExperiment"
 
     def updateLogscale(self, data):
@@ -1123,6 +1167,11 @@ class MainFrame(QtGui.QWidget):
             self.firstUpdate = True # clicking logscale resets plot colorscale
             self.updateImage()
         print "Done updateLogscale: ", self.logscaleOn
+
+    def updateImageProperty(self, data):
+        self.image_property = data
+        self.updateImage()
+        print "##### Done updateImageProperty: ", self.image_property
 
     def updateAduThreshold(self, data):
         self.aduThresh = data
