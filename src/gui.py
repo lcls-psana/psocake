@@ -210,10 +210,10 @@ class MainFrame(QtGui.QWidget):
         self.stackSize = 60
         self.params = [
             {'name': exp_grp, 'type': 'group', 'children': [
-                {'name': exp_name_str, 'type': 'str', 'value': self.experimentName},
-                {'name': exp_run_str, 'type': 'int', 'value': self.runNumber},
-                {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo},
-                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'children': [
+                {'name': exp_name_str, 'type': 'str', 'value': self.experimentName, 'tip': "Experiment name, .e.g. cxic0415"},
+                {'name': exp_run_str, 'type': 'int', 'value': self.runNumber, 'tip': "Run number, e.g. 15"},
+                {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo, 'tip': "Detector ID. Look at the terminal for available area detectors, e.g. DscCsPad"},
+                {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'tip': "Event number, first event is 0", 'children': [
                     {'name': exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
                     {'name': exp_nanosecond_str, 'type': 'str', 'value': self.eventNanoseconds, 'readonly': True},
                     {'name': exp_fiducial_str, 'type': 'str', 'value': self.eventFiducial, 'readonly': True},
@@ -241,15 +241,15 @@ class MainFrame(QtGui.QWidget):
                 {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
                 {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3, hitParam_algorithm1_str: 1}, 'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min},
-                    {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max},
-                    {'name': hitParam_alg_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg_amax_thr},
-                    {'name': hitParam_alg_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg_atot_thr},
-                    {'name': hitParam_alg_son_min_str, 'type': 'float', 'value': self.hitParam_alg_son_min},
-                    {'name': hitParam_alg1_thr_low_str, 'type': 'float', 'value': self.hitParam_alg1_thr_low},
-                    {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high},
-                    {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius},
-                    {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr},
+                    {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                    {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+                    {'name': hitParam_alg_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+                    {'name': hitParam_alg_son_min_str, 'type': 'float', 'value': self.hitParam_alg_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+                    {'name': hitParam_alg1_thr_low_str, 'type': 'float', 'value': self.hitParam_alg1_thr_low, 'tip': "Only consider values above this value"},
+                    {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                    {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr, 'tip': "background region outside the region of interest"},
                 ]},
                 #{'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                 #    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr},
@@ -732,9 +732,11 @@ class MainFrame(QtGui.QWidget):
         if self.peaks is not None and self.numPeaksFound > 0:
             iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
             iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
-            cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
-            cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)]
+            cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+            cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
             diameter = self.peakRadius*2
+            print "cenX: ", cenX
+            print "cenY: ", cenY
             print "diameter: ", diameter, self.peakRadius
             self.peak_feature.setData(cenX, cenY, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
