@@ -734,7 +734,7 @@ class MainFrame(QtGui.QWidget):
             iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
             cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
             cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-            diameter = self.peakRadius*2
+            diameter = self.peakRadius*2+1
             print "cenX: ", cenX
             print "cenY: ", cenY
             print "diameter: ", diameter, self.peakRadius
