@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-00-03
+2016-01-24 Chunhong Yoon
+- Displays coords x and y
+
 Tag: V00-00-02
 2015-11-18 Chunhong Yoon
 - Works with the new detector interface, dettype
