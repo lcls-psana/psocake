@@ -489,14 +489,11 @@ class MainFrame(QtGui.QWidget):
                 self.calib = np.load(fname)
             #self.data = self.getAssembledImage(self.calib)
             self.updateImage(self.calib)
-        def launch():
-            print "launch job"
-            pass
+
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
         self.saveBtn.clicked.connect(save)
         self.loadBtn.clicked.connect(load)
-        self.launchBtn.clicked.connect(launch)
         # Layout
         self.w6 = pg.LayoutWidget()
         self.w6.addWidget(self.prevBtn, row=0, col=0)
@@ -555,20 +552,27 @@ class MainFrame(QtGui.QWidget):
         ###############
         ### Threads ###
         ###############
+        # Making powder patterns
         self.thread = []
         self.threadCounter = 0
         def makePowder():
             print "makePowder!!!!!!"
-            self.thread.append(Worker(self)) # send parent parameters with self
+            self.thread.append(PowderProducer(self)) # send parent parameters with self
             self.thread[self.threadCounter].computePowder(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
             #self.generatePowderBtn.setEnabled(False)
             print "done makePowder!!!!!!"
-        #self.connect(self.thread, QtCore.SIGNAL("finished()"), addImage)
-        #self.connect(self.thread, QtCore.SIGNAL("terminated()"), self.updateUi)
-        #self.connect(self.thread, QtCore.SIGNAL("done"), self.addImage)
         self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
-
+        # Launch hit finding
+        def findPeaks():
+            print "find hits!!!!!!"
+            self.thread.append(PeakFinder(self)) # send parent parameters with self
+            self.thread[self.threadCounter].findPeaks(self.experimentName,self.runNumber,self.detInfo)
+            self.threadCounter+=1
+            #self.generatePowderBtn.setEnabled(False)
+            print "done finding hits!!!!!!"
+        self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
+        # Loading image stack
         def displayImageStack():
             print "display image stack!!!!!!"
             if self.logscaleOn:
@@ -592,7 +596,6 @@ class MainFrame(QtGui.QWidget):
             self.w7.getView().setTitle("exp="+self.experimentName+":run="+str(self.runNumber)+":evt"+str(self.stackStart)+"-"
                                        +str(self.stackStart+self.stackSize))
             print "done loading stack!!!!!!"
-
         self.threadpool = stackProducer(self) # send parent parameters
         self.connect(self.threadpool, QtCore.SIGNAL("finished()"), displayImageStack)
         self.connect(self.startBtn, QtCore.SIGNAL("clicked()"), loadStack)
@@ -1396,7 +1399,7 @@ class MainFrame(QtGui.QWidget):
         print "metric: ", self.quantifierMetric
         print "ind: ", self.quantifierInd
 
-class Worker(QtCore.QThread):
+class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         print "WORKER!!!!!!!!!!"
@@ -1406,7 +1409,7 @@ class Worker(QtCore.QThread):
         self.detInfo = None
 
     def __del__(self):
-        print "del powderProducer #$!@#$!#"
+        print "del PowderProducer #$!@#$!#"
         self.exiting = True
         self.wait()
 
@@ -1492,6 +1495,89 @@ class stackProducer(QtCore.QThread):
                 counter += 1
         #self.emit(QtCore.SIGNAL("done"))
         #time.sleep(1)
+
+class PeakFinder(QtCore.QThread):
+    def __init__(self, parent = None):
+        QtCore.QThread.__init__(self, parent)
+        print "PeakFinder!!!!!!!!!!"
+        self.parent = parent
+        self.experimentName = None
+        self.runNumber = None
+        self.detInfo = None
+
+    def __del__(self):
+        print "del PeakFinder #$!@#$!#"
+        self.exiting = True
+        self.wait()
+
+    def findPeaks(self,experimentName,runNumber,detInfo): # Pass in peak parameters
+        self.experimentName = experimentName
+        self.runNumber = runNumber
+        self.detInfo = detInfo
+        print "parent: ", self.parent.algorithm
+
+        self.parent.hitParam_alg_npix_min
+        self.parent.hitParam_alg_npix_max
+        self.parent.hitParam_alg_amax_thr
+        self.parent.hitParam_alg_atot_thr
+        self.parent.hitParam_alg_son_min
+
+        self.parent.hitParam_alg1_thr_low
+        self.parent.hitParam_alg1_thr_high
+        self.parent.hitParam_alg1_radius
+        self.parent.hitParam_alg1_dr
+
+        self.parent.hitParam_alg3_npix_min
+        self.parent.hitParam_alg3_npix_max
+        self.parent.hitParam_alg3_amax_thr
+        self.parent.hitParam_alg3_atot_thr
+        self.parent.hitParam_alg3_son_min
+        self.parent.hitParam_alg3_rank
+        self.parent.hitParam_alg3_r0
+        self.parent.hitParam_alg3_dr
+
+        #self.start()
+
+    def run(self):
+        print "Finding peaks for all events!!!!!!!!!!!!"
+        # Command for submitting to batch
+        if self.parent.algorithm == 1:
+            cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python findPeaks.py exp="+self.experimentName+\
+                  ":run="+str(self.runNumber)+" -d "+self.detInfo+" --algorithm "+self.parent.algorithm
+        elif self.parent.aglrithm == 3:
+            cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python findPeaks.py exp="+self.experimentName+\
+                  ":run="+str(self.runNumber)+" -d "+self.detInfo
+        print "Submitting batch job: ", cmd
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        jobid = out.split("<")[1].split(">")[0]
+        myLog = jobid+".log"
+        myKeyString = "The output (if any) is above this job summary."
+        mySuccessString = "Successfully completed."
+        notDone = 1
+        haveFinished = 0
+        while notDone:
+            if os.path.isfile(myLog):
+                p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
+                output = p.communicate()[0]
+                p.stdout.close()
+                if myKeyString in output: # job has finished
+                    # check job was a success or a failure
+                    p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
+                    output = p.communicate()[0]
+                    p.stdout.close()
+                    if mySuccessString in output: # success
+                        print "successfully done"
+                        haveFinished = 1
+                    else:
+                        print "failed attempt"
+                    notDone = 0
+                else:
+                    print "job hasn't finished yet"
+                    time.sleep(10)
+            else:
+                print "no such file yet"
+                time.sleep(10)
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
