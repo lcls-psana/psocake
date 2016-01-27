@@ -55,7 +55,7 @@ class PeakFinder:
             for i,peak in enumerate(self.peaks):
                 seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
                 cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                print "nPeaks,cheetahRow,Col,atot: ", nPeaks,cheetahRow, cheetahCol, atot
+                print "nPeaks,cheetahRow,cheetahCol,atot: ", nPeaks,cheetahRow, cheetahCol, atot
                 myHdf5[grpName+dset_posX][ind,i] = cheetahCol
                 myHdf5[grpName+dset_posY][ind,i] = cheetahRow
                 myHdf5[grpName+dset_atot][ind,i] = atot
@@ -149,7 +149,6 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
 
             print "calib,findPeaks,savePeaks: ", tic1-tic, tic3-tic2, toc-tic3
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd7114:run=43)")
 parser.add_argument('-d','--detList', help="list of detectors separated with comma (e.g. pnccdFront,pnccdBack)", dest="detList", type=detList, nargs=1)
@@ -207,8 +206,23 @@ runStr = "%04d" % runNumber
 fname = experimentName +"_"+ runStr + ".cxi"
 print fname
 
+# Create hdf5 and save
+if rank == 0:
+    myHdf5 = h5py.File(fname, 'w')
+    dt = h5py.special_dtype(vlen=bytes)
+
+    myInput = ""
+    for key,value in vars(args).iteritems():
+        myInput += key
+        myInput += " "
+        myInput += str(value)
+        myInput += "\n"
+    dset = myHdf5.create_dataset("/psana/input",(1,), dtype=dt)
+    dset[...] = myInput
+    myHdf5.close()
+
 # Parallel process events
-myHdf5 = h5py.File(fname, 'w', driver='mpio', comm=comm)
+myHdf5 = h5py.File(fname, 'r+', driver='mpio', comm=comm)
 grpName = "/entry_1/result_1"
 dset_nPeaks = "/nPeaks"
 dset_posX = "/peakXPosRaw"
@@ -223,18 +237,5 @@ myHdf5.create_dataset(grpName+dset_posY, (numJobs,2048), dtype='float32', chunks
 myHdf5.create_dataset(grpName+dset_atot, (numJobs,2048), dtype='float32', chunks=(1,2048))
 findPeaksForMyChunk(myHdf5,ind,mytimes,single=False)
 myHdf5.close()
-
-# exit(0)
-#
-# # Remaining events are processed by master
-# if rank == 0:
-#     numHitsPerWorker = len(getMyFairShare(numHits,size,0))
-#     numDone = numHitsPerWorker*size
-#     if verbose >= 1: print "Loading in remaining images ", numHits-numDone
-#     if numDone < numHits:
-#         # Write the remainder
-#         myHdf5 = h5py.File(fname, 'r+')
-#         findPeaksForMyChunk(myHdf5,ind,mytimes,single=True)
-#         myHdf5.close()
 
 MPI.Finalize()

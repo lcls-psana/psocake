@@ -749,7 +749,7 @@ class MainFrame(QtGui.QWidget):
                              rmin, rmax, cmin, cmax, bkgd, rms, son)
                 if self.isCspad:
                     cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                    print "cheetahRow,Col", cheetahRow #, cheetahCol,atot,atot-(npix*bkgd*2)
+                    print "cheetahRow,Col", cheetahRow, cheetahCol, atot
                     print "^^^^"
 
         print "num peaks found: ", self.numPeaksFound, self.peaks.shape
@@ -1514,39 +1514,36 @@ class PeakFinder(QtCore.QThread):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
-        print "parent: ", self.parent.algorithm
-
-        self.parent.hitParam_alg_npix_min
-        self.parent.hitParam_alg_npix_max
-        self.parent.hitParam_alg_amax_thr
-        self.parent.hitParam_alg_atot_thr
-        self.parent.hitParam_alg_son_min
-
-        self.parent.hitParam_alg1_thr_low
-        self.parent.hitParam_alg1_thr_high
-        self.parent.hitParam_alg1_radius
-        self.parent.hitParam_alg1_dr
-
-        self.parent.hitParam_alg3_npix_min
-        self.parent.hitParam_alg3_npix_max
-        self.parent.hitParam_alg3_amax_thr
-        self.parent.hitParam_alg3_atot_thr
-        self.parent.hitParam_alg3_son_min
-        self.parent.hitParam_alg3_rank
-        self.parent.hitParam_alg3_r0
-        self.parent.hitParam_alg3_dr
-
-        #self.start()
+        self.start()
 
     def run(self):
         print "Finding peaks for all events!!!!!!!!!!!!"
         # Command for submitting to batch
         if self.parent.algorithm == 1:
             cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python findPeaks.py exp="+self.experimentName+\
-                  ":run="+str(self.runNumber)+" -d "+self.detInfo+" --algorithm "+self.parent.algorithm
+                  ":run="+str(self.runNumber)+" -d "+self.detInfo+\
+                  " --algorithm "+str(self.parent.algorithm)+\
+                  " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
+                  " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
+                  " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
+                  " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
+                  " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
+                  " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                  " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                  " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                  " --alg1_dr "+str(self.parent.hitParam_alg1_dr)+" --noe 1000"
         elif self.parent.aglrithm == 3:
             cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python findPeaks.py exp="+self.experimentName+\
-                  ":run="+str(self.runNumber)+" -d "+self.detInfo
+                  ":run="+str(self.runNumber)+" -d "+self.detInfo+\
+                  " --algorithm "+str(self.parent.algorithm)+\
+                  " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
+                  " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
+                  " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
+                  " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
+                  " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
+                  " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                  " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                  " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
         print "Submitting batch job: ", cmd
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
