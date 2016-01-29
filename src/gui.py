@@ -396,7 +396,7 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
         self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
         self.area.addDock(self.d8, 'bottom', self.d3)
-        self.area.addDock(self.d9, 'bottom', self.d3)
+        self.area.addDock(self.d9, 'bottom', self.d4)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -415,11 +415,11 @@ class MainFrame(QtGui.QWidget):
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.w1.getView().addItem(self.roi)
         # Beam mask
-        self.beamROI = pg.ROI([800,800], size=[150, 50], pen={'color': 'r', 'width': 6})
-        self.beamROI.addRotateHandle([1, 1], [0.5, 0.5])
-        self.beamROI.addScaleHandle([0.5, 1], [0.5, 0.5])
-        self.beamROI.addScaleHandle([0, 0.5], [0.5, 0.5])
-        self.w1.getView().addItem(self.beamROI)
+        #self.beamROI = pg.ROI([800,800], size=[150, 50], pen={'color': 'r', 'width': 6})
+        #self.beamROI.addRotateHandle([1, 1], [0.5, 0.5])
+        #self.beamROI.addScaleHandle([0.5, 1], [0.5, 0.5])
+        #self.beamROI.addScaleHandle([0, 0.5], [0.5, 0.5])
+        #self.w1.getView().addItem(self.beamROI)
 
         # Callbacks for handling user interaction
         def updateRoiHistogram():
@@ -452,13 +452,13 @@ class MainFrame(QtGui.QWidget):
         self.w2.setWindowTitle('Parameters')
         self.d2.addWidget(self.w2)
 
-        ## Dock 3
+        ## Dock 3: Diffraction geometry
         self.w3 = ParameterTree()
         self.w3.setParameters(self.p1, showTop=False)
         self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
 
-        ## Dock 4
+        ## Dock 4: ROI histogram
         self.w4 = pg.PlotWidget(title="ROI histogram")
         hist,bin = np.histogram(np.random.random(1000), bins=1000)
         self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
@@ -520,11 +520,11 @@ class MainFrame(QtGui.QWidget):
         self.w6 = pg.LayoutWidget()
         self.w6.addWidget(self.prevBtn, row=0, col=0)
         self.w6.addWidget(self.nextBtn, row=0, col=1)
-        self.w6.addWidget(self.saveBtn, row=1, colspan=2)
-        self.w6.addWidget(self.loadBtn, row=2, col=1)
+        self.w6.addWidget(self.saveBtn, row=1, col=0)#colspan=2)
+        self.w6.addWidget(self.loadBtn, row=1, col=1)
         self.d6.addWidget(self.w6)
 
-        ## Dock 7: Image Scroll
+        ## Dock 7: Image Stack
         self.w7L = pg.LayoutWidget()
         self.w7 = pg.ImageView(view=pg.PlotItem())
         self.w7.getView().invertY(False)
@@ -554,12 +554,9 @@ class MainFrame(QtGui.QWidget):
         self.d8.addWidget(self.w8)
         # Add plot
         self.w9 = pg.PlotWidget(title="Metric")
-        #self.curve = self.w9.plot(np.arange(5),np.array([0.9,-0.1,0.7,0.4,0.85]), pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-        #self.curve.curve.setClickable(True)
-        #self.curve.sigClicked.connect(clicked)
         self.d8.addWidget(self.w9)
 
-        ## Dock 9
+        ## Dock 9: Peak finder
         self.w10 = ParameterTree()
         self.w10.setParameters(self.p3, showTop=False)
         self.d9.addWidget(self.w10)
