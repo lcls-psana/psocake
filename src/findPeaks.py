@@ -28,7 +28,7 @@ class PeakFinder:
         self.alg.set_peak_selection_pars(npix_min=hitParam_alg_npix_min, npix_max=hitParam_alg_npix_max, \
                                         amax_thr=hitParam_alg_amax_thr, atot_thr=hitParam_alg_atot_thr, \
                                         son_min=hitParam_alg_son_min)
-
+        # set algorithm specific parameters
         if algorithm == 1:
             self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
             self.hitParam_alg1_thr_high = kwargs["alg1_thr_high"]
@@ -150,8 +150,10 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
             print "calib,findPeaks,savePeaks: ", tic1-tic, tic3-tic2, toc-tic3
 
 parser = argparse.ArgumentParser()
-parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd7114:run=43)")
+parser.add_argument('-e','--exp', help="experiment name (e.g. cxic0415)", type=str)
+parser.add_argument('-r','--run', help="run number (e.g. 24)", type=int)
 parser.add_argument('-d','--detList', help="list of detectors separated with comma (e.g. pnccdFront,pnccdBack)", dest="detList", type=detList, nargs=1)
+parser.add_argument('-o','--outDir', help="output directory where .cxi will be saved (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
 parser.add_argument("-n","--noe",help="number of events to process",default=0, type=int)
 parser.add_argument("--algorithm",help="number of events to process",default=1, type=int)
 parser.add_argument("--alg_npix_min",help="number of events to process",default=5., type=float)
@@ -168,10 +170,10 @@ parser.add_argument("--alg3_r0",help="number of events to process",default=5., t
 parser.add_argument("--alg3_dr",help="number of events to process",default=0.05, type=float)
 args = parser.parse_args()
 
-experimentName = args.exprun.split(":")[0].split("=")[-1]
-runNumber = int(args.exprun.split(":")[-1].split("=")[-1])
+experimentName = args.exp
+runNumber = args.run
 
-ds = DataSource(args.exprun+':idx')
+ds = DataSource("exp="+experimentName+":run="+str(runNumber)+':idx')
 env = ds.env()
 
 from mpi4py import MPI
@@ -203,7 +205,7 @@ mytimes = times[ind[0]:ind[-1]+1]
 print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
 runStr = "%04d" % runNumber
-fname = experimentName +"_"+ runStr + ".cxi"
+fname = args.outDir +"/"+ experimentName +"_"+ runStr + ".cxi"
 print fname
 
 # Create hdf5 and save

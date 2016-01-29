@@ -87,11 +87,6 @@ hitParam_alg1_thr_low_str = 'thr_low'
 hitParam_alg1_thr_high_str = 'thr_high'
 hitParam_alg1_radius_str = 'radius'
 hitParam_alg1_dr_str = 'dr'
-# algorithm 2
-hitParam_algorithm2_str = 'Flood-fill'
-hitParam_alg2_thr_str = 'thr'
-hitParam_alg2_r0_str = 'r0'
-hitParam_alg2_dr_str = 'dr'
 # algorithm 3
 hitParam_alg3_npix_min_str = 'npix_min'
 hitParam_alg3_npix_max_str = 'npix_max'
@@ -102,6 +97,19 @@ hitParam_algorithm3_str = 'Ranker'
 hitParam_alg3_rank_str = 'rank'
 hitParam_alg3_r0_str = 'r0'
 hitParam_alg3_dr_str = 'dr'
+
+hitParam_outDir_str = 'Output directory'
+hitParam_runs_str = 'Run(s)'
+hitParam_queue_str = 'queue'
+hitParam_cpu_str = 'CPUs'
+hitParam_psanaq_str = 'psanaq'
+hitParam_psnehq_str = 'psnehq'
+hitParam_psfehq_str = 'psfehq'
+hitParam_psnehprioq_str = 'psnehprioq'
+hitParam_psfehprioq_str = 'psfehprioq'
+hitParam_psnehhiprioq_str = 'psnehhiprioq'
+hitParam_psfehhiprioq_str = 'psfehhiprioq'
+hitParam_noe_str = 'Number of events to process'
 
 # Diffraction geometry parameter tree
 geom_grp = 'Diffraction geometry'
@@ -156,9 +164,9 @@ class MainFrame(QtGui.QWidget):
         self.hasRunNumber = False
         self.hasDetInfo = False
         # Init display parameters
-        self.logscaleOn = True
+        self.logscaleOn = False
         self.image_property = 1
-        self.aduThresh = 20.
+        self.aduThresh = 0.
 
         self.hasUserDefinedResolution = False
         self.hasCommonMode = False
@@ -183,19 +191,15 @@ class MainFrame(QtGui.QWidget):
         self.algInitDone = False
         self.algorithm = 1
         self.classify = False
-        self.hitParam_alg_npix_min = 5.
+        self.hitParam_alg_npix_min = 1.
         self.hitParam_alg_npix_max = 5000.
         self.hitParam_alg_amax_thr = 0.
         self.hitParam_alg_atot_thr = 0.
-        self.hitParam_alg_son_min = 10.
-        self.hitParam_alg1_thr_low = 10.
-        self.hitParam_alg1_thr_high = 150.
-        self.hitParam_alg1_radius = 5
+        self.hitParam_alg_son_min = 15.
+        self.hitParam_alg1_thr_low = 60.
+        self.hitParam_alg1_thr_high = 400.
+        self.hitParam_alg1_radius = 2
         self.hitParam_alg1_dr = 0.05
-        self.hitParam_alg2_thr = 10.
-        self.hitParam_alg2_r0 = 5.
-        self.hitParam_alg2_dr = 0.05
-
         self.hitParam_alg3_npix_min = 5.
         self.hitParam_alg3_npix_max = 5000.
         self.hitParam_alg3_amax_thr = 0.
@@ -204,6 +208,12 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg3_rank = 3
         self.hitParam_alg3_r0 = 5.
         self.hitParam_alg3_dr = 0.05
+
+        self.hitParam_outDir = os.getcwd()
+        self.hitParam_runs = ''
+        self.hitParam_queue = hitParam_psanaq_str
+        self.hitParam_cpus = 32
+        self.hitParam_noe = 0
 
         self.quantifier_filename = ''
         self.quantifier_dataset = ''
@@ -246,6 +256,8 @@ class MainFrame(QtGui.QWidget):
                     {'name': disp_commonModeParam3_str, 'type': 'int', 'value': self.commonModeParams[3]},
                 ]},
             ]},
+        ]
+        self.paramsPeakFinder = [
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
                 {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3,
@@ -262,11 +274,6 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr, 'tip': "background region outside the region of interest"},
                 ]},
-                #{'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                #    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr},
-                #    {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0},
-                #    {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr},
-                #]},
                 {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
                     {'name': hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
@@ -277,6 +284,18 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
                     {'name': hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
                 ]},
+                {'name': hitParam_outDir_str, 'type': 'str', 'value': self.hitParam_outDir},
+                {'name': hitParam_runs_str, 'type': 'str', 'value': self.hitParam_runs},
+                {'name': hitParam_queue_str, 'type': 'list', 'values': {hitParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                        hitParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                        hitParam_psfehprioq_str: 'psfehprioq',
+                                                                        hitParam_psnehprioq_str: 'psnehprioq',
+                                                                        hitParam_psfehq_str: 'psfehq',
+                                                                        hitParam_psnehq_str: 'psnehq',
+                                                                        hitParam_psanaq_str: 'psanaq'},
+                 'value': self.hitParam_queue, 'tip': "Choose queue"},
+                {'name': hitParam_cpu_str, 'type': 'int', 'value': self.hitParam_cpus},
+                {'name': hitParam_noe_str, 'type': 'int', 'value': self.hitParam_noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
         self.paramsQuantifier = [
@@ -303,9 +322,12 @@ class MainFrame(QtGui.QWidget):
                                   children=paramsDiffractionGeometry, expanded=True)
         self.p2 = Parameter.create(name='paramsQuantifier', type='group', \
                                   children=self.paramsQuantifier, expanded=True)
+        self.p3 = Parameter.create(name='paramsPeakFinder', type='group', \
+                                  children=self.paramsPeakFinder, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.changeGeomParam)
         self.p2.sigTreeStateChanged.connect(self.changeMetric)
+        self.p3.sigTreeStateChanged.connect(self.changePeakFinder)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
@@ -318,6 +340,7 @@ class MainFrame(QtGui.QWidget):
         self.d6 = Dock("Image Control", size=(100, 100))
         self.d7 = Dock("Image Scroll", size=(500,500))
         self.d8 = Dock("Quantifier", size=(100,100))
+        self.d9 = Dock("Peak Finder", size=(500,300))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -373,6 +396,7 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
         self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
         self.area.addDock(self.d8, 'bottom', self.d3)
+        self.area.addDock(self.d9, 'bottom', self.d3)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -449,9 +473,8 @@ class MainFrame(QtGui.QWidget):
         self.nextBtn = QtGui.QPushButton('Next evt')
         self.prevBtn = QtGui.QPushButton('Prev evt')
         self.saveBtn = QtGui.QPushButton('Save evt')
-        self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
         self.loadBtn = QtGui.QPushButton('Load image')
-        self.launchBtn = QtGui.QPushButton('Find hits')
+
         def next():
             self.eventNumber += 1
             if self.eventNumber >= self.eventTotal:
@@ -487,7 +510,6 @@ class MainFrame(QtGui.QWidget):
             else:
                 print "got npy"
                 self.calib = np.load(fname)
-            #self.data = self.getAssembledImage(self.calib)
             self.updateImage(self.calib)
 
         self.nextBtn.clicked.connect(next)
@@ -499,9 +521,7 @@ class MainFrame(QtGui.QWidget):
         self.w6.addWidget(self.prevBtn, row=0, col=0)
         self.w6.addWidget(self.nextBtn, row=0, col=1)
         self.w6.addWidget(self.saveBtn, row=1, colspan=2)
-        self.w6.addWidget(self.generatePowderBtn, row=2, col=0)
         self.w6.addWidget(self.loadBtn, row=2, col=1)
-        self.w6.addWidget(self.launchBtn, row=3, col=0)
         self.d6.addWidget(self.w6)
 
         ## Dock 7: Image Scroll
@@ -528,26 +548,27 @@ class MainFrame(QtGui.QWidget):
         self.w7L.addWidget(self.startBtn, 1, 3)
         self.d7.addWidget(self.w7L)
 
-        ## Dock 8
+        ## Dock 8: Quantifier
         self.w8 = ParameterTree()
         self.w8.setParameters(self.p2, showTop=False)
         self.d8.addWidget(self.w8)
         # Add plot
-        def clicked(item,points):
-            print("curve clicked",points)
-            print "index: ", points
-            self.item = item
-            self.points = points
-            #print "aL: ", self.curve.listDataItems()
-        def clicked1(points):
-            print("curve clicked1",points)
-            self.points = points
         self.w9 = pg.PlotWidget(title="Metric")
-        self.curve = self.w9.plot(np.arange(5), pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-        self.curve.curve.setClickable(True)
-        #self.curve.sigPointsClicked.connect(clicked)
-        self.curve.sigClicked.connect(clicked1)
+        #self.curve = self.w9.plot(np.arange(5),np.array([0.9,-0.1,0.7,0.4,0.85]), pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        #self.curve.curve.setClickable(True)
+        #self.curve.sigClicked.connect(clicked)
         self.d8.addWidget(self.w9)
+
+        ## Dock 9
+        self.w10 = ParameterTree()
+        self.w10.setParameters(self.p3, showTop=False)
+        self.d9.addWidget(self.w10)
+        self.w11 = pg.LayoutWidget()
+        self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
+        self.launchBtn = QtGui.QPushButton('Launch peak finder')
+        self.w11.addWidget(self.launchBtn, row=1, col=0)
+        self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
+        self.d9.addWidget(self.w11)
 
         ###############
         ### Threads ###
@@ -569,7 +590,6 @@ class MainFrame(QtGui.QWidget):
             self.thread.append(PeakFinder(self)) # send parent parameters with self
             self.thread[self.threadCounter].findPeaks(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
-            #self.generatePowderBtn.setEnabled(False)
             print "done finding hits!!!!!!"
         self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
         # Loading image stack
@@ -953,8 +973,20 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,change,data)
 
+    def changePeakFinder(self, param, changes):
+        for param, change, data in changes:
+            path = self.p3.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
     def update(self, path, change, data):
         print "path: ", path
+        ################################################
+        # experiment parameters
+        ################################################
         if path[0] == exp_grp:
             if path[1] == exp_name_str:
                 self.updateExpName(data)
@@ -972,6 +1004,9 @@ class MainFrame(QtGui.QWidget):
                 self.updateEventNumber(data)
                 if self.classify:
                     self.updateClassification()
+        ################################################
+        # display parameters
+        ################################################
         if path[0] == disp_grp:
             if path[1] == disp_log_str:
                 self.updateLogscale(data)
@@ -979,7 +1014,6 @@ class MainFrame(QtGui.QWidget):
                 self.updateImageProperty(data)
             elif path[1] == disp_aduThresh_str:
                 self.updateAduThreshold(data)
-
             elif path[2] == disp_commonModeParam0_str:
                 self.updateCommonModeParam(data, 0)
             elif path[2] == disp_commonModeParam1_str:
@@ -990,14 +1024,25 @@ class MainFrame(QtGui.QWidget):
                 self.updateCommonModeParam(data, 3)
             elif path[2] == disp_overrideCommonMode_str:
                 self.updateCommonMode(data)
+        ################################################
+        # peak finder parameters
+        ################################################
         if path[0] == hitParam_grp:
-            print "yes, hitParam_grp"
             if path[1] == hitParam_algorithm_str:
-                print "1"
                 self.updateAlgorithm(data)
             elif path[1] == hitParam_classify_str:
-                print "2"
                 self.updateClassify(data)
+
+            elif path[1] == hitParam_outDir_str:
+                self.hitParam_outDir = data
+            elif path[1] == hitParam_runs_str:
+                self.hitParam_runs = data
+            elif path[1] == hitParam_queue_str:
+                self.hitParam_queue = data
+            elif path[1] == hitParam_cpu_str:
+                self.hitParam_cpus = data
+            elif path[1] == hitParam_noe_str:
+                self.hitParam_noe = data
 
             elif path[2] == hitParam_alg_npix_min_str:
                 self.hitParam_alg_npix_min = data
@@ -1024,7 +1069,6 @@ class MainFrame(QtGui.QWidget):
                 self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
-
             elif path[2] == hitParam_alg1_thr_low_str:
                 self.hitParam_alg1_thr_low = data
                 if self.classify:
@@ -1041,22 +1085,7 @@ class MainFrame(QtGui.QWidget):
                 self.hitParam_alg1_dr = data
                 if self.classify:
                     self.updateClassification()
-
-            elif path[2] == hitParam_alg2_thr_str:
-                self.hitParam_alg2_thr = data
-                if self.classify:
-                    self.updateClassification()
-            elif path[2] == hitParam_alg2_r0_str:
-                self.hitParam_alg2_r0 = data
-                if self.classify:
-                    self.updateClassification()
-            elif path[2] == hitParam_alg2_dr_str:
-                self.hitParam_alg2_dr = data
-                if self.classify:
-                    self.updateClassification()
-
             elif path[2] == hitParam_alg3_npix_min_str:
-                print "3"
                 self.hitParam_alg3_npix_min = data
                 self.algInitDone = False
                 if self.classify:
@@ -1081,21 +1110,21 @@ class MainFrame(QtGui.QWidget):
                 self.algInitDone = False
                 if self.classify:
                     self.updateClassification()
-
             elif path[2] == hitParam_alg3_rank_str:
                 self.hitParam_alg3_rank = data
                 if self.classify:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_r0_str:
-                print "4"
                 self.hitParam_alg3_r0 = data
-                print "update alg3 r0: ", self.hitParam_alg3_r0, data
                 if self.classify:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_dr_str:
                 self.hitParam_alg3_dr = data
                 if self.classify:
                     self.updateClassification()
+        ################################################
+        # diffraction geometry parameters
+        ################################################
         if path[0] == geom_grp:
             if path[1] == geom_detectorDistance_str:
                 self.updateDetectorDistance(data)
@@ -1109,6 +1138,9 @@ class MainFrame(QtGui.QWidget):
                 self.updateResolutionRings(data)
             elif path[2] == geom_resolution_str:
                 self.updateResolution(data)
+        ################################################
+        # quantifier parameters
+        ################################################
         if path[0] == quantifier_grp:
             if path[1] == quantifier_filename_str:
                 self.updateQuantifierFilename(data)
@@ -1116,6 +1148,7 @@ class MainFrame(QtGui.QWidget):
                 self.updateQuantifierDataset(data)
             elif path[1] == quantifier_sort_str:
                 self.updateQuantifierSort(data)
+
 
     ###################################
     ###### Experiment Parameters ######
@@ -1213,7 +1246,7 @@ class MainFrame(QtGui.QWidget):
                 self.epics = self.ds.env().epicsStore()
                 self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
                 print "clen: ", self.clen
-                self.mask = self.det.mask(evt, calib=False, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
+                self.mask = self.det.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
             print "Done setupExperiment"
 
     def updateLogscale(self, data):
@@ -1380,30 +1413,63 @@ class MainFrame(QtGui.QWidget):
         self.quantifier_filename = data
         self.quantifierFile = h5py.File(self.quantifier_filename,'r')
         self.quantifierFileOpen = True
+        print "Done opening metric"
 
     def updateQuantifierDataset(self, data):
         self.quantifier_dataset = data
         if self.quantifierFileOpen:
             self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
+            self.quantifierInd = np.arange(len(self.quantifierMetric))
             self.quantifierHasData = True
+            self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
+            print "Done reading metric"
 
     def updateQuantifierSort(self, data):
         self.quantifier_sort = data
         if self.quantifierHasData:
             if data is True:
                 self.quantifierInd = np.argsort(self.quantifierFile[self.quantifier_dataset].value)
-                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset][self.quantifierInd]
+                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value[self.quantifierInd]
+                self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
             else:
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
+                self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
         print "metric: ", self.quantifierMetric
         print "ind: ", self.quantifierInd
+
+    def updateQuantifierPlot(self,ind,metric):
+        #self.curve = None
+        #self.w9.plotItem.clear()
+        self.w9.getPlotItem().clear()
+        self.curve = self.w9.plot(metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        #self.curve = self.w9.plot(ind,metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        self.curve.curve.setClickable(True)
+        self.curve.sigClicked.connect(self.clicked)
+
+    def clicked(self,points):
+        print("curve clicked",points)
+        from pprint import pprint
+        pprint(vars(points.scatter))
+        for i in range(len(points.scatter.data)):
+            if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
+                ind = i
+                break
+        indX = points.scatter.data[i][0]
+        indY = points.scatter.data[i][1]
+        print "indX: ", ind, indX, indY
+        if self.quantifier_sort:
+            ind = self.quantifierInd[ind]
+        self.eventNumber = ind
+        self.calib, self.data = self.getDetImage(self.eventNumber)
+        self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+        self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
 class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         print "WORKER!!!!!!!!!!"
-        #self.parent = parent
+        self.parent = parent
         self.experimentName = None
         self.runNumber = None
         self.detInfo = None
@@ -1419,42 +1485,65 @@ class PowderProducer(QtCore.QThread):
         self.detInfo = detInfo
         self.start()
 
+    def digestRunList(self,runList):
+        runsToDo = []
+        if not runList:
+            print "Run(s) is empty. Please type in the run number(s)."
+            return runsToDo
+        runLists = runList.split(",")
+        for list in runLists:
+            temp = list.split(":")
+            if len(temp) == 2:
+                for i in np.arange(int(temp[0]),int(temp[1])+1):
+                    runsToDo.append(i)
+            elif len(temp) == 1:
+                runsToDo.append(int(temp[0]))
+        return runsToDo
+
     def run(self):
-        print "Doing WORK!!!!!!!!!!!!"
-        # Command for submitting to batch
-        cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp="+self.experimentName+\
-              ":run="+str(self.runNumber)+" -d "+self.detInfo
-        print "Submitting batch job: ", cmd
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, err = process.communicate()
-        jobid = out.split("<")[1].split(">")[0]
-        myLog = jobid+".log"
-        myKeyString = "The output (if any) is above this job summary."
-        mySuccessString = "Successfully completed."
-        notDone = 1
-        havePowder = 0
-        while notDone:
-            if os.path.isfile(myLog):
-                p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
-                if myKeyString in output: # job has finished
-                    # check job was a success or a failure
-                    p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-                    output = p.communicate()[0]
-                    p.stdout.close()
-                    if mySuccessString in output: # success
-                        print "successfully done"
-                        havePowder = 1
-                    else:
-                        print "failed attempt"
-                    notDone = 0
-                else:
-                    print "job hasn't finished yet"
-                    time.sleep(10)
-            else:
-                print "no such file yet"
-                time.sleep(10)
+        print "Generating powder!!!!!!!!!!!!"
+        runsToDo = self.digestRunList(self.parent.hitParam_runs)
+        print runsToDo
+        for run in runsToDo:
+            # Command for submitting to batch
+            cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
+                  " -o %J.log python generatePowder.py exp="+self.experimentName+\
+                  ":run="+str(run)+" -d "+self.detInfo+\
+                  " -o "+str(self.parent.hitParam_outDir)
+            if self.parent.hitParam_noe > 0:
+                cmd += " -n "+str(self.parent.hitParam_noe)
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+            jobid = out.split("<")[1].split(">")[0]
+            myLog = jobid+".log"
+            print "bsub log filename: ", myLog
+            # myKeyString = "The output (if any) is above this job summary."
+            # mySuccessString = "Successfully completed."
+            # notDone = 1
+            # havePowder = 0
+            # while notDone:
+            #     if os.path.isfile(myLog):
+            #         p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
+            #         output = p.communicate()[0]
+            #         p.stdout.close()
+            #         if myKeyString in output: # job has finished
+            #             # check job was a success or a failure
+            #             p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
+            #             output = p.communicate()[0]
+            #             p.stdout.close()
+            #             if mySuccessString in output: # success
+            #                 print "successfully done"
+            #                 havePowder = 1
+            #             else:
+            #                 print "failed attempt"
+            #             notDone = 0
+            #         else:
+            #             print "job hasn't finished yet"
+            #             time.sleep(10)
+            #     else:
+            #         print "no such file yet"
+            #         time.sleep(10)
 
 
 class stackProducer(QtCore.QThread):
@@ -1516,65 +1605,92 @@ class PeakFinder(QtCore.QThread):
         self.detInfo = detInfo
         self.start()
 
+    def digestRunList(self,runList):
+        runsToDo = []
+        if not runList:
+            print "Run(s) is empty. Please type in the run number(s)."
+            return runsToDo
+        runLists = runList.split(",")
+        for list in runLists:
+            temp = list.split(":")
+            if len(temp) == 2:
+                for i in np.arange(int(temp[0]),int(temp[1])+1):
+                    runsToDo.append(i)
+            elif len(temp) == 1:
+                runsToDo.append(int(temp[0]))
+        return runsToDo
+
     def run(self):
         print "Finding peaks for all events!!!!!!!!!!!!"
-        # Command for submitting to batch
-        if self.parent.algorithm == 1:
-            cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python findPeaks.py exp="+self.experimentName+\
-                  ":run="+str(self.runNumber)+" -d "+self.detInfo+\
-                  " --algorithm "+str(self.parent.algorithm)+\
-                  " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
-                  " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
-                  " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
-                  " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
-                  " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
-                  " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                  " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                  " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                  " --alg1_dr "+str(self.parent.hitParam_alg1_dr)+" --noe 1000"
-        elif self.parent.aglrithm == 3:
-            cmd = "bsub -q psanaq -a mympi -n 36 -o %J.log python findPeaks.py exp="+self.experimentName+\
-                  ":run="+str(self.runNumber)+" -d "+self.detInfo+\
-                  " --algorithm "+str(self.parent.algorithm)+\
-                  " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
-                  " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
-                  " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
-                  " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
-                  " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
-                  " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                  " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                  " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
-        print "Submitting batch job: ", cmd
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, err = process.communicate()
-        jobid = out.split("<")[1].split(">")[0]
-        myLog = jobid+".log"
-        myKeyString = "The output (if any) is above this job summary."
-        mySuccessString = "Successfully completed."
-        notDone = 1
-        haveFinished = 0
-        while notDone:
-            if os.path.isfile(myLog):
-                p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
-                if myKeyString in output: # job has finished
-                    # check job was a success or a failure
-                    p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-                    output = p.communicate()[0]
-                    p.stdout.close()
-                    if mySuccessString in output: # success
-                        print "successfully done"
-                        haveFinished = 1
-                    else:
-                        print "failed attempt"
-                    notDone = 0
-                else:
-                    print "job hasn't finished yet"
-                    time.sleep(10)
-            else:
-                print "no such file yet"
-                time.sleep(10)
+        # Digest the run list
+        runsToDo = self.digestRunList(self.parent.hitParam_runs)
+        print runsToDo
+        for run in runsToDo:
+            # Command for submitting to batch
+            if self.parent.algorithm == 1:
+                cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
+                      " -o %J.log python findPeaks.py -e "+self.experimentName+\
+                      " -r "+str(run)+" -d "+self.detInfo+\
+                      " --outDir "+str(self.parent.hitParam_outDir)+\
+                      " --algorithm "+str(self.parent.algorithm)+\
+                      " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
+                      " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
+                      " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
+                      " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
+                      " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
+                      " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                      " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                      " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                      " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
+            elif self.parent.algorithm == 3:
+                cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
+                      " -o %J.log python findPeaks.py -e "+self.experimentName+\
+                      " -r "+str(run)+" -d "+self.detInfo+\
+                      " --outDir "+str(self.parent.hitParam_outDir)+\
+                      " --algorithm "+str(self.parent.algorithm)+\
+                      " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
+                      " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
+                      " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
+                      " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
+                      " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
+                      " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                      " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                      " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+            if self.parent.hitParam_noe > 0:
+                cmd += " --noe "+str(self.parent.hitParam_noe)
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+            jobid = out.split("<")[1].split(">")[0]
+            myLog = jobid+".log"
+            print "*******************"
+            print "bsub log filename: ", myLog
+        # myKeyString = "The output (if any) is above this job summary."
+        # mySuccessString = "Successfully completed."
+        # notDone = 1
+        # haveFinished = 0
+        # while notDone:
+        #     if os.path.isfile(myLog):
+        #         p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
+        #         output = p.communicate()[0]
+        #         p.stdout.close()
+        #         if myKeyString in output: # job has finished
+        #             # check job was a success or a failure
+        #             p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
+        #             output = p.communicate()[0]
+        #             p.stdout.close()
+        #             if mySuccessString in output: # success
+        #                 print "successfully done"
+        #                 haveFinished = 1
+        #             else:
+        #                 print "failed attempt"
+        #             notDone = 0
+        #         else:
+        #             print "job hasn't finished yet"
+        #             time.sleep(10)
+        #     else:
+        #         print "no such file yet"
+        #         time.sleep(10)
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)

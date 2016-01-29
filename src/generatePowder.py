@@ -32,9 +32,12 @@ class Stats:
             self.variance = (self.sumsq / float(self.totevent)) - (self.mean**2)
             self.variance[self.variance < 0] = 0
             self.stddev = np.sqrt(self.variance)
-            file = '%s_%4.4d_%s'%(self.exp,self.run,self.detname)
+            file = '%s/%s_%4.4d_%s'%(args.outDir,self.exp,self.run,self.detname)
             print 'writing file',file
-            np.savez(file,mean=self.mean,stddev=self.stddev,max=self.maximum)
+            #np.savez(file,mean=self.mean,stddev=self.stddev,max=self.maximum)
+            np.save(file+"_mean",self.mean)
+            np.save(file+"_std",self.stddev)
+            np.save(file+"_max",self.maximum)
         else:
             comm.Reduce(self.sum,self.sum)
             comm.Reduce(self.sumsq,self.sumsq)
@@ -60,7 +63,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd7114:run=43)")
 parser.add_argument('-d','--detList', help="list of detectors separated with comma (e.g. pnccdFront,pnccdBack)", dest="detList", type=detList, nargs=1)
 parser.add_argument("-n","--noe",help="number of events to process",default=0, type=int)
+parser.add_argument('-o','--outDir', help="output directory where .cxi will be saved (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
 args = parser.parse_args()
+
+print args.exprun, args.detList, args.noe, args.outDir
 
 ds = DataSource(args.exprun+':idx')
 env = ds.env()
@@ -92,8 +98,10 @@ for run in ds.runs():
         else:
             numJobs = len(times)
 
-    ind = getMyUnfairShare(len(times),size,rank)
+    ind = getMyUnfairShare(numJobs,size,rank)
     mytimes = times[ind[0]:ind[-1]+1]
+
+    print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
     for i,time in enumerate(mytimes):
         if i%100==0: print 'Rank',rank,'processing event', i
