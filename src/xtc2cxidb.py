@@ -150,6 +150,11 @@ if args.condition:
     numHits = len(hitInd)
     print "hitInd: ", hitInd, numHits
 
+nPeaks = f["/entry_1/result_1/nPeaksAll"].value
+posX = f["/entry_1/result_1/peakXPosRawAll"].value
+posY = f["/entry_1/result_1/peakYPosRawAll"].value
+atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
+
 print "start time: ", startTime
 print "number of hits/events: ", numHits,numEvents
 print "pulseLength (s): ", pulseLength
@@ -242,6 +247,24 @@ if "experimental_identifier" in entry_1:
 ds_expId = entry_1.create_dataset("experimental_identifier",(numHits,),dtype=dt)
 ds_expId.attrs["axes"] = "experiment_identifier"
 ds_expId.attrs["numEvents"] = numHits
+
+if "entry_1/result_1/nPeaks" in f:
+    del f["entry_1/result_1/nPeaks"]
+    del f["entry_1/result_1/peakXPosRaw"]
+    del f["entry_1/result_1/peakYPosRaw"]
+    del f["entry_1/result_1/peakTotalIntensity"]
+ds_nPeaks = f.create_dataset("/entry_1/result_1/nPeaks", (numHits,))
+ds_nPeaks.attrs["axes"] = "experiment_identifier"
+ds_nPeaks.attrs["numEvents"] = numHits
+ds_posX = f.create_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32', chunks=(1,2048))
+ds_posX.attrs["axes"] = "experiment_identifier:peaks"
+ds_posX.attrs["numEvents"] = numHits
+ds_posY = f.create_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32', chunks=(1,2048))
+ds_posY.attrs["axes"] = "experiment_identifier:peaks"
+ds_posY.attrs["numEvents"] = numHits
+ds_atot = f.create_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32', chunks=(1,2048))
+ds_atot.attrs["axes"] = "experiment_identifier:peaks"
+ds_atot.attrs["numEvents"] = numHits
 
 if "start_time" in entry_1:
     del entry_1["start_time"]
@@ -349,5 +372,11 @@ for i,val in enumerate(hitInd):
     ds_nsec_1[i] = nsec
     ds_fid_1[i] = fid
 
+    ds_nPeaks[i] = nPeaks[val]
+    ds_posX[i,:] = posX[val,:]
+    ds_posY[i,:] = posY[val,:]
+    ds_atot[i,:] = atot[val,:]
+
+    if i%50 == 0: print "Done "+str(i)
 f.close()
 

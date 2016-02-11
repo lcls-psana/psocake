@@ -21,7 +21,7 @@ class PeakFinder:
         self.windows = windows
         self.mask = None
         if "cxi" in self.exp:
-            self.mask = d.mask(evt, calib=False, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
+            self.mask = d.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
             print "Got cspad mask"
         self.alg = PyAlgos(windows=self.windows, mask=self.mask, pbits=0)
         # set peak-selector parameters:
@@ -47,7 +47,7 @@ class PeakFinder:
                                        radius=self.hitParam_alg1_radius, dr=self.hitParam_alg1_dr)
         elif self.algorithm == 3:
             self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
-        print "Peaks: ", rank, self.peaks.shape
+        #print "Peaks: ", rank, self.peaks.shape
 
     def savePeaks(self,myHdf5,ind):
         if "cxi" in self.exp:
@@ -55,11 +55,11 @@ class PeakFinder:
             for i,peak in enumerate(self.peaks):
                 seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
                 cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                print "nPeaks,cheetahRow,cheetahCol,atot: ", nPeaks,cheetahRow, cheetahCol, atot
+                #print "nPeaks,cheetahRow,cheetahCol,atot: ", nPeaks,cheetahRow, cheetahCol, atot
                 myHdf5[grpName+dset_posX][ind,i] = cheetahCol
                 myHdf5[grpName+dset_posY][ind,i] = cheetahRow
                 myHdf5[grpName+dset_atot][ind,i] = atot
-        print "found peaks: ", self.peaks, self.peaks.shape
+        #print "found peaks: ", self.peaks, self.peaks.shape
         myHdf5[grpName+dset_nPeaks][ind] = nPeaks
 
     def convert_peaks_to_cheetah(self, s, r, c) :
@@ -226,10 +226,10 @@ if rank == 0:
 # Parallel process events
 myHdf5 = h5py.File(fname, 'r+', driver='mpio', comm=comm)
 grpName = "/entry_1/result_1"
-dset_nPeaks = "/nPeaks"
-dset_posX = "/peakXPosRaw"
-dset_posY = "/peakYPosRaw"
-dset_atot = "/peakTotalIntensity"
+dset_nPeaks = "/nPeaksAll"
+dset_posX = "/peakXPosRawAll"
+dset_posY = "/peakYPosRawAll"
+dset_atot = "/peakTotalIntensityAll"
 if grpName in myHdf5:
     del myHdf5[grpName]
 grp = myHdf5.create_group(grpName)

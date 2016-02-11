@@ -192,14 +192,14 @@ class MainFrame(QtGui.QWidget):
         self.algorithm = 1
         self.classify = False
         self.hitParam_alg_npix_min = 1.
-        self.hitParam_alg_npix_max = 5000.
-        self.hitParam_alg_amax_thr = 0.
-        self.hitParam_alg_atot_thr = 0.
-        self.hitParam_alg_son_min = 15.
-        self.hitParam_alg1_thr_low = 60.
-        self.hitParam_alg1_thr_high = 400.
-        self.hitParam_alg1_radius = 2
-        self.hitParam_alg1_dr = 0.05
+        self.hitParam_alg_npix_max = 45.
+        self.hitParam_alg_amax_thr = 250.
+        self.hitParam_alg_atot_thr = 330.
+        self.hitParam_alg_son_min = 10.
+        self.hitParam_alg1_thr_low = 80.
+        self.hitParam_alg1_thr_high = 270.
+        self.hitParam_alg1_radius = 3
+        self.hitParam_alg1_dr = 1
         self.hitParam_alg3_npix_min = 5.
         self.hitParam_alg3_npix_max = 5000.
         self.hitParam_alg3_amax_thr = 0.
@@ -332,15 +332,15 @@ class MainFrame(QtGui.QWidget):
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
-        self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
-        self.d2 = Dock("Experiment Parameters", size=(500,300))
+        self.d1 = Dock("Image Panel", size=(1100, 1100))     ## give this dock the minimum possible size
+        self.d2 = Dock("Experiment Parameters", size=(300,150))
         self.d3 = Dock("Diffraction Geometry", size=(150,150))
-        self.d4 = Dock("ROI Histogram", size=(200,200))
+        self.d4 = Dock("ROI Histogram", size=(200,150))
         self.d5 = Dock("Mouse", size=(100,50), closable=False)
-        self.d6 = Dock("Image Control", size=(100, 100))
-        self.d7 = Dock("Image Scroll", size=(500,500))
-        self.d8 = Dock("Quantifier", size=(100,100))
-        self.d9 = Dock("Peak Finder", size=(500,300))
+        self.d6 = Dock("Image Control", size=(100, 150))
+        self.d7 = Dock("Image Scroll", size=(500,150))
+        self.d8 = Dock("Quantifier", size=(300,150))
+        self.d9 = Dock("Peak Finder", size=(300,150))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -1298,6 +1298,8 @@ class MainFrame(QtGui.QWidget):
         else:
             self.hasUserDefinedResolution = False
 
+        self.myResolutionRingList = self.resolution
+        self.dMin = np.zeros_like(self.myResolutionRingList)
         if self.hasGeometryInfo():
             self.updateGeometry()
         if self.hasExpRunDetInfo():
