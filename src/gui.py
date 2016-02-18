@@ -1421,6 +1421,15 @@ class MainFrame(QtGui.QWidget):
             self.quantifierInd = np.arange(len(self.quantifierMetric))
             self.quantifierHasData = True
             self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
+
+            # temp
+            try:
+                eventDataset = "/" + self.quantifier_dataset.split("/")[1] + "/event"
+                print eventDataset
+                self.quantifierEvent = self.quantifierFile[eventDataset].value
+            except:
+                self.quantifierEvent = np.arange(len(self.quantifierMetric))
+
             print "Done reading metric"
 
     def updateQuantifierSort(self, data):
@@ -1456,10 +1465,14 @@ class MainFrame(QtGui.QWidget):
                 break
         indX = points.scatter.data[i][0]
         indY = points.scatter.data[i][1]
-        print "indX: ", ind, indX, indY
+        print "x,y: ", indX, indY
         if self.quantifier_sort:
             ind = self.quantifierInd[ind]
-        self.eventNumber = ind
+
+        # temp
+        self.eventNumber = self.quantifierEvent[ind]
+        #self.eventNumber = ind
+
         self.calib, self.data = self.getDetImage(self.eventNumber)
         self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
