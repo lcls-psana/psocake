@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 #usage: python xtc2cxidb.py -e cxic0415 -d DscCsPad -i /reg/d/psdm/cxi/cxic0415/res/reindex_cxic0415 --sample "selenobiotinyl streptavidin" --instrument CXI --pixelSize 110e-6 --coffset 0.588696 -r 14
 #usage: python xtc2cxidb.py -e cxic0915 -d DscCsPad -i /reg/neh/home/yoon82/ana-current/psocake/src --sample "phyco" --instrument CXI --pixelSize 110e-6 --coffset 0.581 -r 24 --condition /entry_1/result_1/nPeaks,ge,20
+# cxi01516
+# bsub -q psanaq -a mympi -o %J.log python xtc2cxidb.py -e cxi01516 -d DsaCsPad -i /reg/d/psdm/cxi/cxi01516/scratch/yoon82 --sample "lysozyme" --instrument CXI --pixelSize 110e-6 --detectorDistance 0.175 --clen "CXI:DS2:MMS:06.RBV" -r 26 --condition /entry_1/result_1/nPeaksAll,ge,40
+# cxi02416
+# bsub -q psfehhiprioq -a mympi -o %J.log python xtc2cxidb.py -e cxi02416 -d DsaCsPad -i /reg/d/psdm/cxi/cxi02416/scratch/yoon82 --sample "lysozyme" --instrument CXI --pixelSize 110e-6 --coffset 0.568 --clen "CXI:DS2:MMS:06.RBV" -r 2 --condition /entry_1/result_1/nPeaksAll,ge,20
 
 import h5py
 import numpy as np
@@ -20,7 +24,9 @@ parser.add_argument("-i","--indir",help="input directory where files_XXXX.lst ex
 parser.add_argument("-o","--outdir",help="output directory (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
 parser.add_argument("--sample",help="sample name (e.g. lysozyme)", type=str)
 parser.add_argument("--instrument",help="instrument name (e.g. CXI)", type=str)
-parser.add_argument("--coffset", help="camera offset, CXI home position to sample (m)", type=float)
+parser.add_argument("--clen", help="camera length epics name (e.g. CXI:DS1:MMS:06.RBV or CXI:DS2:MMS:06.RBV)", type=str)
+parser.add_argument("--coffset", help="camera offset, CXI home position to sample (m)",default=0, type=float)
+parser.add_argument("--detectorDistance", help="detector distance from interaction point (m)",default=0, type=float)
 parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
 parser.add_argument("--pixelSize", help="pixel size (m)", type=float)
 parser.add_argument("--condition",help="comparator operation for choosing input data from an hdf5 dataset."
@@ -36,6 +42,17 @@ if args.outdir is None:
 else:
     outDir = args.outdir
     assert os.path.isdir(outDir)
+
+hasCoffset = False
+hasDetectorDistance = False
+if args.detectorDistance is not 0:
+    hasDetectorDistance = True
+if args.coffset is not 0:
+    hasCoffset = True
+#if hasDetectorDistance is False and hasCoffset is False:
+#    print "Need at least hasDetectorDistance or coffset input"
+#    exit(0)
+
 experimentName = args.exp
 runNumber = args.run
 detInfo = args.det
@@ -62,7 +79,7 @@ class psanaWhisperer():
         # Get epics variable, clen
         if "cxi" in self.experimentName:
             self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
+            self.clen = self.epics.value(args.clen)
 
     def getEvent(self,number):
         self.evt = self.run.event(self.times[number])
@@ -122,7 +139,11 @@ numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
 ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
 photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
 pulseEnergy = ebeam.ebeamL3Energy() # MeV
-detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
+if hasCoffset:
+    detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
+    print "ps.clen: ", ps.clen
+elif hasDetectorDistance:
+    detectorDistance = args.detectorDistance
 
 # Read list of files
 runStr = "%04d" % runNumber
@@ -344,7 +365,7 @@ for i,val in enumerate(hitInd):
     ds_y_pixel_size_1[i] = y_pixel_size
 
     # LCLS
-    ds_lclsDet_1[i] = es.value('CXI:DS1:MMS:06.RBV') # mm
+    ds_lclsDet_1[i] = es.value(args.clen) # mm
     ds_ebeamCharge_1[i] = es.value('BEND:DMP1:400:BDES')
     try:
         ds_beamRepRate_1[i] = es.value('EVNT:SYS0:1:LCLSBEAMRATE')

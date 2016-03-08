@@ -38,6 +38,10 @@ class Stats:
             np.save(file+"_mean",self.mean)
             np.save(file+"_std",self.stddev)
             np.save(file+"_max",self.maximum)
+            np.save(file+"_sum",self.sum)
+            # Save calibman compatible file
+            calibman_max = self.maximum.reshape((-1,self.maximum.shape[-1]))
+            np.savetxt(file+"_max.txt",calibman_max,fmt='%0.18e')
         else:
             comm.Reduce(self.sum,self.sum)
             comm.Reduce(self.sumsq,self.sumsq)
@@ -104,16 +108,17 @@ for run in ds.runs():
     print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
     for i,time in enumerate(mytimes):
-        if i%100==0: print 'Rank',rank,'processing event', i
+        if i%100==0: print 'Rank',rank,'processing event', i,'of',len(mytimes)
         evt = run.event(time)
         # very useful for seeing what data is in the event
-        #print evt.keys()
         if evt is None:
             print '*** event fetch failed'
             continue
         for d in detlist:
             try:
                 detarr = d.calib_data(evt)
+                gain = d.gain(evt)
+                detarr *= gain
             except ValueError:
                 id = evt.get(EventId)
                 print 'Value Error!'

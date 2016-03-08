@@ -1,9 +1,8 @@
 # GUI for browsing LCLS area detectors. Tune hit finding parameters and common mode correction.
 
-# TODO: Zoom in area / numbers
+# TODO: Zoom in area / view matrix of numbers
 # TODO: Multiple subplots
 # TODO: grid of images
-# TODO: powder pattern generator
 # TODO: dropdown menu for available detectors
 # TODO: When front and back detectors given, display both
 
@@ -35,6 +34,7 @@ parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=
 parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
 parser.add_argument("-n","--evt", help="event number (e.g. 1), default=0",default=0, type=int)
 parser.add_argument("--localCalib", help="use local calib directory, default=False", action='store_true')
+parser.add_argument("--more", help="display more panels", action='store_true')
 args = parser.parse_args()
 
 # Set up tolerance
@@ -138,6 +138,17 @@ quantifier_filename_str = 'filename'
 quantifier_dataset_str = 'metric_dataset'
 quantifier_sort_str = 'sort'
 
+# PerPixelHistogram parameter tree
+perPixelHistogram_grp = 'Per Pixel Histogram'
+perPixelHistogram_filename_str = 'filename'
+perPixelHistogram_adu_str = 'ADU'
+
+# Manifold parameter tree
+manifold_grp = 'Manifold'
+manifold_filename_str = 'filename'
+manifold_dataset_str = 'eigenvector_dataset'
+manifold_sigma_str = 'sigma'
+
 # Color scheme
 sandstone100_rgb = (221,207,153) # Sandstone
 cardinalRed_hex = str("#8C1515") # Cardinal red
@@ -155,6 +166,7 @@ class MainFrame(QtGui.QWidget):
         #self.detInfoList = [1,2,3,4]
         self.detInfo = args.det
         self.isCspad = False
+        self.evt = None
         self.eventNumber = int(args.evt)
         self.eventSeconds = ""
         self.eventNanoseconds = ""
@@ -163,6 +175,7 @@ class MainFrame(QtGui.QWidget):
         self.hasExperimentName = False
         self.hasRunNumber = False
         self.hasDetInfo = False
+        self.pixelIndAssem = None
         # Init display parameters
         self.logscaleOn = False
         self.image_property = 1
@@ -220,6 +233,17 @@ class MainFrame(QtGui.QWidget):
         self.quantifier_sort = False
         self.quantifierFileOpen = False
         self.quantifierHasData = False
+
+        self.perPixelHistogram_filename = ''
+        self.perPixelHistogram_adu = 20
+        self.perPixelHistogramFileOpen = False
+
+        self.manifold_filename = ''
+        self.manifold_dataset = ''
+        self.manifold_sigma = 0
+        self.manifoldFileOpen = False
+        self.manifoldHasData = False
+
         # Threads
         self.stackStart = 0
         self.stackSize = 60
@@ -305,6 +329,19 @@ class MainFrame(QtGui.QWidget):
                 {'name': quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
             ]},
         ]
+        self.paramsPerPixelHistogram = [
+            {'name': perPixelHistogram_grp, 'type': 'group', 'children': [
+                {'name': perPixelHistogram_filename_str, 'type': 'str', 'value': self.perPixelHistogram_filename, 'tip': "Full path Hdf5 filename"},
+                {'name': perPixelHistogram_adu_str, 'type': 'float', 'value': self.perPixelHistogram_adu, 'tip': "histogram value at this adu"},
+            ]},
+        ]
+        self.paramsManifold = [
+            {'name': manifold_grp, 'type': 'group', 'children': [
+                {'name': manifold_filename_str, 'type': 'str', 'value': self.manifold_filename, 'tip': "Full path Hdf5 filename"},
+                {'name': manifold_dataset_str, 'type': 'str', 'value': self.manifold_dataset, 'tip': "Hdf5 dataset metric"},
+                {'name': manifold_sigma_str, 'type': 'float', 'value': self.manifold_sigma, 'tip': "kernel sigma"},
+            ]},
+        ]
         self.initUI()
 
     def initUI(self):
@@ -324,10 +361,16 @@ class MainFrame(QtGui.QWidget):
                                   children=self.paramsQuantifier, expanded=True)
         self.p3 = Parameter.create(name='paramsPeakFinder', type='group', \
                                   children=self.paramsPeakFinder, expanded=True)
+        self.p4 = Parameter.create(name='paramsManifold', type='group', \
+                                  children=self.paramsManifold, expanded=True)
+        self.p5 = Parameter.create(name='paramsPerPixelHistogram', type='group', \
+                                  children=self.paramsPerPixelHistogram, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.changeGeomParam)
         self.p2.sigTreeStateChanged.connect(self.changeMetric)
         self.p3.sigTreeStateChanged.connect(self.changePeakFinder)
+        self.p4.sigTreeStateChanged.connect(self.changeManifold)
+        self.p5.sigTreeStateChanged.connect(self.changePerPixelHistogram)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
@@ -341,6 +384,8 @@ class MainFrame(QtGui.QWidget):
         self.d7 = Dock("Image Scroll", size=(500,150))
         self.d8 = Dock("Quantifier", size=(300,150))
         self.d9 = Dock("Peak Finder", size=(300,150))
+        self.d10 = Dock("Manifold", size=(300,150))
+        self.d11 = Dock("Per Pixel Histogram", size=(300,150))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -397,6 +442,9 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
         self.area.addDock(self.d8, 'bottom', self.d3)
         self.area.addDock(self.d9, 'bottom', self.d4)
+        self.area.addDock(self.d11, 'bottom', self.d4)
+        if args.more:
+            self.area.addDock(self.d10, 'bottom', self.d6)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -567,6 +615,27 @@ class MainFrame(QtGui.QWidget):
         self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
         self.d9.addWidget(self.w11)
 
+        ## Dock 10: Manifold
+        self.w12 = ParameterTree()
+        self.w12.setParameters(self.p4, showTop=False)
+        self.d10.addWidget(self.w12)
+        # Add plot
+        self.w13 = pg.PlotWidget(title="Manifold!!!!")
+        self.d10.addWidget(self.w13)
+
+        ## Dock 11: Per Pixel Histogram
+        self.w14 = ParameterTree()
+        self.w14.setParameters(self.p5, showTop=False)
+        self.d11.addWidget(self.w14)
+        # Add buttons
+        self.w15 = pg.LayoutWidget()
+        self.fitBtn = QtGui.QPushButton('Fit histogram')
+        self.w15.addWidget(self.fitBtn, row=0, col=0)
+        self.d11.addWidget(self.w15)
+        # Add plot
+        self.w16 = pg.PlotWidget(title="Per Pixel Histogram")
+        self.d11.addWidget(self.w16)
+
         ###############
         ### Threads ###
         ###############
@@ -651,7 +720,7 @@ class MainFrame(QtGui.QWidget):
                 mousePoint = self.vb.mapSceneToView(pos)
                 indexX = int(mousePoint.x())
                 indexY = int(mousePoint.y())
-                
+
                 # update crosshair position
                 self.vLine.setPos(mousePoint.x())
                 self.hLine.setPos(mousePoint.y())
@@ -662,10 +731,27 @@ class MainFrame(QtGui.QWidget):
                         textInfo = "<span style='color: " + cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
                         self.label.setText(textInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
 
-        self.proxy = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
+        def mouseClicked(evt):
+            self.zzz= evt
+            mousePoint = self.vb.mapSceneToView(evt[0].scenePos())
+            indexX = int(mousePoint.x())
+            indexY = int(mousePoint.y())
+
+            if self.data is not None:
+                if indexX >= 0 and indexX < self.data.shape[0] \
+                    and indexY >= 0 and indexY < self.data.shape[1]:
+                    print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]
+
+                if self.pixelIndAssem is not None and self.perPixelHistogramFileOpen:
+                    self.pixelInd = self.pixelIndAssem[indexX,indexY]
+                    print "pixel index: ", self.pixelInd
+                    self.updatePerPixelHistogram(self.pixelInd)
+
+        # Signal proxy
+        self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
+        self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
 
         self.win.show()
-        #embed()
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
@@ -826,8 +912,10 @@ class MainFrame(QtGui.QWidget):
     def updateRings(self):
         if self.resolutionRingsOn:
             self.clearRings()
+
             cenx = np.ones_like(self.myResolutionRingList)*self.cx
             ceny = np.ones_like(self.myResolutionRingList)*self.cy
+
             diameter = 2*self.myResolutionRingList
             print "self.myResolutionRingList, diameter: ", self.myResolutionRingList, diameter
             self.ring_feature.setData(cenx, ceny, symbol='o', \
@@ -907,11 +995,11 @@ class MainFrame(QtGui.QWidget):
         elif self.image_property == 7 and self.isCspad: # row ind
             calib = np.zeros((32,185,388))
             for i in range(185):
-                    calib[:,i,:] = i
+                calib[:,i,:] = i
         elif self.image_property == 8 and self.isCspad: # col ind
             calib = np.zeros((32,185,388))
             for i in range(388):
-                    calib[:,:,i] = i
+                calib[:,:,i] = i
 
         if calib is not None:
             # apply mask
@@ -919,7 +1007,7 @@ class MainFrame(QtGui.QWidget):
                 calib *= self.mask
             # assemble image
             data = self.getAssembledImage(calib)
-            self.cx, self.cy = self.getCentre(data.shape)
+            self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
             return calib, data
         else: # TODO: this is a hack that assumes opal is the only detector without calib
             # we have an opal
@@ -973,6 +1061,24 @@ class MainFrame(QtGui.QWidget):
     def changePeakFinder(self, param, changes):
         for param, change, data in changes:
             path = self.p3.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
+    def changeManifold(self, param, changes):
+        for param, change, data in changes:
+            path = self.p4.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
+    def changePerPixelHistogram(self, param, changes):
+        for param, change, data in changes:
+            path = self.p5.childPath(param)
             print('  path: %s'% path)
             print('  change:    %s'% change)
             print('  data:      %s'% str(data))
@@ -1145,7 +1251,24 @@ class MainFrame(QtGui.QWidget):
                 self.updateQuantifierDataset(data)
             elif path[1] == quantifier_sort_str:
                 self.updateQuantifierSort(data)
-
+        ################################################
+        # manifold parameters
+        ################################################
+        if path[0] == manifold_grp:
+            if path[1] == manifold_filename_str:
+                self.updateManifoldFilename(data)
+            elif path[1] == manifold_dataset_str:
+                self.updateManifoldDataset(data)
+            elif path[1] == manifold_sigma_str:
+                self.updateManifoldSigma(data)
+        ################################################
+        # per pixel histogram parameters
+        ################################################
+        if path[0] == perPixelHistogram_grp:
+            if path[1] == perPixelHistogram_filename_str:
+                self.updatePerPixelHistogramFilename(data)
+            elif path[1] == perPixelHistogram_adu_str:
+                self.updatePerPixelHistogramAdu(data)
 
     ###################################
     ###### Experiment Parameters ######
@@ -1171,7 +1294,7 @@ class MainFrame(QtGui.QWidget):
 
     def updateDetInfo(self, data):
         self.detInfo = data
-        if data == 'DscCsPad' or data == 'DsdCsPad':
+        if data == 'DscCsPad' or data == 'DsdCsPad' or data == 'DsaCsPad':
             self.isCspad = True
         self.hasDetInfo = True
         self.setupExperiment()
@@ -1233,17 +1356,27 @@ class MainFrame(QtGui.QWidget):
                 except ValueError:
                     continue
             self.detInfoList = list(set(myAreaDetectors))
+            print "#######################"
             print "# Available detectors: ", self.detInfoList
+            print "#######################"
 
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
 
-            # Get epics variable, clen
+            if self.evt is None:
+                self.evt = self.run.event(self.times[0])
+            print "Setting up pixelInd"
+            temp = self.det.calib(self.evt)
+            self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
+            self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
+            self.pixelIndAssem -= 1 # First pixel is 0
+
+            # Get epics variable, clen and mask
             if "cxi" in self.experimentName:
-                self.epics = self.ds.env().epicsStore()
-                self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
-                print "clen: ", self.clen
-                self.mask = self.det.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
+                #self.epics = self.ds.env().epicsStore()
+                #self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
+                #print "clen: ", self.clen
+                self.mask = self.det.mask(evt, calib=True, status=True, edges=True, central=True, unbond=False, unbondnbrs=False)
             print "Done setupExperiment"
 
     def updateLogscale(self, data):
@@ -1405,6 +1538,10 @@ class MainFrame(QtGui.QWidget):
             if self.resolutionRingsOn:
                 self.updateRings()
 
+    ##################################
+    ########### Quantifier ###########
+    ##################################
+
     def updateQuantifierFilename(self, data):
         # close previously open file
         if self.quantifier_filename is not data and self.quantifierFileOpen:
@@ -1472,6 +1609,128 @@ class MainFrame(QtGui.QWidget):
         # temp
         self.eventNumber = self.quantifierEvent[ind]
         #self.eventNumber = ind
+
+        self.calib, self.data = self.getDetImage(self.eventNumber)
+        self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+        self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+
+    ##################################
+    ###### Per Pixel Histogram #######
+    ##################################
+
+    def updatePerPixelHistogramFilename(self, data):
+        # close previously open file
+        if self.perPixelHistogram_filename is not data and self.perPixelHistogramFileOpen:
+            self.perPixelHistogramFile.close()
+        self.perPixelHistogram_filename = data
+        self.perPixelHistogramFile = h5py.File(self.perPixelHistogram_filename,'r')
+
+        self.valid_min = self.perPixelHistogramFile['/dataHist/histogram'].attrs['valid_min'] # ADU
+        self.valid_max = self.perPixelHistogramFile['/dataHist/histogram'].attrs['valid_max'] # ADU
+        self.bin_size = self.perPixelHistogramFile['/dataHist/histogram'].attrs['bin_size'] # ADU
+        units = np.linspace(self.valid_min,self.valid_max,self.valid_max-self.valid_min+1) # ADU
+        start = np.mean(units[0:self.bin_size]) # ADU
+        finish = np.mean(units[len(units)-self.bin_size:len(units)]) # ADU
+        numBins = (self.valid_max-self.valid_min+1)/self.bin_size # ADU
+        self.histogram_adu = np.linspace(start,finish,numBins) # ADU
+
+        self.perPixelHistograms = self.perPixelHistogramFile['/dataHist/histogram'].value
+        self.histogram1D = self.perPixelHistograms.reshape((-1,self.perPixelHistograms.shape[-1]))
+
+        self.perPixelHistogramFileOpen = True
+        print "Done opening perPixelHistogram file"
+
+    # FIXME: I don't think pixelIndex is correct
+    def updatePerPixelHistogramAdu(self, data):
+        print "$$$$$$ money: ", data
+        self.perPixelHistogram_adu = data
+        if self.perPixelHistogramFileOpen:
+            print "update slice"
+            self.updatePerPixelHistogramSlice(self.perPixelHistogram_adu)
+        print "Done perPixelHistogram adu", self.perPixelHistogram_adu
+
+    def updatePerPixelHistogramSlice(self,adu):
+        print "%%% got ", adu
+        self.histogramAduIndex = self.getHistogramIndex(adu)
+        print "^^^ ", self.histogramAduIndex
+        self.calib = np.squeeze(self.perPixelHistogramFile['/dataHist/histogram'][:,:,:,self.histogramAduIndex])
+        print "updatePerPixelHistogramSlice: ", self.calib.shape
+        self.updateImage(calib=self.calib)
+
+    def getHistogramIndex(self,adu):
+        histogramIndex = np.argmin(abs(self.histogram_adu - adu))
+        print "histogramIndex: ", self.histogram_adu, histogramIndex
+        return histogramIndex
+
+    def updatePerPixelHistogram(self, pixelIndex):
+        self.w16.getPlotItem().clear()
+        if pixelIndex >= 0:
+            self.perPixelHistogram = self.histogram1D[pixelIndex,1:-1]
+            self.w16.plot(self.histogram_adu, self.perPixelHistogram, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        self.w16.setLabel('left', "Counts")
+        self.w16.setLabel('bottom', "ADU")
+
+    ##################################
+    ########### Manifold #############
+    ##################################
+    # FIXME: manifold is incomplete
+    def updateManifoldFilename(self, data):
+        # close previously open file
+        if self.manifold_filename is not data and self.manifoldFileOpen:
+            self.manifoldFile.close()
+        self.manifold_filename = data
+        self.manifoldFile = h5py.File(self.manifold_filename,'r')
+        self.manifoldFileOpen = True
+        print "Done opening manifold"
+
+    def updateManifoldDataset(self, data):
+        self.manifold_dataset = data
+        if self.manifoldFileOpen:
+            self.manifoldEigs = self.manifoldFile[self.manifold_dataset].value
+            (self.manifoldNumHits,self.manifoldNumEigs) = self.manifoldEigs.shape
+            self.manifoldHasData = True
+            self.updateManifoldPlot(self.manifoldEigs)
+            self.manifoldInd = np.arange(self.manifoldNumHits)
+
+            try:
+                eventDataset = "/" + self.manifold_dataset.split("/")[1] + "/event"
+                self.manifoldEvent = self.manifoldFile[eventDataset].value
+            except:
+                self.manifoldEvent = np.arange(self.manifoldNumHits)
+
+            print "Done reading manifold"
+
+    def updateManifoldSigma(self, data):
+        self.manifold_sigma = data
+        if self.manifoldHasData:
+            self.updateManifoldPlot(self.manifoldInd,self.manifoldEigs)
+
+    def updateManifoldPlot(self,ind,eigenvectors):
+        print "updateManifoldPlot"
+        self.lastClicked = []
+        self.w13.getPlotItem().clear()
+        pos = np.random.normal(size=(2,10000), scale=1e-9)
+        self.curve = self.w13.plot(pos[0],pos[1], pen=None, symbol='o',symbolPen=None,symbolSize=10,symbolBrush=(100,100,255,50))
+        #self.curve = self.w9.plot(ind,metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        self.curve.curve.setClickable(True)
+        self.curve.sigClicked.connect(self.clicked1)
+
+    def clicked1(self,points):
+        print("curve clicked",points)
+        from pprint import pprint
+        pprint(vars(points.scatter))
+        for i in range(len(points.scatter.data)):
+            if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
+                ind = i
+                break
+        indX = points.scatter.data[i][0]
+        indY = points.scatter.data[i][1]
+        print "x,y: ", indX, indY
+        #if self.quantifier_sort:
+        ind = self.manifoldInd[ind]
+
+        # temp
+        self.eventNumber = self.manifoldEvent[ind]
 
         self.calib, self.data = self.getDetImage(self.eventNumber)
         self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
