@@ -957,7 +957,7 @@ class MainFrame(QtGui.QWidget):
                     print "### Overriding common mode: ", self.commonMode
                     calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
             else:
-                calib = self.det.calib(self.evt)
+                calib = self.det.calib(self.evt) #self.det.raw(self.evt) - self.det.pedestals(self.evt)
             return calib
         else:
             return None
@@ -1778,7 +1778,7 @@ class PowderProducer(QtCore.QThread):
         for run in runsToDo:
             # Command for submitting to batch
             cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o %J.log python generatePowder.py exp="+self.experimentName+\
+                  " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/src/generatePowder.py exp="+self.experimentName+\
                   ":run="+str(run)+" -d "+self.detInfo+\
                   " -o "+str(self.parent.hitParam_outDir)
             if self.parent.hitParam_noe > 0:
@@ -1900,7 +1900,7 @@ class PeakFinder(QtCore.QThread):
             # Command for submitting to batch
             if self.parent.algorithm == 1:
                 cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                      " -o %J.log python findPeaks.py -e "+self.experimentName+\
+                      " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
                       " -r "+str(run)+" -d "+self.detInfo+\
                       " --outDir "+str(self.parent.hitParam_outDir)+\
                       " --algorithm "+str(self.parent.algorithm)+\
@@ -1915,7 +1915,7 @@ class PeakFinder(QtCore.QThread):
                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
             elif self.parent.algorithm == 3:
                 cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                      " -o %J.log python findPeaks.py -e "+self.experimentName+\
+                      " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
                       " -r "+str(run)+" -d "+self.detInfo+\
                       " --outDir "+str(self.parent.hitParam_outDir)+\
                       " --algorithm "+str(self.parent.algorithm)+\
