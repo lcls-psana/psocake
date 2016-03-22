@@ -1351,8 +1351,10 @@ class MainFrame(QtGui.QWidget):
             myAreaDetectors = []
             for k in evt.keys():
                 try:
-                    if Detector.PyDetector.dettype(k.alias(), self.env) == Detector.AreaDetector.AreaDetector:
-                        myAreaDetectors.append(k.alias())
+                    source_string = Detector.PyDetector.map_alias_to_source(k.alias(), self.env)
+                    if source_string is not '':
+                        if Detector.PyDetector.dettype(source_string, self.env) == Detector.AreaDetector.AreaDetector:
+                            myAreaDetectors.append(k.alias())
                 except ValueError:
                     continue
             self.detInfoList = list(set(myAreaDetectors))

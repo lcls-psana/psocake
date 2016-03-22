@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-01
+2016-01-28 Christopher O'Grady
+- Change dettype call to use changed PyDetector interface
+
 Tag: V00-01-00
 2016-01-28 Chunhong Yoon
 - Outputs cxidb file compatible with CrystFEL
