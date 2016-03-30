@@ -27,6 +27,7 @@ import multiprocessing as mp
 import time
 import subprocess
 import os.path
+import myskbeam
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
@@ -74,13 +75,15 @@ disp_commonModeParam2_str = 'parameters 2'
 disp_commonModeParam3_str = 'parameters 3'
 
 hitParam_grp = 'Hit finder'
-hitParam_classify_str = 'Classify'
+hitParam_showPeaks_str = 'Show peaks found'
 hitParam_algorithm_str = 'Algorithm'
 hitParam_alg_npix_min_str = 'npix_min'
 hitParam_alg_npix_max_str = 'npix_max'
 hitParam_alg_amax_thr_str = 'amax_thr'
 hitParam_alg_atot_thr_str = 'atot_thr'
 hitParam_alg_son_min_str = 'son_min'
+# algorithm 0
+hitParam_algorithm0_str = 'None'
 # algorithm 1
 hitParam_algorithm1_str = 'Droplet'
 hitParam_alg1_thr_low_str = 'thr_low'
@@ -149,9 +152,31 @@ manifold_filename_str = 'filename'
 manifold_dataset_str = 'eigenvector_dataset'
 manifold_sigma_str = 'sigma'
 
+mask_grp = 'Mask'
+mask_mode_str = 'Masking mode'
+do_nothing_str = 'Off'
+do_toggle_str = 'Toggle'
+do_mask_str = 'Mask'
+do_unmask_str = 'Unmask'
+streak_mask_str = 'Jet streak mask'
+mask_calib_str = 'calib pixels'
+mask_status_str = 'status pixels'
+mask_edges_str = 'edge pixels'
+mask_central_str = 'central pixels'
+mask_unbond_str = 'unbonded pixels'
+mask_unbondnrs_str = 'unbonded pixel neighbors'
+
 # Color scheme
-sandstone100_rgb = (221,207,153) # Sandstone
 cardinalRed_hex = str("#8C1515") # Cardinal red
+darkRed_hex = str("#820000") # dark red
+black_hex = str("#2e2d29") # black
+black80_hex = str("#585754") # black 80%
+gray_hex = str("#3f3c30") # gray
+gray90_hex = str("#565347") # gray 90%
+gray60_hex = str("#8a887d") # gray 60%
+sandstone100_rgb = (221,207,153) # Sandstone
+beige_hex = ("#9d9573") # beige
+masking_mode_message = "<span style='color: " + black_hex + "; font-size: 24pt;'>Masking mode <br> </span>"
 
 class MainFrame(QtGui.QWidget):
     """
@@ -160,10 +185,11 @@ class MainFrame(QtGui.QWidget):
     def __init__(self, arg_list):
         super(MainFrame, self).__init__()
         self.firstUpdate = True
+        self.operationModeChoices = ['none','masking']
+        self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
         # Init experiment parameters
         self.experimentName = args.exp
         self.runNumber = int(args.run)
-        #self.detInfoList = [1,2,3,4]
         self.detInfo = args.det
         self.isCspad = False
         self.evt = None
@@ -196,14 +222,18 @@ class MainFrame(QtGui.QWidget):
         self.resolutionText = []
         # Init variables
         self.data = None # assembled detector image
-        self.cx = None
-        self.cy = None
+        self.cx = 0
+        self.cy = 0
         self.calib = None # ndarray detector image
-        self.mask = None
+        self.psanaMask = None # psana mask
+        self.userMask = None # user mask
+        self.combinedMask = None # combined mask
         # Init hit finding parameters
         self.algInitDone = False
-        self.algorithm = 1
+        self.algorithm = 0
         self.classify = False
+
+        self.showPeaks = True
         self.hitParam_alg_npix_min = 1.
         self.hitParam_alg_npix_max = 45.
         self.hitParam_alg_amax_thr = 250.
@@ -244,6 +274,18 @@ class MainFrame(QtGui.QWidget):
         self.manifoldFileOpen = False
         self.manifoldHasData = False
 
+        self.maskingMode = 0
+        self.streakMaskOn = 0
+        self.mask_calibOn = False
+        self.mask_statusOn = False
+        self.mask_edgesOn = False
+        self.mask_centralOn = False
+        self.mask_unbondOn = False
+        self.mask_unbondnrsOn = False
+        self.display_data = None
+        self.roi_rect = None
+        self.roi_circle = None
+
         # Threads
         self.stackStart = 0
         self.stackSize = 60
@@ -283,10 +325,11 @@ class MainFrame(QtGui.QWidget):
         ]
         self.paramsPeakFinder = [
             {'name': hitParam_grp, 'type': 'group', 'children': [
-                {'name': hitParam_classify_str, 'type': 'bool', 'value': self.classify, 'tip': "Classify current image as hit or miss"},
+                {'name': hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks, 'tip': "Show peaks found shot-to-shot"},
                 {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3,
-                                                                            hitParam_algorithm1_str: 1},
-                 'value': self.algorithm},
+                                                                            hitParam_algorithm1_str: 1,
+                                                                            hitParam_algorithm0_str: 0},
+                                                                            'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
                     {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
@@ -342,6 +385,23 @@ class MainFrame(QtGui.QWidget):
                 {'name': manifold_sigma_str, 'type': 'float', 'value': self.manifold_sigma, 'tip': "kernel sigma"},
             ]},
         ]
+        self.paramsMask = [
+            {'name': mask_grp, 'type': 'group', 'children': [
+                {'name': mask_mode_str, 'type': 'list', 'values': {do_toggle_str: 3,
+                                                                   do_unmask_str: 2,
+                                                                   do_mask_str: 1,
+                                                                   do_nothing_str: 0},
+                                                                   'value': self.maskingMode,
+                                                                   'tip': "Choose masking mode"},
+                {'name': streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot"},
+                {'name': mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "custrom mask deployed in calibdir"},
+                {'name': mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "status mask"},
+                {'name': mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "edge mask"},
+                {'name': mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "central mask"},
+                {'name': mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "unbonded mask (cspad only)"},
+                {'name': mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "unbonded pixel neighbors (cspad only)"},
+            ]}
+        ]
         self.initUI()
 
     def initUI(self):
@@ -365,12 +425,15 @@ class MainFrame(QtGui.QWidget):
                                   children=self.paramsManifold, expanded=True)
         self.p5 = Parameter.create(name='paramsPerPixelHistogram', type='group', \
                                   children=self.paramsPerPixelHistogram, expanded=True)
+        self.p6 = Parameter.create(name='paramsMask', type='group', \
+                                  children=self.paramsMask, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.changeGeomParam)
         self.p2.sigTreeStateChanged.connect(self.changeMetric)
         self.p3.sigTreeStateChanged.connect(self.changePeakFinder)
         self.p4.sigTreeStateChanged.connect(self.changeManifold)
         self.p5.sigTreeStateChanged.connect(self.changePerPixelHistogram)
+        self.p6.sigTreeStateChanged.connect(self.changeMask)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
@@ -386,6 +449,7 @@ class MainFrame(QtGui.QWidget):
         self.d9 = Dock("Peak Finder", size=(300,150))
         self.d10 = Dock("Manifold", size=(300,150))
         self.d11 = Dock("Per Pixel Histogram", size=(300,150))
+        self.d12 = Dock("Mask Panel", size=(300, 150))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -443,12 +507,17 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d8, 'bottom', self.d3)
         self.area.addDock(self.d9, 'bottom', self.d4)
         self.area.addDock(self.d11, 'bottom', self.d4)
+        self.area.addDock(self.d12, 'bottom',self.d4)
         if args.more:
             self.area.addDock(self.d10, 'bottom', self.d6)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
         self.w1.getView().invertY(False)
+
+        self.img_feature = pg.ImageItem()
+        self.w1.getView().addItem(self.img_feature)
+
         self.ring_feature = pg.ScatterPlotItem()
         self.peak_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
@@ -457,18 +526,13 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.peak_feature)
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
+
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 6})
+        self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.roi.addRotateHandle([0.5, 0.5], [1, 1])
         self.w1.getView().addItem(self.roi)
-        # Beam mask
-        #self.beamROI = pg.ROI([800,800], size=[150, 50], pen={'color': 'r', 'width': 6})
-        #self.beamROI.addRotateHandle([1, 1], [0.5, 0.5])
-        #self.beamROI.addScaleHandle([0.5, 1], [0.5, 0.5])
-        #self.beamROI.addScaleHandle([0, 0.5], [0.5, 0.5])
-        #self.w1.getView().addItem(self.beamROI)
-
         # Callbacks for handling user interaction
         def updateRoiHistogram():
             if self.data is not None:
@@ -476,20 +540,6 @@ class MainFrame(QtGui.QWidget):
                 hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
         self.roi.sigRegionChanged.connect(updateRoiHistogram)
-
-        #def updateBeamMask():
-        #    if self.data is not None:
-        #        beamSelected, beamCoord = self.beamROI.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
-        #        print "beamSelected: ", beamSelected, beamSelected.shape
-        #        print "beamCoord: ", beamCoord, beamCoord.shape
-        #        row=beamCoord[0,:,:].flatten()
-        #        col=beamCoord[1,:,:].flatten()
-        #        print "rows: ", row
-        #        print "cols: ", col
-        #        for i,val in enumerate(row):
-        #            self.data[row[i],col[i]] = 0
-        #        self.updateImage(calib=self.calib)
-        #self.beamROI.sigRegionChanged.connect(updateBeamMask)
 
         # Connect listeners to functions
         self.d1.addWidget(self.w1)
@@ -636,6 +686,115 @@ class MainFrame(QtGui.QWidget):
         self.w16 = pg.PlotWidget(title="Per Pixel Histogram")
         self.d11.addWidget(self.w16)
 
+        ## Dock 12: Mask Panel
+        self.w17 = ParameterTree()
+        self.w17.setParameters(self.p6, showTop=False)
+        self.d12.addWidget(self.w17)
+        self.w18 = pg.LayoutWidget()
+        self.maskRectBtn = QtGui.QPushButton('mask rectangular ROI')
+        self.w18.addWidget(self.maskRectBtn, row=0, col=0)
+        self.maskCircleBtn = QtGui.QPushButton('mask circular ROI')
+        self.w18.addWidget(self.maskCircleBtn, row=1, col=0)
+        self.deployMaskBtn = QtGui.QPushButton()
+        self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
+        self.deployMaskBtn.setText('Deploy mask')
+        self.w18.addWidget(self.deployMaskBtn, row=2, col=0)
+
+        # Connect listeners to functions
+        self.d12.addWidget(self.w18)
+        # mask
+        def initMask():
+            if self.userMask is None and self.data is not None:
+                # initialize
+                self.userMask = np.ones_like(self.data,dtype='int')
+
+        def makeMaskRect():
+            print "makeMaskRect!!!!!!"
+            initMask()
+            if self.data is not None and self.maskingMode > 0:
+                selected, coord = self.roi_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                _mask = np.ones_like(self.data)
+                _mask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 0
+                if self.maskingMode == 1:
+                    # masking mode
+                    self.userMask *= _mask
+                elif self.maskingMode == 2:
+                    # unmasking mode
+                    self.userMask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 1
+                elif self.maskingMode == 3:
+                    # toggle mode
+                    self.userMask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = (1-self.userMask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')])
+
+                # convert assembled to unassembled
+                a=np.arange(self.calib.size)+1
+                a=a.reshape(self.calib.shape)
+                assem=self.det.image(self.evt,a)
+                pixInd = assem[np.where(assem==0)]
+                pixInd = pixInd[np.nonzero(pixInd)]-1
+                calibMask=np.ones((self.calib.size,))
+                calibMask[pixInd.astype(int)] = 0
+                calibMask=calibMask.reshape(self.calib.shape)
+                self.display_data = self.det.image(self.evt,calibMask)
+
+                displayMask()
+            print "done makeMaskRect!!!!!!"
+        self.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), makeMaskRect)
+
+        def makeMaskCircle():
+            print "makeMaskCircle!!!!!!"
+            initMask()
+            if self.data is not None and self.maskingMode > 0:
+                (radiusX,radiusY) = self.roi_circle.size()
+                (cornerX,cornerY) = self.roi_circle.pos()
+                i0, j0 = np.meshgrid(range(int(radiusY)),
+                                     range(int(radiusX)), indexing = 'ij')
+                r = np.sqrt(np.square((i0 - radiusY/2).astype(np.float)) +
+                            np.square((j0 - radiusX/2).astype(np.float)))
+                i0 = np.rint(i0[np.where(r < radiusY/2.)] + cornerY).astype(np.int)
+                j0 = np.rint(j0[np.where(r < radiusX/2.)] + cornerX).astype(np.int)
+                i01 = i0[(i0>=0) & (i0<self.data.shape[1]) & (j0>=0) & (j0<self.data.shape[0])]
+                j01 = j0[(i0>=0) & (i0<self.data.shape[1]) & (j0>=0) & (j0<self.data.shape[0])]
+
+                _mask = np.ones_like(self.data)
+                _mask[j01,i01] = 0
+                if self.maskingMode == 1:
+                    # masking mode
+                    self.userMask *= _mask
+                elif self.maskingMode == 2:
+                    # unmasking mode
+                    self.userMask[j01,i01] = 1
+                elif self.maskingMode == 3:
+                    # toggle mode
+                    self.userMask[j01,i01] = (1-self.userMask[j01,i01])
+
+                # convert assembled to unassembled
+
+                displayMask()
+            print "done makeMaskCircle!!!!!!"
+        self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
+
+        def deployMask():
+            print "deployMask is not implemented yet!"
+
+            ########################################
+            # reshape userMask to unassembled array
+            ########################################
+            userMask_nda = self.det.ndarray_from_image(self.evt,self.userMask, pix_scale_size_um=None, xy0_off_pix=None)
+
+            maskTxt = userMask_nda.reshape((-1,userMask_nda.shape[-1]))
+            np.savetxt("mask.txt",maskTxt,fmt='%0.18e')
+        self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), deployMask)
+
+        def displayMask():
+            print "displayMask"
+            # convert to RGB
+            # Set masked pixels to red
+            self.display_data = np.zeros((self.data.shape[0], self.data.shape[1], 3), dtype = self.data.dtype)
+            self.display_data[:, :, 0] = self.data + (np.max(self.data) - self.data) * (1-self.userMask)
+            self.display_data[:, :, 1] = self.data * self.userMask
+            self.display_data[:, :, 2] = self.data * self.userMask
+            self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+
         ###############
         ### Threads ###
         ###############
@@ -728,8 +887,12 @@ class MainFrame(QtGui.QWidget):
                 if self.data is not None:
                     if indexX >= 0 and indexX < self.data.shape[0] \
                        and indexY >= 0 and indexY < self.data.shape[1]:
-                        textInfo = "<span style='color: " + cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
-                        self.label.setText(textInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
+                        if self.maskingMode > 0:
+                            modeInfo = masking_mode_message
+                        else:
+                            modeInfo = ""
+                        pixelInfo = "<span style='color: " + cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
+                        self.label.setText(modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
 
         def mouseClicked(evt):
             self.zzz= evt
@@ -738,17 +901,31 @@ class MainFrame(QtGui.QWidget):
             indexY = int(mousePoint.y())
 
             if self.data is not None:
+                # Mouse click
                 if indexX >= 0 and indexX < self.data.shape[0] \
                     and indexY >= 0 and indexY < self.data.shape[1]:
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]
+                    if self.maskingMode > 0:
+                        initMask()
+                        if self.maskingMode == 1:
+                            # masking mode
+                            self.userMask[indexX,indexY] = 0
+                        elif self.maskingMode == 2:
+                            # unmasking mode
+                            self.userMask[indexX,indexY] = 1
+                        elif self.maskingMode == 3:
+                            # toggle mode
+                            self.userMask[indexX,indexY] = (1-self.userMask[indexX,indexY])
+                        displayMask()
 
+                # Per pixel histogram
                 if self.pixelIndAssem is not None and self.perPixelHistogramFileOpen:
                     self.pixelInd = self.pixelIndAssem[indexX,indexY]
                     print "pixel index: ", self.pixelInd
                     self.updatePerPixelHistogram(self.pixelInd)
 
         # Signal proxy
-        self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=60, slot=mouseMoved)
+        self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
 
         self.win.show()
@@ -806,57 +983,69 @@ class MainFrame(QtGui.QWidget):
         # 14: background
         # 15: noise
         # 16: signal over noise
+        if self.algorithm == 0: # No peak algorithm
+            self.peaks = None
+            self.drawPeaks()
+        else:
+            if self.streakMaskOn:
+                print "Getting streak mask!!!"
+                self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=250,sigma=2)
 
-        # Only initialize the hit finder algorithm once
-        if self.algInitDone is False:
-            self.windows = None
-            self.alg = []
-            self.alg = PyAlgos(windows=self.windows, mask=self.mask, pbits=0)
+                # update combined mask
+                if self.combinedMask is not None:
+                    self.combinedMask *= self.streakMask
+                else:
+                    self.combinedMask = self.streakMask
+                self.calibMask = self.calib * self.combinedMask
+                self.updateImage(self.calibMask)
+            else:
+                self.calibMask = self.calib
 
-            # set peak-selector parameters:
-            #alg.set_peak_selection_pars(npix_min=2, npix_max=50, amax_thr=10, atot_thr=20, son_min=5)
+            # Only initialize the hit finder algorithm once
+            if self.algInitDone is False:
+                self.windows = None
+                self.alg = []
+                self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
+
+                # set peak-selector parameters:
+                #alg.set_peak_selection_pars(npix_min=2, npix_max=50, amax_thr=10, atot_thr=20, son_min=5)
+                if self.algorithm == 1:
+                    self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
+                                            amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
+                                            son_min=self.hitParam_alg_son_min)
+                elif self.algorithm == 3:
+                    self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
+                                            amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
+                                            son_min=self.hitParam_alg3_son_min)
+                self.algInitDone = True
+
             if self.algorithm == 1:
-                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
-                                        amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
-                                        son_min=self.hitParam_alg_son_min)
+                # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
+                #                           around pixel with maximal intensity.
+                #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
+                self.peakRadius = int(self.hitParam_alg1_radius)
+                self.peaks = self.alg.peak_finder_v1(self.calibMask, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
+                                           radius=self.peakRadius, dr=self.hitParam_alg1_dr)
+            #elif self.algorithm == 2:
+            #    # v2 - define peaks for regions of connected pixels above threshold
+            #    self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
             elif self.algorithm == 3:
-                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
-                                        amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
-                                        son_min=self.hitParam_alg3_son_min)
+                self.peakRadius = int(self.hitParam_alg3_r0)
+                self.peaks = self.alg.peak_finder_v3(self.calibMask, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
 
-            self.algInitDone = True
+            self.numPeaksFound = self.peaks.shape[0]
 
-        if self.algorithm == 1:
-            # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
-            #                           around pixel with maximal intensity.
-            #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
-            self.peakRadius = int(self.hitParam_alg1_radius)
-            self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
-                                       radius=self.peakRadius, dr=self.hitParam_alg1_dr)
-        #elif self.algorithm == 2:
-        #    # v2 - define peaks for regions of connected pixels above threshold
-        #    self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
-        elif self.algorithm == 3:
-            print "#$@#$ got here"
-            self.peakRadius = int(self.hitParam_alg3_r0)
-            print "peakRadius: ", self.peakRadius, self.hitParam_alg3_r0
-            self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
+            fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'
+            for peak in self.peaks :
+                    seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
+                    print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
+                                 rmin, rmax, cmin, cmax, bkgd, rms, son)
+                    if self.isCspad:
+                        cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                        print "cheetahRow,Col", cheetahRow, cheetahCol, atot
 
-        self.numPeaksFound = self.peaks.shape[0]
-
-        fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f  %6.2f %4d %4d %4d %4d  %6.2f  %6.2f  %6.2f'
-        for peak in self.peaks :
-                seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-
-                print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
-                             rmin, rmax, cmin, cmax, bkgd, rms, son)
-                if self.isCspad:
-                    cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                    print "cheetahRow,Col", cheetahRow, cheetahCol, atot
-                    print "^^^^"
-
-        print "num peaks found: ", self.numPeaksFound, self.peaks.shape
-        self.drawPeaks()
+            print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+            self.drawPeaks()
 
     def convert_peaks_to_cheetah(self, s, r, c) :
         """Converts seg, row, col assuming (32,185,388)
@@ -868,20 +1057,21 @@ class MainFrame(QtGui.QWidget):
         return row2d, col2d
 
     def drawPeaks(self):
-        if self.peaks is not None and self.numPeaksFound > 0:
-            iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
-            iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
-            cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-            cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-            diameter = self.peakRadius*2+1
-            print "cenX: ", cenX
-            print "cenY: ", cenY
-            print "diameter: ", diameter, self.peakRadius
-            self.peak_feature.setData(cenX, cenY, symbol='s', \
-                                      size=diameter, brush=(255,255,255,0), \
-                                      pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
-        else:
-            self.peak_feature.setData([], [], pxMode=False)
+        if self.showPeaks:
+            if self.peaks is not None and self.numPeaksFound > 0:
+                iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
+                iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
+                cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                diameter = self.peakRadius*2+1
+                print "cenX: ", cenX
+                print "cenY: ", cenY
+                print "diameter: ", diameter, self.peakRadius
+                self.peak_feature.setData(cenX, cenY, symbol='s', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
+            else:
+                self.peak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
 
     def updateImage(self,calib=None):
@@ -1003,8 +1193,8 @@ class MainFrame(QtGui.QWidget):
 
         if calib is not None:
             # apply mask
-            if self.mask is not None:
-                calib *= self.mask
+            if self.combinedMask is not None:
+                calib *= self.combinedMask
             # assemble image
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
@@ -1085,6 +1275,15 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,change,data)
 
+    def changeMask(self, param, changes):
+        for param, change, data in changes:
+            path = self.p6.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
     def update(self, path, change, data):
         print "path: ", path
         ################################################
@@ -1133,8 +1332,8 @@ class MainFrame(QtGui.QWidget):
         if path[0] == hitParam_grp:
             if path[1] == hitParam_algorithm_str:
                 self.updateAlgorithm(data)
-            elif path[1] == hitParam_classify_str:
-                self.updateClassify(data)
+            elif path[1] == hitParam_showPeaks_str:
+                self.updateClassification(data)
 
             elif path[1] == hitParam_outDir_str:
                 self.hitParam_outDir = data
@@ -1269,7 +1468,26 @@ class MainFrame(QtGui.QWidget):
                 self.updatePerPixelHistogramFilename(data)
             elif path[1] == perPixelHistogram_adu_str:
                 self.updatePerPixelHistogramAdu(data)
-
+        ################################################
+        # masking parameters
+        ################################################
+        if path[0] == mask_grp:
+            if path[1] == mask_mode_str:
+                self.updateMaskingMode(data)
+            elif path[1] == streak_mask_str:
+                self.updateStreakMask(data)
+            elif path[1] == mask_calib_str:
+                self.updatePsanaMaskFlag(path[1],data)
+            elif path[1] == mask_status_str:
+                self.updatePsanaMaskFlag(path[1],data)
+            elif path[1] == mask_edges_str:
+                self.updatePsanaMaskFlag(path[1],data)
+            elif path[1] == mask_central_str:
+                self.updatePsanaMaskFlag(path[1],data)
+            elif path[1] == mask_unbond_str:
+                self.updatePsanaMaskFlag(path[1],data)
+            elif path[1] == mask_unbondnrs_str:
+                self.updatePsanaMaskFlag(path[1],data)
     ###################################
     ###### Experiment Parameters ######
     ###################################
@@ -1373,12 +1591,6 @@ class MainFrame(QtGui.QWidget):
             self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
             self.pixelIndAssem -= 1 # First pixel is 0
 
-            # Get epics variable, clen and mask
-            if "cxi" in self.experimentName:
-                #self.epics = self.ds.env().epicsStore()
-                #self.clen = self.epics.value('CXI:DS1:MMS:06.RBV')
-                #print "clen: ", self.clen
-                self.mask = self.det.mask(evt, calib=True, status=True, edges=True, central=True, unbond=False, unbondnbrs=False)
             print "Done setupExperiment"
 
     def updateLogscale(self, data):
@@ -1482,15 +1694,17 @@ class MainFrame(QtGui.QWidget):
 
     def updateAlgorithm(self, data):
         self.algorithm = data
-        if self.classify:
-            self.updateClassification()
+        self.updateClassification()
         print "##### Done updateAlgorithm: ", self.algorithm
 
-    def updateClassify(self, data):
-        self.classify = data
-        if self.classify:
-            self.updateClassification()
-        print "Done updateClassify: ", self.classify
+    def updateStreakMask(self, data):
+        self.streakMaskOn = data
+        if self.streakMaskOn == False:
+            self.streakMask = None
+
+        self.updateClassification()
+
+        print "Done updateStreakMask: ", self.streakMaskOn
 
     ##################################
     ###### Diffraction Geometry ######
@@ -1671,6 +1885,66 @@ class MainFrame(QtGui.QWidget):
             self.w16.plot(self.histogram_adu, self.perPixelHistogram, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
         self.w16.setLabel('left', "Counts")
         self.w16.setLabel('bottom', "ADU")
+
+    ##################################
+    ############ Masking #############
+    ##################################
+
+    def updateMaskingMode(self, data):
+        self.maskingMode = data
+        if self.maskingMode == 0:
+            # display text
+            self.label.setText("")
+            # do not display user mask
+            self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            # remove ROIs
+            self.w1.getView().removeItem(self.roi_rect)
+            self.w1.getView().removeItem(self.roi_circle)
+        else:
+            # display text
+            self.label.setText(masking_mode_message)
+            # display user mask
+            if self.display_data is not None:
+                self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            # init masks
+            if self.roi_rect is None:
+                # Rect mask
+                self.roi_rect = pg.ROI(pos=[self.cx+100,self.cy], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'b', 'width': 4})
+                self.roi_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
+                self.roi_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
+                self.roi_rect.addRotateHandle([0.5, 0.5], [1, 1])
+                # Circular mask
+                self.roi_circle = pg.CircleROI([self.cx,self.cy], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'b', 'width': 4})
+
+            # add ROIs
+            self.w1.getView().addItem(self.roi_rect)
+            self.w1.getView().addItem(self.roi_circle)
+        print "Done updateMaskingMode: ", self.maskingMode
+
+    def updatePsanaMaskFlag(self, flag, data):
+        if flag == mask_calib_str:
+            self.mask_calibOn = data
+        elif flag == mask_status_str:
+            self.mask_statusOn = data
+        elif flag == mask_central_str:
+            self.mask_centralOn = data
+        elif flag == mask_edges_str:
+            self.mask_edgesOn = data
+        elif flag == mask_unbond_str:
+            self.mask_unbondOn = data
+        elif flag == mask_unbondnrs_str:
+            self.mask_unbondnrsOn = data
+        self.updatePsanaMask()
+
+    def updatePsanaMask(self):
+        print "Making psana mask"
+        self.psanaMask = self.det.mask(self.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
+                                      edges=self.mask_edgesOn, central=self.mask_centralOn,
+                                      unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
+        if self.combinedMask is None:
+            self.combinedMask = self.psanaMask
+        else:
+            self.combinedMask *= self.psanaMask
 
     ##################################
     ########### Manifold #############
