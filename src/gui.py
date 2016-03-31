@@ -158,7 +158,11 @@ do_nothing_str = 'Off'
 do_toggle_str = 'Toggle'
 do_mask_str = 'Mask'
 do_unmask_str = 'Unmask'
-streak_mask_str = 'Jet streak mask'
+streak_mask_str = 'Use jet streak mask'
+streak_width_str = 'maximum streak length'
+streak_sigma_str = 'sigma'
+psana_mask_str = 'Use psana mask'
+user_mask_str = 'Use user-defined mask'
 mask_calib_str = 'calib pixels'
 mask_status_str = 'status pixels'
 mask_edges_str = 'edge pixels'
@@ -226,8 +230,13 @@ class MainFrame(QtGui.QWidget):
         self.cy = 0
         self.calib = None # ndarray detector image
         self.psanaMask = None # psana mask
-        self.userMask = None # user mask
+        self.psanaMaskAssem = None
+        self.userMask = None # user-defined mask
+        self.userMaskAssem = None
+        self.streakMask = None # jet streak mask
+        self.streakMaskAssem = None
         self.combinedMask = None # combined mask
+        self.gapAssemInd = None
         # Init hit finding parameters
         self.algInitDone = False
         self.algorithm = 0
@@ -275,7 +284,11 @@ class MainFrame(QtGui.QWidget):
         self.manifoldHasData = False
 
         self.maskingMode = 0
-        self.streakMaskOn = 0
+        self.userMaskOn = False
+        self.streakMaskOn = False
+        self.streak_sigma = 1
+        self.streak_width = 250
+        self.psanaMaskOn = False
         self.mask_calibOn = False
         self.mask_statusOn = False
         self.mask_edgesOn = False
@@ -387,19 +400,26 @@ class MainFrame(QtGui.QWidget):
         ]
         self.paramsMask = [
             {'name': mask_grp, 'type': 'group', 'children': [
-                {'name': mask_mode_str, 'type': 'list', 'values': {do_toggle_str: 3,
-                                                                   do_unmask_str: 2,
-                                                                   do_mask_str: 1,
-                                                                   do_nothing_str: 0},
-                                                                   'value': self.maskingMode,
-                                                                   'tip': "Choose masking mode"},
-                {'name': streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot"},
-                {'name': mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "custrom mask deployed in calibdir"},
-                {'name': mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "status mask"},
-                {'name': mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "edge mask"},
-                {'name': mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "central mask"},
-                {'name': mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "unbonded mask (cspad only)"},
-                {'name': mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "unbonded pixel neighbors (cspad only)"},
+                {'name': user_mask_str, 'type': 'bool', 'value': self.userMaskOn, 'tip': "Mask areas defined by user", 'children':[
+                    {'name': mask_mode_str, 'type': 'list', 'values': {do_toggle_str: 3,
+                                                                       do_unmask_str: 2,
+                                                                       do_mask_str: 1,
+                                                                       do_nothing_str: 0},
+                                                                       'value': self.maskingMode,
+                                                                       'tip': "Choose masking mode"},
+                ]},
+                {'name': streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot", 'children':[
+                    {'name': streak_width_str, 'type': 'float', 'value': self.streak_width, 'tip': "set maximum length of streak"},
+                    {'name': streak_sigma_str, 'type': 'float', 'value': self.streak_sigma, 'tip': "set number of sigma to threshold"},
+                ]},
+                {'name': psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask egdes and unbonded pixels etc", 'children': [
+                    {'name': mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "custrom mask deployed in calibdir"},
+                    {'name': mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "status mask"},
+                    {'name': mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "edge mask"},
+                    {'name': mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "central mask"},
+                    {'name': mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "unbonded mask (cspad only)"},
+                    {'name': mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "unbonded pixel neighbors (cspad only)"},
+                ]},
             ]}
         ]
         self.initUI()
@@ -697,52 +717,39 @@ class MainFrame(QtGui.QWidget):
         self.w18.addWidget(self.maskCircleBtn, row=1, col=0)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
-        self.deployMaskBtn.setText('Deploy mask')
+        self.deployMaskBtn.setText('Save user-defined mask')
         self.w18.addWidget(self.deployMaskBtn, row=2, col=0)
-
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
-        # mask
-        def initMask():
-            if self.userMask is None and self.data is not None:
-                # initialize
-                self.userMask = np.ones_like(self.data,dtype='int')
 
+        # mask
         def makeMaskRect():
             print "makeMaskRect!!!!!!"
-            initMask()
+            self.initMask()
             if self.data is not None and self.maskingMode > 0:
                 selected, coord = self.roi_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 _mask = np.ones_like(self.data)
                 _mask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 0
                 if self.maskingMode == 1:
                     # masking mode
-                    self.userMask *= _mask
+                    self.userMaskAssem *= _mask
                 elif self.maskingMode == 2:
                     # unmasking mode
-                    self.userMask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 1
+                    self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 1
                 elif self.maskingMode == 3:
                     # toggle mode
-                    self.userMask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = (1-self.userMask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')])
+                    self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = (1-self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')])
 
-                # convert assembled to unassembled
-                a=np.arange(self.calib.size)+1
-                a=a.reshape(self.calib.shape)
-                assem=self.det.image(self.evt,a)
-                pixInd = assem[np.where(assem==0)]
-                pixInd = pixInd[np.nonzero(pixInd)]-1
-                calibMask=np.ones((self.calib.size,))
-                calibMask[pixInd.astype(int)] = 0
-                calibMask=calibMask.reshape(self.calib.shape)
-                self.display_data = self.det.image(self.evt,calibMask)
+                # update userMask
+                self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
 
-                displayMask()
+                self.displayMask()
             print "done makeMaskRect!!!!!!"
         self.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), makeMaskRect)
 
         def makeMaskCircle():
             print "makeMaskCircle!!!!!!"
-            initMask()
+            self.initMask()
             if self.data is not None and self.maskingMode > 0:
                 (radiusX,radiusY) = self.roi_circle.size()
                 (cornerX,cornerY) = self.roi_circle.pos()
@@ -759,41 +766,28 @@ class MainFrame(QtGui.QWidget):
                 _mask[j01,i01] = 0
                 if self.maskingMode == 1:
                     # masking mode
-                    self.userMask *= _mask
+                    self.userMaskAssem *= _mask
                 elif self.maskingMode == 2:
                     # unmasking mode
-                    self.userMask[j01,i01] = 1
+                    self.userMaskAssem[j01,i01] = 1
                 elif self.maskingMode == 3:
                     # toggle mode
-                    self.userMask[j01,i01] = (1-self.userMask[j01,i01])
+                    self.userMaskAssem[j01,i01] = (1-self.userMaskAssem[j01,i01])
 
-                # convert assembled to unassembled
+                # update userMask
+                self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
 
-                displayMask()
+                self.displayMask()
             print "done makeMaskCircle!!!!!!"
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
 
         def deployMask():
-            print "deployMask is not implemented yet!"
-
-            ########################################
-            # reshape userMask to unassembled array
-            ########################################
-            userMask_nda = self.det.ndarray_from_image(self.evt,self.userMask, pix_scale_size_um=None, xy0_off_pix=None)
-
-            maskTxt = userMask_nda.reshape((-1,userMask_nda.shape[-1]))
-            np.savetxt("mask.txt",maskTxt,fmt='%0.18e')
+            print "*** deploy mask as mask.txt ***"
+            if self.userMask is not None:
+                np.savetxt("mask.txt", self.userMask.reshape((-1,self.userMask.shape[-1])) ,fmt='%0.18e')
+            else:
+                print "user mask is not defined"
         self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), deployMask)
-
-        def displayMask():
-            print "displayMask"
-            # convert to RGB
-            # Set masked pixels to red
-            self.display_data = np.zeros((self.data.shape[0], self.data.shape[1], 3), dtype = self.data.dtype)
-            self.display_data[:, :, 0] = self.data + (np.max(self.data) - self.data) * (1-self.userMask)
-            self.display_data[:, :, 1] = self.data * self.userMask
-            self.display_data[:, :, 2] = self.data * self.userMask
-            self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
 
         ###############
         ### Threads ###
@@ -895,7 +889,6 @@ class MainFrame(QtGui.QWidget):
                         self.label.setText(modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
 
         def mouseClicked(evt):
-            self.zzz= evt
             mousePoint = self.vb.mapSceneToView(evt[0].scenePos())
             indexX = int(mousePoint.x())
             indexY = int(mousePoint.y())
@@ -906,17 +899,17 @@ class MainFrame(QtGui.QWidget):
                     and indexY >= 0 and indexY < self.data.shape[1]:
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]
                     if self.maskingMode > 0:
-                        initMask()
+                        self.initMask()
                         if self.maskingMode == 1:
                             # masking mode
-                            self.userMask[indexX,indexY] = 0
+                            self.userMaskAssem[indexX,indexY] = 0
                         elif self.maskingMode == 2:
                             # unmasking mode
-                            self.userMask[indexX,indexY] = 1
+                            self.userMaskAssem[indexX,indexY] = 1
                         elif self.maskingMode == 3:
                             # toggle mode
-                            self.userMask[indexX,indexY] = (1-self.userMask[indexX,indexY])
-                        displayMask()
+                            self.userMaskAssem[indexX,indexY] = (1-self.userMaskAssem[indexX,indexY])
+                        self.displayMask()
 
                 # Per pixel histogram
                 if self.pixelIndAssem is not None and self.perPixelHistogramFileOpen:
@@ -929,6 +922,54 @@ class MainFrame(QtGui.QWidget):
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
 
         self.win.show()
+
+    def initMask(self):
+        if self.gapAssemInd is None:
+            self.gapAssem = self.det.image(self.evt,np.ones_like(self.calib,dtype='int'))
+            self.gapAssemInd = np.where(self.gapAssem==0)
+        if self.userMask is None and self.data is not None:
+            # initialize
+            self.userMaskAssem = np.ones_like(self.data,dtype='int')
+            self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+
+    def displayMask(self):
+        print "displayMask"
+        # convert to RGB
+        print "mask on:", self.userMaskOn, self.streakMaskOn, self.psanaMaskOn
+        if self.userMaskOn is False and self.streakMaskOn is False and self.psanaMaskOn is False:
+            print "No mask is being used"
+            self.display_data = self.data
+        elif self.userMaskAssem is None and self.streakMaskAssem is None and self.psanaMaskAssem is None:
+            print "No mask exists"
+            self.display_data = self.data
+        else:
+            print "display mask"
+            self.display_data = np.zeros((self.data.shape[0], self.data.shape[1], 3), dtype = self.data.dtype)
+            self.display_data[:,:,0] = self.data
+            self.display_data[:,:,1] = self.data
+            self.display_data[:,:,2] = self.data
+            # update streak mask as red
+            if self.streakMaskOn is True and self.streakMaskAssem is not None:
+                self.streakMaskAssem[self.gapAssemInd] = 1
+                _streakMaskInd = np.where(self.streakMaskAssem==0)
+                self.display_data[_streakMaskInd[0], _streakMaskInd[1], 0] = self.data[_streakMaskInd] + (np.max(self.data) - self.data[_streakMaskInd]) * (1-self.streakMaskAssem[_streakMaskInd])
+                self.display_data[_streakMaskInd[0], _streakMaskInd[1], 1] = self.data[_streakMaskInd] * self.streakMaskAssem[_streakMaskInd]
+                self.display_data[_streakMaskInd[0], _streakMaskInd[1], 2] = self.data[_streakMaskInd] * self.streakMaskAssem[_streakMaskInd]
+            # update psana mask as green
+            if self.psanaMaskOn is True and self.psanaMaskAssem is not None:
+                self.psanaMaskAssem[self.gapAssemInd] = 1
+                _psanaMaskInd = np.where(self.psanaMaskAssem==0)
+                self.display_data[_psanaMaskInd[0], _psanaMaskInd[1], 0] = self.data[_psanaMaskInd] * self.psanaMaskAssem[_psanaMaskInd]
+                self.display_data[_psanaMaskInd[0], _psanaMaskInd[1], 1] = self.data[_psanaMaskInd] + (np.max(self.data) - self.data[_psanaMaskInd]) * (1-self.psanaMaskAssem[_psanaMaskInd])
+                self.display_data[_psanaMaskInd[0], _psanaMaskInd[1], 2] = self.data[_psanaMaskInd] * self.psanaMaskAssem[_psanaMaskInd]
+            # update user mask as blue
+            if self.userMaskOn is True and self.userMaskAssem is not None:
+                self.userMaskAssem[self.gapAssemInd] = 1
+                _userMaskInd = np.where(self.userMaskAssem==0)
+                self.display_data[_userMaskInd[0], _userMaskInd[1], 0] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
+                self.display_data[_userMaskInd[0], _userMaskInd[1], 1] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
+                self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.data[_userMaskInd] + (np.max(self.data) - self.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
+        self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
@@ -970,6 +1011,25 @@ class MainFrame(QtGui.QWidget):
 
     def updateClassification(self):
         print("Running hit finder")
+
+        if self.streakMaskOn:
+            print "Getting streak mask!!!"
+            self.initMask()
+            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
+            self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
+
+        self.displayMask()
+
+        # update combined mask
+        if self.combinedMask is None:
+            self.combinedMask = np.ones_like(self.calib)
+        if self.streakMask is not None:
+            self.combinedMask *= self.streakMask
+        if self.userMask is not None:
+            self.combinedMask *= self.userMask
+        if self.psanaMask is not None:
+            self.combinedMask *= self.psanaMask
+
         # Peak output (0-16):
         # 0 seg
         # 1 row
@@ -987,20 +1047,6 @@ class MainFrame(QtGui.QWidget):
             self.peaks = None
             self.drawPeaks()
         else:
-            if self.streakMaskOn:
-                print "Getting streak mask!!!"
-                self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=250,sigma=2)
-
-                # update combined mask
-                if self.combinedMask is not None:
-                    self.combinedMask *= self.streakMask
-                else:
-                    self.combinedMask = self.streakMask
-                self.calibMask = self.calib * self.combinedMask
-                self.updateImage(self.calibMask)
-            else:
-                self.calibMask = self.calib
-
             # Only initialize the hit finder algorithm once
             if self.algInitDone is False:
                 self.windows = None
@@ -1024,14 +1070,14 @@ class MainFrame(QtGui.QWidget):
                 #                           around pixel with maximal intensity.
                 #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
                 self.peakRadius = int(self.hitParam_alg1_radius)
-                self.peaks = self.alg.peak_finder_v1(self.calibMask, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
+                self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                            radius=self.peakRadius, dr=self.hitParam_alg1_dr)
             #elif self.algorithm == 2:
             #    # v2 - define peaks for regions of connected pixels above threshold
             #    self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
             elif self.algorithm == 3:
                 self.peakRadius = int(self.hitParam_alg3_r0)
-                self.peaks = self.alg.peak_finder_v3(self.calibMask, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
+                self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
 
             self.numPeaksFound = self.peaks.shape[0]
 
@@ -1079,7 +1125,8 @@ class MainFrame(QtGui.QWidget):
             if calib is None:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
             else:
-                self.calib, self.data = self.getDetImage(self.eventNumber,calib=calib)
+                print "Got here getDetImage"
+                _, self.data = self.getDetImage(self.eventNumber,calib=calib)
 
             if self.firstUpdate:
                 if self.logscaleOn:
@@ -1192,9 +1239,7 @@ class MainFrame(QtGui.QWidget):
                 calib[:,:,i] = i
 
         if calib is not None:
-            # apply mask
-            if self.combinedMask is not None:
-                calib *= self.combinedMask
+
             # assemble image
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
@@ -1472,22 +1517,31 @@ class MainFrame(QtGui.QWidget):
         # masking parameters
         ################################################
         if path[0] == mask_grp:
-            if path[1] == mask_mode_str:
-                self.updateMaskingMode(data)
-            elif path[1] == streak_mask_str:
+            if path[1] == user_mask_str and len(path) == 2:
+                self.updateUserMask(data)
+            elif path[1] == streak_mask_str and len(path) == 2:
                 self.updateStreakMask(data)
-            elif path[1] == mask_calib_str:
-                self.updatePsanaMaskFlag(path[1],data)
-            elif path[1] == mask_status_str:
-                self.updatePsanaMaskFlag(path[1],data)
-            elif path[1] == mask_edges_str:
-                self.updatePsanaMaskFlag(path[1],data)
-            elif path[1] == mask_central_str:
-                self.updatePsanaMaskFlag(path[1],data)
-            elif path[1] == mask_unbond_str:
-                self.updatePsanaMaskFlag(path[1],data)
-            elif path[1] == mask_unbondnrs_str:
-                self.updatePsanaMaskFlag(path[1],data)
+            elif path[1] == psana_mask_str and len(path) == 2:
+                self.updatePsanaMask(data)
+            if len(path) == 3:
+                if path[2] == mask_mode_str:
+                    self.updateMaskingMode(data)
+                if path[2] == streak_width_str:
+                    self.updateStreakWidth(data)
+                if path[2] == streak_sigma_str:
+                    self.updateStreakSigma(data)
+                if path[2] == mask_calib_str:
+                    self.updatePsanaMaskFlag(path[2],data)
+                elif path[2] == mask_status_str:
+                    self.updatePsanaMaskFlag(path[2],data)
+                elif path[2] == mask_edges_str:
+                    self.updatePsanaMaskFlag(path[2],data)
+                elif path[2] == mask_central_str:
+                    self.updatePsanaMaskFlag(path[2],data)
+                elif path[2] == mask_unbond_str:
+                    self.updatePsanaMaskFlag(path[2],data)
+                elif path[2] == mask_unbondnrs_str:
+                    self.updatePsanaMaskFlag(path[2],data)
     ###################################
     ###### Experiment Parameters ######
     ###################################
@@ -1697,14 +1751,30 @@ class MainFrame(QtGui.QWidget):
         self.updateClassification()
         print "##### Done updateAlgorithm: ", self.algorithm
 
+    def updateUserMask(self, data):
+        self.userMaskOn = data
+        self.updateClassification()
+        print "Done updateUserMask: ", self.userMaskOn
+
     def updateStreakMask(self, data):
         self.streakMaskOn = data
-        if self.streakMaskOn == False:
-            self.streakMask = None
-
         self.updateClassification()
-
         print "Done updateStreakMask: ", self.streakMaskOn
+
+    def updateStreakWidth(self, data):
+        self.streak_width = data
+        self.updateClassification()
+        print "Done updateStreakWidth: ", self.streak_width
+
+    def updateStreakSigma(self, data):
+        self.streak_sigma = data
+        self.updateClassification()
+        print "Done updateStreakSigma: ", self.streak_sigma
+
+    def updatePsanaMask(self, data):
+        self.psanaMaskOn = data
+        self.updatePsanaMaskOn()
+        print "Done updatePsanaMask: ", self.psanaMaskOn
 
     ##################################
     ###### Diffraction Geometry ######
@@ -1896,7 +1966,7 @@ class MainFrame(QtGui.QWidget):
             # display text
             self.label.setText("")
             # do not display user mask
-            self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            self.displayMask()
             # remove ROIs
             self.w1.getView().removeItem(self.roi_rect)
             self.w1.getView().removeItem(self.roi_circle)
@@ -1904,8 +1974,7 @@ class MainFrame(QtGui.QWidget):
             # display text
             self.label.setText(masking_mode_message)
             # display user mask
-            if self.display_data is not None:
-                self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            self.displayMask()
             # init masks
             if self.roi_rect is None:
                 # Rect mask
@@ -1922,6 +1991,7 @@ class MainFrame(QtGui.QWidget):
         print "Done updateMaskingMode: ", self.maskingMode
 
     def updatePsanaMaskFlag(self, flag, data):
+        print "Update psana mask flag"
         if flag == mask_calib_str:
             self.mask_calibOn = data
         elif flag == mask_status_str:
@@ -1934,17 +2004,16 @@ class MainFrame(QtGui.QWidget):
             self.mask_unbondOn = data
         elif flag == mask_unbondnrs_str:
             self.mask_unbondnrsOn = data
-        self.updatePsanaMask()
+        self.updatePsanaMaskOn()
 
-    def updatePsanaMask(self):
+    def updatePsanaMaskOn(self):
         print "Making psana mask"
+        self.initMask()
         self.psanaMask = self.det.mask(self.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
                                       edges=self.mask_edgesOn, central=self.mask_centralOn,
                                       unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
-        if self.combinedMask is None:
-            self.combinedMask = self.psanaMask
-        else:
-            self.combinedMask *= self.psanaMask
+        self.psanaMaskAssem = self.det.image(self.evt,self.psanaMask)
+        self.updateClassification()
 
     ##################################
     ########### Manifold #############
