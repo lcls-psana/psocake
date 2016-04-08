@@ -1125,6 +1125,9 @@ class MainFrame(QtGui.QWidget):
             if self.peaks is not None and self.numPeaksFound > 0:
                 iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
                 iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
+                if len(iX.shape)==2:
+                    iX = np.expand_dims(iX,axis=0)
+                    iY = np.expand_dims(iY,axis=0)
                 cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                 cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                 diameter = self.peakRadius*2+1
