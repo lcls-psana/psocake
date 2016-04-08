@@ -28,6 +28,7 @@ import time
 import subprocess
 import os.path
 import myskbeam
+from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
@@ -617,7 +618,13 @@ class MainFrame(QtGui.QWidget):
             if self.logscaleOn:
                 np.save(str(fname),np.log10(abs(self.calib)+eps))
             else:
-                np.save(str(fname),self.calib)
+                if self.calib.size==2*185*388: # cspad2x2
+                    asData2x2 = two2x1ToData2x2(self.calib)
+                    np.save(str(fname),asData2x2)
+                    np.savetxt(str(fname).split('.')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
+                else:
+                    np.save(str(fname),self.calib)
+                    np.savetxt(str(fname).split('.')[0]+".txt", self.calib.reshape((-1,self.calib[-1])) ,fmt='%0.18e')
         def load():
             fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
             print "fname: ", fname, fname.split('.')[-1]
@@ -727,17 +734,15 @@ class MainFrame(QtGui.QWidget):
             print "makeMaskRect!!!!!!"
             self.initMask()
             if self.data is not None and self.maskingMode > 0:
+                print "makeMaskRect_data: ", self.data.shape
                 selected, coord = self.roi_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 _mask = np.ones_like(self.data)
                 _mask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 0
-                if self.maskingMode == 1:
-                    # masking mode
+                if self.maskingMode == 1: # masking mode
                     self.userMaskAssem *= _mask
-                elif self.maskingMode == 2:
-                    # unmasking mode
+                elif self.maskingMode == 2: # unmasking mode
                     self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 1
-                elif self.maskingMode == 3:
-                    # toggle mode
+                elif self.maskingMode == 3: # toggle mode
                     self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = (1-self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')])
 
                 # update userMask
@@ -764,14 +769,11 @@ class MainFrame(QtGui.QWidget):
 
                 _mask = np.ones_like(self.data)
                 _mask[j01,i01] = 0
-                if self.maskingMode == 1:
-                    # masking mode
+                if self.maskingMode == 1: # masking mode
                     self.userMaskAssem *= _mask
-                elif self.maskingMode == 2:
-                    # unmasking mode
+                elif self.maskingMode == 2: # unmasking mode
                     self.userMaskAssem[j01,i01] = 1
-                elif self.maskingMode == 3:
-                    # toggle mode
+                elif self.maskingMode == 3: # toggle mode
                     self.userMaskAssem[j01,i01] = (1-self.userMaskAssem[j01,i01])
 
                 # update userMask
@@ -782,9 +784,16 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
 
         def deployMask():
-            print "*** deploy mask as mask.txt ***"
+            print "*** deploy user-defined mask as mask.txt and mask.npy ***"
+            print "userMask: ", self.userMask.shape
             if self.userMask is not None:
-                np.savetxt("mask.txt", self.userMask.reshape((-1,self.userMask.shape[-1])) ,fmt='%0.18e')
+                if self.userMask.size==2*185*388: # cspad2x2
+                    asData2x2 = two2x1ToData2x2(self.userMask)
+                    np.save("mask.npy",asData2x2)
+                    np.savetxt("mask.txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
+                else:
+                    np.save("mask.npy",self.userMask)
+                    np.savetxt("mask.txt", self.userMask.reshape((-1,self.userMask.shape[-1])) ,fmt='%0.18e')
             else:
                 print "user mask is not defined"
         self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), deployMask)
@@ -924,13 +933,16 @@ class MainFrame(QtGui.QWidget):
         self.win.show()
 
     def initMask(self):
+        print "initMask"
         if self.gapAssemInd is None:
             self.gapAssem = self.det.image(self.evt,np.ones_like(self.calib,dtype='int'))
             self.gapAssemInd = np.where(self.gapAssem==0)
         if self.userMask is None and self.data is not None:
+            print "make user mask: ", self.data.shape, self.userMask
             # initialize
             self.userMaskAssem = np.ones_like(self.data,dtype='int')
             self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+        print "Done initMask"
 
     def displayMask(self):
         print "displayMask"
@@ -942,8 +954,8 @@ class MainFrame(QtGui.QWidget):
         elif self.userMaskAssem is None and self.streakMaskAssem is None and self.psanaMaskAssem is None:
             print "No mask exists"
             self.display_data = self.data
-        else:
-            print "display mask"
+        elif self.data is not None:
+            print "Mask exists"
             self.display_data = np.zeros((self.data.shape[0], self.data.shape[1], 3), dtype = self.data.dtype)
             self.display_data[:,:,0] = self.data
             self.display_data[:,:,1] = self.data
@@ -969,7 +981,9 @@ class MainFrame(QtGui.QWidget):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 0] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 1] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.data[_userMaskInd] + (np.max(self.data) - self.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
+            print "display_data: ", self.display_data.shape
         self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+        print "Done drawing"
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
@@ -1208,6 +1222,8 @@ class MainFrame(QtGui.QWidget):
         _calib[np.where(_calib<self.aduThresh)]=0
         tic = time.time()
         data = self.det.image(self.evt, _calib)
+        if data is None:
+            data = _calib
         toc = time.time()
         print "time assemble: ", toc-tic
         return data
@@ -1239,7 +1255,6 @@ class MainFrame(QtGui.QWidget):
                 calib[:,:,i] = i
 
         if calib is not None:
-
             # assemble image
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
@@ -1247,9 +1262,11 @@ class MainFrame(QtGui.QWidget):
         else: # TODO: this is a hack that assumes opal is the only detector without calib
             # we have an opal
             data = self.det.raw(self.evt)
-            # Do not display ADUs below threshold
-            data[np.where(data<self.aduThresh)]=0
-            self.cx, self.cy = self.getCentre(data.shape)
+            if data is not None:
+                data = data.copy()
+                # Do not display ADUs below threshold
+                data[np.where(data<self.aduThresh)]=0
+                self.cx, self.cy = self.getCentre(data.shape)
             return data, data
 
     def getCentre(self,shape):
@@ -1565,6 +1582,12 @@ class MainFrame(QtGui.QWidget):
         print "Done updateRunNumber: ", self.runNumber
 
     def updateDetInfo(self, data):
+        if self.hasDetInfo is False or self.detInfo is not data:
+            self.resetMasks()
+            self.calib = None
+            self.data = None
+            self.firstUpdate = True
+
         self.detInfo = data
         if data == 'DscCsPad' or data == 'DsdCsPad' or data == 'DsaCsPad':
             self.isCspad = True
@@ -1588,6 +1611,16 @@ class MainFrame(QtGui.QWidget):
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
             self.updateImage()
         print "Done updateEventNumber: ", self.eventNumber
+
+    def resetMasks(self):
+        self.userMask = None
+        self.psanaMask = None
+        self.streakMask = None
+        self.userMaskAssem = None
+        self.psanaMaskAssem = None
+        self.streakMaskAssem = None
+        self.gapAssemInd = None
+        self.gapAssem = None
 
     def hasExpRunInfo(self):
         if self.hasExperimentName and self.hasRunNumber:
@@ -1641,9 +1674,13 @@ class MainFrame(QtGui.QWidget):
                 self.evt = self.run.event(self.times[0])
             print "Setting up pixelInd"
             temp = self.det.calib(self.evt)
-            self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
-            self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
-            self.pixelIndAssem -= 1 # First pixel is 0
+            if temp is None:
+                _temp = self.det.raw(self.evt) # why is this read-only?
+                temp = _temp.copy()
+            if temp is not None:
+                self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
+                self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
+                self.pixelIndAssem -= 1 # First pixel is 0
 
             print "Done setupExperiment"
 
