@@ -197,6 +197,7 @@ class MainFrame(QtGui.QWidget):
         self.runNumber = int(args.run)
         self.detInfo = args.det
         self.isCspad = False
+        self.isCamera = False
         self.evt = None
         self.eventNumber = int(args.evt)
         self.eventSeconds = ""
@@ -749,6 +750,7 @@ class MainFrame(QtGui.QWidget):
                 self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
 
                 self.displayMask()
+                self.algInitDone = False
             print "done makeMaskRect!!!!!!"
         self.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), makeMaskRect)
 
@@ -780,6 +782,7 @@ class MainFrame(QtGui.QWidget):
                 self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
 
                 self.displayMask()
+                self.algInitDone = False
             print "done makeMaskCircle!!!!!!"
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
 
@@ -1031,6 +1034,7 @@ class MainFrame(QtGui.QWidget):
             self.initMask()
             self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
             self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
+            self.algInitDone = False
 
         self.displayMask()
 
@@ -1354,19 +1358,19 @@ class MainFrame(QtGui.QWidget):
         if path[0] == exp_grp:
             if path[1] == exp_name_str:
                 self.updateExpName(data)
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[1] == exp_run_str:
                 self.updateRunNumber(data)
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[1] == exp_detInfo_str:
                 self.updateDetInfo(data)
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[1] == exp_evt_str and len(path) == 2 and change is 'value':
                 self.updateEventNumber(data)
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
         ################################################
         # display parameters
@@ -1393,10 +1397,11 @@ class MainFrame(QtGui.QWidget):
         ################################################
         if path[0] == hitParam_grp:
             if path[1] == hitParam_algorithm_str:
+                self.algInitDone = False
                 self.updateAlgorithm(data)
             elif path[1] == hitParam_showPeaks_str:
+                self.algInitDone = False
                 self.updateClassification(data)
-
             elif path[1] == hitParam_outDir_str:
                 self.hitParam_outDir = data
             elif path[1] == hitParam_runs_str:
@@ -1411,80 +1416,87 @@ class MainFrame(QtGui.QWidget):
             elif path[2] == hitParam_alg_npix_min_str:
                 self.hitParam_alg_npix_min = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg_npix_max_str:
                 self.hitParam_alg_npix_max = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg_amax_thr_str:
                 self.hitParam_alg_amax_thr = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg_atot_thr_str:
                 self.hitParam_alg_atot_thr = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg_son_min_str:
                 self.hitParam_alg_son_min = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg1_thr_low_str:
                 self.hitParam_alg1_thr_low = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg1_thr_high_str:
                 self.hitParam_alg1_thr_high = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg1_radius_str:
                 self.hitParam_alg1_radius = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg1_dr_str:
                 self.hitParam_alg1_dr = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_npix_min_str:
                 self.hitParam_alg3_npix_min = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_npix_max_str:
                 self.hitParam_alg3_npix_max = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_amax_thr_str:
                 self.hitParam_alg3_amax_thr = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_atot_thr_str:
                 self.hitParam_alg3_atot_thr = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_son_min_str:
                 self.hitParam_alg3_son_min = data
                 self.algInitDone = False
-                if self.classify:
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_rank_str:
                 self.hitParam_alg3_rank = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_r0_str:
                 self.hitParam_alg3_r0 = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg3_dr_str:
                 self.hitParam_alg3_dr = data
-                if self.classify:
+                self.algInitDone = False
+                if self.showPeaks:
                     self.updateClassification()
         ################################################
         # diffraction geometry parameters
@@ -1536,28 +1548,40 @@ class MainFrame(QtGui.QWidget):
         if path[0] == mask_grp:
             if path[1] == user_mask_str and len(path) == 2:
                 self.updateUserMask(data)
+                self.algInitDone = False
             elif path[1] == streak_mask_str and len(path) == 2:
                 self.updateStreakMask(data)
+                self.algInitDone = False
             elif path[1] == psana_mask_str and len(path) == 2:
                 self.updatePsanaMask(data)
+                self.algInitDone = False
             if len(path) == 3:
                 if path[2] == mask_mode_str:
+                    self.algInitDone = False
                     self.updateMaskingMode(data)
                 if path[2] == streak_width_str:
+                    self.algInitDone = False
                     self.updateStreakWidth(data)
                 if path[2] == streak_sigma_str:
+                    self.algInitDone = False
                     self.updateStreakSigma(data)
                 if path[2] == mask_calib_str:
+                    self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
                 elif path[2] == mask_status_str:
+                    self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
                 elif path[2] == mask_edges_str:
+                    self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
                 elif path[2] == mask_central_str:
+                    self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
                 elif path[2] == mask_unbond_str:
+                    self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
                 elif path[2] == mask_unbondnrs_str:
+                    self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
     ###################################
     ###### Experiment Parameters ######
@@ -1591,6 +1615,8 @@ class MainFrame(QtGui.QWidget):
         self.detInfo = data
         if data == 'DscCsPad' or data == 'DsdCsPad' or data == 'DsaCsPad':
             self.isCspad = True
+        if data == 'Sc2Questar':
+            self.isCamera = True
         self.hasDetInfo = True
         self.setupExperiment()
         self.updateImage()
@@ -1619,8 +1645,17 @@ class MainFrame(QtGui.QWidget):
         self.userMaskAssem = None
         self.psanaMaskAssem = None
         self.streakMaskAssem = None
+        self.combinedMask = None
         self.gapAssemInd = None
         self.gapAssem = None
+        self.userMaskOn = False
+        self.psanaMaskOn = False
+        self.streakMaskOn = False
+        self.maskingMode = 0
+        self.p6.param(mask_grp,user_mask_str,mask_mode_str).setValue(0)
+        self.p6.param(mask_grp,user_mask_str).setValue(0)
+        self.p6.param(mask_grp,psana_mask_str).setValue(0)
+        self.p6.param(mask_grp,streak_mask_str).setValue(0)
 
     def hasExpRunInfo(self):
         if self.hasExperimentName and self.hasRunNumber:
@@ -1681,8 +1716,7 @@ class MainFrame(QtGui.QWidget):
                 self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
                 self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
                 self.pixelIndAssem -= 1 # First pixel is 0
-
-            print "Done setupExperiment"
+        print "Done setupExperiment"
 
     def updateLogscale(self, data):
         self.logscaleOn = data
@@ -2097,7 +2131,7 @@ class MainFrame(QtGui.QWidget):
         self.curve.curve.setClickable(True)
         self.curve.sigClicked.connect(self.clicked1)
 
-    def clicked1(self,points):
+    def clicked1(self,points): # manifold click
         print("curve clicked",points)
         from pprint import pprint
         pprint(vars(points.scatter))
@@ -2108,7 +2142,7 @@ class MainFrame(QtGui.QWidget):
         indX = points.scatter.data[i][0]
         indY = points.scatter.data[i][1]
         print "x,y: ", indX, indY
-        #if self.quantifier_sort:
+
         ind = self.manifoldInd[ind]
 
         # temp

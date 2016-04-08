@@ -20,9 +20,30 @@ class PeakFinder:
         self.algorithm = algorithm
         self.windows = windows
         self.mask = None
-        if "cxi" in self.exp:
-            self.mask = d.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
-            print "Got cspad mask"
+
+        if self.userMaskOn:
+            self.userMask = 
+
+        if self.psanaMaskOn:
+            self.psanaMask = d.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
+
+        if self.streakMaskOn:
+            print "Getting streak mask!!!"
+            self.initMask()
+            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
+            self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
+
+        if self.combinedMask is None:
+            self.combinedMask = np.ones_like(self.calib)
+        if self.streakMask is not None:
+            self.combinedMask *= self.streakMask
+        if self.userMask is not None:
+            self.combinedMask *= self.userMask
+        if self.psanaMask is not None:
+            self.combinedMask *= self.psanaMask
+
+
+
         self.alg = PyAlgos(windows=self.windows, mask=self.mask, pbits=0)
         # set peak-selector parameters:
         self.alg.set_peak_selection_pars(npix_min=hitParam_alg_npix_min, npix_max=hitParam_alg_npix_max, \
