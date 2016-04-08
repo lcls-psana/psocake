@@ -21,26 +21,26 @@ class PeakFinder:
         self.windows = windows
         self.mask = None
 
-        if self.userMaskOn:
-            self.userMask = 
+        #if self.userMaskOn:
+        #    self.userMask = 
 
-        if self.psanaMaskOn:
-            self.psanaMask = d.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
+        #if self.psanaMaskOn:
+        #    self.psanaMask = d.mask(evt, calib=True, status=True, edges=True, central=True, unbond=True, unbondnbrs=True)
 
-        if self.streakMaskOn:
-            print "Getting streak mask!!!"
-            self.initMask()
-            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
-            self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
+        #if self.streakMaskOn:
+        #    print "Getting streak mask!!!"
+        #    self.initMask()
+        #    self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
+        #    self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
 
-        if self.combinedMask is None:
-            self.combinedMask = np.ones_like(self.calib)
-        if self.streakMask is not None:
-            self.combinedMask *= self.streakMask
-        if self.userMask is not None:
-            self.combinedMask *= self.userMask
-        if self.psanaMask is not None:
-            self.combinedMask *= self.psanaMask
+        #if self.combinedMask is None:
+        #    self.combinedMask = np.ones_like(self.calib)
+        #if self.streakMask is not None:
+        #    self.combinedMask *= self.streakMask
+        #if self.userMask is not None:
+        #    self.combinedMask *= self.userMask
+        #if self.psanaMask is not None:
+        #    self.combinedMask *= self.psanaMask
 
 
 
