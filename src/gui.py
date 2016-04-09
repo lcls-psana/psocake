@@ -2197,7 +2197,7 @@ class PowderProducer(QtCore.QThread):
         for run in runsToDo:
             # Command for submitting to batch
             cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/src/generatePowder.py exp="+self.experimentName+\
+                  " -o %J.log generatePowder exp="+self.experimentName+\
                   ":run="+str(run)+" -d "+self.detInfo+\
                   " -o "+str(self.parent.hitParam_outDir)
             if self.parent.hitParam_noe > 0:
@@ -2315,37 +2315,45 @@ class PeakFinder(QtCore.QThread):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
         print runsToDo
+
         for run in runsToDo:
-            # Command for submitting to batch
+            cmd = "bsub -q "+self.parent.hitParam_queue+\
+              " -a mympi -n "+str(self.parent.hitParam_cpus)+\
+              " -o %J.log findPeaks -e "+self.experimentName+\
+              " -r "+str(run)+" -d "+self.detInfo+\
+              " --outDir "+str(self.parent.hitParam_outDir)+\
+              " --algorithm "+str(self.parent.algorithm)+\
+              " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
+              " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
+              " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
+              " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
+              " --alg_son_min "+str(self.parent.hitParam_alg_son_min)
+
             if self.parent.algorithm == 1:
-                cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                      " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
-                      " -r "+str(run)+" -d "+self.detInfo+\
-                      " --outDir "+str(self.parent.hitParam_outDir)+\
-                      " --algorithm "+str(self.parent.algorithm)+\
-                      " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
-                      " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
-                      " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
-                      " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
-                      " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
-                      " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                      " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                      " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                      " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
+                cmd += " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                         " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                         " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                         " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
             elif self.parent.algorithm == 3:
-                cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                      " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
-                      " -r "+str(run)+" -d "+self.detInfo+\
-                      " --outDir "+str(self.parent.hitParam_outDir)+\
-                      " --algorithm "+str(self.parent.algorithm)+\
-                      " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
-                      " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
-                      " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
-                      " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
-                      " --alg_son_min "+str(self.parent.hitParam_alg_son_min)+\
-                      " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                      " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                      " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+                cmd += " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                         " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                         " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+            # Save user mask to a deterministic path
+            if self.parent.userMaskOn:
+                tempFilename = "tempUserMask.npy"
+                np.save(tempFilename,self.parent.userMask)
+                cmd += " --userMask_path "+str(tempFilename)
+            if self.parent.streakMaskOn:
+                cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\
+                   " --streakMask_width "+str(self.parent.streak_width)
+            if self.parent.psanaMaskOn:
+                cmd += " --psanaMask_calib "+str(self.parent.mask_calibOn)+" "+\
+                   " --psanaMask_status "+str(self.parent.mask_statusOn)+" "+\
+                   " --psanaMask_edges "+str(self.parent.mask_edgesOn)+" "+\
+                   " --psanaMask_central "+str(self.parent.mask_centralOn)+" "+\
+                   " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+" "+\
+                   " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
+
             if self.parent.hitParam_noe > 0:
                 cmd += " --noe "+str(self.parent.hitParam_noe)
             print "Submitting batch job: ", cmd
