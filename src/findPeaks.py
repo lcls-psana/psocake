@@ -210,16 +210,15 @@ parser.add_argument("--alg1_dr",help="number of events to process",default=0.05,
 parser.add_argument("--alg3_rank",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg3_r0",help="number of events to process",default=5., type=float)
 parser.add_argument("--alg3_dr",help="number of events to process",default=0.05, type=float)
-parser.add_argument("--userMask_path",help="full path to user mask numpy array",default=None, type=str)
-parser.add_argument("--streakMask_sigma",help="streak mask sigma above background",default=0, type=float)
+parser.add_argument("--streakMask_sigma",help="streak mask sigma above background",default=0., type=float)
 parser.add_argument("--streakMask_width",help="streak mask width",default=0, type=float)
+parser.add_argument("--userMask_path",help="full path to user mask numpy array",default=None, type=str)
 parser.add_argument("--psanaMask_calib",help="psana calib on",default=False, type=bool)
 parser.add_argument("--psanaMask_status",help="psana status on",default=False, type=bool)
 parser.add_argument("--psanaMask_edges",help="psana edges on",default=False, type=bool)
 parser.add_argument("--psanaMask_central",help="psana central on",default=False, type=bool)
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default=False, type=bool)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default=False, type=bool)
-
 args = parser.parse_args()
 
 experimentName = args.exp

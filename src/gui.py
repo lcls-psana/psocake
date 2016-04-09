@@ -2311,7 +2311,7 @@ class PeakFinder(QtCore.QThread):
         return runsToDo
 
     def run(self):
-        print "Finding peaks for all events!!!!!!!!!!!!"
+        print "Finding peaks!!!!!!!!!!!!"
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
         print runsToDo
