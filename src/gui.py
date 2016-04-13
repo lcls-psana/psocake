@@ -2341,7 +2341,7 @@ class PeakFinder(QtCore.QThread):
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
                 tempFilename = "tempUserMask.npy"
-                np.save(tempFilename,self.parent.userMask)
+                np.save(tempFilename,self.parent.userMask) # TODO: save
                 cmd += " --userMask_path "+str(tempFilename)
             if self.parent.streakMaskOn:
                 cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\

@@ -13,6 +13,8 @@ import myskbeam
 class PeakFinder:
     def __init__(self,exp,run,detname,evt,detector,algorithm,hitParam_alg_npix_min,hitParam_alg_npix_max,
                  hitParam_alg_amax_thr,hitParam_alg_atot_thr,hitParam_alg_son_min,
+                 streakMask_sigma,streakMask_width,userMask_path,psanaMask_calib,
+                 psanaMask_status,psanaMask_edges,psanaMask_central,psanaMask_unbond,psanaMask_unbondnrs,
                  windows=None,**kwargs):
         self.exp = exp
         self.run = run
@@ -20,42 +22,47 @@ class PeakFinder:
         self.evt = evt
         self.det = detector
         self.algorithm = algorithm
+
+        self.npix_min=hitParam_alg_npix_min
+        self.npix_max=hitParam_alg_npix_max
+        self.amax_thr=hitParam_alg_amax_thr
+        self.atot_thr=hitParam_alg_atot_thr
+        self.son_min=hitParam_alg_son_min
+
+        self.streakMask_sigma = streakMask_sigma
+        self.streakMask_width = streakMask_width
+        self.userMask_path = userMask_path
+
         self.windows = windows
+
         self.userMask = None
         self.psanaMask = None
         self.streakMask = None
-        self.streak_sigma = None
-        self.streak_width = None
+        self.userPsanaMask = None
         self.combinedMask = None
 
         # Mask user mask
-        if kwargs["userMask_path"] is not None:
-            self.userMask = np.load(kwargs["userMask_path"])
+        if self.userMask_path is not None:
+            self.userMask = np.load(self.userMask_path)
 
         # Make psana mask
-        if kwargs["psanaMask_calib"] or kwargs["psanaMask_status"] or \
-           kwargs["psanaMask_edges"] or kwargs["psanaMask_central"] or \
-           kwargs["psanaMask_unbond"] or kwargs["psanaMask_unbondnrs"]:
-            self.psanaMask = detector.mask(evt, calib=kwargs["psanaMask_calib"], status=kwargs["psanaMask_status"], edges=kwargs["psanaMask_edges"], central=kwargs["psanaMask_central"], unbond=kwargs["psanaMask_unbond"], unbondnbrs=kwargs["psanaMask_unbondnrs"])
-
-        # Get streak mask parameters
-        if kwargs["streakMask_sigma"] is not 0:
-            self.streak_sigma = kwargs["streakMask_sigma"]
-            self.streak_width = kwargs["strerakMask_width"]
+        self.psanaMask = detector.mask(evt, calib=psanaMask_calib, status=psanaMask_status,
+                                       edges=psanaMask_edges, central=psanaMask_central,
+                                       unbond=psanaMask_unbond, unbondnbrs=psanaMask_unbondnrs)
 
         # Combine userMask and psanaMask
         if self.userMask is not None or self.psanaMask is not None:
-            self.combinedMask = np.one_like(self.det.calib(self.evt))
+            self.userPsanaMask = np.ones_like(self.det.calib(self.evt))
         if self.userMask is not None:
-            self.combinedMask *= self.userMask
+            self.userPsanaMask *= self.userMask
         if self.psanaMask is not None:
-            self.combinedMask *= self.psanaMask
+            self.userPsanaMask *= self.psanaMask
 
-        self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
+        self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
         # set peak-selector parameters:
-        self.alg.set_peak_selection_pars(npix_min=hitParam_alg_npix_min, npix_max=hitParam_alg_npix_max, \
-                                        amax_thr=hitParam_alg_amax_thr, atot_thr=hitParam_alg_atot_thr, \
-                                        son_min=hitParam_alg_son_min)
+        self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                        amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                        son_min=self.son_min)
         # set algorithm specific parameters
         if algorithm == 1:
             self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
@@ -68,27 +75,27 @@ class PeakFinder:
             self.hitParam_alg3_dr = kwargs["alg3_dr"]
 
     def findPeaks(self,calib):
-        if kwargs["streakMask_sigma"] is not 0: # make new streak mask
-            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
+        if self.streakMask_sigma is not 0: # make new streak mask
+            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streakMask_width,sigma=self.streakMask_sigma)
             
-            if self.combinedMask is not None:
-                self.combinedMask *= self.streakMask
+            if self.userPsanaMask is not None:
+                self.combinedMask = self.userPsanaMask * self.streakMask
             else:
                 self.combinedMask = self.streakMask
 
             self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
             # set peak-selector parameters:
-            self.alg.set_peak_selection_pars(npix_min=hitParam_alg_npix_min, npix_max=hitParam_alg_npix_max, \
-                                        amax_thr=hitParam_alg_amax_thr, atot_thr=hitParam_alg_atot_thr, \
-                                        son_min=hitParam_alg_son_min)
+            self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                        amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                        son_min=self.son_min)
 
             # set algorithm specific parameters
-            if algorithm == 1:
+            if self.algorithm == 1:
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                 #                           around pixel with maximal intensity.
                 self.peaks = self.alg.peak_finder_v1(calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                        radius=self.hitParam_alg1_radius, dr=self.hitParam_alg1_dr)
-            elif algorithm == 3:
+            elif self.algorithm == 3:
                 self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
         
     def savePeaks(self,myHdf5,ind):
@@ -175,14 +182,32 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
                                               args.alg_npix_max, args.alg_amax_thr,
                                               args.alg_atot_thr, args.alg_son_min,
                                               alg1_thr_low=args.alg1_thr_low, alg1_thr_high=args.alg1_thr_high,
-                                              alg1_radius=args.alg1_radius, alg1_dr=args.alg1_dr)
+                                              alg1_radius=args.alg1_radius, alg1_dr=args.alg1_dr,
+                                              streakMask_sigma=args.streakMask_sigma,
+                                              streakMask_width=args.streakMask_width,
+                                              userMask_path=args.userMask_path,
+                                              psanaMask_calib=args.psanaMask_calib,
+                                              psanaMask_status=args.psanaMask_status,
+                                              psanaMask_edges=args.psanaMask_edges,
+                                              psanaMask_central=args.psanaMask_central,
+                                              psanaMask_unbond=args.psanaMask_unbond,
+                                              psanaMask_unbondnrs=args.psanaMask_unbondnrs)
                 elif args.algorithm == 3:
                     d.peakFinder = PeakFinder(env.experiment(),evt.run(),d.detname,evt,d,
                                               args.algorithm, args.alg_npix_min,
                                               args.alg_npix_max, args.alg_amax_thr,
                                               args.alg_atot_thr, args.alg_son_min,
                                               alg3_rank=args.alg3_rank, alg3_r0=args.alg3_r0,
-                                              alg3_dr=args.alg3_dr)
+                                              alg3_dr=args.alg3_dr,
+                                              streakMask_sigma=args.streakMask_sigma,
+                                              streakMask_width=args.streakMask_width,
+                                              userMask_path=args.userMask_path,
+                                              psanaMask_calib=args.psanaMask_calib,
+                                              psanaMask_status=args.psanaMask_status,
+                                              psanaMask_edges=args.psanaMask_edges,
+                                              psanaMask_central=args.psanaMask_central,
+                                              psanaMask_unbond=args.psanaMask_unbond,
+                                              psanaMask_unbondnrs=args.psanaMask_unbondnrs)
             tic2 = time.time()
             d.peakFinder.findPeaks(detarr)
             tic3 = time.time()
@@ -224,76 +249,72 @@ args = parser.parse_args()
 experimentName = args.exp
 runNumber = args.run
 
-def main():
+ds = DataSource("exp="+experimentName+":run="+str(runNumber)+':idx')
+env = ds.env()
 
-    ds = DataSource("exp="+experimentName+":run="+str(runNumber)+':idx')
-    env = ds.env()
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
-    from mpi4py import MPI
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+detname = args.detList[0]
+detlist = [Detector(s, env) for s in detname]
+for d,n in zip(detlist,detname):
+    d.detname = n
 
-    detname = args.detList[0]
-    detlist = [Detector(s, env) for s in detname]
-    for d,n in zip(detlist,detname):
-        d.detname = n
+run = ds.runs().next()
 
-    run = ds.runs().next()
-
-    # list of all events
-    times = run.times()
-    # check if the user requested specific number of events
-    if args.noe == 0:
-        numJobs = len(times)
+# list of all events
+times = run.times()
+# check if the user requested specific number of events
+if args.noe == 0:
+    numJobs = len(times)
+else:
+    if args.noe <= len(times):
+        numJobs = args.noe
     else:
-        if args.noe <= len(times):
-            numJobs = args.noe
-        else:
-            numJobs = len(times)
+        numJobs = len(times)
 
-    ind = getMyUnfairShare(numJobs,size,rank)
-    mytimes = times[ind[0]:ind[-1]+1]
+ind = getMyUnfairShare(numJobs,size,rank)
+mytimes = times[ind[0]:ind[-1]+1]
 
-    print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
+print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
-    runStr = "%04d" % runNumber
-    fname = args.outDir +"/"+ experimentName +"_"+ runStr + ".cxi"
-    print fname
+runStr = "%04d" % runNumber
+fname = args.outDir +"/"+ experimentName +"_"+ runStr + ".cxi"
+print fname
 
-    # Create hdf5 and save
-    if rank == 0:
-        myHdf5 = h5py.File(fname, 'w')
-        dt = h5py.special_dtype(vlen=bytes)
+# Create hdf5 and save
+if rank == 0:
+    myHdf5 = h5py.File(fname, 'w')
+    dt = h5py.special_dtype(vlen=bytes)
 
-        myInput = ""
-        for key,value in vars(args).iteritems():
-            myInput += key
-            myInput += " "
-            myInput += str(value)
-            myInput += "\n"
-        dset = myHdf5.create_dataset("/psana/input",(1,), dtype=dt)
-        dset[...] = myInput
-        myHdf5.close()
-
-    # Parallel process events
-    myHdf5 = h5py.File(fname, 'r+', driver='mpio', comm=comm)
-    grpName = "/entry_1/result_1"
-    dset_nPeaks = "/nPeaksAll"
-    dset_posX = "/peakXPosRawAll"
-    dset_posY = "/peakYPosRawAll"
-    dset_atot = "/peakTotalIntensityAll"
-    if grpName in myHdf5:
-        del myHdf5[grpName]
-    grp = myHdf5.create_group(grpName)
-    myHdf5.create_dataset(grpName+dset_nPeaks, (numJobs,), dtype='int')
-    myHdf5.create_dataset(grpName+dset_posX, (numJobs,2048), dtype='float32', chunks=(1,2048))
-    myHdf5.create_dataset(grpName+dset_posY, (numJobs,2048), dtype='float32', chunks=(1,2048))
-    myHdf5.create_dataset(grpName+dset_atot, (numJobs,2048), dtype='float32', chunks=(1,2048))
-    findPeaksForMyChunk(myHdf5,ind,mytimes,single=False)
+    myInput = ""
+    for key,value in vars(args).iteritems():
+        myInput += key
+        myInput += " "
+        myInput += str(value)
+        myInput += "\n"
+    dset = myHdf5.create_dataset("/psana/input",(1,), dtype=dt)
+    dset[...] = myInput
     myHdf5.close()
 
-    MPI.Finalize()
+# Parallel process events
+myHdf5 = h5py.File(fname, 'r+', driver='mpio', comm=comm)
+grpName = "/entry_1/result_1"
+dset_nPeaks = "/nPeaksAll"
+dset_posX = "/peakXPosRawAll"
+dset_posY = "/peakYPosRawAll"
+dset_atot = "/peakTotalIntensityAll"
+if grpName in myHdf5:
+    del myHdf5[grpName]
+grp = myHdf5.create_group(grpName)
+myHdf5.create_dataset(grpName+dset_nPeaks, (numJobs,), dtype='int')
+myHdf5.create_dataset(grpName+dset_posX, (numJobs,2048), dtype='float32', chunks=(1,2048))
+myHdf5.create_dataset(grpName+dset_posY, (numJobs,2048), dtype='float32', chunks=(1,2048))
+myHdf5.create_dataset(grpName+dset_atot, (numJobs,2048), dtype='float32', chunks=(1,2048))
+findPeaksForMyChunk(myHdf5,ind,mytimes,single=False)
+myHdf5.close()
 
-if __name__ == '__main__':
-    main()
+MPI.Finalize()
+
