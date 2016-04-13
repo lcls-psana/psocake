@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-04
+2016-04-12 Chunhong Yoon
+- Added peak finder algorithm 4
+
 Tag: V00-01-03
 2016-04-12 Chunhong Yoon
 - Run findPeaks using app

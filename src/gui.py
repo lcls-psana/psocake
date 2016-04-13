@@ -101,6 +101,18 @@ hitParam_algorithm3_str = 'Ranker'
 hitParam_alg3_rank_str = 'rank'
 hitParam_alg3_r0_str = 'r0'
 hitParam_alg3_dr_str = 'dr'
+# algorithm 4
+hitParam_alg4_npix_min_str = 'npix_min'
+hitParam_alg4_npix_max_str = 'npix_max'
+hitParam_alg4_amax_thr_str = 'amax_thr'
+hitParam_alg4_atot_thr_str = 'atot_thr'
+hitParam_alg4_son_min_str = 'son_min'
+hitParam_algorithm4_str = 'iDroplet'
+hitParam_alg4_thr_low_str = 'thr_low'
+hitParam_alg4_thr_high_str = 'thr_high'
+hitParam_alg4_rank_str = 'rank'
+hitParam_alg4_radius_str = 'radius'
+hitParam_alg4_dr_str = 'dr'
 
 hitParam_outDir_str = 'Output directory'
 hitParam_runs_str = 'Run(s)'
@@ -262,6 +274,16 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg3_rank = 3
         self.hitParam_alg3_r0 = 5.
         self.hitParam_alg3_dr = 0.05
+        self.hitParam_alg4_npix_min = 1.
+        self.hitParam_alg4_npix_max = 45.
+        self.hitParam_alg4_amax_thr = 250.
+        self.hitParam_alg4_atot_thr = 330.
+        self.hitParam_alg4_son_min = 10.
+        self.hitParam_alg4_thr_low = 80.
+        self.hitParam_alg4_thr_high = 270.
+        self.hitParam_alg4_rank = 3
+        self.hitParam_alg4_radius = 3
+        self.hitParam_alg4_dr = 1
 
         self.hitParam_outDir = os.getcwd()
         self.hitParam_runs = ''
@@ -341,7 +363,8 @@ class MainFrame(QtGui.QWidget):
         self.paramsPeakFinder = [
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks, 'tip': "Show peaks found shot-to-shot"},
-                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm3_str: 3,
+                {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm4_str: 4,
+                                                                            hitParam_algorithm3_str: 3,
                                                                             hitParam_algorithm1_str: 1,
                                                                             hitParam_algorithm0_str: 0},
                                                                             'value': self.algorithm},
@@ -365,6 +388,18 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg3_rank_str, 'type': 'int', 'value': self.hitParam_alg3_rank},
                     {'name': hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
                     {'name': hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
+                ]},
+                {'name': hitParam_algorithm4_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': hitParam_alg4_npix_min_str, 'type': 'float', 'value': self.hitParam_alg4_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                    {'name': hitParam_alg4_npix_max_str, 'type': 'float', 'value': self.hitParam_alg4_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+                    {'name': hitParam_alg4_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg4_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg4_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg4_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+                    {'name': hitParam_alg4_son_min_str, 'type': 'float', 'value': self.hitParam_alg4_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+                    {'name': hitParam_alg4_thr_low_str, 'type': 'float', 'value': self.hitParam_alg4_thr_low, 'tip': "Only consider values above this value"},
+                    {'name': hitParam_alg4_thr_high_str, 'type': 'float', 'value': self.hitParam_alg4_thr_high, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg4_rank_str, 'type': 'int', 'value': self.hitParam_alg4_rank, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                    {'name': hitParam_alg4_radius_str, 'type': 'int', 'value': self.hitParam_alg4_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                    {'name': hitParam_alg4_dr_str, 'type': 'float', 'value': self.hitParam_alg4_dr, 'tip': "background region outside the region of interest"},
                 ]},
                 {'name': hitParam_outDir_str, 'type': 'str', 'value': self.hitParam_outDir},
                 {'name': hitParam_runs_str, 'type': 'str', 'value': self.hitParam_runs},
@@ -1027,7 +1062,7 @@ class MainFrame(QtGui.QWidget):
         self.y_axis.setLabel('Y-axis (pixels)')
 
     def updateClassification(self):
-        print("Running hit finder")
+        print("**** Running hit finder ****")
 
         if self.streakMaskOn:
             print "Getting streak mask!!!"
@@ -1067,12 +1102,12 @@ class MainFrame(QtGui.QWidget):
         else:
             # Only initialize the hit finder algorithm once
             if self.algInitDone is False:
+                print("** Initializing peak finding algorithm **")
                 self.windows = None
                 self.alg = []
                 self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
 
                 # set peak-selector parameters:
-                #alg.set_peak_selection_pars(npix_min=2, npix_max=50, amax_thr=10, atot_thr=20, son_min=5)
                 if self.algorithm == 1:
                     self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
                                             amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
@@ -1081,6 +1116,10 @@ class MainFrame(QtGui.QWidget):
                     self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
                                             amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
                                             son_min=self.hitParam_alg3_son_min)
+                elif self.algorithm == 4:
+                    self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg4_npix_min, npix_max=self.hitParam_alg4_npix_max, \
+                                            amax_thr=self.hitParam_alg4_amax_thr, atot_thr=self.hitParam_alg4_atot_thr, \
+                                            son_min=self.hitParam_alg4_son_min)
                 self.algInitDone = True
 
             if self.algorithm == 1:
@@ -1096,7 +1135,13 @@ class MainFrame(QtGui.QWidget):
             elif self.algorithm == 3:
                 self.peakRadius = int(self.hitParam_alg3_r0)
                 self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
-
+            elif self.algorithm == 4:
+                print("* Running peak finder 4 *")
+                # v4 - aka Droplet Finder - the same as v1, but uses rank and r0 parameters in stead of common radius.
+                self.peakRadius = int(self.hitParam_alg4_radius)
+                print(self.hitParam_alg4_thr_low,self.hitParam_alg4_thr_high,self.hitParam_alg4_rank,self.peakRadius,self.hitParam_alg4_dr)
+                self.peaks = self.alg.peak_finder_v4(self.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
+                                           rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
             self.numPeaksFound = self.peaks.shape[0]
 
             fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'
@@ -1139,6 +1184,8 @@ class MainFrame(QtGui.QWidget):
                                           pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
             else:
                 self.peak_feature.setData([], [], pxMode=False)
+        else:
+            self.peak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
 
     def updateImage(self,calib=None):
@@ -1403,8 +1450,8 @@ class MainFrame(QtGui.QWidget):
                 self.algInitDone = False
                 self.updateAlgorithm(data)
             elif path[1] == hitParam_showPeaks_str:
-                self.algInitDone = False
-                self.updateClassification(data)
+                self.showPeaks = data
+                self.drawPeaks()
             elif path[1] == hitParam_outDir_str:
                 self.hitParam_outDir = data
             elif path[1] == hitParam_runs_str:
@@ -1416,88 +1463,139 @@ class MainFrame(QtGui.QWidget):
             elif path[1] == hitParam_noe_str:
                 self.hitParam_noe = data
 
-            elif path[2] == hitParam_alg_npix_min_str:
+            elif path[2] == hitParam_alg_npix_min_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg_npix_min = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_npix_max_str:
+            elif path[2] == hitParam_alg_npix_max_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg_npix_max = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_amax_thr_str:
+            elif path[2] == hitParam_alg_amax_thr_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg_amax_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_atot_thr_str:
+            elif path[2] == hitParam_alg_atot_thr_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg_atot_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_son_min_str:
+            elif path[2] == hitParam_alg_son_min_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg_son_min = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_thr_low_str:
+            elif path[2] == hitParam_alg1_thr_low_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg1_thr_low = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_thr_high_str:
+            elif path[2] == hitParam_alg1_thr_high_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg1_thr_high = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_radius_str:
+            elif path[2] == hitParam_alg1_radius_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg1_radius = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg1_dr_str:
+            elif path[2] == hitParam_alg1_dr_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg1_dr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_npix_min_str:
+            elif path[2] == hitParam_alg3_npix_min_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_npix_min = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_npix_max_str:
+            elif path[2] == hitParam_alg3_npix_max_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_npix_max = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_amax_thr_str:
+            elif path[2] == hitParam_alg3_amax_thr_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_amax_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_atot_thr_str:
+            elif path[2] == hitParam_alg3_atot_thr_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_atot_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_son_min_str:
+            elif path[2] == hitParam_alg3_son_min_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_son_min = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_rank_str:
+            elif path[2] == hitParam_alg3_rank_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_rank = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_r0_str:
+            elif path[2] == hitParam_alg3_r0_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_r0 = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg3_dr_str:
+            elif path[2] == hitParam_alg3_dr_str and path[1] == hitParam_algorithm3_str:
                 self.hitParam_alg3_dr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_npix_min_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_npix_min = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_npix_max_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_npix_max = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_amax_thr_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg_amax_thr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_atot_thr_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_atot_thr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_son_min_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_son_min = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_thr_low_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_thr_low = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_thr_high_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_thr_high = data
+                print("### alg4_thr_high ###: ",data)
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_rank_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_rank = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_radius_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_radius = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg4_dr_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_dr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
