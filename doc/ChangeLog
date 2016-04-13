@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-03
+2016-04-12 Chunhong Yoon
+- Run findPeaks using app
+
 Tag: V00-01-02
 2016-04-08 Christopher O'Grady
 - First pass from Chuck at mask generation.  Probably other changes
