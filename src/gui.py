@@ -596,7 +596,7 @@ class MainFrame(QtGui.QWidget):
                 selected, coord = self.roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
-        self.roi.sigRegionChanged.connect(updateRoiHistogram)
+        self.roi.sigRegionChangeFinished.connect(updateRoiHistogram)
 
         # Connect listeners to functions
         self.d1.addWidget(self.w1)
