@@ -11,6 +11,12 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-05
+2016-04-15 Christopher O'Grady
+- Move generatePowder.py to app/generatePowder and fix a bug where
+  the gain multiplication was done before checking that detector
+  array was not None.
+
 Tag: V00-01-04
 2016-04-12 Chunhong Yoon
 - Added peak finder algorithm 4

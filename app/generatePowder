@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #bsub -q psanaq -a mympi -n 36 -o %J.log python generatePowder.py exp=amo87215:run=15 -d pnccdFront
 
 from psana import *
@@ -117,8 +118,6 @@ for run in ds.runs():
         for d in detlist:
             try:
                 detarr = d.calib_data(evt)
-                gain = d.gain(evt)
-                detarr *= gain
             except ValueError:
                 id = evt.get(EventId)
                 print 'Value Error!'
@@ -128,6 +127,8 @@ for run in ds.runs():
             if detarr is None:
                 print '*** failed to get detarr'
                 continue
+            gain = d.gain(evt)
+            if gain is not None: detarr *= gain
             if not hasattr(d,'stats'):
                 d.stats = Stats(detarr,env.experiment(),evt.run(),d.detname)
             else:
