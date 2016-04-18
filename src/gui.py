@@ -449,13 +449,13 @@ class MainFrame(QtGui.QWidget):
                     {'name': streak_width_str, 'type': 'float', 'value': self.streak_width, 'tip': "set maximum length of streak"},
                     {'name': streak_sigma_str, 'type': 'float', 'value': self.streak_sigma, 'tip': "set number of sigma to threshold"},
                 ]},
-                {'name': psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask egdes and unbonded pixels etc", 'children': [
-                    {'name': mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "custrom mask deployed in calibdir"},
-                    {'name': mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "status mask"},
-                    {'name': mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "edge mask"},
-                    {'name': mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "central mask"},
-                    {'name': mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "unbonded mask (cspad only)"},
-                    {'name': mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "unbonded pixel neighbors (cspad only)"},
+                {'name': psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask edges and unbonded pixels etc", 'children': [
+                    {'name': mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "use custom mask deployed in calibdir"},
+                    {'name': mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "mask bad pixel status"},
+                    {'name': mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "mask edge pixels"},
+                    {'name': mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
+                    {'name': mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
+                    {'name': mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
                 ]},
             ]}
         ]
@@ -2184,7 +2184,10 @@ class MainFrame(QtGui.QWidget):
         self.psanaMask = self.det.mask(self.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
                                       edges=self.mask_edgesOn, central=self.mask_centralOn,
                                       unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
-        self.psanaMaskAssem = self.det.image(self.evt,self.psanaMask)
+        if self.psanaMask is not None:
+            self.psanaMaskAssem = self.det.image(self.evt,self.psanaMask)
+        else:
+            self.psanaMaskAssem = None
         self.updateClassification()
 
     ##################################
