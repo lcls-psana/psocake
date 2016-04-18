@@ -78,14 +78,14 @@ disp_commonModeParam3_str = 'parameters 3'
 hitParam_grp = 'Hit finder'
 hitParam_showPeaks_str = 'Show peaks found'
 hitParam_algorithm_str = 'Algorithm'
-hitParam_alg_npix_min_str = 'npix_min'
-hitParam_alg_npix_max_str = 'npix_max'
-hitParam_alg_amax_thr_str = 'amax_thr'
-hitParam_alg_atot_thr_str = 'atot_thr'
-hitParam_alg_son_min_str = 'son_min'
 # algorithm 0
 hitParam_algorithm0_str = 'None'
 # algorithm 1
+hitParam_alg1_npix_min_str = 'npix_min'
+hitParam_alg1_npix_max_str = 'npix_max'
+hitParam_alg1_amax_thr_str = 'amax_thr'
+hitParam_alg1_atot_thr_str = 'atot_thr'
+hitParam_alg1_son_min_str = 'son_min'
 hitParam_algorithm1_str = 'Droplet'
 hitParam_alg1_thr_low_str = 'thr_low'
 hitParam_alg1_thr_high_str = 'thr_high'
@@ -111,7 +111,7 @@ hitParam_algorithm4_str = 'iDroplet'
 hitParam_alg4_thr_low_str = 'thr_low'
 hitParam_alg4_thr_high_str = 'thr_high'
 hitParam_alg4_rank_str = 'rank'
-hitParam_alg4_radius_str = 'radius'
+hitParam_alg4_r0_str = 'radius'
 hitParam_alg4_dr_str = 'dr'
 
 hitParam_outDir_str = 'Output directory'
@@ -257,11 +257,11 @@ class MainFrame(QtGui.QWidget):
         self.classify = False
 
         self.showPeaks = True
-        self.hitParam_alg_npix_min = 1.
-        self.hitParam_alg_npix_max = 45.
-        self.hitParam_alg_amax_thr = 250.
-        self.hitParam_alg_atot_thr = 330.
-        self.hitParam_alg_son_min = 10.
+        self.hitParam_alg1_npix_min = 1.
+        self.hitParam_alg1_npix_max = 45.
+        self.hitParam_alg1_amax_thr = 250.
+        self.hitParam_alg1_atot_thr = 330.
+        self.hitParam_alg1_son_min = 10.
         self.hitParam_alg1_thr_low = 80.
         self.hitParam_alg1_thr_high = 270.
         self.hitParam_alg1_radius = 3
@@ -282,7 +282,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg4_thr_low = 80.
         self.hitParam_alg4_thr_high = 270.
         self.hitParam_alg4_rank = 3
-        self.hitParam_alg4_radius = 3
+        self.hitParam_alg4_r0 = 3
         self.hitParam_alg4_dr = 1
 
         self.hitParam_outDir = os.getcwd()
@@ -369,11 +369,11 @@ class MainFrame(QtGui.QWidget):
                                                                             hitParam_algorithm0_str: 0},
                                                                             'value': self.algorithm},
                 {'name': hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': hitParam_alg_npix_min_str, 'type': 'float', 'value': self.hitParam_alg_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
-                    {'name': hitParam_alg_npix_max_str, 'type': 'float', 'value': self.hitParam_alg_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
-                    {'name': hitParam_alg_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
-                    {'name': hitParam_alg_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
-                    {'name': hitParam_alg_son_min_str, 'type': 'float', 'value': self.hitParam_alg_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+                    {'name': hitParam_alg1_npix_min_str, 'type': 'float', 'value': self.hitParam_alg1_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                    {'name': hitParam_alg1_npix_max_str, 'type': 'float', 'value': self.hitParam_alg1_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+                    {'name': hitParam_alg1_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg1_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg1_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg1_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+                    {'name': hitParam_alg1_son_min_str, 'type': 'float', 'value': self.hitParam_alg1_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
                     {'name': hitParam_alg1_thr_low_str, 'type': 'float', 'value': self.hitParam_alg1_thr_low, 'tip': "Only consider values above this value"},
                     {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high, 'tip': "Only keep the peak if max value is above this value"},
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
@@ -398,7 +398,7 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg4_thr_low_str, 'type': 'float', 'value': self.hitParam_alg4_thr_low, 'tip': "Only consider values above this value"},
                     {'name': hitParam_alg4_thr_high_str, 'type': 'float', 'value': self.hitParam_alg4_thr_high, 'tip': "Only keep the peak if max value is above this value"},
                     {'name': hitParam_alg4_rank_str, 'type': 'int', 'value': self.hitParam_alg4_rank, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                    {'name': hitParam_alg4_radius_str, 'type': 'int', 'value': self.hitParam_alg4_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                    {'name': hitParam_alg4_r0_str, 'type': 'int', 'value': self.hitParam_alg4_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg4_dr_str, 'type': 'float', 'value': self.hitParam_alg4_dr, 'tip': "background region outside the region of interest"},
                 ]},
                 {'name': hitParam_outDir_str, 'type': 'str', 'value': self.hitParam_outDir},
@@ -1109,9 +1109,9 @@ class MainFrame(QtGui.QWidget):
 
                 # set peak-selector parameters:
                 if self.algorithm == 1:
-                    self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg_npix_min, npix_max=self.hitParam_alg_npix_max, \
-                                            amax_thr=self.hitParam_alg_amax_thr, atot_thr=self.hitParam_alg_atot_thr, \
-                                            son_min=self.hitParam_alg_son_min)
+                    self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
+                                            amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
+                                            son_min=self.hitParam_alg1_son_min)
                 elif self.algorithm == 3:
                     self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
                                             amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
@@ -1138,7 +1138,7 @@ class MainFrame(QtGui.QWidget):
             elif self.algorithm == 4:
                 print("* Running peak finder 4 *")
                 # v4 - aka Droplet Finder - the same as v1, but uses rank and r0 parameters in stead of common radius.
-                self.peakRadius = int(self.hitParam_alg4_radius)
+                self.peakRadius = int(self.hitParam_alg4_r0)
                 print(self.hitParam_alg4_thr_low,self.hitParam_alg4_thr_high,self.hitParam_alg4_rank,self.peakRadius,self.hitParam_alg4_dr)
                 self.peaks = self.alg.peak_finder_v4(self.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
                                            rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
@@ -1463,28 +1463,28 @@ class MainFrame(QtGui.QWidget):
             elif path[1] == hitParam_noe_str:
                 self.hitParam_noe = data
 
-            elif path[2] == hitParam_alg_npix_min_str and path[1] == hitParam_algorithm1_str:
-                self.hitParam_alg_npix_min = data
+            elif path[2] == hitParam_alg1_npix_min_str and path[1] == hitParam_algorithm1_str:
+                self.hitParam_alg1_npix_min = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_npix_max_str and path[1] == hitParam_algorithm1_str:
-                self.hitParam_alg_npix_max = data
+            elif path[2] == hitParam_alg1_npix_max_str and path[1] == hitParam_algorithm1_str:
+                self.hitParam_alg1_npix_max = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_amax_thr_str and path[1] == hitParam_algorithm1_str:
-                self.hitParam_alg_amax_thr = data
+            elif path[2] == hitParam_alg1_amax_thr_str and path[1] == hitParam_algorithm1_str:
+                self.hitParam_alg1_amax_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_atot_thr_str and path[1] == hitParam_algorithm1_str:
-                self.hitParam_alg_atot_thr = data
+            elif path[2] == hitParam_alg1_atot_thr_str and path[1] == hitParam_algorithm1_str:
+                self.hitParam_alg1_atot_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg_son_min_str and path[1] == hitParam_algorithm1_str:
-                self.hitParam_alg_son_min = data
+            elif path[2] == hitParam_alg1_son_min_str and path[1] == hitParam_algorithm1_str:
+                self.hitParam_alg1_son_min = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
@@ -1559,7 +1559,7 @@ class MainFrame(QtGui.QWidget):
                 if self.showPeaks:
                     self.updateClassification()
             elif path[2] == hitParam_alg4_amax_thr_str and path[1] == hitParam_algorithm4_str:
-                self.hitParam_alg_amax_thr = data
+                self.hitParam_alg4_amax_thr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
@@ -1580,7 +1580,6 @@ class MainFrame(QtGui.QWidget):
                     self.updateClassification()
             elif path[2] == hitParam_alg4_thr_high_str and path[1] == hitParam_algorithm4_str:
                 self.hitParam_alg4_thr_high = data
-                print("### alg4_thr_high ###: ",data)
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
@@ -1589,8 +1588,8 @@ class MainFrame(QtGui.QWidget):
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == hitParam_alg4_radius_str and path[1] == hitParam_algorithm4_str:
-                self.hitParam_alg4_radius = data
+            elif path[2] == hitParam_alg4_r0_str and path[1] == hitParam_algorithm4_str:
+                self.hitParam_alg4_r0 = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
@@ -1698,12 +1697,14 @@ class MainFrame(QtGui.QWidget):
         print "Done updateExperimentName:", self.experimentName
 
     def updateRunNumber(self, data):
-        self.runNumber = data
-        self.hasRunNumber = True
-
-        self.setupExperiment()
-
-        self.updateImage()
+        if data == 0:
+            self.runNumber = data
+            self.hasRunNumber = False
+        else:
+            self.runNumber = data
+            self.hasRunNumber = True
+            self.setupExperiment()
+            self.updateImage()
         print "Done updateRunNumber: ", self.runNumber
 
     def updateDetInfo(self, data):
@@ -1760,15 +1761,27 @@ class MainFrame(QtGui.QWidget):
 
     def hasExpRunInfo(self):
         if self.hasExperimentName and self.hasRunNumber:
-            print "hasExpRunInfo: True"
-            return True
-        else:
-            print "hasExpRunInfo: False"
-            return False
+            # Check such a run exists
+            import glob
+            xtcs = glob.glob('/reg/d/psdm/'+self.experimentName[0:3]+'/'+self.experimentName+'/xtc/*-r'+str(self.runNumber).zfill(4)+'-*.xtc')
+            print "xtcs found: ", xtcs
+            if len(xtcs) > 0:
+                print "hasExpRunInfo: True"
+                return True
+            else:
+                # reset run number
+                if self.runNumber > 0:
+                    print "No such run exists in: ", self.experimentName
+                    self.runNumber = 0
+                    self.updateRunNumber(self.runNumber)
+                    self.p.param(exp_grp,exp_run_str).setValue(self.runNumber)
+                    return False
+        print "hasExpRunInfo: False"
+        return False
 
     def hasExpRunDetInfo(self):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            print "hasExpRunDetInfo: True"
+            print "hasExpRunDetInfo: True ", self.runNumber
             return True
         else:
             print "hasExpRunDetInfo: False"
@@ -1779,7 +1792,11 @@ class MainFrame(QtGui.QWidget):
             if args.localCalib:
                 print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
-            self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') # FIXME: psana crashes if runNumber is non-existent
+            try:
+                print "Let's get Datasource"
+                self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') # FIXME: psana crashes if runNumber is non-existent
+            except:
+                print "############# No such datasource exists ###############"
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.eventTotal = len(self.times)
@@ -1856,7 +1873,14 @@ class MainFrame(QtGui.QWidget):
             # the user can always import these modules manually)
             namespace = {'pg': pg, 'np': np, 'self': self}
             # initial text to display in the console
-            text = "You have awoken the "+myStr+"\nWelcome to psocake IPython: dir(self)"
+            text = "You have awoken the "+myStr+"\nWelcome to psocake IPython: dir(self)\n" \
+                                                "Here are some commonly used variables:\n" \
+                                                "unassembled detector: self.calib\n" \
+                                                "assembled detector: self.data\n" \
+                                                "user-defined mask: self.userMask\n" \
+                                                "streak mask: self.streakMask\n" \
+                                                "psana mask: self.psanaMask"
+
             self.w42 = pg.console.ConsoleWidget(parent=None,namespace=namespace, text=text)
             self.d42.addWidget(self.w42)
             self.area.addDock(self.d42, 'bottom')
@@ -2423,22 +2447,38 @@ class PeakFinder(QtCore.QThread):
               " -o %J.log findPeaks -e "+self.experimentName+\
               " -r "+str(run)+" -d "+self.detInfo+\
               " --outDir "+str(self.parent.hitParam_outDir)+\
-              " --algorithm "+str(self.parent.algorithm)+\
-              " --alg_npix_min "+str(self.parent.hitParam_alg_npix_min)+\
-              " --alg_npix_max "+str(self.parent.hitParam_alg_npix_max)+\
-              " --alg_amax_thr "+str(self.parent.hitParam_alg_amax_thr)+\
-              " --alg_atot_thr "+str(self.parent.hitParam_alg_atot_thr)+\
-              " --alg_son_min "+str(self.parent.hitParam_alg_son_min)
+              " --algorithm "+str(self.parent.algorithm)
 
             if self.parent.algorithm == 1:
-                cmd += " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                         " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                         " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                         " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
+                       " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                       " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                       " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
             elif self.parent.algorithm == 3:
-                cmd += " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                         " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                         " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
+                       " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                       " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                       " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+            elif self.parent.algorithm == 4:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
+                       " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
+                       " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
+                       " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
+                       " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
+                       " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
                 tempFilename = "tempUserMask.npy"

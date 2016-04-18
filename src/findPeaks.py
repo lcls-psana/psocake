@@ -73,6 +73,12 @@ class PeakFinder:
             self.hitParam_alg3_rank = kwargs["alg3_rank"]
             self.hitParam_alg3_r0 = int(kwargs["alg3_r0"])
             self.hitParam_alg3_dr = kwargs["alg3_dr"]
+        elif algorithm == 4:
+            self.hitParam_alg4_thr_low = kwargs["alg4_thr_low"]
+            self.hitParam_alg4_thr_high = kwargs["alg4_thr_high"]
+            self.hitParam_alg4_rank = int(kwargs["alg4_rank"])
+            self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
+            self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
     def findPeaks(self,calib):
         if self.streakMask_sigma is not 0: # make new streak mask
@@ -97,7 +103,12 @@ class PeakFinder:
                                        radius=self.hitParam_alg1_radius, dr=self.hitParam_alg1_dr)
             elif self.algorithm == 3:
                 self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
-        
+            elif self.algorithm == 4:
+                # v4 - aka iDroplet Finder - two-threshold peak-finding algorithm in restricted region
+                #                            around pixel with maximal intensity.
+                self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
+                                       rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
+
     def savePeaks(self,myHdf5,ind):
         if "cxi" in self.exp:
             nPeaks = self.peaks.shape[0]
@@ -208,6 +219,23 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
                                               psanaMask_central=args.psanaMask_central,
                                               psanaMask_unbond=args.psanaMask_unbond,
                                               psanaMask_unbondnrs=args.psanaMask_unbondnrs)
+                elif args.algorithm == 4:
+                    d.peakFinder = PeakFinder(env.experiment(),evt.run(),d.detname,evt,d,
+                                              args.algorithm, args.alg_npix_min,
+                                              args.alg_npix_max, args.alg_amax_thr,
+                                              args.alg_atot_thr, args.alg_son_min,
+                                              alg4_thr_low=args.alg4_thr_low, alg4_thr_high=args.alg4_thr_high,
+                                              alg4_rank=args.alg4_rank, alg4_r0=args.alg4_r0,
+                                              alg4_dr=args.alg4_dr,
+                                              streakMask_sigma=args.streakMask_sigma,
+                                              streakMask_width=args.streakMask_width,
+                                              userMask_path=args.userMask_path,
+                                              psanaMask_calib=args.psanaMask_calib,
+                                              psanaMask_status=args.psanaMask_status,
+                                              psanaMask_edges=args.psanaMask_edges,
+                                              psanaMask_central=args.psanaMask_central,
+                                              psanaMask_unbond=args.psanaMask_unbond,
+                                              psanaMask_unbondnrs=args.psanaMask_unbondnrs)
             tic2 = time.time()
             d.peakFinder.findPeaks(detarr)
             tic3 = time.time()
@@ -235,6 +263,11 @@ parser.add_argument("--alg1_dr",help="number of events to process",default=0.05,
 parser.add_argument("--alg3_rank",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg3_r0",help="number of events to process",default=5., type=float)
 parser.add_argument("--alg3_dr",help="number of events to process",default=0.05, type=float)
+parser.add_argument("--alg4_thr_low",help="number of events to process",default=10., type=float)
+parser.add_argument("--alg4_thr_high",help="number of events to process",default=150., type=float)
+parser.add_argument("--alg4_rank",help="number of events to process",default=3, type=int)
+parser.add_argument("--alg4_r0",help="number of events to process",default=5, type=int)
+parser.add_argument("--alg4_dr",help="number of events to process",default=0.05, type=float)
 parser.add_argument("--streakMask_sigma",help="streak mask sigma above background",default=0., type=float)
 parser.add_argument("--streakMask_width",help="streak mask width",default=0, type=float)
 parser.add_argument("--userMask_path",help="full path to user mask numpy array",default=None, type=str)
@@ -315,6 +348,15 @@ myHdf5.create_dataset(grpName+dset_posY, (numJobs,2048), dtype='float32', chunks
 myHdf5.create_dataset(grpName+dset_atot, (numJobs,2048), dtype='float32', chunks=(1,2048))
 findPeaksForMyChunk(myHdf5,ind,mytimes,single=False)
 myHdf5.close()
+
+if rank == 0:
+    if args.userMask_path is not None:
+        userMask = np.load(args.userMask_path)
+        myHdf5 = h5py.File(fname, 'r+')
+        dset_userMask = '/entry_1/instrument_1/detector_1/mask'
+        ds = myHdf5.create_dataset(dset_userMask, (userMask.shape), dtype='int')
+        ds[...] = userMask
+        myHdf5.close()
 
 MPI.Finalize()
 
