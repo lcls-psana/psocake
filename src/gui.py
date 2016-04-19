@@ -772,14 +772,18 @@ class MainFrame(QtGui.QWidget):
             if self.data is not None and self.maskingMode > 0:
                 print "makeMaskRect_data: ", self.data.shape
                 selected, coord = self.roi_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                print "selected, coord: ", np.max(coord[0]), np.max(coord[1]), coord.shape
+                # Remove mask elements outside data
+                coord_row = coord[0,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
+                coord_col = coord[1,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
                 _mask = np.ones_like(self.data)
-                _mask[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 0
+                _mask[coord_row.astype('int'),coord_col.astype('int')] = 0
                 if self.maskingMode == 1: # masking mode
                     self.userMaskAssem *= _mask
                 elif self.maskingMode == 2: # unmasking mode
-                    self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = 1
+                    self.userMaskAssem[coord_row.astype('int'),coord_col.astype('int')] = 1
                 elif self.maskingMode == 3: # toggle mode
-                    self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')] = (1-self.userMaskAssem[coord[0].ravel().astype('int'),coord[1].ravel().astype('int')])
+                    self.userMaskAssem[coord_row.astype('int'),coord_col.astype('int')] = (1-self.userMaskAssem[coord_row.astype('int'),coord_col.astype('int')])
 
                 # update userMask
                 self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
