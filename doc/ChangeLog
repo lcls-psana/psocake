@@ -11,6 +11,12 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-06
+2016-04-18 Chunhong Yoon
+- Added peak finder algorithm 4 to findPeaks app
+- Fix rectangular mask out of range problem
+- Add 99 percentile display range
+
 Tag: V00-01-05
 2016-04-15 Christopher O'Grady
 - Move generatePowder.py to app/generatePowder and fix a bug where
