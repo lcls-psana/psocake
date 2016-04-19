@@ -1207,7 +1207,7 @@ class MainFrame(QtGui.QWidget):
                     self.firstUpdate = False
                 else:
                     print "################################# 22"
-                    self.w1.setImage(self.data)
+                    self.w1.setImage(self.data,levels=(np.percentile(self.data,1.0),np.percentile(self.data,99.0)))
                     self.firstUpdate = False
             else:
                 if self.logscaleOn:
