@@ -75,7 +75,8 @@ disp_commonModeParam1_str = 'parameters 1'
 disp_commonModeParam2_str = 'parameters 2'
 disp_commonModeParam3_str = 'parameters 3'
 
-hitParam_grp = 'Hit finder'
+# Peak finding
+hitParam_grp = 'Peak finder'
 hitParam_showPeaks_str = 'Show peaks found'
 hitParam_algorithm_str = 'Algorithm'
 # algorithm 0
@@ -127,6 +128,29 @@ hitParam_psnehhiprioq_str = 'psnehhiprioq'
 hitParam_psfehhiprioq_str = 'psfehhiprioq'
 hitParam_noe_str = 'Number of events to process'
 
+# Hit finding
+spiParam_grp = 'Hit finder'
+spiParam_algorithm_str = 'Algorithm'
+# algorithm 0
+spiParam_algorithm0_str = 'None'
+# algorithm 1
+spiParam_algorithm1_str = 'chiSquared'
+spiParam_alg1_pruneInterval_str = 'prune interval'
+
+spiParam_outDir_str = 'Output directory'
+spiParam_tag_str = 'Filename tag'
+spiParam_runs_str = 'Run(s)'
+spiParam_queue_str = 'queue'
+spiParam_cpu_str = 'CPUs'
+spiParam_psanaq_str = 'psanaq'
+spiParam_psnehq_str = 'psnehq'
+spiParam_psfehq_str = 'psfehq'
+spiParam_psnehprioq_str = 'psnehprioq'
+spiParam_psfehprioq_str = 'psfehprioq'
+spiParam_psnehhiprioq_str = 'psnehhiprioq'
+spiParam_psfehhiprioq_str = 'psfehhiprioq'
+spiParam_noe_str = 'Number of events to process'
+
 # Diffraction geometry parameter tree
 geom_grp = 'Diffraction geometry'
 geom_detectorDistance_str = 'Detector distance'
@@ -164,6 +188,11 @@ manifold_grp = 'Manifold'
 manifold_filename_str = 'filename'
 manifold_dataset_str = 'eigenvector_dataset'
 manifold_sigma_str = 'sigma'
+
+# Detector correction parameter tree
+correction_grp = 'Detector correction'
+correction_radialBackground_str = "Use radial background correction"
+correction_polarization_str = "Use polarization correction"
 
 mask_grp = 'Mask'
 mask_mode_str = 'Masking mode'
@@ -251,7 +280,7 @@ class MainFrame(QtGui.QWidget):
         self.streakMaskAssem = None
         self.combinedMask = None # combined mask
         self.gapAssemInd = None
-        # Init hit finding parameters
+        # Init peak finding parameters
         self.algInitDone = False
         self.algorithm = 0
         self.classify = False
@@ -291,6 +320,19 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_cpus = 32
         self.hitParam_noe = 0
 
+        # Init hit finding
+        self.spiAlgorithm = 1
+
+        self.spiParam_alg1_pruneInterval = 0
+
+        self.spiParam_outDir = os.getcwd()
+        self.spiParam_tag = ''
+        self.spiParam_runs = ''
+        self.spiParam_queue = spiParam_psanaq_str
+        self.spiParam_cpus = 32
+        self.spiParam_noe = 0
+
+        # Quantifier
         self.quantifier_filename = ''
         self.quantifier_dataset = ''
         self.quantifier_sort = False
@@ -306,6 +348,9 @@ class MainFrame(QtGui.QWidget):
         self.manifold_sigma = 0
         self.manifoldFileOpen = False
         self.manifoldHasData = False
+
+        self.correction_radialBackground = False
+        self.correction_polarization = False
 
         self.maskingMode = 0
         self.userMaskOn = False
@@ -459,6 +504,35 @@ class MainFrame(QtGui.QWidget):
                 ]},
             ]}
         ]
+        self.paramsCorrection = [
+            {'name': correction_grp, 'type': 'group', 'children': [
+                {'name': correction_radialBackground_str, 'type': 'str', 'value': self.correction_radialBackground, 'tip': "Use radial background correction"},
+                {'name': correction_polarization_str, 'type': 'str', 'value': self.correction_polarization, 'tip': "Use polarization correction"},
+            ]},
+        ]
+        self.paramsHitFinder = [
+            {'name': spiParam_grp, 'type': 'group', 'children': [
+                {'name': spiParam_algorithm_str, 'type': 'list', 'values': {spiParam_algorithm1_str: 1,
+                                                                            spiParam_algorithm0_str: 0},
+                                                                            'value': self.spiAlgorithm},
+                {'name': spiParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': spiParam_alg1_pruneInterval_str, 'type': 'float', 'value': self.spiParam_alg1_pruneInterval, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                ]},
+                {'name': spiParam_outDir_str, 'type': 'str', 'value': self.spiParam_outDir},
+                {'name': spiParam_tag_str, 'type': 'str', 'value': self.spiParam_tag},
+                {'name': spiParam_runs_str, 'type': 'str', 'value': self.spiParam_runs},
+                {'name': spiParam_queue_str, 'type': 'list', 'values': {spiParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                        spiParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                        spiParam_psfehprioq_str: 'psfehprioq',
+                                                                        spiParam_psnehprioq_str: 'psnehprioq',
+                                                                        spiParam_psfehq_str: 'psfehq',
+                                                                        spiParam_psnehq_str: 'psnehq',
+                                                                        spiParam_psanaq_str: 'psanaq'},
+                 'value': self.spiParam_queue, 'tip': "Choose queue"},
+                {'name': spiParam_cpu_str, 'type': 'int', 'value': self.spiParam_cpus},
+                {'name': spiParam_noe_str, 'type': 'int', 'value': self.spiParam_noe, 'tip': "number of events to process, default=0 means process all events"},
+            ]},
+        ]
         self.initUI()
 
     def initUI(self):
@@ -484,6 +558,10 @@ class MainFrame(QtGui.QWidget):
                                   children=self.paramsPerPixelHistogram, expanded=True)
         self.p6 = Parameter.create(name='paramsMask', type='group', \
                                   children=self.paramsMask, expanded=True)
+        self.p7 = Parameter.create(name='paramsCorrection', type='group', \
+                                   children=self.paramsCorrection, expanded=True)
+        self.p8 = Parameter.create(name='paramsHitFinder', type='group', \
+                                   children=self.paramsHitFinder, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.changeGeomParam)
         self.p2.sigTreeStateChanged.connect(self.changeMetric)
@@ -491,22 +569,26 @@ class MainFrame(QtGui.QWidget):
         self.p4.sigTreeStateChanged.connect(self.changeManifold)
         self.p5.sigTreeStateChanged.connect(self.changePerPixelHistogram)
         self.p6.sigTreeStateChanged.connect(self.changeMask)
+        self.p7.sigTreeStateChanged.connect(self.changeCorrection)
+        self.p8.sigTreeStateChanged.connect(self.changeHitFinder)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
-        self.d1 = Dock("Image Panel", size=(1100, 1100))     ## give this dock the minimum possible size
-        self.d2 = Dock("Experiment Parameters", size=(300,150))
+        self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
+        self.d2 = Dock("Experiment Parameters", size=(150,150))
         self.d3 = Dock("Diffraction Geometry", size=(150,150))
-        self.d4 = Dock("ROI Histogram", size=(200,150))
-        self.d5 = Dock("Mouse", size=(100,50), closable=False)
-        self.d6 = Dock("Image Control", size=(100, 150))
-        self.d7 = Dock("Image Scroll", size=(500,150))
-        self.d8 = Dock("Quantifier", size=(300,150))
-        self.d9 = Dock("Peak Finder", size=(300,150))
-        self.d10 = Dock("Manifold", size=(300,150))
-        self.d11 = Dock("Per Pixel Histogram", size=(300,150))
-        self.d12 = Dock("Mask Panel", size=(300, 150))
+        self.d4 = Dock("ROI Histogram", size=(150,150))
+        self.d5 = Dock("Mouse", size=(150,50), closable=False)
+        self.d6 = Dock("Image Control", size=(150, 150))
+        self.d7 = Dock("Image Scroll", size=(150,150))
+        self.d8 = Dock("Quantifier", size=(150,150))
+        self.d9 = Dock("Peak Finder", size=(150,150))
+        self.d10 = Dock("Manifold", size=(150,150))
+        self.d11 = Dock("Per Pixel Histogram", size=(150,150))
+        self.d12 = Dock("Mask Panel", size=(150, 150))
+        self.d13 = Dock("Detector Correction", size=(150,150))
+        self.d14 = Dock("Hit Finder", size=(150,150))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -565,6 +647,8 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d9, 'bottom', self.d4)
         self.area.addDock(self.d11, 'bottom', self.d4)
         self.area.addDock(self.d12, 'bottom',self.d4)
+        #self.area.addDock(self.d13, 'bottom', self.d4)
+        self.area.addDock(self.d14, 'bottom', self.d9)
         if args.more:
             self.area.addDock(self.d10, 'bottom', self.d6)
 
@@ -765,6 +849,17 @@ class MainFrame(QtGui.QWidget):
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
+        ## Dock 13: Correction Panel
+
+        ## Dock 14: Hit finder
+        self.w19 = ParameterTree()
+        self.w19.setParameters(self.p8, showTop=False)
+        self.d14.addWidget(self.w19)
+        self.w20 = pg.LayoutWidget()
+        self.launchSpiBtn = QtGui.QPushButton('Launch hit finder')
+        self.w20.addWidget(self.launchSpiBtn, row=1, col=0)
+        self.d14.addWidget(self.w20)
+
         # mask
         def makeMaskRect():
             print "makeMaskRect!!!!!!"
@@ -854,14 +949,21 @@ class MainFrame(QtGui.QWidget):
             #self.generatePowderBtn.setEnabled(False)
             print "done makePowder!!!!!!"
         self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
-        # Launch hit finding
+        # Launch peak finding
         def findPeaks():
-            print "find hits!!!!!!"
+            print "find peaks!!!!!!"
             self.thread.append(PeakFinder(self)) # send parent parameters with self
             self.thread[self.threadCounter].findPeaks(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
-            print "done finding hits!!!!!!"
+            print "done finding peaks!!!!!!"
         self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
+        def findHits():
+            print "find hits!!!!!!"
+            self.thread.append(HitFinder(self)) # send parent parameters with self
+            self.thread[self.threadCounter].findHits(self.experimentName,self.runNumber,self.detInfo)
+            self.threadCounter+=1
+            print "done finding hits!!!!!!"
+        self.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), findHits)
         # Loading image stack
         def displayImageStack():
             print "display image stack!!!!!!"
@@ -1404,6 +1506,24 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,change,data)
 
+    def changeCorrection(self, param, changes):
+        for param, change, data in changes:
+            path = self.p6.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
+    def changeHitFinder(self, param, changes):
+        for param, change, data in changes:
+            path = self.p8.childPath(param)
+            print('  path: %s'% path)
+            print('  change:    %s'% change)
+            print('  data:      %s'% str(data))
+            print('  ----------')
+            self.update(path,change,data)
+
     def update(self, path, change, data):
         print "path: ", path
         ################################################
@@ -1602,6 +1722,28 @@ class MainFrame(QtGui.QWidget):
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
+        ################################################
+        # hit finder parameters
+        ################################################
+        if path[0] == spiParam_grp:
+            if path[1] == spiParam_algorithm_str:
+                #self.algInitDone = False
+                #self.updateAlgorithm(data)
+                self.spiAlgorithm = data
+            elif path[1] == spiParam_outDir_str:
+                self.spiParam_outDir = data
+            elif path[1] == spiParam_tag_str:
+                self.spiParam_tag = data
+            elif path[1] == spiParam_runs_str:
+                self.spiParam_runs = data
+            elif path[1] == spiParam_queue_str:
+                self.spiParam_queue = data
+            elif path[1] == spiParam_cpu_str:
+                self.spiParam_cpus = data
+            elif path[1] == spiParam_noe_str:
+                self.spiParam_noe = data
+            elif path[2] == spiParam_alg1_pruneInterval_str and path[1] == spiParam_algorithm1_str:
+                self.spiParam_alg1_pruneInterval = data
         ################################################
         # diffraction geometry parameters
         ################################################
@@ -2534,6 +2676,78 @@ class PeakFinder(QtCore.QThread):
         #     else:
         #         print "no such file yet"
         #         time.sleep(10)
+
+class HitFinder(QtCore.QThread):
+    def __init__(self, parent = None):
+        QtCore.QThread.__init__(self, parent)
+        print "HitFinder!!!!!!!!!!"
+        self.parent = parent
+        self.experimentName = None
+        self.runNumber = None
+        self.detInfo = None
+
+    def __del__(self):
+        print "del PeakFinder #$!@#$!#"
+        self.exiting = True
+        self.wait()
+
+    def findHits(self,experimentName,runNumber,detInfo): # Pass in hit parameters
+        self.experimentName = experimentName
+        self.runNumber = runNumber
+        self.detInfo = detInfo
+        self.start()
+
+    def digestRunList(self,runList):
+        runsToDo = []
+        if not runList:
+            print "Run(s) is empty. Please type in the run number(s)."
+            return runsToDo
+        runLists = runList.split(",")
+        for list in runLists:
+            temp = list.split(":")
+            if len(temp) == 2:
+                for i in np.arange(int(temp[0]),int(temp[1])+1):
+                    runsToDo.append(i)
+            elif len(temp) == 1:
+                runsToDo.append(int(temp[0]))
+        return runsToDo
+
+    def run(self):
+        print "Finding hits!!!!!!!!!!!!"
+        # Digest the run list
+        runsToDo = self.digestRunList(self.parent.spiParam_runs)
+        print runsToDo
+
+        for run in runsToDo:
+            expRun = 'exp='+self.experimentName+':run='+str(run)
+            cmd = "bsub -q "+self.parent.spiParam_queue+\
+              " -a mympi -n "+str(self.parent.spiParam_cpus)+\
+              " -o %J.log python /reg/neh/home/yoon82/ana-current/spi/chiSquare_HitMetric.py"+\
+              " "+expRun+\
+              " -d "+self.detInfo+\
+              " --outdir "+str(self.parent.spiParam_outDir)
+
+            if self.parent.spiParam_tag is not None:
+                cmd += " --tag "+str(self.parent.spiParam_tag)
+
+            if self.parent.spiAlgorithm == 1:
+                cmd += " --pruneInterval "+str(self.parent.spiParam_alg1_pruneInterval)
+
+            # Save user mask to a deterministic path
+            if self.parent.userMaskOn:
+                tempFilename = "tempUserMask.npy"
+                np.save(tempFilename,self.parent.userMask) # TODO: save
+                cmd += " --mask "+str(tempFilename)
+
+            if self.parent.spiParam_noe > 0:
+                cmd += " --noe "+str(self.parent.spiParam_noe)
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+            jobid = out.split("<")[1].split(">")[0]
+            myLog = jobid+".log"
+            print "*******************"
+            print "bsub log filename: ", myLog
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
