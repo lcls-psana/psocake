@@ -540,7 +540,7 @@ class MainFrame(QtGui.QWidget):
         self.win = QtGui.QMainWindow()
         self.area = DockArea()
         self.win.setCentralWidget(self.area)
-        self.win.resize(1300,1400)
+        self.win.resize(1300,600)
         self.win.setWindowTitle('psocake')
 
         ## Create tree of Parameter objects
@@ -575,20 +575,20 @@ class MainFrame(QtGui.QWidget):
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
-        self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
-        self.d2 = Dock("Experiment Parameters", size=(150,150))
-        self.d3 = Dock("Diffraction Geometry", size=(150,150))
-        self.d4 = Dock("ROI Histogram", size=(150,150))
-        self.d5 = Dock("Mouse", size=(150,50), closable=False)
-        self.d6 = Dock("Image Control", size=(150, 150))
-        self.d7 = Dock("Image Scroll", size=(150,150))
-        self.d8 = Dock("Quantifier", size=(150,150))
-        self.d9 = Dock("Peak Finder", size=(150,150))
-        self.d10 = Dock("Manifold", size=(150,150))
-        self.d11 = Dock("Per Pixel Histogram", size=(150,150))
-        self.d12 = Dock("Mask Panel", size=(150, 150))
-        self.d13 = Dock("Detector Correction", size=(150,150))
-        self.d14 = Dock("Hit Finder", size=(150,150))
+        self.d1 = Dock("Image Panel", size=(400, 400))     ## give this dock the minimum possible size
+        self.d2 = Dock("Experiment Parameters", size=(1, 1))
+        self.d3 = Dock("Diffraction Geometry", size=(1, 1))
+        self.d4 = Dock("ROI Histogram", size=(1, 1))
+        self.d5 = Dock("Mouse", size=(1, 1), closable=False)
+        self.d6 = Dock("Image Control", size=(1, 1))
+        self.d7 = Dock("Image Scroll", size=(1, 1))
+        self.d8 = Dock("Quantifier", size=(1, 1))
+        self.d9 = Dock("Peak Finder", size=(1, 1))
+        self.d10 = Dock("Manifold", size=(1, 1))
+        self.d11 = Dock("Per Pixel Histogram", size=(1, 1))
+        self.d12 = Dock("Mask Panel", size=(1, 1))
+        self.d13 = Dock("Detector Correction", size=(1, 1))
+        self.d14 = Dock("Hit Finder", size=(1, 1))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -636,21 +636,52 @@ class MainFrame(QtGui.QWidget):
         DockLabel.updateStyle = updateStylePatched
 
         # Dock positions on the main frame
-        self.area.addDock(self.d1, 'left')      ## place d1 at left edge of dock area
-        self.area.addDock(self.d6, 'bottom', self.d1)      ## place d1 at left edge of dock area
+        self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
+        self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
+        self.area.addDock(self.d7, 'bottom', self.d5)
+        self.area.addDock(self.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+        self.area.moveDock(self.d1, 'above', self.d7)
+
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
-        self.area.addDock(self.d3, 'bottom', self.d2)## place d3 at bottom edge of d1
-        self.area.addDock(self.d4, 'right')     ## place d4 at right edge of dock area
-        self.area.addDock(self.d5, 'top', self.d1)  ## place d5 at left edge of d1
-        self.area.addDock(self.d7, 'bottom', self.d4) ## place d7 below d4
-        self.area.addDock(self.d8, 'bottom', self.d3)
-        self.area.addDock(self.d9, 'bottom', self.d4)
-        self.area.addDock(self.d11, 'bottom', self.d4)
-        self.area.addDock(self.d12, 'bottom',self.d4)
+        self.area.addDock(self.d9, 'bottom', self.d2)
+        self.area.addDock(self.d11, 'bottom', self.d2)
+        self.area.addDock(self.d12, 'bottom',self.d2)
         #self.area.addDock(self.d13, 'bottom', self.d4)
-        self.area.addDock(self.d14, 'bottom', self.d9)
+        self.area.addDock(self.d14, 'bottom', self.d2)
+
+        self.area.moveDock(self.d12, 'above', self.d11)
+        self.area.moveDock(self.d9, 'above', self.d11)
+        #self.area.moveDock(self.d13, 'above', self.d12)
+        self.area.moveDock(self.d14, 'above', self.d11)
+
+        self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
+        self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
+        self.area.addDock(self.d8, 'bottom', self.d2)
+        # Tabbed layout
+        self.area.moveDock(self.d3, 'above', self.d8)
+        self.area.moveDock(self.d4, 'above', self.d8)
+        #self.area.moveDock(self.d2, 'above', self.d8)
+
         if args.more:
             self.area.addDock(self.d10, 'bottom', self.d6)
+
+
+        #self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
+        #self.d2 = Dock("Experiment Parameters", size=(150,150))
+        #self.d3 = Dock("Diffraction Geometry", size=(150,150))
+        #self.d4 = Dock("ROI Histogram", size=(150,150))
+        #self.d5 = Dock("Mouse", size=(150,50), closable=False)
+        #self.d6 = Dock("Image Control", size=(150, 150))
+        #self.d7 = Dock("Image Scroll", size=(150,150))
+        #self.d8 = Dock("Quantifier", size=(150,150))
+        #self.d9 = Dock("Peak Finder", size=(150,150))
+        #self.d10 = Dock("Manifold", size=(150,150))
+        #self.d11 = Dock("Per Pixel Histogram", size=(150,150))
+        #self.d12 = Dock("Mask Panel", size=(150, 150))
+        #self.d13 = Dock("Detector Correction", size=(150,150))
+        #self.d14 = Dock("Hit Finder", size=(150,150))
+
+
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -1910,7 +1941,7 @@ class MainFrame(QtGui.QWidget):
             # Check such a run exists
             import glob
             xtcs = glob.glob('/reg/d/psdm/'+self.experimentName[0:3]+'/'+self.experimentName+'/xtc/*-r'+str(self.runNumber).zfill(4)+'-*.xtc')
-            print "xtcs found: ", xtcs
+            #print "xtcs found: ", xtcs
             if len(xtcs) > 0:
                 print "hasExpRunInfo: True"
                 return True
