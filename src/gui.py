@@ -540,7 +540,7 @@ class MainFrame(QtGui.QWidget):
         self.win = QtGui.QMainWindow()
         self.area = DockArea()
         self.win.setCentralWidget(self.area)
-        self.win.resize(1300,600)
+        self.win.resize(1300,650)
         self.win.setWindowTitle('psocake')
 
         ## Create tree of Parameter objects
@@ -579,7 +579,7 @@ class MainFrame(QtGui.QWidget):
         self.d2 = Dock("Experiment Parameters", size=(1, 1))
         self.d3 = Dock("Diffraction Geometry", size=(1, 1))
         self.d4 = Dock("ROI Histogram", size=(1, 1))
-        self.d5 = Dock("Mouse", size=(1, 1), closable=False)
+        self.d5 = Dock("Mouse", size=(400, 75), closable=False)
         self.d6 = Dock("Image Control", size=(1, 1))
         self.d7 = Dock("Image Scroll", size=(1, 1))
         self.d8 = Dock("Quantifier", size=(1, 1))
@@ -665,24 +665,6 @@ class MainFrame(QtGui.QWidget):
         if args.more:
             self.area.addDock(self.d10, 'bottom', self.d6)
 
-
-        #self.d1 = Dock("Image Panel", size=(900, 900))     ## give this dock the minimum possible size
-        #self.d2 = Dock("Experiment Parameters", size=(150,150))
-        #self.d3 = Dock("Diffraction Geometry", size=(150,150))
-        #self.d4 = Dock("ROI Histogram", size=(150,150))
-        #self.d5 = Dock("Mouse", size=(150,50), closable=False)
-        #self.d6 = Dock("Image Control", size=(150, 150))
-        #self.d7 = Dock("Image Scroll", size=(150,150))
-        #self.d8 = Dock("Quantifier", size=(150,150))
-        #self.d9 = Dock("Peak Finder", size=(150,150))
-        #self.d10 = Dock("Manifold", size=(150,150))
-        #self.d11 = Dock("Per Pixel Histogram", size=(150,150))
-        #self.d12 = Dock("Mask Panel", size=(150, 150))
-        #self.d13 = Dock("Detector Correction", size=(150,150))
-        #self.d14 = Dock("Hit Finder", size=(150,150))
-
-
-
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
         self.w1.getView().invertY(False)
@@ -700,7 +682,7 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.z_direction1)
 
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[900, 900], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
+        self.roi = pg.ROI(pos=[300, 300], size=[100, 100], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addRotateHandle([0.5, 0.5], [1, 1])
@@ -2351,12 +2333,12 @@ class MainFrame(QtGui.QWidget):
             # init masks
             if self.roi_rect is None:
                 # Rect mask
-                self.roi_rect = pg.ROI(pos=[self.cx+100,self.cy], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'b', 'width': 4})
+                self.roi_rect = pg.ROI(pos=[self.cx+400,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'm', 'width': 4})
                 self.roi_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
                 self.roi_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
                 self.roi_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
-                self.roi_circle = pg.CircleROI([self.cx,self.cy], size=[50, 50], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'b', 'width': 4})
+                self.roi_circle = pg.CircleROI([self.cx,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'm', 'width': 4})
 
             # add ROIs
             self.w1.getView().addItem(self.roi_rect)
