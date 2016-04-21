@@ -11,6 +11,11 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-07
+2016-04-18 Chunhong Yoon
+- Tabbed dock areas
+- Add chi squared hit finder
+
 Tag: V00-01-06
 2016-04-18 Chunhong Yoon
 - Added peak finder algorithm 4 to findPeaks app
