@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-08
+2016-04-25 Chunhong Yoon
+- Added psana-style experiment:run string
+
 Tag: V00-01-07
 2016-04-18 Chunhong Yoon
 - Tabbed dock areas
