@@ -31,7 +31,7 @@ import myskbeam
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-e","--exp", help="experiment name (e.g. cxis0813), default=''",default="", type=str)
+parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 or exp=cxis0813:run=1), default=''",default="", type=str)
 parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=0, type=int)
 parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
 parser.add_argument("-n","--evt", help="event number (e.g. 1), default=0",default=0, type=int)
@@ -234,8 +234,12 @@ class MainFrame(QtGui.QWidget):
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
         # Init experiment parameters
-        self.experimentName = args.exp
-        self.runNumber = int(args.run)
+        if ':run=' in args.exp:
+            self.experimentName = args.exp.split('exp=')[-1].split(':')[0]
+            self.runNumber = args.exp.split('run=')[-1]
+        else:
+            self.experimentName = args.exp
+            self.runNumber = int(args.run)
         self.detInfo = args.det
         self.isCspad = False
         self.isCamera = False
@@ -757,7 +761,7 @@ class MainFrame(QtGui.QWidget):
                     np.savetxt(str(fname).split('.')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
                 else:
                     np.save(str(fname),self.calib)
-                    np.savetxt(str(fname).split('.')[0]+".txt", self.calib.reshape((-1,self.calib[-1])) ,fmt='%0.18e')
+                    np.savetxt(str(fname).split('.')[0]+".txt", self.calib.reshape((-1,self.calib.shape[-1])) )#,fmt='%0.18e')
         def load():
             fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
             print "fname: ", fname, fname.split('.')[-1]
@@ -2744,7 +2748,7 @@ class HitFinder(QtCore.QThread):
                 cmd += " --tag "+str(self.parent.spiParam_tag)
 
             if self.parent.spiAlgorithm == 1:
-                cmd += " --pruneInterval "+str(self.parent.spiParam_alg1_pruneInterval)
+                cmd += " --pruneInterval "+str(int(self.parent.spiParam_alg1_pruneInterval))
 
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
