@@ -5,6 +5,7 @@
 # TODO: grid of images
 # TODO: dropdown menu for available detectors
 # TODO: When front and back detectors given, display both
+# TODO: Radial average panel
 
 import sys, signal
 import numpy as np
@@ -31,7 +32,7 @@ import myskbeam
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 or exp=cxis0813:run=1), default=''",default="", type=str)
+parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 )", default="", type=str)
 parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=0, type=int)
 parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
 parser.add_argument("-n","--evt", help="event number (e.g. 1), default=0",default=0, type=int)
@@ -589,7 +590,6 @@ class MainFrame(QtGui.QWidget):
         self.d8 = Dock("Quantifier", size=(1, 1))
         self.d9 = Dock("Peak Finder", size=(1, 1))
         self.d10 = Dock("Manifold", size=(1, 1))
-        self.d11 = Dock("Per Pixel Histogram", size=(1, 1))
         self.d12 = Dock("Mask Panel", size=(1, 1))
         self.d13 = Dock("Detector Correction", size=(1, 1))
         self.d14 = Dock("Hit Finder", size=(1, 1))
@@ -648,15 +648,13 @@ class MainFrame(QtGui.QWidget):
 
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
         self.area.addDock(self.d9, 'bottom', self.d2)
-        self.area.addDock(self.d11, 'bottom', self.d2)
         self.area.addDock(self.d12, 'bottom',self.d2)
         #self.area.addDock(self.d13, 'bottom', self.d4)
         self.area.addDock(self.d14, 'bottom', self.d2)
 
-        self.area.moveDock(self.d12, 'above', self.d11)
-        self.area.moveDock(self.d9, 'above', self.d11)
+        self.area.moveDock(self.d9, 'above', self.d12)
         #self.area.moveDock(self.d13, 'above', self.d12)
-        self.area.moveDock(self.d14, 'above', self.d11)
+        self.area.moveDock(self.d14, 'above', self.d12)
 
         self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
@@ -836,19 +834,6 @@ class MainFrame(QtGui.QWidget):
         # Add plot
         self.w13 = pg.PlotWidget(title="Manifold!!!!")
         self.d10.addWidget(self.w13)
-
-        ## Dock 11: Per Pixel Histogram
-        self.w14 = ParameterTree()
-        self.w14.setParameters(self.p5, showTop=False)
-        self.d11.addWidget(self.w14)
-        # Add buttons
-        self.w15 = pg.LayoutWidget()
-        self.fitBtn = QtGui.QPushButton('Fit histogram')
-        self.w15.addWidget(self.fitBtn, row=0, col=0)
-        self.d11.addWidget(self.w15)
-        # Add plot
-        self.w16 = pg.PlotWidget(title="Per Pixel Histogram")
-        self.d11.addWidget(self.w16)
 
         ## Dock 12: Mask Panel
         self.w17 = ParameterTree()
@@ -1080,12 +1065,6 @@ class MainFrame(QtGui.QWidget):
                             # toggle mode
                             self.userMaskAssem[indexX,indexY] = (1-self.userMaskAssem[indexX,indexY])
                         self.displayMask()
-
-                # Per pixel histogram
-                if self.pixelIndAssem is not None and self.perPixelHistogramFileOpen:
-                    self.pixelInd = self.pixelIndAssem[indexX,indexY]
-                    print "pixel index: ", self.pixelInd
-                    self.updatePerPixelHistogram(self.pixelInd)
 
         # Signal proxy
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
@@ -1798,14 +1777,6 @@ class MainFrame(QtGui.QWidget):
             elif path[1] == manifold_sigma_str:
                 self.updateManifoldSigma(data)
         ################################################
-        # per pixel histogram parameters
-        ################################################
-        if path[0] == perPixelHistogram_grp:
-            if path[1] == perPixelHistogram_filename_str:
-                self.updatePerPixelHistogramFilename(data)
-            elif path[1] == perPixelHistogram_adu_str:
-                self.updatePerPixelHistogramAdu(data)
-        ################################################
         # masking parameters
         ################################################
         if path[0] == mask_grp:
@@ -2485,7 +2456,7 @@ class PowderProducer(QtCore.QThread):
         for run in runsToDo:
             # Command for submitting to batch
             cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o %J.log generatePowder exp="+self.experimentName+\
+                  " -o %J.log python /reg/neh/home/yoon82/ana-current/psocake/app/generatePowder.py exp="+self.experimentName+\
                   ":run="+str(run)+" -d "+self.detInfo+\
                   " -o "+str(self.parent.hitParam_outDir)
             if self.parent.hitParam_noe > 0:
