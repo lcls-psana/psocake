@@ -1,8 +1,7 @@
 # GUI for browsing LCLS area detectors. Tune hit finding parameters and common mode correction.
 
 # TODO: Zoom in area / view matrix of numbers
-# TODO: Multiple subplots
-# TODO: grid of images
+# TODO: Multiple subplots or grid of images
 # TODO: dropdown menu for available detectors
 # TODO: When front and back detectors given, display both
 # TODO: Radial average panel
@@ -14,17 +13,17 @@ from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.console
 from pyqtgraph.dockarea import *
 from pyqtgraph.dockarea.Dock import DockLabel
-import pyqtgraph.parametertree.parameterTypes as pTypes
-from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
+#import pyqtgraph.parametertree.parameterTypes as pTypes
+from pyqtgraph.parametertree import Parameter, ParameterTree#, ParameterItem, registerParameterType
 import psana
 import h5py
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
-import matplotlib.pyplot as plt
-from pyqtgraph import Point
+#import matplotlib.pyplot as plt
+#from pyqtgraph import Point
 import argparse
 import Detector.PyDetector
-import logging
-import multiprocessing as mp
+#import logging
+#import multiprocessing as mp
 import time
 import subprocess
 import os.path
@@ -274,6 +273,7 @@ class MainFrame(QtGui.QWidget):
         self.logscaleOn = False
         self.image_property = 1
         self.aduThresh = -100.
+        self.displayMaxPercentile = 99.0
 
         self.hasUserDefinedResolution = False
         self.hasCommonMode = False
@@ -1323,7 +1323,7 @@ class MainFrame(QtGui.QWidget):
                     self.firstUpdate = False
                 else:
                     print "################################# 22"
-                    self.w1.setImage(self.data,levels=(np.percentile(self.data,1.0),np.percentile(self.data,99.0)))
+                    self.w1.setImage(self.data,levels=(0,np.percentile(self.data,self.displayMaxPercentile)))
                     self.firstUpdate = False
             else:
                 if self.logscaleOn:
