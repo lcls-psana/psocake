@@ -5,6 +5,8 @@
 # TODO: dropdown menu for available detectors
 # TODO: When front and back detectors given, display both
 # TODO: Radial average panel
+# TODO: Show raw, pedestal-corrected, commonMode-corrected, gain-corrected
+# TODO: Display xtcav, acqiris
 
 import sys, signal
 import numpy as np
@@ -66,6 +68,13 @@ disp_quad_str = 'quad number'
 disp_seg_str = 'seg number'
 disp_row_str = 'row number'
 disp_col_str = 'col number'
+disp_raw_str = 'raw'
+disp_pedestalCorrected_str = 'pedestal corrected'
+disp_commonModeCorrected_str = 'common mode corrected'
+disp_photons_str = 'photon counts'
+disp_rms_str = 'pixel rms'
+disp_status_str = 'pixel status'
+disp_pedestal_str = 'pedestal'
 disp_aduThresh_str = 'ADU threshold'
 
 disp_commonMode_str = 'Common mode (override)'
@@ -407,7 +416,14 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': disp_image_str, 'type': 'list', 'values': {disp_col_str: 8,
+                {'name': disp_image_str, 'type': 'list', 'values': {disp_rms_str: 15,
+                                                                    disp_status_str: 14,
+                                                                    disp_pedestal_str: 13,
+                                                                    disp_photons_str: 12,
+                                                                    disp_commonModeCorrected_str: 11,
+                                                                    disp_pedestalCorrected_str: 10,
+                                                                    disp_raw_str: 9,
+                                                                    disp_col_str: 8,
                                                                     disp_row_str: 7,
                                                                     disp_seg_str: 6,
                                                                     disp_quad_str: 5,
@@ -1404,10 +1420,11 @@ class MainFrame(QtGui.QWidget):
     def getAssembledImage(self,calib):
         _calib = calib.copy() # this is important
         # Apply gain if available
-        if self.det.gain(self.evt) is not None:
+        if self.det.gain(self.evt) is not None and self.image_property == 1:
             _calib *= self.det.gain(self.evt)
         # Do not display ADUs below threshold
-        _calib[np.where(_calib<self.aduThresh)]=0
+        if self.image_property == 1:
+            _calib[np.where(_calib<self.aduThresh)]=0
         tic = time.time()
         data = self.det.image(self.evt, _calib)
         if data is None:
@@ -1419,28 +1436,73 @@ class MainFrame(QtGui.QWidget):
     def getDetImage(self,evtNumber,calib=None):
         if self.image_property == 1 and calib is None:
             calib = self.getCalib(evtNumber)
+        elif self.image_property == 9: # raw
+            calib = self.det.raw(self.evt)
+        elif self.image_property == 10: # pedestal corrected
+            calib = self.det.raw(self.evt) - self.det.pedestals(self.evt)
+        elif self.image_property == 11: # common mode corrected
+            calib = self.det.calib(self.evt)
+        elif self.image_property == 12: # photon counts
+            print "Sorry, this feature is not available"
+        elif self.image_property == 13: # rms
+            calib = self.det.rms(self.evt)
+        elif self.image_property == 14: # status
+            calib = self.det.status(self.evt)
+        elif self.image_property == 15: # pedestal
+            calib = self.det.pedestals(self.evt)
         elif self.image_property == 2: # coords_x
             calib = self.det.coords_x(self.evt)
         elif self.image_property == 3: # coords_y
             calib = self.det.coords_y(self.evt)
         elif self.image_property == 4: # gain
             calib = self.det.gain(self.evt)
-        elif self.image_property == 5 and self.isCspad: # quad ind
-            calib = np.zeros((32,185,388))
-            for i in range(32):
-                calib[i,:,:] = int(i)%8
-        elif self.image_property == 6 and self.isCspad: # seg ind
-            calib = np.zeros((32,185,388))
-            for i in range(32):
-                calib[i,:,:] = int(i)/8
-        elif self.image_property == 7 and self.isCspad: # row ind
-            calib = np.zeros((32,185,388))
-            for i in range(185):
-                calib[:,i,:] = i
-        elif self.image_property == 8 and self.isCspad: # col ind
-            calib = np.zeros((32,185,388))
-            for i in range(388):
-                calib[:,:,i] = i
+        shape = self.det.shape(self.evt)
+        if len(shape) == 3:
+            if self.image_property == 5: # quad ind
+                calib = np.zeros(shape)
+                for i in range(shape[0]):
+                    # TODO: handle detectors properly
+                    if shape[0] == 32: # cspad
+                        calib[i,:,:] = int(i)%8
+                    elif shape[0] == 2: # cspad2x2
+                        calib[i,:,:] = int(i)%2
+                    elif shape[0] == 4: # pnccd
+                        calib[i,:,:] = int(i)%4
+            elif self.image_property == 6: # seg ind
+                calib = np.zeros(shape)
+                if shape[0] == 32: # cspad
+                    for i in range(32):
+                        calib[i,:,:] = int(i)/8
+                elif shape[0] == 2: # cspad2x2
+                    for i in range(2):
+                        calib[i,:,:] = int(i)
+                elif shape[0] == 4: # pnccd
+                    for i in range(4):
+                        calib[i,:,:] = int(i)
+            elif self.image_property == 7: # row ind
+                calib = np.zeros(shape)
+                if shape[0] == 32: # cspad
+                    for i in range(185):
+                        calib[:,i,:] = i
+                elif shape[0] == 2: # cspad2x2
+                    for i in range(185):
+                        calib[:,i,:] = i
+                elif shape[0] == 4: # pnccd
+                    for i in range(512):
+                        calib[:,i,:] = i
+            elif self.image_property == 8: # col ind
+                calib = np.zeros(shape)
+                if shape[0] == 32: # cspad
+                    for i in range(388):
+                        calib[:,:,i] = i
+                elif shape[0] == 2: # cspad2x2
+                    for i in range(388):
+                        calib[:,:,i] = i
+                elif shape[0] == 4: # pnccd
+                    for i in range(512):
+                        calib[:,:,i] = i
+        else:
+            print "psocake can't handle this detector"
 
         if calib is not None:
             # assemble image
@@ -1448,7 +1510,7 @@ class MainFrame(QtGui.QWidget):
             self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
             return calib, data
         else: # TODO: this is a hack that assumes opal is the only detector without calib
-            # we have an opal
+            # we have an opal / epix
             data = self.det.raw(self.evt)
             if data is not None:
                 data = data.copy()

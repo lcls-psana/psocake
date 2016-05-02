@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-09
+2016-05-02 Chunhong Yoon
+- Better detector information display
+
 Tag: V00-01-08
 2016-04-25 Chunhong Yoon
 - Added psana-style experiment:run string
