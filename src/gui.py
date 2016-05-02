@@ -160,6 +160,14 @@ geom_wavelength_str = "Wavelength"
 geom_pixelSize_str = 'Pixel size'
 geom_resolutionRings_str = 'Resolution rings'
 geom_resolution_str = 'Resolution (pixels)'
+geom_resolutionUnits_str = 'Units'
+geom_unitA_crystal_str = 'Crystallography (Angstrom)'
+geom_unitNm_crystal_str = 'Crystallography (Nanometre)'
+geom_unitQ_crystal_str = 'Crystallography Reciprocal Space (q)'
+geom_unitA_physics_str = 'Physics (Angstrom)'
+geom_unitNm_physics_str = 'Physics (Nanometre)'
+geom_unitQ_physics_str = 'Physics Reciprocal Space (q)'
+geom_unitTwoTheta_str = 'Scattering Angle 2Theta'
 
 paramsDiffractionGeometry = [
     {'name': geom_grp, 'type': 'group', 'children': [
@@ -169,12 +177,20 @@ paramsDiffractionGeometry = [
         {'name': geom_pixelSize_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siPrefix': True, 'suffix': 'm'},
         {'name': geom_resolutionRings_str, 'type': 'bool', 'value': False, 'tip': "Display resolution rings", 'children': [
             {'name': geom_resolution_str, 'type': 'str', 'value': None},
+            {'name': geom_resolutionUnits_str, 'type': 'list', 'values': {geom_unitA_crystal_str: 0,
+                                                                          geom_unitNm_crystal_str: 1,
+                                                                          geom_unitQ_crystal_str: 2,
+                                                                          geom_unitA_physics_str: 3,
+                                                                          geom_unitNm_physics_str: 4,
+                                                                          geom_unitQ_physics_str: 5,
+                                                                          geom_unitTwoTheta_str: 6},
+             'value': 0},
         ]},
     ]},
 ]
 
 # Quantifier parameter tree
-quantifier_grp = 'Quantifier'
+quantifier_grp = 'Small data'
 quantifier_filename_str = 'filename'
 quantifier_dataset_str = 'metric_dataset'
 quantifier_sort_str = 'sort'
@@ -257,7 +273,7 @@ class MainFrame(QtGui.QWidget):
         # Init display parameters
         self.logscaleOn = False
         self.image_property = 1
-        self.aduThresh = 0.
+        self.aduThresh = -100.
 
         self.hasUserDefinedResolution = False
         self.hasCommonMode = False
@@ -272,6 +288,7 @@ class MainFrame(QtGui.QWidget):
         self.resolutionRingsOn = False
         self.resolution = None
         self.resolutionText = []
+        self.resolutionUnits = 0
         # Init variables
         self.data = None # assembled detector image
         self.cx = 0
@@ -410,6 +427,7 @@ class MainFrame(QtGui.QWidget):
                 ]},
             ]},
         ]
+
         self.paramsPeakFinder = [
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks, 'tip': "Show peaks found shot-to-shot"},
@@ -1328,8 +1346,22 @@ class MainFrame(QtGui.QWidget):
             self.ring_feature.setData(cenx, ceny, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
-            for i,val in enumerate(self.dMin):
-                self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
+            for i,val in enumerate(self.dMin_crystal):
+                if self.resolutionUnits == 0:#geom_unitA_str
+                    self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
+                elif self.resolutionUnits == 1:#geom_unitNm_str
+                    self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (val*1e9)), border='w', fill=(0, 0, 255, 100)))
+                elif self.resolutionUnits == 2:#geom_unitQ_str
+                    self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_crystal[i])), border='w', fill=(0, 0, 255, 100)))
+                elif self.resolutionUnits == 3:#geom_unitA_str
+                    self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (self.dMin_physics[i]*1e10)), border='w', fill=(0, 0, 255, 100)))
+                elif self.resolutionUnits == 4:#geom_unitNm_str
+                    self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (self.dMin_physics[i]*1e9)), border='w', fill=(0, 0, 255, 100)))
+                elif self.resolutionUnits == 5:#geom_unitQ_str
+                    self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_physics[i])), border='w', fill=(0, 0, 255, 100)))
+
+                elif self.resolutionUnits == 6:#geom_unitTwoTheta_str
+                    self.resolutionText.append(pg.TextItem(text='%s degrees' % float('%.3g' % (self.thetaMax[i]*180/np.pi)), border='w', fill=(0, 0, 255, 100)))
                 self.w1.getView().addItem(self.resolutionText[i])
                 self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.cx, self.cy)
 
@@ -1756,6 +1788,8 @@ class MainFrame(QtGui.QWidget):
                 self.updateResolutionRings(data)
             elif path[2] == geom_resolution_str:
                 self.updateResolution(data)
+            elif path[2] == geom_resolutionUnits_str:
+                self.updateResolutionUnits(data)
         ################################################
         # quantifier parameters
         ################################################
@@ -2037,6 +2071,15 @@ class MainFrame(QtGui.QWidget):
             self.updateRings()
         print "Done updateResolution: ", self.resolution, self.hasUserDefinedResolution
 
+    def updateResolutionUnits(self, data):
+        # convert to array of floats
+        self.resolutionUnits = data
+        if self.hasGeometryInfo():
+            self.updateGeometry()
+        if self.hasExpRunDetInfo():
+            self.updateRings()
+        print "Done updateResolutionUnits: ", self.resolutionUnits
+
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
         self.updateCommonMode(self.applyCommonMode)
@@ -2145,12 +2188,18 @@ class MainFrame(QtGui.QWidget):
             self.myResolutionRingList = self.resolution
         else:
             self.myResolutionRingList = resolutionRingList
-        self.dMin = np.zeros_like(self.myResolutionRingList)
+        self.thetaMax = np.zeros_like(self.myResolutionRingList)
+        self.dMin_crystal = np.zeros_like(self.myResolutionRingList)
+        self.qMax_crystal = np.zeros_like(self.myResolutionRingList)
+        self.dMin_physics = np.zeros_like(self.myResolutionRingList)
+        self.qMax_physics = np.zeros_like(self.myResolutionRingList)
         for i, pix in enumerate(self.myResolutionRingList):
-            thetaMax = np.arctan(pix*self.pixelSize/self.detectorDistance)
-            qMax = 2/self.wavelength*np.sin(thetaMax/2)
-            self.dMin[i] = 1/qMax
-            print "updateGeometry: ", i, thetaMax, qMax, self.dMin[i]
+            self.thetaMax[i] = np.arctan(pix*self.pixelSize/self.detectorDistance)
+            self.qMax_crystal[i] = 2/self.wavelength*np.sin(self.thetaMax[i]/2)
+            self.dMin_crystal[i] = 1/self.qMax_crystal[i]
+            self.qMax_physics[i] = 4*np.pi/self.wavelength*np.sin(self.thetaMax[i]/2)
+            self.dMin_physics[i] = np.pi/self.qMax_physics[i]
+            print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
             if self.resolutionRingsOn:
                 self.updateRings()
 
@@ -2200,10 +2249,10 @@ class MainFrame(QtGui.QWidget):
         print "ind: ", self.quantifierInd
 
     def updateQuantifierPlot(self,ind,metric):
-        #self.curve = None
-        #self.w9.plotItem.clear()
         self.w9.getPlotItem().clear()
         self.curve = self.w9.plot(metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        self.w9.setLabel('left', "Counts")
+        self.w9.setLabel('bottom', "Event number")
         #self.curve = self.w9.plot(ind,metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
         self.curve.curve.setClickable(True)
         self.curve.sigClicked.connect(self.clicked)
