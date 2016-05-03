@@ -621,7 +621,7 @@ class MainFrame(QtGui.QWidget):
         self.d5 = Dock("Mouse", size=(400, 75), closable=False)
         self.d6 = Dock("Image Control", size=(1, 1))
         self.d7 = Dock("Image Scroll", size=(1, 1))
-        self.d8 = Dock("Quantifier", size=(1, 1))
+        self.d8 = Dock("Small Data", size=(1, 1))
         self.d9 = Dock("Peak Finder", size=(1, 1))
         self.d10 = Dock("Manifold", size=(1, 1))
         self.d12 = Dock("Mask Panel", size=(1, 1))
@@ -2286,36 +2286,43 @@ class MainFrame(QtGui.QWidget):
             self.quantifierHasData = True
             self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
 
-            # temp
             try:
-                eventDataset = "/" + self.quantifier_dataset.split("/")[1] + "/event"
-                print eventDataset
-                self.quantifierEvent = self.quantifierFile[eventDataset].value
+                if self.quantifier_dataset[0] == '/': # dataset starts with "/"
+                    self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
+                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+                else: # dataset does not start with "/"
+                    self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
+                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
             except:
-                self.quantifierEvent = np.arange(len(self.quantifierMetric))
+                print "Couldn't find /event dataset"
 
             print "Done reading metric"
 
     def updateQuantifierSort(self, data):
         self.quantifier_sort = data
         if self.quantifierHasData:
-            if data is True:
+            if self.quantifier_sort is True:
                 self.quantifierInd = np.argsort(self.quantifierFile[self.quantifier_dataset].value)
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value[self.quantifierInd]
+                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value#[self.quantifierInd]
                 self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
             else:
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
+                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
                 self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
         print "metric: ", self.quantifierMetric
         print "ind: ", self.quantifierInd
+        print "event: ", self.quantifierEvent
 
     def updateQuantifierPlot(self,ind,metric):
         self.w9.getPlotItem().clear()
         self.curve = self.w9.plot(metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-        self.w9.setLabel('left', "Counts")
-        self.w9.setLabel('bottom', "Event number")
-        #self.curve = self.w9.plot(ind,metric, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
+        self.w9.setLabel('left', "Small data")
+        if self.quantifier_sort:
+            self.w9.setLabel('bottom', "Sorted Event Index")
+        else:
+            self.w9.setLabel('bottom', "Event Index")
         self.curve.curve.setClickable(True)
         self.curve.sigClicked.connect(self.clicked)
 
@@ -2335,6 +2342,7 @@ class MainFrame(QtGui.QWidget):
 
         # temp
         self.eventNumber = self.quantifierEvent[ind]
+        print "%%%% event number: ", self.eventNumber
         #self.eventNumber = ind
 
         self.calib, self.data = self.getDetImage(self.eventNumber)
