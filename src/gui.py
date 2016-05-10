@@ -2598,7 +2598,7 @@ class PowderProducer(QtCore.QThread):
         for run in runsToDo:
             # Command for submitting to batch
             cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o .%J.log python /reg/neh/home/yoon82/ana-current/psocake/app/generatePowder.py exp="+self.experimentName+\
+                  " -o .%J.log generatePowder exp="+self.experimentName+\
                   ":run="+str(run)+" -d "+self.detInfo+\
                   " -o "+str(self.parent.hitParam_outDir)
             if self.parent.hitParam_noe > 0:
