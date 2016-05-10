@@ -7,6 +7,8 @@
 # TODO: Radial average panel
 # TODO: Show raw, pedestal-corrected, commonMode-corrected, gain-corrected
 # TODO: Display xtcav, acqiris
+# TODO: Downsampler
+# TODO: Radial background, polarization correction
 
 import sys, signal
 import numpy as np
@@ -60,7 +62,7 @@ exp_detInfo_str = 'Detector ID'
 disp_grp = 'Display'
 disp_log_str = 'Logscale'
 disp_image_str = 'Image properties'
-disp_adu_str = 'adu'
+disp_adu_str = 'gain corrected ADU'
 disp_gain_str = 'gain'
 disp_coordx_str = 'coord_x'
 disp_coordy_str = 'coord_y'
@@ -68,16 +70,17 @@ disp_quad_str = 'quad number'
 disp_seg_str = 'seg number'
 disp_row_str = 'row number'
 disp_col_str = 'col number'
-disp_raw_str = 'raw'
-disp_pedestalCorrected_str = 'pedestal corrected'
-disp_commonModeCorrected_str = 'common mode corrected'
+disp_raw_str = 'raw ADU'
+disp_pedestalCorrected_str = 'pedestal corrected ADU'
+disp_commonModeCorrected_str = 'common mode corrected ADU'
 disp_photons_str = 'photon counts'
 disp_rms_str = 'pixel rms'
 disp_status_str = 'pixel status'
 disp_pedestal_str = 'pedestal'
+disp_commonMode_str = 'common mode'
 disp_aduThresh_str = 'ADU threshold'
 
-disp_commonMode_str = 'Common mode (override)'
+disp_commonModeOverride_str = 'Common mode (override)'
 disp_overrideCommonMode_str = 'Apply common mode (override)'
 disp_commonModeParam0_str = 'parameters 0'
 disp_commonModeParam1_str = 'parameters 1'
@@ -416,24 +419,25 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': disp_image_str, 'type': 'list', 'values': {disp_rms_str: 15,
-                                                                    disp_status_str: 14,
-                                                                    disp_pedestal_str: 13,
-                                                                    disp_photons_str: 12,
-                                                                    disp_commonModeCorrected_str: 11,
-                                                                    disp_pedestalCorrected_str: 10,
-                                                                    disp_raw_str: 9,
-                                                                    disp_col_str: 8,
-                                                                    disp_row_str: 7,
-                                                                    disp_seg_str: 6,
-                                                                    disp_quad_str: 5,
-                                                                    disp_gain_str: 4,
-                                                                    disp_coordy_str: 3,
-                                                                    disp_coordx_str: 2,
+                {'name': disp_image_str, 'type': 'list', 'values': {disp_coordy_str: 16,
+                                                                    disp_coordx_str: 15,
+                                                                    disp_col_str: 14,
+                                                                    disp_row_str: 13,
+                                                                    disp_seg_str: 12,
+                                                                    disp_quad_str: 11,
+                                                                    disp_gain_str: 10,
+                                                                    disp_commonMode_str: 9,
+                                                                    disp_rms_str: 8,
+                                                                    disp_status_str: 7,
+                                                                    disp_pedestal_str: 6,
+                                                                    disp_photons_str: 5,
+                                                                    disp_raw_str: 4,
+                                                                    disp_pedestalCorrected_str: 3,
+                                                                    disp_commonModeCorrected_str: 2,
                                                                     disp_adu_str: 1},
                  'value': self.image_property, 'tip': "Choose image property to display"},
                 {'name': disp_aduThresh_str, 'type': 'float', 'value': self.aduThresh, 'tip': "Only display ADUs above this threshold"},
-                {'name': disp_commonMode_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                {'name': disp_commonModeOverride_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode,
                      'tip': "Click to play around with common mode settings.\n This does not change your deployed calib file."},
                     {'name': disp_commonModeParam0_str, 'type': 'int', 'value': self.commonModeParams[0]},
@@ -1417,11 +1421,24 @@ class MainFrame(QtGui.QWidget):
         else:
             return None
 
+    def getCommonMode(self,evtNumber):
+        if self.run is not None:
+            self.evt = self.getEvt(evtNumber)
+            pedestalCorrected = self.det.raw(self.evt)-self.det.pedestals(self.evt)
+            if self.applyCommonMode: # play with different common mode
+                print "### Overriding common mode: ", self.commonMode
+                if self.commonMode[0] == 5: # Algorithm 5
+                    cm = self.det.common_mode_correction(self.evt, pedestalCorrected, cmpars=(self.commonMode[0],self.commonMode[1]))
+                else: # Algorithms 1 to 4
+                    cm = self.det.common_mode_correction(self.evt, pedestalCorrected, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
+            else:
+                cm = self.det.common_mode_correction(self.evt, pedestalCorrected)
+            return cm
+        else:
+            return None
+
     def getAssembledImage(self,calib):
         _calib = calib.copy() # this is important
-        # Apply gain if available
-        if self.det.gain(self.evt) is not None and self.image_property == 1:
-            _calib *= self.det.gain(self.evt)
         # Do not display ADUs below threshold
         if self.image_property == 1:
             _calib[np.where(_calib<self.aduThresh)]=0
@@ -1434,75 +1451,80 @@ class MainFrame(QtGui.QWidget):
         return data
 
     def getDetImage(self,evtNumber,calib=None):
-        if self.image_property == 1 and calib is None:
-            calib = self.getCalib(evtNumber)
-        elif self.image_property == 9: # raw
-            calib = self.det.raw(self.evt)
-        elif self.image_property == 10: # pedestal corrected
-            calib = self.det.raw(self.evt) - self.det.pedestals(self.evt)
-        elif self.image_property == 11: # common mode corrected
-            calib = self.det.calib(self.evt)
-        elif self.image_property == 12: # photon counts
-            print "Sorry, this feature is not available"
-        elif self.image_property == 13: # rms
-            calib = self.det.rms(self.evt)
-        elif self.image_property == 14: # status
-            calib = self.det.status(self.evt)
-        elif self.image_property == 15: # pedestal
-            calib = self.det.pedestals(self.evt)
-        elif self.image_property == 2: # coords_x
-            calib = self.det.coords_x(self.evt)
-        elif self.image_property == 3: # coords_y
-            calib = self.det.coords_y(self.evt)
-        elif self.image_property == 4: # gain
-            calib = self.det.gain(self.evt)
-        shape = self.det.shape(self.evt)
-        if len(shape) == 3:
-            if self.image_property == 5: # quad ind
-                calib = np.zeros(shape)
-                for i in range(shape[0]):
-                    # TODO: handle detectors properly
+        if calib is None:
+            if self.image_property == 1: # gain corrected
+                calib = self.getCalib(evtNumber) * self.det.gain(self.evt)
+            elif self.image_property == 2: # common mode corrected
+                print "$$$ image property: 2"
+                calib = self.getCalib(evtNumber)
+            elif self.image_property == 3: # pedestal corrected
+                calib = self.det.raw(self.evt) - self.det.pedestals(self.evt)
+            elif self.image_property == 4: # raw
+                calib = self.det.raw(self.evt)
+            elif self.image_property == 5: # photon counts
+                print "Sorry, this feature is not available"
+            elif self.image_property == 6: # pedestal
+                calib = self.det.pedestals(self.evt)
+            elif self.image_property == 7: # status
+                calib = self.det.status(self.evt)
+            elif self.image_property == 8: # rms
+                calib = self.det.rms(self.evt)
+            elif self.image_property == 9: # common mode
+                calib = self.getCommonMode(evtNumber)
+            elif self.image_property == 10: # gain
+                calib = self.det.gain(self.evt)
+            elif self.image_property == 15: # coords_x
+                calib = self.det.coords_x(self.evt)
+            elif self.image_property == 16: # coords_y
+                calib = self.det.coords_y(self.evt)
+
+            shape = self.det.shape(self.evt)
+            if len(shape) == 3:
+                if self.image_property == 11: # quad ind
+                    calib = np.zeros(shape)
+                    for i in range(shape[0]):
+                        # TODO: handle detectors properly
+                        if shape[0] == 32: # cspad
+                            calib[i,:,:] = int(i)%8
+                        elif shape[0] == 2: # cspad2x2
+                            calib[i,:,:] = int(i)%2
+                        elif shape[0] == 4: # pnccd
+                            calib[i,:,:] = int(i)%4
+                elif self.image_property == 12: # seg ind
+                    calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
-                        calib[i,:,:] = int(i)%8
+                        for i in range(32):
+                            calib[i,:,:] = int(i)/8
                     elif shape[0] == 2: # cspad2x2
-                        calib[i,:,:] = int(i)%2
+                        for i in range(2):
+                            calib[i,:,:] = int(i)
                     elif shape[0] == 4: # pnccd
-                        calib[i,:,:] = int(i)%4
-            elif self.image_property == 6: # seg ind
-                calib = np.zeros(shape)
-                if shape[0] == 32: # cspad
-                    for i in range(32):
-                        calib[i,:,:] = int(i)/8
-                elif shape[0] == 2: # cspad2x2
-                    for i in range(2):
-                        calib[i,:,:] = int(i)
-                elif shape[0] == 4: # pnccd
-                    for i in range(4):
-                        calib[i,:,:] = int(i)
-            elif self.image_property == 7: # row ind
-                calib = np.zeros(shape)
-                if shape[0] == 32: # cspad
-                    for i in range(185):
-                        calib[:,i,:] = i
-                elif shape[0] == 2: # cspad2x2
-                    for i in range(185):
-                        calib[:,i,:] = i
-                elif shape[0] == 4: # pnccd
-                    for i in range(512):
-                        calib[:,i,:] = i
-            elif self.image_property == 8: # col ind
-                calib = np.zeros(shape)
-                if shape[0] == 32: # cspad
-                    for i in range(388):
-                        calib[:,:,i] = i
-                elif shape[0] == 2: # cspad2x2
-                    for i in range(388):
-                        calib[:,:,i] = i
-                elif shape[0] == 4: # pnccd
-                    for i in range(512):
-                        calib[:,:,i] = i
-        else:
-            print "psocake can't handle this detector"
+                        for i in range(4):
+                            calib[i,:,:] = int(i)
+                elif self.image_property == 13: # row ind
+                    calib = np.zeros(shape)
+                    if shape[0] == 32: # cspad
+                        for i in range(185):
+                            calib[:,i,:] = i
+                    elif shape[0] == 2: # cspad2x2
+                        for i in range(185):
+                            calib[:,i,:] = i
+                    elif shape[0] == 4: # pnccd
+                        for i in range(512):
+                            calib[:,i,:] = i
+                elif self.image_property == 14: # col ind
+                    calib = np.zeros(shape)
+                    if shape[0] == 32: # cspad
+                        for i in range(388):
+                            calib[:,:,i] = i
+                    elif shape[0] == 2: # cspad2x2
+                        for i in range(388):
+                            calib[:,:,i] = i
+                    elif shape[0] == 4: # pnccd
+                        for i in range(512):
+                            calib[:,:,i] = i
+            else:
+                print "psocake can't handle this detector"
 
         if calib is not None:
             # assemble image
@@ -2152,6 +2174,7 @@ class MainFrame(QtGui.QWidget):
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
         if self.hasExpRunDetInfo():
+            print "%%% Redraw image with new common mode: ", self.commonMode
             self.setupExperiment()
             self.updateImage()
         print "Done updateCommonMode: ", self.commonMode
@@ -2164,7 +2187,7 @@ class MainFrame(QtGui.QWidget):
             _param2 = int(_commonMode[2])
             _param3 = int(_commonMode[3])
             return (_alg,_param1,_param2,_param3)
-        elif _alg == 5 and _numParams == 2:
+        elif _alg == 5:
             _param1 = int(_commonMode[1])
             return (_alg,_param1)
         else:
@@ -2584,7 +2607,7 @@ class PowderProducer(QtCore.QThread):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = jobid+".log"
+            myLog = "."+jobid+".log"
             print "bsub log filename: ", myLog
             # myKeyString = "The output (if any) is above this job summary."
             # mySuccessString = "Successfully completed."
@@ -2754,7 +2777,7 @@ class PeakFinder(QtCore.QThread):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = jobid+".log"
+            myLog = "."+jobid+".log"
             print "*******************"
             print "bsub log filename: ", myLog
         # myKeyString = "The output (if any) is above this job summary."
@@ -2852,7 +2875,7 @@ class HitFinder(QtCore.QThread):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = jobid+".log"
+            myLog = "."+jobid+".log"
             print "*******************"
             print "bsub log filename: ", myLog
 

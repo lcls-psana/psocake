@@ -11,6 +11,11 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-10
+2016-05-08 Chunhong Yoon
+- Fix pedestal display
+- Add common mode display
+
 Tag: V00-01-09
 2016-05-02 Chunhong Yoon
 - Better detector information display
