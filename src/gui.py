@@ -104,6 +104,16 @@ hitParam_alg1_thr_low_str = 'thr_low'
 hitParam_alg1_thr_high_str = 'thr_high'
 hitParam_alg1_radius_str = 'radius'
 hitParam_alg1_dr_str = 'dr'
+# algorithm 2
+hitParam_alg2_npix_min_str = 'npix_min'
+hitParam_alg2_npix_max_str = 'npix_max'
+hitParam_alg2_amax_thr_str = 'amax_thr'
+hitParam_alg2_atot_thr_str = 'atot_thr'
+hitParam_alg2_son_min_str = 'son_min'
+hitParam_algorithm2_str = 'Connector'
+hitParam_alg2_thr_str = 'thr'
+hitParam_alg2_r0_str = 'r0'
+hitParam_alg2_dr_str = 'dr'
 # algorithm 3
 hitParam_alg3_npix_min_str = 'npix_min'
 hitParam_alg3_npix_max_str = 'npix_max'
@@ -329,6 +339,14 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg1_thr_high = 270.
         self.hitParam_alg1_radius = 3
         self.hitParam_alg1_dr = 1
+        self.hitParam_alg2_npix_min = 5.
+        self.hitParam_alg2_npix_max = 5000.
+        self.hitParam_alg2_amax_thr = 1.
+        self.hitParam_alg2_atot_thr = 1.
+        self.hitParam_alg2_son_min = 10.
+        self.hitParam_alg2_thr = 3.
+        self.hitParam_alg2_r0 = 5.
+        self.hitParam_alg2_dr = 0.05
         self.hitParam_alg3_npix_min = 5.
         self.hitParam_alg3_npix_max = 5000.
         self.hitParam_alg3_amax_thr = 0.
@@ -453,6 +471,7 @@ class MainFrame(QtGui.QWidget):
                 {'name': hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks, 'tip': "Show peaks found shot-to-shot"},
                 {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm4_str: 4,
                                                                             hitParam_algorithm3_str: 3,
+                                                                            hitParam_algorithm2_str: 2,
                                                                             hitParam_algorithm1_str: 1,
                                                                             hitParam_algorithm0_str: 0},
                                                                             'value': self.algorithm},
@@ -466,6 +485,16 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high, 'tip': "Only keep the peak if max value is above this value"},
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr, 'tip': "background region outside the region of interest"},
+                ]},
+                {'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                    {'name': hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+                    {'name': hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+                    {'name': hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+                    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                    {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
                 ]},
                 {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
@@ -1252,6 +1281,10 @@ class MainFrame(QtGui.QWidget):
                     self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
                                             amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
                                             son_min=self.hitParam_alg1_son_min)
+                elif self.algorithm == 2:
+                    self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg2_npix_min, npix_max=self.hitParam_alg2_npix_max, \
+                                            amax_thr=self.hitParam_alg2_amax_thr, atot_thr=self.hitParam_alg2_atot_thr, \
+                                            son_min=self.hitParam_alg2_son_min)
                 elif self.algorithm == 3:
                     self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
                                             amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
@@ -1269,9 +1302,10 @@ class MainFrame(QtGui.QWidget):
                 self.peakRadius = int(self.hitParam_alg1_radius)
                 self.peaks = self.alg.peak_finder_v1(self.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                            radius=self.peakRadius, dr=self.hitParam_alg1_dr)
-            #elif self.algorithm == 2:
-            #    # v2 - define peaks for regions of connected pixels above threshold
-            #    self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.hitParam_alg2_r0, dr=self.hitParam_alg2_dr)
+            elif self.algorithm == 2:
+                # v2 - define peaks for regions of connected pixels above threshold
+                self.peakRadius = int(self.hitParam_alg2_r0)
+                self.peaks = self.alg.peak_finder_v2(self.calib, thr=self.hitParam_alg2_thr, r0=self.peakRadius, dr=self.hitParam_alg2_dr)
             elif self.algorithm == 3:
                 self.peakRadius = int(self.hitParam_alg3_r0)
                 self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
@@ -1741,6 +1775,46 @@ class MainFrame(QtGui.QWidget):
                     self.updateClassification()
             elif path[2] == hitParam_alg1_dr_str and path[1] == hitParam_algorithm1_str:
                 self.hitParam_alg1_dr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_npix_min_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_npix_min = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_npix_max_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_npix_max = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_amax_thr_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_amax_thr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_atot_thr_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_atot_thr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_son_min_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_son_min = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_thr_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_thr = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_r0_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_r0 = data
+                self.algInitDone = False
+                if self.showPeaks:
+                    self.updateClassification()
+            elif path[2] == hitParam_alg2_dr_str and path[1] == hitParam_algorithm2_str:
+                self.hitParam_alg2_dr = data
                 self.algInitDone = False
                 if self.showPeaks:
                     self.updateClassification()
@@ -2635,7 +2709,6 @@ class PowderProducer(QtCore.QThread):
             #     else:
             #         print "no such file yet"
             #         time.sleep(10)
-
 
 class stackProducer(QtCore.QThread):
     def __init__(self, parent = None):
