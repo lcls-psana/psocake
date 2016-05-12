@@ -339,13 +339,13 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg1_thr_high = 270.
         self.hitParam_alg1_radius = 3
         self.hitParam_alg1_dr = 1
-        self.hitParam_alg2_npix_min = 5.
+        self.hitParam_alg2_npix_min = 1.
         self.hitParam_alg2_npix_max = 5000.
         self.hitParam_alg2_amax_thr = 1.
         self.hitParam_alg2_atot_thr = 1.
-        self.hitParam_alg2_son_min = 10.
-        self.hitParam_alg2_thr = 3.
-        self.hitParam_alg2_r0 = 5.
+        self.hitParam_alg2_son_min = 1.
+        self.hitParam_alg2_thr = 10.
+        self.hitParam_alg2_r0 = 1.
         self.hitParam_alg2_dr = 0.05
         self.hitParam_alg3_npix_min = 5.
         self.hitParam_alg3_npix_max = 5000.
@@ -487,14 +487,14 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr, 'tip': "background region outside the region of interest"},
                 ]},
                 {'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
-                    {'name': hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
-                    {'name': hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
-                    {'name': hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
-                    {'name': hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+                    #{'name': hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                    #{'name': hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+                    #{'name': hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+                    #{'name': hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+                    #{'name': hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
                     {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
                     {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                    {'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
+                    #{'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
                 ]},
                 {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
