@@ -994,9 +994,12 @@ class MainFrame(QtGui.QWidget):
             print "userMask: ", self.userMask.shape
             if self.userMask is not None:
                 if self.userMask.size==2*185*388: # cspad2x2
+                    # DAQ shape
                     asData2x2 = two2x1ToData2x2(self.userMask)
                     np.save("mask.npy",asData2x2)
                     np.savetxt("mask.txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
+                    # Natural shape
+                    np.save("mask_natural_shape.npy",self.userMask)
                 else:
                     np.save("mask.npy",self.userMask)
                     np.savetxt("mask.txt", self.userMask.reshape((-1,self.userMask.shape[-1])) ,fmt='%0.18e')
