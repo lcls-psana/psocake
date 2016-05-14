@@ -471,7 +471,6 @@ class MainFrame(QtGui.QWidget):
                 {'name': hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks, 'tip': "Show peaks found shot-to-shot"},
                 {'name': hitParam_algorithm_str, 'type': 'list', 'values': {hitParam_algorithm4_str: 4,
                                                                             hitParam_algorithm3_str: 3,
-                                                                            hitParam_algorithm2_str: 2,
                                                                             hitParam_algorithm1_str: 1,
                                                                             hitParam_algorithm0_str: 0},
                                                                             'value': self.algorithm},
@@ -486,16 +485,16 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr, 'tip': "background region outside the region of interest"},
                 ]},
-                {'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    #{'name': hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
-                    #{'name': hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
-                    #{'name': hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
-                    #{'name': hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
-                    #{'name': hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
-                    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
-                    {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                    #{'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
-                ]},
+#                {'name': hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+#                    #{'name': hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+#                    #{'name': hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+#                    #{'name': hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+#                    #{'name': hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+#                    #{'name': hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+#                    {'name': hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
+#                    {'name': hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+#                    #{'name': hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
+#                ]},
                 {'name': hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
                     {'name': hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
@@ -990,7 +989,8 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
 
         def deployMask():
-            print "*** deploy user-defined mask as mask.txt and mask.npy ***"
+            print "*** deploy user-defined mask as mask.txt and mask.npy as DAQ shape ***"
+            print "*** deploy user-defined mask as mask_natural_shape.npy as natural shape ***"
             print "userMask: ", self.userMask.shape
             if self.userMask is not None:
                 if self.userMask.size==2*185*388: # cspad2x2
@@ -1359,6 +1359,7 @@ class MainFrame(QtGui.QWidget):
                 self.peak_feature.setData(cenX, cenY, symbol='s', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
+                print "number of peaks drawn: ", len(cenX)
             else:
                 self.peak_feature.setData([], [], pxMode=False)
         else:

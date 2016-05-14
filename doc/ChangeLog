@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-13
+2016-05-13 Chunhong Yoon
+- Removed peak finder v2
+
 Tag: V00-01-12
 2016-05-12 Christopher O'Grady
 - For cspad2x2 user masks, save both DAQ/natural shape arrays in npy files
