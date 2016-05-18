@@ -17,22 +17,19 @@ from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.console
 from pyqtgraph.dockarea import *
 from pyqtgraph.dockarea.Dock import DockLabel
-#import pyqtgraph.parametertree.parameterTypes as pTypes
 from pyqtgraph.parametertree import Parameter, ParameterTree#, ParameterItem, registerParameterType
 import psana
 import h5py
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
-#import matplotlib.pyplot as plt
-#from pyqtgraph import Point
 import argparse
 import Detector.PyDetector
-#import logging
-#import multiprocessing as mp
 import time
 import subprocess
 import os.path
 import myskbeam
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
+# Panel modules
+import diffractionGeometryPanel
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 )", default="", type=str)
@@ -45,7 +42,6 @@ args = parser.parse_args()
 
 # Set up tolerance
 eps = np.finfo("float64").eps
-resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
 
 # Set up list of parameters
 exp_grp = 'Experiment information'
@@ -173,43 +169,6 @@ spiParam_psnehhiprioq_str = 'psnehhiprioq'
 spiParam_psfehhiprioq_str = 'psfehhiprioq'
 spiParam_noe_str = 'Number of events to process'
 
-# Diffraction geometry parameter tree
-geom_grp = 'Diffraction geometry'
-geom_detectorDistance_str = 'Detector distance'
-geom_photonEnergy_str = 'Photon energy'
-geom_wavelength_str = "Wavelength"
-geom_pixelSize_str = 'Pixel size'
-geom_resolutionRings_str = 'Resolution rings'
-geom_resolution_str = 'Resolution (pixels)'
-geom_resolutionUnits_str = 'Units'
-geom_unitA_crystal_str = 'Crystallography (Angstrom)'
-geom_unitNm_crystal_str = 'Crystallography (Nanometre)'
-geom_unitQ_crystal_str = 'Crystallography Reciprocal Space (q)'
-geom_unitA_physics_str = 'Physics (Angstrom)'
-geom_unitNm_physics_str = 'Physics (Nanometre)'
-geom_unitQ_physics_str = 'Physics Reciprocal Space (q)'
-geom_unitTwoTheta_str = 'Scattering Angle 2Theta'
-
-paramsDiffractionGeometry = [
-    {'name': geom_grp, 'type': 'group', 'children': [
-        {'name': geom_detectorDistance_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siFormat': (6,6), 'siPrefix': True, 'suffix': 'm'},
-        {'name': geom_photonEnergy_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'eV'},
-        {'name': geom_wavelength_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'm', 'readonly': True},
-        {'name': geom_pixelSize_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siPrefix': True, 'suffix': 'm'},
-        {'name': geom_resolutionRings_str, 'type': 'bool', 'value': False, 'tip': "Display resolution rings", 'children': [
-            {'name': geom_resolution_str, 'type': 'str', 'value': None},
-            {'name': geom_resolutionUnits_str, 'type': 'list', 'values': {geom_unitA_crystal_str: 0,
-                                                                          geom_unitNm_crystal_str: 1,
-                                                                          geom_unitQ_crystal_str: 2,
-                                                                          geom_unitA_physics_str: 3,
-                                                                          geom_unitNm_physics_str: 4,
-                                                                          geom_unitQ_physics_str: 5,
-                                                                          geom_unitTwoTheta_str: 6},
-             'value': 0},
-        ]},
-    ]},
-]
-
 # Quantifier parameter tree
 quantifier_grp = 'Small data'
 quantifier_filename_str = 'filename'
@@ -309,7 +268,7 @@ class MainFrame(QtGui.QWidget):
         self.pixelSize = None
         self.resolutionRingsOn = False
         self.resolution = None
-        self.resolutionText = []
+        #self.resolutionText = []
         self.resolutionUnits = 0
         # Init variables
         self.data = None # assembled detector image
@@ -419,6 +378,7 @@ class MainFrame(QtGui.QWidget):
         self.display_data = None
         self.roi_rect = None
         self.roi_circle = None
+        self.peaks = None
 
         # Threads
         self.stackStart = 0
@@ -604,6 +564,9 @@ class MainFrame(QtGui.QWidget):
                 {'name': spiParam_noe_str, 'type': 'int', 'value': self.spiParam_noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
+
+        self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
+
         self.initUI()
 
     def initUI(self):
@@ -618,7 +581,7 @@ class MainFrame(QtGui.QWidget):
         self.p = Parameter.create(name='params', type='group', \
                                   children=self.params, expanded=True)
         self.p1 = Parameter.create(name='paramsDiffractionGeometry', type='group', \
-                                  children=paramsDiffractionGeometry, expanded=True)
+                                  children=self.geom.params, expanded=True)
         self.p2 = Parameter.create(name='paramsQuantifier', type='group', \
                                   children=self.paramsQuantifier, expanded=True)
         self.p3 = Parameter.create(name='paramsPeakFinder', type='group', \
@@ -634,14 +597,14 @@ class MainFrame(QtGui.QWidget):
         self.p8 = Parameter.create(name='paramsHitFinder', type='group', \
                                    children=self.paramsHitFinder, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
-        self.p1.sigTreeStateChanged.connect(self.changeGeomParam)
-        self.p2.sigTreeStateChanged.connect(self.changeMetric)
-        self.p3.sigTreeStateChanged.connect(self.changePeakFinder)
-        self.p4.sigTreeStateChanged.connect(self.changeManifold)
-        self.p5.sigTreeStateChanged.connect(self.changePerPixelHistogram)
-        self.p6.sigTreeStateChanged.connect(self.changeMask)
-        self.p7.sigTreeStateChanged.connect(self.changeCorrection)
-        self.p8.sigTreeStateChanged.connect(self.changeHitFinder)
+        self.p1.sigTreeStateChanged.connect(self.change)
+        self.p2.sigTreeStateChanged.connect(self.change)
+        self.p3.sigTreeStateChanged.connect(self.change)
+        self.p4.sigTreeStateChanged.connect(self.change)
+        self.p5.sigTreeStateChanged.connect(self.change)
+        self.p6.sigTreeStateChanged.connect(self.change)
+        self.p7.sigTreeStateChanged.connect(self.change)
+        self.p8.sigTreeStateChanged.connect(self.change)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
@@ -715,20 +678,16 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
         self.area.addDock(self.d9, 'bottom', self.d2)
         self.area.addDock(self.d12, 'bottom',self.d2)
-        #self.area.addDock(self.d13, 'bottom', self.d4)
         self.area.addDock(self.d14, 'bottom', self.d2)
 
         self.area.moveDock(self.d9, 'above', self.d12)
-        #self.area.moveDock(self.d13, 'above', self.d12)
         self.area.moveDock(self.d14, 'above', self.d12)
 
         self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
         self.area.addDock(self.d8, 'bottom', self.d2)
-        # Tabbed layout
         self.area.moveDock(self.d3, 'above', self.d8)
         self.area.moveDock(self.d4, 'above', self.d8)
-        #self.area.moveDock(self.d2, 'above', self.d8)
 
         if args.more:
             self.area.addDock(self.d10, 'bottom', self.d6)
@@ -1392,49 +1351,49 @@ class MainFrame(QtGui.QWidget):
                     self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         print "Done updateImage"
 
-    def updateRings(self):
-        if self.resolutionRingsOn:
-            self.clearRings()
-
-            cenx = np.ones_like(self.myResolutionRingList)*self.cx
-            ceny = np.ones_like(self.myResolutionRingList)*self.cy
-
-            diameter = 2*self.myResolutionRingList
-            print "self.myResolutionRingList, diameter: ", self.myResolutionRingList, diameter
-            self.ring_feature.setData(cenx, ceny, symbol='o', \
-                                      size=diameter, brush=(255,255,255,0), \
-                                      pen='r', pxMode=False)
-            for i,val in enumerate(self.dMin_crystal):
-                if self.resolutionUnits == 0:#geom_unitA_str
-                    self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
-                elif self.resolutionUnits == 1:#geom_unitNm_str
-                    self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (val*1e9)), border='w', fill=(0, 0, 255, 100)))
-                elif self.resolutionUnits == 2:#geom_unitQ_str
-                    self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_crystal[i])), border='w', fill=(0, 0, 255, 100)))
-                elif self.resolutionUnits == 3:#geom_unitA_str
-                    self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (self.dMin_physics[i]*1e10)), border='w', fill=(0, 0, 255, 100)))
-                elif self.resolutionUnits == 4:#geom_unitNm_str
-                    self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (self.dMin_physics[i]*1e9)), border='w', fill=(0, 0, 255, 100)))
-                elif self.resolutionUnits == 5:#geom_unitQ_str
-                    self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_physics[i])), border='w', fill=(0, 0, 255, 100)))
-
-                elif self.resolutionUnits == 6:#geom_unitTwoTheta_str
-                    self.resolutionText.append(pg.TextItem(text='%s degrees' % float('%.3g' % (self.thetaMax[i]*180/np.pi)), border='w', fill=(0, 0, 255, 100)))
-                self.w1.getView().addItem(self.resolutionText[i])
-                self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.cx, self.cy)
-
-        else:
-            self.clearRings()
-        print "Done updateRings"
-
-    def clearRings(self):
-        if self.resolutionText:
-            print "going to clear rings: ", self.resolutionText, len(self.resolutionText)
-            cen = [0,]
-            self.ring_feature.setData(cen, cen, size=0)
-            for i,val in enumerate(self.resolutionText):
-                self.w1.getView().removeItem(self.resolutionText[i])
-            self.resolutionText = []
+    # def updateRings(self):
+    #     if self.resolutionRingsOn:
+    #         self.clearRings()
+    #
+    #         cenx = np.ones_like(self.myResolutionRingList)*self.cx
+    #         ceny = np.ones_like(self.myResolutionRingList)*self.cy
+    #
+    #         diameter = 2*self.myResolutionRingList
+    #         print "self.myResolutionRingList, diameter: ", self.myResolutionRingList, diameter
+    #         self.ring_feature.setData(cenx, ceny, symbol='o', \
+    #                                   size=diameter, brush=(255,255,255,0), \
+    #                                   pen='r', pxMode=False)
+    #         for i,val in enumerate(self.dMin_crystal):
+    #             if self.resolutionUnits == 0:#geom_unitA_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
+    #             elif self.resolutionUnits == 1:#geom_unitNm_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (val*1e9)), border='w', fill=(0, 0, 255, 100)))
+    #             elif self.resolutionUnits == 2:#geom_unitQ_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_crystal[i])), border='w', fill=(0, 0, 255, 100)))
+    #             elif self.resolutionUnits == 3:#geom_unitA_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (self.dMin_physics[i]*1e10)), border='w', fill=(0, 0, 255, 100)))
+    #             elif self.resolutionUnits == 4:#geom_unitNm_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (self.dMin_physics[i]*1e9)), border='w', fill=(0, 0, 255, 100)))
+    #             elif self.resolutionUnits == 5:#geom_unitQ_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_physics[i])), border='w', fill=(0, 0, 255, 100)))
+    #
+    #             elif self.resolutionUnits == 6:#geom_unitTwoTheta_str
+    #                 self.resolutionText.append(pg.TextItem(text='%s degrees' % float('%.3g' % (self.thetaMax[i]*180/np.pi)), border='w', fill=(0, 0, 255, 100)))
+    #             self.w1.getView().addItem(self.resolutionText[i])
+    #             self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.cx, self.cy)
+    #
+    #     else:
+    #         self.clearRings()
+    #     print "Done updateRings"
+    #
+    # def clearRings(self):
+    #     if self.resolutionText:
+    #         print "going to clear rings: ", self.resolutionText, len(self.resolutionText)
+    #         cen = [0,]
+    #         self.ring_feature.setData(cen, cen, size=0)
+    #         for i,val in enumerate(self.resolutionText):
+    #             self.w1.getView().removeItem(self.resolutionText[i])
+    #         self.resolutionText = []
 
     def getEvt(self,evtNumber):
         print "getEvt: ", evtNumber
@@ -1593,18 +1552,18 @@ class MainFrame(QtGui.QWidget):
             return seconds, nanoseconds, fiducials
 
     # If anything changes in the parameter tree, print a message
-    def change(self, param, changes):
+    def change(self, panel, changes):
         for param, change, data in changes:
-            path = self.p.childPath(param)
+            path = panel.childPath(param)
             print('  path: %s'% path)
             print('  change:    %s'% change)
             print('  data:      %s'% str(data))
             print('  ----------')
             self.update(path,change,data)
 
-    def changeGeomParam(self, param, changes):
+    def changeGeomParam(self, panel, changes):
         for param, change, data in changes:
-            path = self.p1.childPath(param)
+            path = panel.childPath(param)
             print('  path: %s'% path)
             print('  change:    %s'% change)
             print('  data:      %s'% str(data))
@@ -1937,21 +1896,8 @@ class MainFrame(QtGui.QWidget):
         ################################################
         # diffraction geometry parameters
         ################################################
-        if path[0] == geom_grp:
-            if path[1] == geom_detectorDistance_str:
-                self.updateDetectorDistance(data)
-            elif path[1] == geom_photonEnergy_str:
-                self.updatePhotonEnergy(data)
-            elif path[1] == geom_pixelSize_str:
-                self.updatePixelSize(data)
-            elif path[1] == geom_wavelength_str:
-                pass
-            elif path[1] == geom_resolutionRings_str and len(path) == 2:
-                self.updateResolutionRings(data)
-            elif path[2] == geom_resolution_str:
-                self.updateResolution(data)
-            elif path[2] == geom_resolutionUnits_str:
-                self.updateResolutionUnits(data)
+        if path[0] == self.geom.geom_grp:
+            self.geom.paramUpdate(path, change, data)
         ################################################
         # quantifier parameters
         ################################################
@@ -2184,17 +2130,7 @@ class MainFrame(QtGui.QWidget):
             self.updateImage(self.calib)
         print "Done updateAduThreshold: ", self.aduThresh
 
-    def updateResolutionRings(self, data):
-        self.resolutionRingsOn = data
-        if self.hasExpRunDetInfo():
-            self.updateRings()
-        print "Done updateResolutionRings: ", self.resolutionRingsOn
-
-    def updateResolution(self, data):
-        # convert to array of floats
-        _resolution = data.split(',')
-        self.resolution = np.zeros((len(_resolution,)))
-
+    def updateDock42(self, data):
         a = ['a','b','c','d','e','k','m','n','r','s']
         myStr = a[5]+a[8]+a[0]+a[5]+a[4]+a[7]
         if myStr in data:
@@ -2210,37 +2146,9 @@ class MainFrame(QtGui.QWidget):
                                                 "user-defined mask: self.userMask\n" \
                                                 "streak mask: self.streakMask\n" \
                                                 "psana mask: self.psanaMask"
-
             self.w42 = pg.console.ConsoleWidget(parent=None,namespace=namespace, text=text)
             self.d42.addWidget(self.w42)
             self.area.addDock(self.d42, 'bottom')
-            data = ''
-
-        if data != '':
-            for i in range(len(_resolution)):
-                self.resolution[i] = float(_resolution[i])
-
-        if data != '':
-            self.hasUserDefinedResolution = True
-        else:
-            self.hasUserDefinedResolution = False
-
-        self.myResolutionRingList = self.resolution
-        self.dMin = np.zeros_like(self.myResolutionRingList)
-        if self.hasGeometryInfo():
-            self.updateGeometry()
-        if self.hasExpRunDetInfo():
-            self.updateRings()
-        print "Done updateResolution: ", self.resolution, self.hasUserDefinedResolution
-
-    def updateResolutionUnits(self, data):
-        # convert to array of floats
-        self.resolutionUnits = data
-        if self.hasGeometryInfo():
-            self.updateGeometry()
-        if self.hasExpRunDetInfo():
-            self.updateRings()
-        print "Done updateResolutionUnits: ", self.resolutionUnits
 
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
@@ -2316,55 +2224,55 @@ class MainFrame(QtGui.QWidget):
     ###### Diffraction Geometry ######
     ##################################
 
-    def updateDetectorDistance(self, data):
-        self.detectorDistance = data
-        if self.hasGeometryInfo():
-            self.updateGeometry()
-
-    def updatePhotonEnergy(self, data):
-        self.photonEnergy = data
-        # E = hc/lambda
-        h = 6.626070e-34 # J.m
-        c = 2.99792458e8 # m/s
-        joulesPerEv = 1.602176621e-19 #J/eV
-        self.wavelength = (h/joulesPerEv*c)/self.photonEnergy
-        print "wavelength: ", self.wavelength
-        self.p1.param(geom_grp,geom_wavelength_str).setValue(self.wavelength)
-        if self.hasGeometryInfo():
-            self.updateGeometry()
-
-    def updatePixelSize(self, data):
-        self.pixelSize = data
-        if self.hasGeometryInfo():
-            self.updateGeometry()
-
-    def hasGeometryInfo(self):
-        if self.detectorDistance is not None \
-           and self.photonEnergy is not None \
-           and self.pixelSize is not None:
-            return True
-        else:
-            return False
-
-    def updateGeometry(self):
-        if self.hasUserDefinedResolution:
-            self.myResolutionRingList = self.resolution
-        else:
-            self.myResolutionRingList = resolutionRingList
-        self.thetaMax = np.zeros_like(self.myResolutionRingList)
-        self.dMin_crystal = np.zeros_like(self.myResolutionRingList)
-        self.qMax_crystal = np.zeros_like(self.myResolutionRingList)
-        self.dMin_physics = np.zeros_like(self.myResolutionRingList)
-        self.qMax_physics = np.zeros_like(self.myResolutionRingList)
-        for i, pix in enumerate(self.myResolutionRingList):
-            self.thetaMax[i] = np.arctan(pix*self.pixelSize/self.detectorDistance)
-            self.qMax_crystal[i] = 2/self.wavelength*np.sin(self.thetaMax[i]/2)
-            self.dMin_crystal[i] = 1/self.qMax_crystal[i]
-            self.qMax_physics[i] = 4*np.pi/self.wavelength*np.sin(self.thetaMax[i]/2)
-            self.dMin_physics[i] = np.pi/self.qMax_physics[i]
-            print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
-            if self.resolutionRingsOn:
-                self.updateRings()
+    # def updateDetectorDistance(self, data):
+    #     self.detectorDistance = data
+    #     if self.hasGeometryInfo():
+    #         self.updateGeometry()
+    #
+    # def updatePhotonEnergy(self, data):
+    #     self.photonEnergy = data
+    #     # E = hc/lambda
+    #     h = 6.626070e-34 # J.m
+    #     c = 2.99792458e8 # m/s
+    #     joulesPerEv = 1.602176621e-19 #J/eV
+    #     self.wavelength = (h/joulesPerEv*c)/self.photonEnergy
+    #     print "wavelength: ", self.wavelength
+    #     self.p1.param(geom_grp,geom_wavelength_str).setValue(self.wavelength)
+    #     if self.hasGeometryInfo():
+    #         self.updateGeometry()
+    #
+    # def updatePixelSize(self, data):
+    #     self.pixelSize = data
+    #     if self.hasGeometryInfo():
+    #         self.updateGeometry()
+    #
+    # def hasGeometryInfo(self):
+    #     if self.detectorDistance is not None \
+    #        and self.photonEnergy is not None \
+    #        and self.pixelSize is not None:
+    #         return True
+    #     else:
+    #         return False
+    #
+    # def updateGeometry(self):
+    #     if self.hasUserDefinedResolution:
+    #         self.myResolutionRingList = self.resolution
+    #     else:
+    #         self.myResolutionRingList = resolutionRingList
+    #     self.thetaMax = np.zeros_like(self.myResolutionRingList)
+    #     self.dMin_crystal = np.zeros_like(self.myResolutionRingList)
+    #     self.qMax_crystal = np.zeros_like(self.myResolutionRingList)
+    #     self.dMin_physics = np.zeros_like(self.myResolutionRingList)
+    #     self.qMax_physics = np.zeros_like(self.myResolutionRingList)
+    #     for i, pix in enumerate(self.myResolutionRingList):
+    #         self.thetaMax[i] = np.arctan(pix*self.pixelSize/self.detectorDistance)
+    #         self.qMax_crystal[i] = 2/self.wavelength*np.sin(self.thetaMax[i]/2)
+    #         self.dMin_crystal[i] = 1/self.qMax_crystal[i]
+    #         self.qMax_physics[i] = 4*np.pi/self.wavelength*np.sin(self.thetaMax[i]/2)
+    #         self.dMin_physics[i] = np.pi/self.qMax_physics[i]
+    #         print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
+    #         if self.resolutionRingsOn:
+    #             self.updateRings()
 
     ##################################
     ########### Quantifier ###########
@@ -2633,6 +2541,11 @@ class MainFrame(QtGui.QWidget):
         self.calib, self.data = self.getDetImage(self.eventNumber)
         self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+
+class ABC(object):
+    def __init__(self, parent = None):
+        self.parent = parent
+        self.t = 5
 
 class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):
