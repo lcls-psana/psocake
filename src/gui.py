@@ -369,12 +369,12 @@ class MainFrame(QtGui.QWidget):
         self.streak_sigma = 1
         self.streak_width = 250
         self.psanaMaskOn = False
-        self.mask_calibOn = False
-        self.mask_statusOn = False
-        self.mask_edgesOn = False
-        self.mask_centralOn = False
-        self.mask_unbondOn = False
-        self.mask_unbondnrsOn = False
+        self.mask_calibOn = True
+        self.mask_statusOn = True
+        self.mask_edgesOn = True
+        self.mask_centralOn = True
+        self.mask_unbondOn = True
+        self.mask_unbondnrsOn = True
         self.display_data = None
         self.roi_rect = None
         self.roi_circle = None
@@ -498,12 +498,12 @@ class MainFrame(QtGui.QWidget):
                 {'name': quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
             ]},
         ]
-        self.paramsPerPixelHistogram = [
-            {'name': perPixelHistogram_grp, 'type': 'group', 'children': [
-                {'name': perPixelHistogram_filename_str, 'type': 'str', 'value': self.perPixelHistogram_filename, 'tip': "Full path Hdf5 filename"},
-                {'name': perPixelHistogram_adu_str, 'type': 'float', 'value': self.perPixelHistogram_adu, 'tip': "histogram value at this adu"},
-            ]},
-        ]
+        #self.paramsPerPixelHistogram = [
+        #    {'name': perPixelHistogram_grp, 'type': 'group', 'children': [
+        #        {'name': perPixelHistogram_filename_str, 'type': 'str', 'value': self.perPixelHistogram_filename, 'tip': "Full path Hdf5 filename"},
+        #        {'name': perPixelHistogram_adu_str, 'type': 'float', 'value': self.perPixelHistogram_adu, 'tip': "histogram value at this adu"},
+        #    ]},
+        #]
         self.paramsManifold = [
             {'name': manifold_grp, 'type': 'group', 'children': [
                 {'name': manifold_filename_str, 'type': 'str', 'value': self.manifold_filename, 'tip': "Full path Hdf5 filename"},
@@ -588,8 +588,8 @@ class MainFrame(QtGui.QWidget):
                                   children=self.paramsPeakFinder, expanded=True)
         self.p4 = Parameter.create(name='paramsManifold', type='group', \
                                   children=self.paramsManifold, expanded=True)
-        self.p5 = Parameter.create(name='paramsPerPixelHistogram', type='group', \
-                                  children=self.paramsPerPixelHistogram, expanded=True)
+        #self.p5 = Parameter.create(name='paramsPerPixelHistogram', type='group', \
+        #                          children=self.paramsPerPixelHistogram, expanded=True)
         self.p6 = Parameter.create(name='paramsMask', type='group', \
                                   children=self.paramsMask, expanded=True)
         self.p7 = Parameter.create(name='paramsCorrection', type='group', \
@@ -601,7 +601,7 @@ class MainFrame(QtGui.QWidget):
         self.p2.sigTreeStateChanged.connect(self.change)
         self.p3.sigTreeStateChanged.connect(self.change)
         self.p4.sigTreeStateChanged.connect(self.change)
-        self.p5.sigTreeStateChanged.connect(self.change)
+        #self.p5.sigTreeStateChanged.connect(self.change)
         self.p6.sigTreeStateChanged.connect(self.change)
         self.p7.sigTreeStateChanged.connect(self.change)
         self.p8.sigTreeStateChanged.connect(self.change)
@@ -866,13 +866,17 @@ class MainFrame(QtGui.QWidget):
         self.d12.addWidget(self.w17)
         self.w18 = pg.LayoutWidget()
         self.maskRectBtn = QtGui.QPushButton('mask rectangular ROI')
-        self.w18.addWidget(self.maskRectBtn, row=0, col=0)
+        self.w18.addWidget(self.maskRectBtn, row=0, col=0, colspan=2)
         self.maskCircleBtn = QtGui.QPushButton('mask circular ROI')
-        self.w18.addWidget(self.maskCircleBtn, row=1, col=0)
+        self.w18.addWidget(self.maskCircleBtn, row=1, col=0, colspan=2)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.deployMaskBtn.setText('Save user-defined mask')
         self.w18.addWidget(self.deployMaskBtn, row=2, col=0)
+        self.loadMaskBtn = QtGui.QPushButton()
+        self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
+        self.loadMaskBtn.setText('Load user-defined mask')
+        self.w18.addWidget(self.loadMaskBtn, row=2, col=1)
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
@@ -965,6 +969,13 @@ class MainFrame(QtGui.QWidget):
             else:
                 print "user mask is not defined"
         self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), deployMask)
+
+        def loadMask():
+            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
+            print "fname: ", fname, fname.split('.')[-1]
+            self.userMask = np.load(fname)
+            self.updateImage(self.calib)
+        self.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), loadMask)
 
         ###############
         ### Threads ###
@@ -1561,77 +1572,77 @@ class MainFrame(QtGui.QWidget):
             print('  ----------')
             self.update(path,change,data)
 
-    def changeGeomParam(self, panel, changes):
-        for param, change, data in changes:
-            path = panel.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changeGeomParam(self, panel, changes):
+    #    for param, change, data in changes:
+    #        path = panel.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changeMetric(self, param, changes):
-        for param, change, data in changes:
-            path = self.p2.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changeMetric(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p2.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changePeakFinder(self, param, changes):
-        for param, change, data in changes:
-            path = self.p3.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changePeakFinder(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p3.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changeManifold(self, param, changes):
-        for param, change, data in changes:
-            path = self.p4.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changeManifold(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p4.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changePerPixelHistogram(self, param, changes):
-        for param, change, data in changes:
-            path = self.p5.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changePerPixelHistogram(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p5.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changeMask(self, param, changes):
-        for param, change, data in changes:
-            path = self.p6.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changeMask(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p6.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changeCorrection(self, param, changes):
-        for param, change, data in changes:
-            path = self.p6.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changeCorrection(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p6.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
-    def changeHitFinder(self, param, changes):
-        for param, change, data in changes:
-            path = self.p8.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
-            self.update(path,change,data)
+    #def changeHitFinder(self, param, changes):
+    #    for param, change, data in changes:
+    #        path = self.p8.childPath(param)
+    #        print('  path: %s'% path)
+    #        print('  change:    %s'% change)
+    #        print('  data:      %s'% str(data))
+    #        print('  ----------')
+    #        self.update(path,change,data)
 
     def update(self, path, change, data):
         print "path: ", path
@@ -2298,12 +2309,12 @@ class MainFrame(QtGui.QWidget):
             try:
                 if self.quantifier_dataset[0] == '/': # dataset starts with "/"
                     self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
-                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
                 else: # dataset does not start with "/"
                     self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
-                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
             except:
                 print "Couldn't find /event dataset"
+                self.quantifierEvent = np.arange(len(self.quantifierMetric))
 
             print "Done reading metric"
 
@@ -2313,12 +2324,11 @@ class MainFrame(QtGui.QWidget):
             if self.quantifier_sort is True:
                 self.quantifierInd = np.argsort(self.quantifierFile[self.quantifier_dataset].value)
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value[self.quantifierInd]
-                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value#[self.quantifierInd]
                 self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
             else:
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
-                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+#                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
                 self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
         print "metric: ", self.quantifierMetric
         print "ind: ", self.quantifierInd
@@ -2710,7 +2720,7 @@ class PeakFinder(QtCore.QThread):
         for run in runsToDo:
             cmd = "bsub -q "+self.parent.hitParam_queue+\
               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o .%J.log findPeaks -e "+self.experimentName+\
+              " -o .%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
               " -r "+str(run)+" -d "+self.detInfo+\
               " --outDir "+str(self.parent.hitParam_outDir)+\
               " --algorithm "+str(self.parent.algorithm)

@@ -80,6 +80,8 @@ class PeakFinder:
             self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
+        self.maxNumPeaks = 2048
+
     def findPeaks(self,calib):
         if self.streakMask_sigma is not 0: # make new streak mask
             self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streakMask_width,sigma=self.streakMask_sigma)
@@ -89,11 +91,8 @@ class PeakFinder:
             else:
                 self.combinedMask = self.streakMask
 
-            self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
-            # set peak-selector parameters:
-            self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-                                        amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-                                        son_min=self.son_min)
+            # set new mask
+            self.alg.set_mask(self.combinedMask)
 
             # set algorithm specific parameters
             if self.algorithm == 1:
@@ -112,6 +111,10 @@ class PeakFinder:
     def savePeaks(self,myHdf5,ind):
         if "cxi" in self.exp:
             nPeaks = self.peaks.shape[0]
+            print "Number of peaks found: ", nPeaks
+            if nPeaks > self.maxNumPeaks:
+                self.peaks = self.peaks[:self.maxNumPeaks]
+                nPeaks = self.peaks.shape[0]
             for i,peak in enumerate(self.peaks):
                 seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
                 cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
@@ -185,7 +188,7 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
             if detarr is None:
                 print '*** failed to get detarr'
                 continue
-            # Run hit finding
+            # Initialize hit finding
             if not hasattr(d,'peakFinder'):
                 if args.algorithm == 1:
                     d.peakFinder = PeakFinder(env.experiment(),evt.run(),d.detname,evt,d,
@@ -236,13 +239,14 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
                                               psanaMask_central=args.psanaMask_central,
                                               psanaMask_unbond=args.psanaMask_unbond,
                                               psanaMask_unbondnrs=args.psanaMask_unbondnrs)
+            # Run hit finding
             tic2 = time.time()
             d.peakFinder.findPeaks(detarr)
             tic3 = time.time()
             d.peakFinder.savePeaks(myHdf5,ind[i])
             toc = time.time()
 
-            print "calib,findPeaks,savePeaks: ", tic1-tic, tic3-tic2, toc-tic3
+            print "Time for calib,findPeaks,savePeaks: ", tic1-tic, tic3-tic2, toc-tic3
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-e','--exp', help="experiment name (e.g. cxic0415)", type=str)
@@ -279,6 +283,7 @@ parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default=False, type=bool)
 args = parser.parse_args()
 
+maxNumPeaks = 2048
 experimentName = args.exp
 runNumber = args.run
 
@@ -343,9 +348,9 @@ if grpName in myHdf5:
     del myHdf5[grpName]
 grp = myHdf5.create_group(grpName)
 myHdf5.create_dataset(grpName+dset_nPeaks, (numJobs,), dtype='int')
-myHdf5.create_dataset(grpName+dset_posX, (numJobs,2048), dtype='float32', chunks=(1,2048))
-myHdf5.create_dataset(grpName+dset_posY, (numJobs,2048), dtype='float32', chunks=(1,2048))
-myHdf5.create_dataset(grpName+dset_atot, (numJobs,2048), dtype='float32', chunks=(1,2048))
+myHdf5.create_dataset(grpName+dset_posX, (numJobs,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+myHdf5.create_dataset(grpName+dset_posY, (numJobs,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+myHdf5.create_dataset(grpName+dset_atot, (numJobs,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
 findPeaksForMyChunk(myHdf5,ind,mytimes,single=False)
 myHdf5.close()
 
