@@ -12,12 +12,13 @@ class CrystalIndexing(object):
 
         self.index_grp = 'Crystal indexing'
         self.index_on_str = 'Indexing on'
-        #self.index_geom_str = 'CrystFEL geometry'
+        self.index_geom_str = 'CrystFEL geometry'
         self.index_intRadius_str = 'Integration radii'
         self.index_pdb_str = 'PDB'
         self.index_method_str = 'Indexing method'
 
         self.indexingOn = False
+        self.geom = ''
         self.intRadius = '2,3,4'
         self.pdb = ''
         self.indexingMethod = 'dirax-axes-latt'
@@ -28,7 +29,7 @@ class CrystalIndexing(object):
         self.params = [
             {'name': self.index_grp, 'type': 'group', 'children': [
                 {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
-                #{'name': self.index_geom_str, 'type': 'str', 'value': '', 'tip': "Turn on indexing"},
+                {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "Turn on indexing"},
                 {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Turn on indexing"},
                 {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "Turn on indexing"},
                 {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "Turn on indexing"},
@@ -44,6 +45,8 @@ class CrystalIndexing(object):
         if path[1] == self.index_on_str:
             print "Got here"
             self.updateIndexStatus(data)
+        elif path[1] == self.index_geom_str:
+            self.updateGeom(data)
         elif path[1] == self.index_intRadius_str:
             self.updateIntegrationRadius(data)
         elif path[1] == self.index_pdb_str:
@@ -57,6 +60,11 @@ class CrystalIndexing(object):
         if self.indexingOn:
             self.updateIndex()
         print "Done updateIndexStatus"
+
+    def updateGeom(self, data):
+        self.geom = data
+        if self.indexingOn:
+            self.updateIndex()
 
     def updateIntegrationRadius(self, data):
         self.intRadius = data
@@ -76,7 +84,7 @@ class CrystalIndexing(object):
     def updateIndex(self):
         self.indexer = IndexHandler(parent=self.parent)
         self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
-                                  self.parent.eventNumber, self.intRadius, self.pdb, self.indexingMethod)
+                                  self.parent.eventNumber, self.geom, self.intRadius, self.pdb, self.indexingMethod)
         print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -88,21 +96,27 @@ class IndexHandler(QtCore.QThread):
         self.runNumber = None
         self.detInfo = None
         self.eventNumber = None
+        self.geom = None
+        self.intRadius = None
+        self.pdb = None
+        self.indexingMethod = None
 
     def __del__(self):
         print "del IndexHandler #$!@#$!#"
         self.exiting = True
         self.wait()
 
-    def computeIndex(self,experimentName,runNumber,detInfo,eventNumber,intRadius, pdb, indexingMethod):
+    def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, intRadius, pdb, indexingMethod):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.eventNumber = eventNumber
+        self.geom = geom
         self.intRadius = intRadius
         self.pdb = pdb
         self.indexingMethod = indexingMethod
-        self.start()
+        if self.geom is not '':
+            self.start()
 
     def run(self):
         print "Running indexing!!!!!!!!!!!!"
@@ -110,7 +124,8 @@ class IndexHandler(QtCore.QThread):
         # Run crystfel dirax
         # Load indexed peak positions
 
-        cmd = "indexamajig -j 1 -i .temp.lst -g .temp.geom --peaks=cxi --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o .temp.stream"
+        # FIXME: convert psana geom to crystfel geom
+        cmd = "indexamajig -j 1 -i .temp.lst -g "+self.geom+" --peaks=cxi --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o .temp.stream"
         if self.pdb is not '':
             cmd += " --pdb="+self.pdb
 
