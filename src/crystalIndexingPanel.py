@@ -12,15 +12,29 @@ class CrystalIndexing(object):
 
         self.index_grp = 'Crystal indexing'
         self.index_on_str = 'Indexing on'
+        #self.index_geom_str = 'CrystFEL geometry'
+        self.index_intRadius_str = 'Integration radii'
+        self.index_pdb_str = 'PDB'
+        self.index_method_str = 'Indexing method'
+
+        self.indexingOn = False
+        self.intRadius = '2,3,4'
+        self.pdb = ''
+        self.indexingMethod = 'dirax-axes-latt'
 
         #######################
         # Mandatory parameter #
         #######################
         self.params = [
             {'name': self.index_grp, 'type': 'group', 'children': [
-                {'name': self.index_on_str, 'type': 'bool', 'value': False, 'tip': "Turn on indexing"}
+                {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
+                #{'name': self.index_geom_str, 'type': 'str', 'value': '', 'tip': "Turn on indexing"},
+                {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Turn on indexing"},
+                {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "Turn on indexing"},
+                {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "Turn on indexing"},
             ]},
         ]
+#-g .temp.geom --peaks=cxi --int-radius=2,3,4 --pdb=lys.cell --indexing=dirax-axes-latt
 
     ##############################
     # Mandatory parameter update #
@@ -30,6 +44,12 @@ class CrystalIndexing(object):
         if path[1] == self.index_on_str:
             print "Got here"
             self.updateIndexStatus(data)
+        elif path[1] == self.index_intRadius_str:
+            self.updateIntegrationRadius(data)
+        elif path[1] == self.index_pdb_str:
+            self.updatePDB(data)
+        elif path[1] == self.index_method_str:
+            self.updateIndexingMethod(data)
 
     def updateIndexStatus(self, data):
         self.indexingOn = data
@@ -38,9 +58,25 @@ class CrystalIndexing(object):
             self.updateIndex()
         print "Done updateIndexStatus"
 
+    def updateIntegrationRadius(self, data):
+        self.intRadius = data
+        if self.indexingOn:
+            self.updateIndex()
+
+    def updatePDB(self, data):
+        self.pdb = data
+        if self.indexingOn:
+            self.updateIndex()
+
+    def updateIndexingMethod(self, data):
+        self.indexingMethod = data
+        if self.indexingOn:
+            self.updateIndex()
+
     def updateIndex(self):
         self.indexer = IndexHandler(parent=self.parent)
-        self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo, self.parent.eventNumber)
+        self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
+                                  self.parent.eventNumber, self.intRadius, self.pdb, self.indexingMethod)
         print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -58,11 +94,14 @@ class IndexHandler(QtCore.QThread):
         self.exiting = True
         self.wait()
 
-    def computeIndex(self,experimentName,runNumber,detInfo,eventNumber):
+    def computeIndex(self,experimentName,runNumber,detInfo,eventNumber,intRadius, pdb, indexingMethod):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.eventNumber = eventNumber
+        self.intRadius = intRadius
+        self.pdb = pdb
+        self.indexingMethod = indexingMethod
         self.start()
 
     def run(self):
@@ -71,8 +110,9 @@ class IndexHandler(QtCore.QThread):
         # Run crystfel dirax
         # Load indexed peak positions
 
-        #cmd = "bsub -q psanaq -a mympi -o .%J.log " \
-        cmd = "indexamajig -j 1 -i .temp.lst -g .temp.geom --peaks=cxi --int-radius=2,3,4 --pdb=lys.cell --indexing=dirax-axes-latt -o .temp.stream"
+        cmd = "indexamajig -j 1 -i .temp.lst -g .temp.geom --peaks=cxi --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o .temp.stream"
+        if self.pdb is not '':
+            cmd += " --pdb="+self.pdb
 
         print "Submitting batch job: ", cmd
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
