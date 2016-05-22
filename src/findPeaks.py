@@ -19,7 +19,6 @@ class PeakFinder:
         self.exp = exp
         self.run = run
         self.detname = detname
-        self.evt = evt
         self.det = detector
         self.algorithm = algorithm
 
@@ -52,7 +51,7 @@ class PeakFinder:
 
         # Combine userMask and psanaMask
         if self.userMask is not None or self.psanaMask is not None:
-            self.userPsanaMask = np.ones_like(self.det.calib(self.evt))
+            self.userPsanaMask = np.ones_like(self.det.calib(evt))
         if self.userMask is not None:
             self.userPsanaMask *= self.userMask
         if self.psanaMask is not None:
@@ -81,19 +80,21 @@ class PeakFinder:
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
         self.maxNumPeaks = 2048
+        self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
 
-    def findPeaks(self,calib):
+    def findPeaks(self,calib, evt):
         if self.streakMask_sigma is not 0: # make new streak mask
-            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streakMask_width,sigma=self.streakMask_sigma)
-            
+            tic = time.time()
+            self.streakMask = self.StreakMask.getStreakMaskCalib(evt) #myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streakMask_width,sigma=self.streakMask_sigma)
+            tic1 = time.time()
             if self.userPsanaMask is not None:
                 self.combinedMask = self.userPsanaMask * self.streakMask
             else:
                 self.combinedMask = self.streakMask
-
+            tic2 = time.time()
             # set new mask
             self.alg.set_mask(self.combinedMask)
-
+            tic3 = time.time()
             # set algorithm specific parameters
             if self.algorithm == 1:
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
@@ -107,6 +108,8 @@ class PeakFinder:
                 #                            around pixel with maximal intensity.
                 self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
                                        rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
+            tic4 = time.time()
+            print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
 
     def savePeaks(self,myHdf5,ind):
         if "cxi" in self.exp:
@@ -241,12 +244,12 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
                                               psanaMask_unbondnrs=args.psanaMask_unbondnrs)
             # Run hit finding
             tic2 = time.time()
-            d.peakFinder.findPeaks(detarr)
+            d.peakFinder.findPeaks(detarr,evt)
             tic3 = time.time()
             d.peakFinder.savePeaks(myHdf5,ind[i])
             toc = time.time()
 
-            print "Time for calib,findPeaks,savePeaks: ", tic1-tic, tic3-tic2, toc-tic3
+            print "Time for ind,calib,findPeaks,savePeaks: ", ind[i], tic1-tic, tic3-tic2, toc-tic3
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-e','--exp', help="experiment name (e.g. cxic0415)", type=str)

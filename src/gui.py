@@ -30,6 +30,7 @@ import myskbeam
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 # Panel modules
 import diffractionGeometryPanel
+import crystalIndexingPanel
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 )", default="", type=str)
@@ -280,6 +281,7 @@ class MainFrame(QtGui.QWidget):
         self.userMask = None # user-defined mask
         self.userMaskAssem = None
         self.streakMask = None # jet streak mask
+        self.StreakMask = None # streak mask class
         self.streakMaskAssem = None
         self.combinedMask = None # combined mask
         self.gapAssemInd = None
@@ -289,6 +291,7 @@ class MainFrame(QtGui.QWidget):
         self.classify = False
 
         self.showPeaks = True
+        self.peaks = None
         self.hitParam_alg1_npix_min = 1.
         self.hitParam_alg1_npix_max = 45.
         self.hitParam_alg1_amax_thr = 250.
@@ -330,6 +333,18 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_queue = hitParam_psanaq_str
         self.hitParam_cpus = 32
         self.hitParam_noe = 0
+
+        # Indexing
+        self.showIndexedPeaks = True
+        self.indexedPeaks = None
+        self.hiddenCXI = '.temp.cxi'
+        self.hiddenCrystfelStream = '.temp.stream'
+        #self.hiddenCrystfelList = '.temp.lst'
+        #self.hiddenCrystfelGeom = '.temp.geom'
+        if os.path.isfile(self.hiddenCXI): os.remove(self.hiddenCXI)
+        if os.path.isfile(self.hiddenCrystfelStream): os.remove(self.hiddenCrystfelStream)
+        #if os.path.isfile(self.hiddenCrystfelList): os.remove(self.hiddenCrystfelList)
+        #if os.path.isfile(self.hiddenCrystfelGeom): os.remove(self.hiddenCrystfelGeom)
 
         # Init hit finding
         self.spiAlgorithm = 1
@@ -378,7 +393,6 @@ class MainFrame(QtGui.QWidget):
         self.display_data = None
         self.roi_rect = None
         self.roi_circle = None
-        self.peaks = None
 
         # Threads
         self.stackStart = 0
@@ -498,12 +512,6 @@ class MainFrame(QtGui.QWidget):
                 {'name': quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
             ]},
         ]
-        #self.paramsPerPixelHistogram = [
-        #    {'name': perPixelHistogram_grp, 'type': 'group', 'children': [
-        #        {'name': perPixelHistogram_filename_str, 'type': 'str', 'value': self.perPixelHistogram_filename, 'tip': "Full path Hdf5 filename"},
-        #        {'name': perPixelHistogram_adu_str, 'type': 'float', 'value': self.perPixelHistogram_adu, 'tip': "histogram value at this adu"},
-        #    ]},
-        #]
         self.paramsManifold = [
             {'name': manifold_grp, 'type': 'group', 'children': [
                 {'name': manifold_filename_str, 'type': 'str', 'value': self.manifold_filename, 'tip': "Full path Hdf5 filename"},
@@ -565,7 +573,9 @@ class MainFrame(QtGui.QWidget):
             ]},
         ]
 
+        # Instantiate panels
         self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
+        self.index = crystalIndexingPanel.CrystalIndexing(self)
 
         self.initUI()
 
@@ -596,6 +606,8 @@ class MainFrame(QtGui.QWidget):
                                    children=self.paramsCorrection, expanded=True)
         self.p8 = Parameter.create(name='paramsHitFinder', type='group', \
                                    children=self.paramsHitFinder, expanded=True)
+        self.p9 = Parameter.create(name='paramsCrystalIndexing', type='group', \
+                                   children=self.index.params, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.change)
         self.p2.sigTreeStateChanged.connect(self.change)
@@ -605,6 +617,7 @@ class MainFrame(QtGui.QWidget):
         self.p6.sigTreeStateChanged.connect(self.change)
         self.p7.sigTreeStateChanged.connect(self.change)
         self.p8.sigTreeStateChanged.connect(self.change)
+        self.p9.sigTreeStateChanged.connect(self.change)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
@@ -622,6 +635,7 @@ class MainFrame(QtGui.QWidget):
         self.d12 = Dock("Mask Panel", size=(1, 1))
         self.d13 = Dock("Detector Correction", size=(1, 1))
         self.d14 = Dock("Hit Finder", size=(1, 1))
+        self.d15 = Dock("Indexing", size=(1, 1))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -679,9 +693,10 @@ class MainFrame(QtGui.QWidget):
         self.area.addDock(self.d9, 'bottom', self.d2)
         self.area.addDock(self.d12, 'bottom',self.d2)
         self.area.addDock(self.d14, 'bottom', self.d2)
-
+        self.area.addDock(self.d15, 'bottom', self.d2)
         self.area.moveDock(self.d9, 'above', self.d12)
         self.area.moveDock(self.d14, 'above', self.d12)
+        self.area.moveDock(self.d15, 'above', self.d12)
 
         self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
@@ -701,10 +716,12 @@ class MainFrame(QtGui.QWidget):
 
         self.ring_feature = pg.ScatterPlotItem()
         self.peak_feature = pg.ScatterPlotItem()
+        self.indexedPeak_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
         self.z_direction1 = pg.ScatterPlotItem()
         self.w1.getView().addItem(self.ring_feature)
         self.w1.getView().addItem(self.peak_feature)
+        self.w1.getView().addItem(self.indexedPeak_feature)
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
 
@@ -890,6 +907,12 @@ class MainFrame(QtGui.QWidget):
         self.launchSpiBtn = QtGui.QPushButton('Launch hit finder')
         self.w20.addWidget(self.launchSpiBtn, row=1, col=0)
         self.d14.addWidget(self.w20)
+
+        ## Dock 15: Indexing
+        self.w21 = ParameterTree()
+        self.w21.setParameters(self.p9, showTop=False)
+        self.w21.setWindowTitle('Indexing')
+        self.d15.addWidget(self.w21)
 
         # mask
         def makeMaskRect():
@@ -1122,6 +1145,8 @@ class MainFrame(QtGui.QWidget):
             # initialize
             self.userMaskAssem = np.ones_like(self.data,dtype='int')
             self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+        if self.streakMask is None:
+            self.StreakMask = myskbeam.StreakMask(self.det, self.evt, width=self.streak_width, sigma=self.streak_sigma)
         print "Done initMask"
 
     def displayMask(self):
@@ -1209,7 +1234,7 @@ class MainFrame(QtGui.QWidget):
         if self.streakMaskOn:
             print "Getting streak mask!!!"
             self.initMask()
-            self.streakMask = myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streak_width,sigma=self.streak_sigma)
+            self.streakMask = self.StreakMask.getStreakMaskCalib(self.evt)
             self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
             self.algInitDone = False
 
@@ -1301,6 +1326,60 @@ class MainFrame(QtGui.QWidget):
                         print "cheetahRow,Col", cheetahRow, cheetahCol, atot
 
             print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+            if self.showIndexedPeaks:
+                self.clearIndexedPeaks()
+                print "########################## Save peak finding"
+                maxNumPeaks = 2048
+                myHdf5 = h5py.File(self.hiddenCXI, 'w')
+                grpName = "/entry_1/result_1"
+                dset_nPeaks = "/nPeaks"
+                dset_posX = "/peakXPosRaw"
+                dset_posY = "/peakYPosRaw"
+                dset_atot = "/peakTotalIntensity"
+                if grpName in myHdf5:
+                    del myHdf5[grpName]
+                grp = myHdf5.create_group(grpName)
+                myHdf5.create_dataset(grpName+dset_nPeaks, (1,), dtype='int')
+                myHdf5.create_dataset(grpName+dset_posX, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+                myHdf5.create_dataset(grpName+dset_posY, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+                myHdf5.create_dataset(grpName+dset_atot, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+
+                myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
+                myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
+                dim0 = 8*185
+                dim1 = 4*388
+                dset = myHdf5.create_dataset("/entry_1/data_1/data",(1,dim0,dim1),dtype=float)
+
+                img = np.zeros((dim0, dim1))
+                counter = 0
+                for quad in range(4):
+                    for seg in range(8):
+                        img[seg*185:(seg+1)*185,quad*388:(quad+1)*388] = self.calib[counter,:,:]
+                        counter += 1
+
+                peaks = self.peaks.copy()
+                nPeaks = peaks.shape[0]
+                print "Number of peaks found: ", nPeaks
+
+                if nPeaks > maxNumPeaks:
+                    peaks = peaks[:maxNumPeaks]
+                    nPeaks = maxNumPeaks
+                for i,peak in enumerate(peaks):
+                    seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
+                    cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                    myHdf5[grpName+dset_posX][0,i] = cheetahCol
+                    myHdf5[grpName+dset_posY][0,i] = cheetahRow
+                    myHdf5[grpName+dset_atot][0,i] = atot
+                myHdf5[grpName+dset_nPeaks][0] = nPeaks
+
+                myHdf5["/LCLS/detector_1/EncoderValue"][0] = -419.9938
+                myHdf5["/LCLS/photon_energy_eV"][0] = 8203.9019
+                dset[0,:,:] = img
+
+                myHdf5.close()
+
+                self.index.updateIndex()
+
             self.drawPeaks()
 
     def convert_peaks_to_cheetah(self, s, r, c) :
@@ -1328,12 +1407,41 @@ class MainFrame(QtGui.QWidget):
                 print "diameter: ", diameter, self.peakRadius
                 self.peak_feature.setData(cenX, cenY, symbol='s', \
                                           size=diameter, brush=(255,255,255,0), \
-                                          pen=pg.mkPen({'color': "FF0", 'width': 4}), pxMode=False)
+                                          pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
                 print "number of peaks drawn: ", len(cenX)
             else:
                 self.peak_feature.setData([], [], pxMode=False)
         else:
             self.peak_feature.setData([], [], pxMode=False)
+        print "Done updatePeaks"
+
+    def clearIndexedPeaks(self):
+        self.indexedPeak_feature.setData([], [], pxMode=False)
+        print "Done clearIndexedPeaks"
+
+    def drawIndexedPeaks(self):
+        if self.showIndexedPeaks:
+            if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
+                #iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
+                #print iX.shape
+                #iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
+                #if len(iX.shape)==2:
+                #    iX = np.expand_dims(iX,axis=0)
+                #    iY = np.expand_dims(iY,axis=0)
+                cenX = self.indexedPeaks[:,0]+0.5 #iX[np.array(self.indexedPeaks[:,0],dtype=np.int64),np.array(self.indexedPeaks[:,1],dtype=np.int64)]#,np.array(self.indexedPeaks[:,2],dtype=np.int64)] + 0.5
+                cenY = self.indexedPeaks[:,1]+0.5 #iY[np.array(self.indexedPeaks[:,0],dtype=np.int64),np.array(self.indexedPeaks[:,1],dtype=np.int64)]#,np.array(self.indexedPeaks[:,2],dtype=np.int64)] + 0.5
+                diameter = 12.5#self.peakRadius*2+1
+                print "cenX: ", cenX
+                print "cenY: ", cenY
+                print "diameter: ", diameter#, self.peakRadius
+                self.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
+                print "number of peaks drawn: ", len(cenX)
+            else:
+                self.indexedPeak_feature.setData([], [], pxMode=False)
+        else:
+            self.indexedPeak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
 
     def updateImage(self,calib=None):
@@ -1361,50 +1469,6 @@ class MainFrame(QtGui.QWidget):
                     print "################################# 2"
                     self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         print "Done updateImage"
-
-    # def updateRings(self):
-    #     if self.resolutionRingsOn:
-    #         self.clearRings()
-    #
-    #         cenx = np.ones_like(self.myResolutionRingList)*self.cx
-    #         ceny = np.ones_like(self.myResolutionRingList)*self.cy
-    #
-    #         diameter = 2*self.myResolutionRingList
-    #         print "self.myResolutionRingList, diameter: ", self.myResolutionRingList, diameter
-    #         self.ring_feature.setData(cenx, ceny, symbol='o', \
-    #                                   size=diameter, brush=(255,255,255,0), \
-    #                                   pen='r', pxMode=False)
-    #         for i,val in enumerate(self.dMin_crystal):
-    #             if self.resolutionUnits == 0:#geom_unitA_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (val*1e10)), border='w', fill=(0, 0, 255, 100)))
-    #             elif self.resolutionUnits == 1:#geom_unitNm_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (val*1e9)), border='w', fill=(0, 0, 255, 100)))
-    #             elif self.resolutionUnits == 2:#geom_unitQ_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_crystal[i])), border='w', fill=(0, 0, 255, 100)))
-    #             elif self.resolutionUnits == 3:#geom_unitA_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s A' % float('%.3g' % (self.dMin_physics[i]*1e10)), border='w', fill=(0, 0, 255, 100)))
-    #             elif self.resolutionUnits == 4:#geom_unitNm_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s nm' % float('%.3g' % (self.dMin_physics[i]*1e9)), border='w', fill=(0, 0, 255, 100)))
-    #             elif self.resolutionUnits == 5:#geom_unitQ_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_physics[i])), border='w', fill=(0, 0, 255, 100)))
-    #
-    #             elif self.resolutionUnits == 6:#geom_unitTwoTheta_str
-    #                 self.resolutionText.append(pg.TextItem(text='%s degrees' % float('%.3g' % (self.thetaMax[i]*180/np.pi)), border='w', fill=(0, 0, 255, 100)))
-    #             self.w1.getView().addItem(self.resolutionText[i])
-    #             self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.cx, self.cy)
-    #
-    #     else:
-    #         self.clearRings()
-    #     print "Done updateRings"
-    #
-    # def clearRings(self):
-    #     if self.resolutionText:
-    #         print "going to clear rings: ", self.resolutionText, len(self.resolutionText)
-    #         cen = [0,]
-    #         self.ring_feature.setData(cen, cen, size=0)
-    #         for i,val in enumerate(self.resolutionText):
-    #             self.w1.getView().removeItem(self.resolutionText[i])
-    #         self.resolutionText = []
 
     def getEvt(self,evtNumber):
         print "getEvt: ", evtNumber
@@ -1571,78 +1635,6 @@ class MainFrame(QtGui.QWidget):
             print('  data:      %s'% str(data))
             print('  ----------')
             self.update(path,change,data)
-
-    #def changeGeomParam(self, panel, changes):
-    #    for param, change, data in changes:
-    #        path = panel.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changeMetric(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p2.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changePeakFinder(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p3.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changeManifold(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p4.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changePerPixelHistogram(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p5.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changeMask(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p6.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changeCorrection(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p6.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
-
-    #def changeHitFinder(self, param, changes):
-    #    for param, change, data in changes:
-    #        path = self.p8.childPath(param)
-    #        print('  path: %s'% path)
-    #        print('  change:    %s'% change)
-    #        print('  data:      %s'% str(data))
-    #        print('  ----------')
-    #        self.update(path,change,data)
 
     def update(self, path, change, data):
         print "path: ", path
@@ -1970,6 +1962,12 @@ class MainFrame(QtGui.QWidget):
                 elif path[2] == mask_unbondnrs_str:
                     self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
+        ################################################
+        # crystal indexing parameters
+        ################################################
+        if path[0] == self.index.index_grp:
+            self.index.paramUpdate(path, change, data)
+
     ###################################
     ###### Experiment Parameters ######
     ###################################
@@ -2031,6 +2029,7 @@ class MainFrame(QtGui.QWidget):
         self.userMask = None
         self.psanaMask = None
         self.streakMask = None
+        self.StreakMask = None
         self.userMaskAssem = None
         self.psanaMaskAssem = None
         self.streakMaskAssem = None
@@ -2218,11 +2217,15 @@ class MainFrame(QtGui.QWidget):
 
     def updateStreakWidth(self, data):
         self.streak_width = data
+        self.streakMask = None
+        self.initMask()
         self.updateClassification()
         print "Done updateStreakWidth: ", self.streak_width
 
     def updateStreakSigma(self, data):
         self.streak_sigma = data
+        self.streakMask = None
+        self.initMask()
         self.updateClassification()
         print "Done updateStreakSigma: ", self.streak_sigma
 
@@ -2446,12 +2449,12 @@ class MainFrame(QtGui.QWidget):
             # init masks
             if self.roi_rect is None:
                 # Rect mask
-                self.roi_rect = pg.ROI(pos=[self.cx+400,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'm', 'width': 4})
+                self.roi_rect = pg.ROI(pos=[self.cx+400,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
                 self.roi_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
                 self.roi_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
                 self.roi_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
-                self.roi_circle = pg.CircleROI([self.cx,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'm', 'width': 4})
+                self.roi_circle = pg.CircleROI([self.cx,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 
             # add ROIs
             self.w1.getView().addItem(self.roi_rect)

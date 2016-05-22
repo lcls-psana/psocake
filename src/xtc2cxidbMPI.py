@@ -288,6 +288,10 @@ if rank == 0:
     ds_wavelengthA_1 = lcls_1.create_dataset("photon_wavelength_A",(numHits,), dtype=float)
     ds_wavelengthA_1.attrs["axes"] = "experiment_identifier"
     ds_wavelengthA_1.attrs["numEvents"] = numHits
+    #### Datasets not in Cheetah ###
+    ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(numHits,),dtype=int)
+    ds_evtNum_1.attrs["axes"] = "experiment_identifier"
+    ds_evtNum_1.attrs["numEvents"] = numHits
     ###################
     # entry_1
     ###################
@@ -418,6 +422,7 @@ ds_nPeaks = f.require_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
 ds_posX = f.require_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
 ds_posY = f.require_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
 ds_atot = f.require_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
 
 for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
@@ -502,6 +507,8 @@ for i,val in enumerate(myHitInd):
     ds_posY[globalInd,:] = posY[val,:]
 
     ds_atot[globalInd,:] = atot[val,:]
+
+    ds_evtNum_1[globalInd] = val
 
     if i%1 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 f.close()

@@ -1,5 +1,5 @@
 import numpy as np
-from pyqtgraph.dockarea import *
+from pyqtgraph.parametertree import Parameter, ParameterTree
 import pyqtgraph as pg
 
 class DiffractionGeometry(object):
