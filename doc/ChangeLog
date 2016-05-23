@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-16
+2016-05-23 Chunhong Yoon
+- Add indexing result display
+
 Tag: V00-01-15
 2016-05-22 Chunhong Yoon
 - Add CrystFEL indexing panel
