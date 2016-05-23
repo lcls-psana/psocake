@@ -1437,6 +1437,7 @@ class MainFrame(QtGui.QWidget):
                 self.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
+
         else:
             self.indexedPeak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"

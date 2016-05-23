@@ -123,6 +123,7 @@ class IndexHandler(QtCore.QThread):
         # Running indexing ...
         self.parent.numIndexedPeaksFound = 0
         self.parent.indexedPeaks = None
+        self.parent.clearIndexedPeaks()
 
         # Write list
         with open(self.parent.hiddenCrystfelList, "w") as text_file:
