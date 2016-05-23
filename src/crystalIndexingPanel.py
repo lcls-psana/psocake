@@ -120,9 +120,9 @@ class IndexHandler(QtCore.QThread):
 
     def run(self):
         print "Running indexing!!!!!!!!!!!!"
-        # Save image and peaks in cxidb format
-        # Run crystfel dirax
-        # Load indexed peak positions
+        # Running indexing ...
+        self.parent.numIndexedPeaksFound = 0
+        self.parent.indexedPeaks = None
 
         # Write list
         with open(self.parent.hiddenCrystfelList, "w") as text_file:
@@ -138,43 +138,11 @@ class IndexHandler(QtCore.QThread):
         out, err = process.communicate()
         print "out: ", out
         print "err: ", err
-        #if "1 had crystals" in err:
-        #    print "Done!!!!"
-        #if "0 had crystals" in err:
-        #    print "Damn!!!!"
-        #jobid = out.split("<")[1].split(">")[0]
-        #myLog = "."+jobid+".log"
-        #print "bsub log filename: ", myLog
-
-        #myKeyString = "The output (if any) is above this job summary."
-        #mySuccessString = "Successfully completed."
-        #notDone = 1
-        #while notDone:
-        #    if os.path.isfile(myLog):
-        #        p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-        #        output = p.communicate()[0]
-        #        p.stdout.close()
-        #        if myKeyString in output: # job has finished
-        #            # check job was a success or a failure
-        #            p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-        #            output = p.communicate()[0]
-        #            p.stdout.close()
-        #            if mySuccessString in output: # success
-        #                print "successfully done"
-        #                notDone = 0
-        #            else:
-        #                print "failed attempt"
-        #                notDone = 0
-        #        else:
-        #            print "job hasn't finished yet"
-        #            time.sleep(1)
-        #    else:
-        #        print "no such file yet"
-        #        time.sleep(1)
 
         mySuccessString = "1 had crystals"
         # Read CrystFEL CSPAD geometry in stream
         if mySuccessString in err: # success
+            print "Indexing successful"
             print "Munging geometry file"
             f = open('.temp.stream')
             content = f.readlines()
@@ -231,6 +199,9 @@ class IndexHandler(QtCore.QThread):
             print "#### SCAN: "
             print dfScan
             f.close()
+        else:
+            print "Indexing failed"
+            self.parent.drawIndexedPeaks()
 
         # Read CrystFEL indexed peaks
         if mySuccessString in err: # success

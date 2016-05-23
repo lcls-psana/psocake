@@ -1202,14 +1202,14 @@ class MainFrame(QtGui.QWidget):
         yArrow.setPos(0+cenX,2*headLen+cenY)
         self.w1.getView().addItem(yArrow)
 
-        # z-direction
+        # Lab coordinates: Add z-direction
         self.z_direction.setData([0+cenX], [0+cenY], symbol='o', \
                                  size=symbolSize, brush='w', \
                                  pen={'color': 'k', 'width': 4}, pxMode=False)
         self.z_direction1.setData([0+cenX], [0+cenY], symbol='o', \
                                  size=symbolSize/6, brush='k', \
                                  pen={'color': 'k', 'width': 4}, pxMode=False)
-        # Add xyz text
+        # Lab coordinates: Add xyz text
         self.x_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #0000FF; font-size: 16pt;">x</span></div>', anchor=(0,0))
         self.w1.getView().addItem(self.x_text)
         self.x_text.setPos(2*headLen+cenX, 0+cenY)
@@ -1420,15 +1420,9 @@ class MainFrame(QtGui.QWidget):
     def drawIndexedPeaks(self):
         if self.showIndexedPeaks:
             if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
-                #iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
-                #print iX.shape
-                #iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
-                #if len(iX.shape)==2:
-                #    iX = np.expand_dims(iX,axis=0)
-                #    iY = np.expand_dims(iY,axis=0)
-                cenX = self.indexedPeaks[:,0]+0.5 #iX[np.array(self.indexedPeaks[:,0],dtype=np.int64),np.array(self.indexedPeaks[:,1],dtype=np.int64)]#,np.array(self.indexedPeaks[:,2],dtype=np.int64)] + 0.5
-                cenY = self.indexedPeaks[:,1]+0.5 #iY[np.array(self.indexedPeaks[:,0],dtype=np.int64),np.array(self.indexedPeaks[:,1],dtype=np.int64)]#,np.array(self.indexedPeaks[:,2],dtype=np.int64)] + 0.5
-                diameter = 12.5#self.peakRadius*2+1
+                cenX = self.indexedPeaks[:,0]+0.5
+                cenY = self.indexedPeaks[:,1]+0.5
+                diameter = 12.5 #self.peakRadius*2+1
                 print "cenX: ", cenX
                 print "cenY: ", cenY
                 print "diameter: ", diameter#, self.peakRadius
@@ -1437,7 +1431,12 @@ class MainFrame(QtGui.QWidget):
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
                 print "number of peaks drawn: ", len(cenX)
             else:
-                self.indexedPeak_feature.setData([], [], pxMode=False)
+                cenX = np.array((self.cx,))+0.5
+                cenY = np.array((self.cy,))+0.5
+                diameter = 256 #self.peakRadius*2+1
+                self.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
         else:
             self.indexedPeak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
