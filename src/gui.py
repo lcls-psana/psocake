@@ -339,12 +339,10 @@ class MainFrame(QtGui.QWidget):
         self.indexedPeaks = None
         self.hiddenCXI = '.temp.cxi'
         self.hiddenCrystfelStream = '.temp.stream'
-        #self.hiddenCrystfelList = '.temp.lst'
-        #self.hiddenCrystfelGeom = '.temp.geom'
+        self.hiddenCrystfelList = '.temp.lst'
         if os.path.isfile(self.hiddenCXI): os.remove(self.hiddenCXI)
         if os.path.isfile(self.hiddenCrystfelStream): os.remove(self.hiddenCrystfelStream)
-        #if os.path.isfile(self.hiddenCrystfelList): os.remove(self.hiddenCrystfelList)
-        #if os.path.isfile(self.hiddenCrystfelGeom): os.remove(self.hiddenCrystfelGeom)
+        if os.path.isfile(self.hiddenCrystfelList): os.remove(self.hiddenCrystfelList)
 
         # Init hit finding
         self.spiAlgorithm = 1

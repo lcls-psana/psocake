@@ -124,6 +124,10 @@ class IndexHandler(QtCore.QThread):
         # Run crystfel dirax
         # Load indexed peak positions
 
+        # Write list
+        with open(self.parent.hiddenCrystfelList, "w") as text_file:
+            text_file.write("{} //0".format(self.parent.hiddenCXI))
+
         # FIXME: convert psana geom to crystfel geom
         cmd = "indexamajig -j 1 -i .temp.lst -g "+self.geom+" --peaks=cxi --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o .temp.stream"
         if self.pdb is not '':
