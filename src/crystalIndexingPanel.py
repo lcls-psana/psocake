@@ -100,6 +100,7 @@ class IndexHandler(QtCore.QThread):
         self.intRadius = None
         self.pdb = None
         self.indexingMethod = None
+        self.unitCell = None
 
     def __del__(self):
         print "del IndexHandler #$!@#$!#"
@@ -134,7 +135,7 @@ class IndexHandler(QtCore.QThread):
         if self.pdb is not '':
             cmd += " --pdb="+self.pdb
 
-        print "Submitting batch job: ", cmd
+        print "cmd: ", cmd
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
         print "out: ", out
@@ -159,8 +160,8 @@ class IndexHandler(QtCore.QThread):
             for i in np.arange(numLines-1,-1,-1): # Start from bottom
                 if ';' in geom[i].lstrip(' ')[0]: geom.pop(i)
 
-            print "### Geometry file: "
-            print geom
+            #print "### Geometry file: "
+            #print geom
 
             numQuads = 4
             numAsics = 16
@@ -195,10 +196,10 @@ class IndexHandler(QtCore.QThread):
                             dfScan.loc[myAsic,'ssx'] = ssx
                             dfScan.loc[myAsic,'ssy'] = ssy
                     counter += 1
-            print "#### GEOM: "
-            print dfGeom
-            print "#### SCAN: "
-            print dfScan
+            #print "#### GEOM: "
+            #print dfGeom
+            #print "#### SCAN: "
+            #print dfScan
             f.close()
         else:
             print "Indexing failed"
@@ -214,9 +215,12 @@ class IndexHandler(QtCore.QThread):
                 elif   'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in val:
                     startLine = i+1
                     endLine = startLine+numPeaks
-                    break
-            print "### Peaks: "
-            print content[startLine:endLine]
+                elif 'Cell parameters' in val:
+                    (_,_,a,b,c,_,al,be,ga,_) = val.split()
+                    self.unitCell = (a,b,c,al,be,ga)
+
+            #print "### Peaks: "
+            #print content[startLine:endLine]
 
             columns=['fs','ss','res','intensity','asic']
             df = pd.DataFrame(np.empty((numPeaks,len(columns))), columns=columns)
@@ -227,8 +231,8 @@ class IndexHandler(QtCore.QThread):
                 df['res'][i] = float(content[contentLine][15:26])
                 df['intensity'][i] = float(content[contentLine][26:38])
                 df['asic'][i] = str(content[contentLine][38:-1])
-            print "### Stream"
-            print df
+            #print "### Stream"
+            #print df
             f.close()
 
             # Convert to CrystFEL coordinates
@@ -248,14 +252,11 @@ class IndexHandler(QtCore.QThread):
                 dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
                 dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
 
-            print "dfPeaks: "
-            print dfPeaks
+            #print "dfPeaks: "
+            #print dfPeaks
             if self.parent.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                print "$$$$$$$$$$$$$$$$$ show indexed peaks"
                 self.parent.numIndexedPeaksFound = numPeaks
                 self.parent.indexedPeaks = dfPeaks[['psocakeX','psocakeY']].as_matrix()
                 print self.parent.indexedPeaks.shape
                 print np.array(self.parent.indexedPeaks[:,0],dtype=np.int64)
-                self.parent.drawIndexedPeaks()
-
-
+                self.parent.drawIndexedPeaks(self.unitCell)

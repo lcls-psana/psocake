@@ -722,6 +722,8 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.indexedPeak_feature)
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
+        self.abc_text = pg.TextItem(html='', anchor=(0,0))
+        self.w1.getView().addItem(self.abc_text)
 
         # Custom ROI for selecting an image region
         self.roi = pg.ROI(pos=[300, 300], size=[100, 100], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
@@ -1414,10 +1416,11 @@ class MainFrame(QtGui.QWidget):
         print "Done updatePeaks"
 
     def clearIndexedPeaks(self):
+        self.w1.getView().removeItem(self.abc_text)
         self.indexedPeak_feature.setData([], [], pxMode=False)
         print "Done clearIndexedPeaks"
 
-    def drawIndexedPeaks(self):
+    def drawIndexedPeaks(self,unitCell=None):
         if self.showIndexedPeaks:
             if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
                 cenX = self.indexedPeaks[:,0]+0.5
@@ -1430,14 +1433,34 @@ class MainFrame(QtGui.QWidget):
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
                 print "number of peaks drawn: ", len(cenX)
+
+                # Write unit cell parameters
+                xMargin = 30 # pixels
+                maxX   = np.max(self.det.indexes_x(self.evt))+xMargin
+                maxY   = np.max(self.det.indexes_y(self.evt))
+                print "maxX, maxY: ", maxX, maxY, unitCell
+                myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 16pt;">a='+\
+                            str(round(float(unitCell[0]),2))+'nm <br>b='+str(round(float(unitCell[1]),2))+'nm <br>c='+\
+                            str(round(float(unitCell[2]),2))+'nm <br>&alpha;='+str(round(float(unitCell[3]),2))+\
+                            '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
+                            str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
+
+                self.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
+                self.w1.getView().addItem(self.abc_text)
+                self.abc_text.setPos(maxX, maxY)
             else:
+                # Draw a big X
                 cenX = np.array((self.cx,))+0.5
                 cenY = np.array((self.cy,))+0.5
                 diameter = 256 #self.peakRadius*2+1
                 self.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
+                #self.w1.getView().removeItem(self.abc_text)
 
+                self.abc_text = pg.TextItem(html='', anchor=(0,0))
+                self.w1.getView().addItem(self.abc_text)
+                self.abc_text.setPos(0,0)
         else:
             self.indexedPeak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
