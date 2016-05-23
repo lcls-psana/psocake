@@ -250,7 +250,7 @@ class IndexHandler(QtCore.QThread):
 
             print "dfPeaks: "
             print dfPeaks
-            if self.parent.showIndexedPeaks:
+            if self.parent.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
                 print "$$$$$$$$$$$$$$$$$ show indexed peaks"
                 self.parent.numIndexedPeaksFound = numPeaks
                 self.parent.indexedPeaks = dfPeaks[['psocakeX','psocakeY']].as_matrix()
