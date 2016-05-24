@@ -1425,7 +1425,12 @@ class MainFrame(QtGui.QWidget):
             if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
                 cenX = self.indexedPeaks[:,0]+0.5
                 cenY = self.indexedPeaks[:,1]+0.5
-                diameter = 12.5 #self.peakRadius*2+1
+                cenX = np.concatenate((cenX,cenX,cenX))
+                cenY = np.concatenate((cenY,cenY,cenY))
+                diameter = np.ones_like(cenX)
+                diameter[0:self.numIndexedPeaksFound] = float(self.index.intRadius.split(',')[0])*2
+                diameter[self.numIndexedPeaksFound:2*self.numIndexedPeaksFound] = float(self.index.intRadius.split(',')[1])*2
+                diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.index.intRadius.split(',')[2])*2
                 print "cenX: ", cenX
                 print "cenY: ", cenY
                 print "diameter: ", diameter#, self.peakRadius
