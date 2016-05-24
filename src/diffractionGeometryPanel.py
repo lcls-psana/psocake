@@ -1,6 +1,8 @@
 import numpy as np
-from pyqtgraph.parametertree import Parameter, ParameterTree
+import fileinput
 import pyqtgraph as pg
+import h5py
+import os
 
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
@@ -30,7 +32,7 @@ class DiffractionGeometry(object):
         #######################
         self.params = [
             {'name': self.geom_grp, 'type': 'group', 'children': [
-                {'name': self.geom_detectorDistance_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siFormat': (6,6), 'siPrefix': True, 'suffix': 'm'},
+                {'name': self.geom_detectorDistance_str, 'type': 'float', 'value': 0.0, 'precision': 6, 'minVal': 0.0001, 'siFormat': (6,6), 'siPrefix': True, 'suffix': 'mm'},
                 {'name': self.geom_photonEnergy_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'eV'},
                 {'name': self.geom_wavelength_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'm', 'readonly': True},
                 {'name': self.geom_pixelSize_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siPrefix': True, 'suffix': 'm'},
@@ -68,7 +70,9 @@ class DiffractionGeometry(object):
             self.updateResolutionUnits(data)
 
     def updateDetectorDistance(self, data):
-        self.parent.detectorDistance = data
+        self.parent.detectorDistance = data / 1000. # metres
+        self.writeCrystfelGeom()
+        self.parent.updateClassification()
         if self.hasGeometryInfo():
             print "has geometry info"
             self.updateGeometry()
@@ -98,6 +102,22 @@ class DiffractionGeometry(object):
             return True
         else:
             return False
+
+    def writeCrystfelGeom(self):
+        if os.path.isfile(self.parent.hiddenCXI):
+            f = h5py.File(self.parent.hiddenCXI,'r')
+            encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
+            f.close()
+            print "##### self.parent.detectorDistance - encoderVal: ", self.parent.detectorDistance, encoderVal
+            coffset = self.parent.detectorDistance - encoderVal
+            coffsetStr = "coffset = "+str(coffset)+"\n"
+
+            # Replace coffset
+            for line in fileinput.input(self.parent.index.geom, inplace=True):
+                if 'coffset' in line and line.strip()[0] is not ';':
+                    print coffsetStr,
+                else:
+                    print line,
 
     def updateGeometry(self):
         if self.parent.hasUserDefinedResolution:

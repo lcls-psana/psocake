@@ -13,12 +13,14 @@ class CrystalIndexing(object):
         self.index_grp = 'Crystal indexing'
         self.index_on_str = 'Indexing on'
         self.index_geom_str = 'CrystFEL geometry'
+        self.index_peakMethod_str = 'Peak method'
         self.index_intRadius_str = 'Integration radii'
         self.index_pdb_str = 'PDB'
         self.index_method_str = 'Indexing method'
 
         self.indexingOn = False
         self.geom = ''
+        self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
         self.pdb = ''
         self.indexingMethod = 'dirax-axes-latt'
@@ -30,6 +32,7 @@ class CrystalIndexing(object):
             {'name': self.index_grp, 'type': 'group', 'children': [
                 {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
                 {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "Turn on indexing"},
+                #{'name': self.index_peakMethod_str, 'type': 'str', 'value': self.peakMethod, 'tip': "Turn on indexing"},
                 {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Turn on indexing"},
                 {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "Turn on indexing"},
                 {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "Turn on indexing"},
@@ -41,12 +44,12 @@ class CrystalIndexing(object):
     # Mandatory parameter update #
     ##############################
     def paramUpdate(self, path, change, data):
-        print "paramUpdate: ", path[1]
         if path[1] == self.index_on_str:
-            print "Got here"
             self.updateIndexStatus(data)
         elif path[1] == self.index_geom_str:
             self.updateGeom(data)
+        elif path[1] == self.index_peakMethod_str:
+            self.updatePeakMethod(data)
         elif path[1] == self.index_intRadius_str:
             self.updateIntegrationRadius(data)
         elif path[1] == self.index_pdb_str:
@@ -63,6 +66,11 @@ class CrystalIndexing(object):
 
     def updateGeom(self, data):
         self.geom = data
+        if self.indexingOn:
+            self.updateIndex()
+
+    def updatePeakMethod(self, data):
+        self.peakMethod = data
         if self.indexingOn:
             self.updateIndex()
 
@@ -84,7 +92,7 @@ class CrystalIndexing(object):
     def updateIndex(self):
         self.indexer = IndexHandler(parent=self.parent)
         self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
-                                  self.parent.eventNumber, self.geom, self.intRadius, self.pdb, self.indexingMethod)
+                                  self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb, self.indexingMethod)
         print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -97,6 +105,7 @@ class IndexHandler(QtCore.QThread):
         self.detInfo = None
         self.eventNumber = None
         self.geom = None
+        self.peakMethod = None
         self.intRadius = None
         self.pdb = None
         self.indexingMethod = None
@@ -107,12 +116,13 @@ class IndexHandler(QtCore.QThread):
         self.exiting = True
         self.wait()
 
-    def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, intRadius, pdb, indexingMethod):
+    def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.eventNumber = eventNumber
         self.geom = geom
+        self.peakMethod = peakMethod
         self.intRadius = intRadius
         self.pdb = pdb
         self.indexingMethod = indexingMethod
@@ -131,7 +141,7 @@ class IndexHandler(QtCore.QThread):
             text_file.write("{} //0".format(self.parent.hiddenCXI))
 
         # FIXME: convert psana geom to crystfel geom
-        cmd = "indexamajig -j 1 -i .temp.lst -g "+self.geom+" --peaks=cxi --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o .temp.stream"
+        cmd = "indexamajig -j 1 -i "+self.parent.hiddenCrystfelList+" -g "+self.geom+" --peaks="+self.peakMethod+" --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o "+self.parent.hiddenCrystfelStream
         if self.pdb is not '':
             cmd += " --pdb="+self.pdb
 
@@ -146,7 +156,7 @@ class IndexHandler(QtCore.QThread):
         if mySuccessString in err: # success
             print "Indexing successful"
             print "Munging geometry file"
-            f = open('.temp.stream')
+            f = open(self.parent.hiddenCrystfelStream)
             content = f.readlines()
             for i, val in enumerate(content):
                 if '----- Begin geometry file -----' in val:
@@ -207,7 +217,7 @@ class IndexHandler(QtCore.QThread):
 
         # Read CrystFEL indexed peaks
         if mySuccessString in err: # success
-            f = open('.temp.stream')
+            f = open(self.parent.hiddenCrystfelStream)
             content = f.readlines()
             for i, val in enumerate(content):
                 if   'num_peaks =' in val:
