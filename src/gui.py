@@ -155,6 +155,9 @@ spiParam_algorithm0_str = 'None'
 # algorithm 1
 spiParam_algorithm1_str = 'chiSquared'
 spiParam_alg1_pruneInterval_str = 'prune interval'
+# algorithm 2
+spiParam_algorithm2_str = 'photonFinder'
+spiParam_alg2_threshold_str = 'ADU per photon'
 
 spiParam_outDir_str = 'Output directory'
 spiParam_tag_str = 'Filename tag'
@@ -263,7 +266,7 @@ class MainFrame(QtGui.QWidget):
         self.commonMode = np.array([0,0,0,0])
         self.commonModeParams = np.array([0,0,0,0])
         # Init diffraction geometry parameters
-        self.detectorDistance = None
+        self.detectorDistance = 0.0
         self.photonEnergy = None
         self.wavelength = None
         self.pixelSize = None
@@ -348,6 +351,7 @@ class MainFrame(QtGui.QWidget):
         self.spiAlgorithm = 1
 
         self.spiParam_alg1_pruneInterval = 0
+        self.spiParam_alg2_threshold = 100
 
         self.spiParam_outDir = os.getcwd()
         self.spiParam_tag = ''
@@ -549,15 +553,19 @@ class MainFrame(QtGui.QWidget):
         ]
         self.paramsHitFinder = [
             {'name': spiParam_grp, 'type': 'group', 'children': [
-                {'name': spiParam_algorithm_str, 'type': 'list', 'values': {spiParam_algorithm1_str: 1,
+                {'name': spiParam_algorithm_str, 'type': 'list', 'values': {spiParam_algorithm2_str: 2,
+                                                                            #spiParam_algorithm1_str: 1,
                                                                             spiParam_algorithm0_str: 0},
                                                                             'value': self.spiAlgorithm},
-                {'name': spiParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': spiParam_alg1_pruneInterval_str, 'type': 'float', 'value': self.spiParam_alg1_pruneInterval, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                #{'name': spiParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                #    {'name': spiParam_alg1_pruneInterval_str, 'type': 'float', 'value': self.spiParam_alg1_pruneInterval, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                #]},
+                {'name': spiParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                    {'name': spiParam_alg2_threshold_str, 'type': 'float', 'value': self.spiParam_alg2_threshold, 'tip': "search for pixels above ADU per photon"},
                 ]},
                 {'name': spiParam_outDir_str, 'type': 'str', 'value': self.spiParam_outDir},
-                {'name': spiParam_tag_str, 'type': 'str', 'value': self.spiParam_tag},
-                {'name': spiParam_runs_str, 'type': 'str', 'value': self.spiParam_runs},
+                {'name': spiParam_tag_str, 'type': 'str', 'value': self.spiParam_tag, 'tip': "(Optional) identifying string to attach to filename"},
+                {'name': spiParam_runs_str, 'type': 'str', 'value': self.spiParam_runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
                 {'name': spiParam_queue_str, 'type': 'list', 'values': {spiParam_psfehhiprioq_str: 'psfehhiprioq',
                                                                         spiParam_psnehhiprioq_str: 'psnehhiprioq',
                                                                         spiParam_psfehprioq_str: 'psfehprioq',
@@ -854,6 +862,10 @@ class MainFrame(QtGui.QWidget):
         self.w8 = ParameterTree()
         self.w8.setParameters(self.p2, showTop=False)
         self.d8.addWidget(self.w8)
+        self.w11a = pg.LayoutWidget()
+        self.refreshBtn = QtGui.QPushButton('Refresh')
+        self.w11a.addWidget(self.refreshBtn, row=0, col=0)
+        self.d8.addWidget(self.w11a)
         # Add plot
         self.w9 = pg.PlotWidget(title="Metric")
         self.d8.addWidget(self.w9)
@@ -913,6 +925,10 @@ class MainFrame(QtGui.QWidget):
         self.w21.setParameters(self.p9, showTop=False)
         self.w21.setWindowTitle('Indexing')
         self.d15.addWidget(self.w21)
+        self.w22 = pg.LayoutWidget()
+        self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
+        self.w22.addWidget(self.launchIndexBtn, row=0, col=0)
+        self.d15.addWidget(self.w22)
 
         # mask
         def makeMaskRect():
@@ -996,8 +1012,15 @@ class MainFrame(QtGui.QWidget):
         def loadMask():
             fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
             print "fname: ", fname, fname.split('.')[-1]
+            self.initMask()
             self.userMask = np.load(fname)
-            self.updateImage(self.calib)
+            if self.userMask is not None:
+                self.userMaskAssem = self.det.image(self.evt,self.userMask)
+            else:
+                self.userMaskAssem = None
+            self.updateClassification()
+            self.userMaskOn = True
+            self.p6.param(mask_grp,user_mask_str).setValue(self.userMaskOn)
         self.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), loadMask)
 
         ###############
@@ -1022,6 +1045,7 @@ class MainFrame(QtGui.QWidget):
             self.threadCounter+=1
             print "done finding peaks!!!!!!"
         self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
+        # Launch hit finding
         def findHits():
             print "find hits!!!!!!"
             self.thread.append(HitFinder(self)) # send parent parameters with self
@@ -1029,6 +1053,35 @@ class MainFrame(QtGui.QWidget):
             self.threadCounter+=1
             print "done finding hits!!!!!!"
         self.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), findHits)
+
+        # Launch indexing
+        def digestRunList(runList):
+            runsToDo = []
+            if not runList:
+                print "Run(s) is empty. Please type in the run number(s)."
+                return runsToDo
+            runLists = runList.split(",")
+            for list in runLists:
+                temp = list.split(":")
+                if len(temp) == 2:
+                    for i in np.arange(int(temp[0]),int(temp[1])+1):
+                        runsToDo.append(i)
+                elif len(temp) == 1:
+                    runsToDo.append(int(temp[0]))
+            return runsToDo
+
+        def indexPeaks():
+            print "index.runs: ", self.index.runs
+            runsToDo = digestRunList(self.index.runs)
+            print "runsToDo: ", runsToDo
+            for run in runsToDo:
+                print "index peaks!!!!!!"
+                self.thread.append(self.index) # send parent parameters with self
+                print "self.index: ", self.index.outDir, self.index.intRadius
+                self.thread[self.threadCounter].launchIndexing(run)
+                self.threadCounter+=1
+                print "done indexing peaks!!!!!!"
+        self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
         # Loading image stack
         def displayImageStack():
             print "display image stack!!!!!!"
@@ -1328,7 +1381,11 @@ class MainFrame(QtGui.QWidget):
             print "num peaks found: ", self.numPeaksFound, self.peaks.shape
             if self.showIndexedPeaks:
                 self.clearIndexedPeaks()
+
+
                 print "########################## Save peak finding"
+                #self.index.psana
+                #saveCxiLite(filename,expName,runNumber,detInfo,eventList)
                 maxNumPeaks = 2048
                 myHdf5 = h5py.File(self.hiddenCXI, 'w')
                 grpName = "/entry_1/result_1"
@@ -1350,6 +1407,7 @@ class MainFrame(QtGui.QWidget):
                 dim1 = 4*388
                 dset = myHdf5.create_dataset("/entry_1/data_1/data",(1,dim0,dim1),dtype=float)
 
+                # Convert calib image to cheetah image
                 img = np.zeros((dim0, dim1))
                 counter = 0
                 for quad in range(4):
@@ -1372,11 +1430,12 @@ class MainFrame(QtGui.QWidget):
                     myHdf5[grpName+dset_atot][0,i] = atot
                 myHdf5[grpName+dset_nPeaks][0] = nPeaks
 
-                myHdf5["/LCLS/detector_1/EncoderValue"][0] = -419.9938
-                myHdf5["/LCLS/photon_energy_eV"][0] = 8203.9019
+                if 'cspad' in self.detInfo.lower():
+                    myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.clen #-419.9938 # FIXME
+                myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy# 8203.9019 #FIXME
                 dset[0,:,:] = img
-
                 myHdf5.close()
+                print "########################## Done save peak finding"
 
                 self.index.updateIndex()
 
@@ -1421,6 +1480,7 @@ class MainFrame(QtGui.QWidget):
         print "Done clearIndexedPeaks"
 
     def drawIndexedPeaks(self,unitCell=None):
+        self.clearIndexedPeaks()
         if self.showIndexedPeaks:
             if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
                 cenX = self.indexedPeaks[:,0]+0.5
@@ -1454,6 +1514,9 @@ class MainFrame(QtGui.QWidget):
                 self.w1.getView().addItem(self.abc_text)
                 self.abc_text.setPos(maxX, maxY)
             else:
+                xMargin = 30 # pixels
+                maxX   = np.max(self.det.indexes_x(self.evt))+xMargin
+                maxY   = np.max(self.det.indexes_y(self.evt))
                 # Draw a big X
                 cenX = np.array((self.cx,))+0.5
                 cenY = np.array((self.cy,))+0.5
@@ -1465,7 +1528,7 @@ class MainFrame(QtGui.QWidget):
 
                 self.abc_text = pg.TextItem(html='', anchor=(0,0))
                 self.w1.getView().addItem(self.abc_text)
-                self.abc_text.setPos(0,0)
+                self.abc_text.setPos(maxX,maxY)
         else:
             self.indexedPeak_feature.setData([], [], pxMode=False)
         print "Done updatePeaks"
@@ -1623,6 +1686,11 @@ class MainFrame(QtGui.QWidget):
                             calib[:,:,i] = i
             else:
                 print "psocake can't handle this detector"
+
+        # Update photon energy
+        self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+        self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
+        self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
 
         if calib is not None:
             # assemble image
@@ -1922,6 +1990,8 @@ class MainFrame(QtGui.QWidget):
                 self.spiParam_noe = data
             elif path[2] == spiParam_alg1_pruneInterval_str and path[1] == spiParam_algorithm1_str:
                 self.spiParam_alg1_pruneInterval = data
+            elif path[2] == spiParam_alg2_threshold_str and path[1] == spiParam_algorithm2_str:
+                self.spiParam_alg2_threshold = data
         ################################################
         # diffraction geometry parameters
         ################################################
@@ -1993,6 +2063,8 @@ class MainFrame(QtGui.QWidget):
         ################################################
         if path[0] == self.index.index_grp:
             self.index.paramUpdate(path, change, data)
+        elif path[0] == self.index.launch_grp:
+            self.index.paramUpdate(path, change, data)
 
     ###################################
     ###### Experiment Parameters ######
@@ -2030,6 +2102,7 @@ class MainFrame(QtGui.QWidget):
             self.isCspad = True
         if data == 'Sc2Questar':
             self.isCamera = True
+
         self.hasDetInfo = True
         self.setupExperiment()
         self.updateImage()
@@ -2099,8 +2172,43 @@ class MainFrame(QtGui.QWidget):
             print "hasExpRunDetInfo: False"
             return False
 
+    def getUsername(self):
+            process = subprocess.Popen('whoami', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out,err=process.communicate()
+            self.username = out.strip()
+
+    def setupPsocake(self):
+        self.getUsername()
+        self.loggerFile = self.psocakeDir+'/logger.data'
+        if os.path.exists(self.psocakeDir) is False:
+            os.mkdir(self.psocakeDir, 0774)
+            # setup permissions
+            process = subprocess.Popen('chgrp -R '+self.experimentName+' '+self.psocakeDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out,err=process.communicate()
+            process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx '+self.psocakeDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out,err=process.communicate()
+            #import stat
+            #os.chmod(self.psocakeDir, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_ISGID | stat.S_IROTH)
+            # create logger
+            with open(self.loggerFile,"w") as myfile:
+                myfile.write(self.username)
+        else:
+            # check if I'm a logger
+            with open(self.loggerFile,"r") as myfile:
+                content = myfile.readlines()
+                if content[0].strip() == self.username:
+                    self.logger = True
+                    print "I'm a logger"
+                else:
+                    self.logger = False
+                    print "I'm not a logger"
+
     def setupExperiment(self):
         if self.hasExpRunInfo():
+            # Set up psocake directory in scratch
+            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+            self.setupPsocake()
+
             if args.localCalib:
                 print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
@@ -2117,9 +2225,9 @@ class MainFrame(QtGui.QWidget):
             self.p.param(exp_grp,exp_evt_str,exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
 
-            evt = self.run.event(self.times[0])
+            self.evt = self.run.event(self.times[0])
             myAreaDetectors = []
-            for k in evt.keys():
+            for k in self.evt.keys():
                 try:
                     source_string = Detector.PyDetector.map_alias_to_source(k.alias(), self.env)
                     if source_string is not '':
@@ -2134,6 +2242,24 @@ class MainFrame(QtGui.QWidget):
 
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
+            self.epics = self.ds.env().epicsStore()
+            # detector distance
+            if 'cspad' in self.detInfo.lower():
+                self.clenEpics = str(self.detInfo)+'_z'
+                print "clenEpics: ", self.clenEpics
+                self.clen = self.epics.value(self.clenEpics)
+                print "clen: ", self.detectorDistance, self.clen
+                self.coffset = self.detectorDistance - self.clen
+
+            if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list
+                self.pixelSize = 110e-6
+            elif 'pnccd' in self.detInfo.lower():
+                self.pixelSize = 75e-6
+            self.p1.param(self.geom.geom_grp,self.geom.geom_pixelSize_str).setValue(self.pixelSize)
+            # photon energy
+            self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+            self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
+            self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
 
             if self.evt is None:
                 self.evt = self.run.event(self.times[0])
@@ -2259,60 +2385,6 @@ class MainFrame(QtGui.QWidget):
         self.psanaMaskOn = data
         self.updatePsanaMaskOn()
         print "Done updatePsanaMask: ", self.psanaMaskOn
-
-    ##################################
-    ###### Diffraction Geometry ######
-    ##################################
-
-    # def updateDetectorDistance(self, data):
-    #     self.detectorDistance = data
-    #     if self.hasGeometryInfo():
-    #         self.updateGeometry()
-    #
-    # def updatePhotonEnergy(self, data):
-    #     self.photonEnergy = data
-    #     # E = hc/lambda
-    #     h = 6.626070e-34 # J.m
-    #     c = 2.99792458e8 # m/s
-    #     joulesPerEv = 1.602176621e-19 #J/eV
-    #     self.wavelength = (h/joulesPerEv*c)/self.photonEnergy
-    #     print "wavelength: ", self.wavelength
-    #     self.p1.param(geom_grp,geom_wavelength_str).setValue(self.wavelength)
-    #     if self.hasGeometryInfo():
-    #         self.updateGeometry()
-    #
-    # def updatePixelSize(self, data):
-    #     self.pixelSize = data
-    #     if self.hasGeometryInfo():
-    #         self.updateGeometry()
-    #
-    # def hasGeometryInfo(self):
-    #     if self.detectorDistance is not None \
-    #        and self.photonEnergy is not None \
-    #        and self.pixelSize is not None:
-    #         return True
-    #     else:
-    #         return False
-    #
-    # def updateGeometry(self):
-    #     if self.hasUserDefinedResolution:
-    #         self.myResolutionRingList = self.resolution
-    #     else:
-    #         self.myResolutionRingList = resolutionRingList
-    #     self.thetaMax = np.zeros_like(self.myResolutionRingList)
-    #     self.dMin_crystal = np.zeros_like(self.myResolutionRingList)
-    #     self.qMax_crystal = np.zeros_like(self.myResolutionRingList)
-    #     self.dMin_physics = np.zeros_like(self.myResolutionRingList)
-    #     self.qMax_physics = np.zeros_like(self.myResolutionRingList)
-    #     for i, pix in enumerate(self.myResolutionRingList):
-    #         self.thetaMax[i] = np.arctan(pix*self.pixelSize/self.detectorDistance)
-    #         self.qMax_crystal[i] = 2/self.wavelength*np.sin(self.thetaMax[i]/2)
-    #         self.dMin_crystal[i] = 1/self.qMax_crystal[i]
-    #         self.qMax_physics[i] = 4*np.pi/self.wavelength*np.sin(self.thetaMax[i]/2)
-    #         self.dMin_physics[i] = np.pi/self.qMax_physics[i]
-    #         print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
-    #         if self.resolutionRingsOn:
-    #             self.updateRings()
 
     ##################################
     ########### Quantifier ###########
@@ -2881,7 +2953,7 @@ class HitFinder(QtCore.QThread):
             expRun = 'exp='+self.experimentName+':run='+str(run)
             cmd = "bsub -q "+self.parent.spiParam_queue+\
               " -a mympi -n "+str(self.parent.spiParam_cpus)+\
-              " -o .%J.log python /reg/neh/home/yoon82/ana-current/spi/chiSquare_HitMetric.py"+\
+              " -o .%J.log litPixel_HitMetric"+\
               " "+expRun+\
               " -d "+self.detInfo+\
               " --outdir "+str(self.parent.spiParam_outDir)
@@ -2891,6 +2963,8 @@ class HitFinder(QtCore.QThread):
 
             if self.parent.spiAlgorithm == 1:
                 cmd += " --pruneInterval "+str(int(self.parent.spiParam_alg1_pruneInterval))
+            elif self.parent.spiAlgorithm == 2:
+                cmd += " --litPixelThreshold "+str(int(self.parent.spiParam_alg2_threshold))
 
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
@@ -2907,6 +2981,110 @@ class HitFinder(QtCore.QThread):
             myLog = "."+jobid+".log"
             print "*******************"
             print "bsub log filename: ", myLog
+
+class PeakFinder(QtCore.QThread):
+    def __init__(self, parent = None):
+        QtCore.QThread.__init__(self, parent)
+        print "PeakFinder!!!!!!!!!!"
+        self.parent = parent
+        self.experimentName = None
+        self.runNumber = None
+        self.detInfo = None
+
+    def __del__(self):
+        print "del PeakFinder #$!@#$!#"
+        self.exiting = True
+        self.wait()
+
+    def findPeaks(self,experimentName,runNumber,detInfo): # Pass in peak parameters
+        self.experimentName = experimentName
+        self.runNumber = runNumber
+        self.detInfo = detInfo
+        self.start()
+
+    def digestRunList(self,runList):
+        runsToDo = []
+        if not runList:
+            print "Run(s) is empty. Please type in the run number(s)."
+            return runsToDo
+        runLists = runList.split(",")
+        for list in runLists:
+            temp = list.split(":")
+            if len(temp) == 2:
+                for i in np.arange(int(temp[0]),int(temp[1])+1):
+                    runsToDo.append(i)
+            elif len(temp) == 1:
+                runsToDo.append(int(temp[0]))
+        return runsToDo
+
+    def run(self):
+        print "Finding peaks!!!!!!!!!!!!"
+        # Digest the run list
+        runsToDo = self.digestRunList(self.parent.hitParam_runs)
+        print runsToDo
+
+        for run in runsToDo:
+            cmd = "bsub -q "+self.parent.hitParam_queue+\
+              " -a mympi -n "+str(self.parent.hitParam_cpus)+\
+              " -o .%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
+              " -r "+str(run)+" -d "+self.detInfo+\
+              " --outDir "+str(self.parent.hitParam_outDir)+\
+              " --algorithm "+str(self.parent.algorithm)
+
+            if self.parent.algorithm == 1:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
+                       " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                       " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                       " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
+            elif self.parent.algorithm == 3:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
+                       " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                       " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                       " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+            elif self.parent.algorithm == 4:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
+                       " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
+                       " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
+                       " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
+                       " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
+                       " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
+            # Save user mask to a deterministic path
+            if self.parent.userMaskOn:
+                tempFilename = "tempUserMask.npy"
+                np.save(tempFilename,self.parent.userMask) # TODO: save
+                cmd += " --userMask_path "+str(tempFilename)
+            if self.parent.streakMaskOn:
+                cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\
+                   " --streakMask_width "+str(self.parent.streak_width)
+            if self.parent.psanaMaskOn:
+                cmd += " --psanaMask_calib "+str(self.parent.mask_calibOn)+" "+\
+                   " --psanaMask_status "+str(self.parent.mask_statusOn)+" "+\
+                   " --psanaMask_edges "+str(self.parent.mask_edgesOn)+" "+\
+                   " --psanaMask_central "+str(self.parent.mask_centralOn)+" "+\
+                   " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+" "+\
+                   " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
+
+            if self.parent.hitParam_noe > 0:
+                cmd += " --noe "+str(self.parent.hitParam_noe)
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+            jobid = out.split("<")[1].split(">")[0]
+            myLog = "."+jobid+".log"
+            print "*******************"
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)

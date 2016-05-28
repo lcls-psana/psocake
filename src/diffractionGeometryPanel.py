@@ -71,6 +71,7 @@ class DiffractionGeometry(object):
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000. # metres
+        self.parent.coffset = self.parent.detectorDistance - self.parent.clen
         self.writeCrystfelGeom()
         self.parent.updateClassification()
         if self.hasGeometryInfo():
