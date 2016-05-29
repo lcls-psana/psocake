@@ -734,7 +734,7 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.abc_text)
 
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[300, 300], size=[100, 100], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
+        self.roi = pg.ROI(pos=[0, -200], size=[100, 100], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addRotateHandle([0.5, 0.5], [1, 1])
@@ -1014,6 +1014,8 @@ class MainFrame(QtGui.QWidget):
             print "fname: ", fname, fname.split('.')[-1]
             self.initMask()
             self.userMask = np.load(fname)
+            if self.userMask.shape != self.calib.shape:
+                self.userMask = None
             if self.userMask is not None:
                 self.userMaskAssem = self.det.image(self.evt,self.userMask)
             else:
@@ -2547,12 +2549,12 @@ class MainFrame(QtGui.QWidget):
             # init masks
             if self.roi_rect is None:
                 # Rect mask
-                self.roi_rect = pg.ROI(pos=[self.cx+400,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
+                self.roi_rect = pg.ROI(pos=[-300,0], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
                 self.roi_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
                 self.roi_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
                 self.roi_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
-                self.roi_circle = pg.CircleROI([self.cx,self.cy], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
+                self.roi_circle = pg.CircleROI([-300,300], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 
             # add ROIs
             self.w1.getView().addItem(self.roi_rect)
