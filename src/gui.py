@@ -33,6 +33,7 @@ import diffractionGeometryPanel
 import crystalIndexingPanel
 
 parser = argparse.ArgumentParser()
+parser.add_argument('expRun', nargs=1, default=None)
 parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 )", default="", type=str)
 parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=0, type=int)
 parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
@@ -235,9 +236,9 @@ class MainFrame(QtGui.QWidget):
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
         # Init experiment parameters
-        if ':run=' in args.exp:
-            self.experimentName = args.exp.split('exp=')[-1].split(':')[0]
-            self.runNumber = args.exp.split('run=')[-1]
+        if ':run=' in args.expRun[0] is not None:
+            self.experimentName = args.expRun[0].split('exp=')[-1].split(':')[0]
+            self.runNumber = args.expRun[0].split('run=')[-1]
         else:
             self.experimentName = args.exp
             self.runNumber = int(args.run)
