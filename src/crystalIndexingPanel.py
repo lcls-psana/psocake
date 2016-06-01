@@ -28,7 +28,7 @@ class CrystalIndexing(object):
         (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str) = \
             ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq')
 
-        self.outDir = os.getcwd()
+        self.outDir = self.parent.psocakeDir
         self.runs = ''
         self.queue = self.psanaq_str
         self.cpus = 32

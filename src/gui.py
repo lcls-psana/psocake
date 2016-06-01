@@ -33,13 +33,13 @@ import diffractionGeometryPanel
 import crystalIndexingPanel
 
 parser = argparse.ArgumentParser()
-parser.add_argument('expRun', nargs=1, default=None)
+parser.add_argument('expRun', nargs='?', default=None, help="psana experiment/run string in the format of exp=<experiment name>:run=<run number> (e.g. exp=cxi06216:run=22)")
 parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 )", default="", type=str)
 parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=0, type=int)
 parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
 parser.add_argument("-n","--evt", help="event number (e.g. 1), default=0",default=0, type=int)
 parser.add_argument("--localCalib", help="use local calib directory, default=False", action='store_true')
-parser.add_argument("--more", help="display more panels", action='store_true')
+#parser.add_argument("--more", help="display more panels", action='store_true')
 args = parser.parse_args()
 
 # Set up tolerance
@@ -235,13 +235,16 @@ class MainFrame(QtGui.QWidget):
         self.firstUpdate = True
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
+        self.psocakeDir = os.getcwd()
         # Init experiment parameters
-        if ':run=' in args.expRun[0] is not None:
+        if args.expRun is not None and ':run=' in args.expRun[0]:
             self.experimentName = args.expRun[0].split('exp=')[-1].split(':')[0]
             self.runNumber = args.expRun[0].split('run=')[-1]
+            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         else:
             self.experimentName = args.exp
             self.runNumber = int(args.run)
+            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         self.detInfo = args.det
         self.isCspad = False
         self.isCamera = False
@@ -332,7 +335,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg4_r0 = 3
         self.hitParam_alg4_dr = 1
 
-        self.hitParam_outDir = os.getcwd()
+        self.hitParam_outDir = self.psocakeDir
         self.hitParam_runs = ''
         self.hitParam_queue = hitParam_psanaq_str
         self.hitParam_cpus = 32
@@ -354,7 +357,7 @@ class MainFrame(QtGui.QWidget):
         self.spiParam_alg1_pruneInterval = 0
         self.spiParam_alg2_threshold = 100
 
-        self.spiParam_outDir = os.getcwd()
+        self.spiParam_outDir = self.psocakeDir
         self.spiParam_tag = ''
         self.spiParam_runs = ''
         self.spiParam_queue = spiParam_psanaq_str
@@ -711,8 +714,8 @@ class MainFrame(QtGui.QWidget):
         self.area.moveDock(self.d3, 'above', self.d8)
         self.area.moveDock(self.d4, 'above', self.d8)
 
-        if args.more:
-            self.area.addDock(self.d10, 'bottom', self.d6)
+        #if args.more:
+        #    self.area.addDock(self.d10, 'bottom', self.d6)
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
