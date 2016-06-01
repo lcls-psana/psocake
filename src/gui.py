@@ -236,15 +236,19 @@ class MainFrame(QtGui.QWidget):
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
         self.psocakeDir = os.getcwd()
+        print "@$%@$%@$%@$%: ", args.expRun
         # Init experiment parameters
-        if args.expRun is not None and ':run=' in args.expRun[0]:
-            self.experimentName = args.expRun[0].split('exp=')[-1].split(':')[0]
-            self.runNumber = args.expRun[0].split('run=')[-1]
-            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+        if args.expRun is not None and ':run=' in args.expRun:
+            print "@#$@$#$@#$#$$@$#@#$"
+            self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
+            self.runNumber = args.expRun.split('run=')[-1]
+            if self.experimentName is not '':
+                self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         else:
             self.experimentName = args.exp
             self.runNumber = int(args.run)
-            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+            if self.experimentName is not '':
+                self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         self.detInfo = args.det
         self.isCspad = False
         self.isCamera = False
@@ -336,6 +340,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg4_dr = 1
 
         self.hitParam_outDir = self.psocakeDir
+        self.hitParam_outDir_overridden = False
         self.hitParam_runs = ''
         self.hitParam_queue = hitParam_psanaq_str
         self.hitParam_cpus = 32
@@ -358,6 +363,7 @@ class MainFrame(QtGui.QWidget):
         self.spiParam_alg2_threshold = 100
 
         self.spiParam_outDir = self.psocakeDir
+        self.spiParam_outDir_overridden = False
         self.spiParam_tag = ''
         self.spiParam_runs = ''
         self.spiParam_queue = spiParam_psanaq_str
@@ -1246,7 +1252,8 @@ class MainFrame(QtGui.QWidget):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 1] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.data[_userMaskInd] + (np.max(self.data) - self.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
             print "display_data: ", self.display_data.shape
-        self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+        if self.display_data is not None:
+            self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         print "Done drawing"
 
     def drawLabCoordinates(self):
@@ -1790,6 +1797,7 @@ class MainFrame(QtGui.QWidget):
                 self.drawPeaks()
             elif path[1] == hitParam_outDir_str:
                 self.hitParam_outDir = data
+                self.hitParam_outDir_overridden = True
             elif path[1] == hitParam_runs_str:
                 self.hitParam_runs = data
             elif path[1] == hitParam_queue_str:
@@ -1984,6 +1992,7 @@ class MainFrame(QtGui.QWidget):
                 self.spiAlgorithm = data
             elif path[1] == spiParam_outDir_str:
                 self.spiParam_outDir = data
+                self.spiParam_outDir_overridden = True
             elif path[1] == spiParam_tag_str:
                 self.spiParam_tag = data
             elif path[1] == spiParam_runs_str:
@@ -2213,6 +2222,12 @@ class MainFrame(QtGui.QWidget):
         if self.hasExpRunInfo():
             # Set up psocake directory in scratch
             self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+            if self.hitParam_outDir_overridden is False:
+                self.p3.param(hitParam_grp, hitParam_outDir_str).setValue(self.psocakeDir)
+            if self.spiParam_outDir_overridden is False:
+                self.p8.param(spiParam_grp, spiParam_outDir_str).setValue(self.psocakeDir)
+            if self.index.outDir_overridden is False:
+                self.p9.param(self.index.launch_grp, self.index.outDir_str).setValue(self.psocakeDir)
             self.setupPsocake()
 
             if args.localCalib:

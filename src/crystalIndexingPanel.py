@@ -29,6 +29,7 @@ class CrystalIndexing(object):
             ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq')
 
         self.outDir = self.parent.psocakeDir
+        self.outDir_overridden = False
         self.runs = ''
         self.queue = self.psanaq_str
         self.cpus = 32
@@ -138,6 +139,7 @@ class CrystalIndexing(object):
 
     def updateOutputDir(self, data):
         self.outDir = data
+        self.outDir_overridden = True
         print "Done updateOutputDir ", self.outDir
 
     def updateRuns(self, data):
