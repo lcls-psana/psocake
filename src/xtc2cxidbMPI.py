@@ -175,7 +175,6 @@ photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
 pulseEnergy = ebeam.ebeamL3Energy() # MeV
 if hasCoffset:
     detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
-    print "ps.clen: ", ps.clen
 elif hasDetectorDistance:
     detectorDistance = args.detectorDistance
 
@@ -186,6 +185,11 @@ print "Reading file: %s" % (filename)
 
 if rank == 0:
     f = h5py.File(filename, "r+")
+
+    if "/status/xtc2cxidbMPI" in f:
+        del f["/status/xtc2cxidbMPI"]
+    f["/status/xtc2cxidbMPI"] = 'fail'
+
     # Condition:
     if args.condition:
         import operator
@@ -514,5 +518,10 @@ for i,val in enumerate(myHitInd):
 f.close()
 
 if rank == 0:
+    f = h5py.File(filename, "r+")
+    if "/status/xtc2cxidbMPI" in f:
+        del f["/status/xtc2cxidbMPI"]
+    f["/status/xtc2cxidbMPI"] = 'success'
+    f.close()
     toc = time.time()
     print "time taken: ", toc-tic

@@ -126,7 +126,7 @@ class StreakMask:
         calibMask=calibMask.reshape(self.calibShape)
         tic8 = time.time()
 
-        print "calib, image, edge, crop, blur, mask, connect, convert: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3, tic5-tic4, tic6-tic5, tic7-tic6, tic8-tic7
+        #print "calib, image, edge, crop, blur, mask, connect, convert: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3, tic5-tic4, tic6-tic5, tic7-tic6, tic8-tic7
 
         return calibMask
 

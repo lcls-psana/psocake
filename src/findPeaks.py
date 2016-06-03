@@ -109,12 +109,12 @@ class PeakFinder:
                 self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
                                        rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
             tic4 = time.time()
-            print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
+            #print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
 
     def savePeaks(self,myHdf5,ind):
         if "cxi" in self.exp:
             nPeaks = self.peaks.shape[0]
-            print "Number of peaks found: ", nPeaks
+            #print "Number of peaks found: ", nPeaks
             if nPeaks > self.maxNumPeaks:
                 self.peaks = self.peaks[:self.maxNumPeaks]
                 nPeaks = self.peaks.shape[0]
@@ -171,8 +171,7 @@ def detList(s):
 
 def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
     for i,myTime in enumerate(mytimes):
-        print "ind: ", ind[i]
-        if i%100==0: print 'Rank',rank,'processing event', i, myTime
+        if i%100==0: print 'Rank',rank,'processing event', i*100./len(mytimes), ' %'
         evt = run.event(myTime)
         if evt is None:
             print '*** event fetch failed'
@@ -180,13 +179,13 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
         for d in detlist:
             try:
                 tic = time.time()
-                detarr = d.calib_data(evt)
+                detarr = d.calib_data(evt) * d.gain(evt)
                 tic1 = time.time()
             except ValueError:
                 id = evt.get(EventId)
                 print 'Value Error!'
-                print id
-                print id.time(),id.fiducials()
+                #print id
+                #print id.time(),id.fiducials()
                 continue
             if detarr is None:
                 print '*** failed to get detarr'
@@ -249,7 +248,7 @@ def findPeaksForMyChunk(myHdf5,ind,mytimes,single=False):
             d.peakFinder.savePeaks(myHdf5,ind[i])
             toc = time.time()
 
-            print "Time for ind,calib,findPeaks,savePeaks: ", ind[i], tic1-tic, tic3-tic2, toc-tic3
+            #print "Time for ind,calib,findPeaks,savePeaks: ", ind[i], tic1-tic, tic3-tic2, toc-tic3
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-e','--exp', help="experiment name (e.g. cxic0415)", type=str)
@@ -319,15 +318,16 @@ else:
 ind = getMyUnfairShare(numJobs,size,rank)
 mytimes = times[ind[0]:ind[-1]+1]
 
-print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
+# "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
 runStr = "%04d" % runNumber
 fname = args.outDir +"/"+ experimentName +"_"+ runStr + ".cxi"
-print fname
+#print fname
 
 # Create hdf5 and save
 if rank == 0:
     myHdf5 = h5py.File(fname, 'w')
+    myHdf5['/status/findPeaks'] = 'fail'
     dt = h5py.special_dtype(vlen=bytes)
 
     myInput = ""
@@ -358,13 +358,15 @@ findPeaksForMyChunk(myHdf5,ind,mytimes,single=False)
 myHdf5.close()
 
 if rank == 0:
+    myHdf5 = h5py.File(fname, 'r+')
     if args.userMask_path is not None:
         userMask = np.load(args.userMask_path)
-        myHdf5 = h5py.File(fname, 'r+')
         dset_userMask = '/entry_1/instrument_1/detector_1/mask'
         ds = myHdf5.create_dataset(dset_userMask, (userMask.shape), dtype='int')
         ds[...] = userMask
-        myHdf5.close()
-
+    if '/status/findPeaks' in myHdf5:
+        del myHdf5['/status/findPeaks']
+    myHdf5['/status/findPeaks'] = 'success'
+    myHdf5.close()
 MPI.Finalize()
 

@@ -5,7 +5,6 @@
 # TODO: dropdown menu for available detectors
 # TODO: When front and back detectors given, display both
 # TODO: Radial average panel
-# TODO: Show raw, pedestal-corrected, commonMode-corrected, gain-corrected
 # TODO: Display xtcav, acqiris
 # TODO: Downsampler
 # TODO: Radial background, polarization correction
@@ -31,14 +30,15 @@ from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 # Panel modules
 import diffractionGeometryPanel
 import crystalIndexingPanel
+from LogBook.runtables import RunTables
 
 parser = argparse.ArgumentParser()
-parser.add_argument('expRun', nargs='?', default=None, help="psana experiment/run string in the format of exp=<experiment name>:run=<run number> (e.g. exp=cxi06216:run=22)")
-parser.add_argument("-e","--exp", help="experiment name only or psana-style experiment and run (e.g. cxis0813 )", default="", type=str)
-parser.add_argument("-r","--run", help="run number (e.g. 5), default=0",default=0, type=int)
-parser.add_argument("-d","--det", help="detector name (e.g. CxiDs1.0:Cspad.0), default=''",default="", type=str)
-parser.add_argument("-n","--evt", help="event number (e.g. 1), default=0",default=0, type=int)
-parser.add_argument("--localCalib", help="use local calib directory, default=False", action='store_true')
+parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")
+parser.add_argument("-e","--exp", help="Experiment name (e.g. cxis0813 ). This option is ignored if expRun option is used.", default="", type=str)
+parser.add_argument("-r","--run", help="Run number. This option is ignored if expRun option is used.",default=0, type=int)
+parser.add_argument("-d","--det", help="Detector alias or DAQ name (e.g. DscCsPad or CxiDs1.0:Cspad.0), default=''",default="", type=str)
+parser.add_argument("-n","--evt", help="Event number (e.g. 1), default=0",default=0, type=int)
+parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 #parser.add_argument("--more", help="display more panels", action='store_true')
 args = parser.parse_args()
 
@@ -343,7 +343,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_outDir_overridden = False
         self.hitParam_runs = ''
         self.hitParam_queue = hitParam_psanaq_str
-        self.hitParam_cpus = 32
+        self.hitParam_cpus = 24
         self.hitParam_noe = 0
 
         # Indexing
@@ -367,7 +367,7 @@ class MainFrame(QtGui.QWidget):
         self.spiParam_tag = ''
         self.spiParam_runs = ''
         self.spiParam_queue = spiParam_psanaq_str
-        self.spiParam_cpus = 32
+        self.spiParam_cpus = 24
         self.spiParam_noe = 0
 
         # Quantifier
@@ -593,6 +593,8 @@ class MainFrame(QtGui.QWidget):
         self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
         self.index = crystalIndexingPanel.CrystalIndexing(self)
 
+        self.getUsername()
+
         self.initUI()
 
     def initUI(self):
@@ -806,7 +808,7 @@ class MainFrame(QtGui.QWidget):
                 self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
         def save():
-            outputName = "psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
+            outputName = self.psocakeRunDir+"/psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
                          +str(self.eventNumber)+"_"+str(self.eventSeconds)+"_"+str(self.eventNanoseconds)+"_" \
                          +str(self.eventFiducial)+".npy"
             fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', outputName, 'ndarray image (*.npy)')
@@ -821,7 +823,7 @@ class MainFrame(QtGui.QWidget):
                     np.save(str(fname),self.calib)
                     np.savetxt(str(fname).split('.')[0]+".txt", self.calib.reshape((-1,self.calib.shape[-1])) )#,fmt='%0.18e')
         def load():
-            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
+            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', self.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
             print "fname: ", fname, fname.split('.')[-1]
             if fname.split('.')[-1] in '.npz':
                 print "got npz"
@@ -1008,13 +1010,13 @@ class MainFrame(QtGui.QWidget):
                 if self.userMask.size==2*185*388: # cspad2x2
                     # DAQ shape
                     asData2x2 = two2x1ToData2x2(self.userMask)
-                    np.save("mask.npy",asData2x2)
-                    np.savetxt("mask.txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
+                    np.save(self.psocakeRunDir+"/mask.npy",asData2x2)
+                    np.savetxt(self.psocakeRunDir+"/mask.txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
                     # Natural shape
-                    np.save("mask_natural_shape.npy",self.userMask)
+                    np.save(self.psocakeRunDir+"/mask_natural_shape.npy",self.userMask)
                 else:
-                    np.save("mask.npy",self.userMask)
-                    np.savetxt("mask.txt", self.userMask.reshape((-1,self.userMask.shape[-1])) ,fmt='%0.18e')
+                    np.save(self.psocakeRunDir+"/mask.npy",self.userMask)
+                    np.savetxt(self.psocakeRunDir+"/mask.txt", self.userMask.reshape((-1,self.userMask.shape[-1])) ,fmt='%0.18e')
             else:
                 print "user mask is not defined"
         self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), deployMask)
@@ -1072,7 +1074,7 @@ class MainFrame(QtGui.QWidget):
             if not runList:
                 print "Run(s) is empty. Please type in the run number(s)."
                 return runsToDo
-            runLists = runList.split(",")
+            runLists = str(runList).split(",")
             for list in runLists:
                 temp = list.split(":")
                 if len(temp) == 2:
@@ -1092,7 +1094,6 @@ class MainFrame(QtGui.QWidget):
                 print "self.index: ", self.index.outDir, self.index.intRadius
                 self.thread[self.threadCounter].launchIndexing(run)
                 self.threadCounter+=1
-                print "done indexing peaks!!!!!!"
         self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
         # Loading image stack
         def displayImageStack():
@@ -1800,6 +1801,7 @@ class MainFrame(QtGui.QWidget):
                 self.hitParam_outDir_overridden = True
             elif path[1] == hitParam_runs_str:
                 self.hitParam_runs = data
+
             elif path[1] == hitParam_queue_str:
                 self.hitParam_queue = data
             elif path[1] == hitParam_cpu_str:
@@ -2089,6 +2091,10 @@ class MainFrame(QtGui.QWidget):
         self.experimentName = data
         self.hasExperimentName = True
 
+        # Setup elog
+        self.rt = RunTables(**{'web-service-url': 'https://pswww.slac.stanford.edu/ws-kerb'})
+        self.table = self.rt.findUserTable(exper_name=self.experimentName,table_name='Run summary')
+
         self.setupExperiment()
 
         self.updateImage()
@@ -2194,13 +2200,13 @@ class MainFrame(QtGui.QWidget):
 
     def setupPsocake(self):
         self.getUsername()
-        self.loggerFile = self.psocakeDir+'/logger.data'
-        if os.path.exists(self.psocakeDir) is False:
-            os.mkdir(self.psocakeDir, 0774)
+        self.loggerFile = self.elogDir+'/logger.data'
+        if os.path.exists(self.elogDir) is False:
+            os.makedirs(self.elogDir, 0774)
             # setup permissions
-            process = subprocess.Popen('chgrp -R '+self.experimentName+' '+self.psocakeDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            process = subprocess.Popen('chgrp -R '+self.experimentName+' '+self.elogDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out,err=process.communicate()
-            process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx '+self.psocakeDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx '+self.elogDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out,err=process.communicate()
             #import stat
             #os.chmod(self.psocakeDir, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_ISGID | stat.S_IROTH)
@@ -2213,21 +2219,34 @@ class MainFrame(QtGui.QWidget):
                 content = myfile.readlines()
                 if content[0].strip() == self.username:
                     self.logger = True
-                    print "I'm a logger"
+                    print "I'm an elogger"
                 else:
                     self.logger = False
-                    print "I'm not a logger"
+                    print "I'm not an elogger"
+        # Make run folder
+        if os.path.exists(self.psocakeRunDir) is False:
+            os.makedirs(self.psocakeRunDir, 0774)
 
     def setupExperiment(self):
+        print "Doing setupExperiment"
         if self.hasExpRunInfo():
+            print "hasExpRunInfo"
             # Set up psocake directory in scratch
-            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
-            if self.hitParam_outDir_overridden is False:
-                self.p3.param(hitParam_grp, hitParam_outDir_str).setValue(self.psocakeDir)
-            if self.spiParam_outDir_overridden is False:
-                self.p8.param(spiParam_grp, spiParam_outDir_str).setValue(self.psocakeDir)
-            if self.index.outDir_overridden is False:
-                self.p9.param(self.index.launch_grp, self.index.outDir_str).setValue(self.psocakeDir)
+            self.elogDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/'+self.username+'/psocake'
+            self.psocakeRunDir = self.psocakeDir+'/r'+str(self.runNumber).zfill(4)
+            print "self.psocakeRunDir: ", self.psocakeRunDir, self.hitParam_outDir_overridden
+            # Update peak finder outdir and run number
+            self.p3.param(hitParam_grp, hitParam_outDir_str).setValue(self.psocakeDir)
+            self.p3.param(hitParam_grp, hitParam_runs_str).setValue(self.runNumber)
+            # Update hit finding outdir, run number
+            self.p8.param(spiParam_grp, spiParam_outDir_str).setValue(self.psocakeDir)
+            self.p8.param(spiParam_grp, spiParam_runs_str).setValue(self.runNumber)
+            # Update indexing outdir, run number
+            self.p9.param(self.index.launch_grp, self.index.outDir_str).setValue(self.psocakeDir)
+            self.p9.param(self.index.launch_grp, self.index.runs_str).setValue(self.runNumber)
+            # Update quantifier filename
+            self.p2.param(quantifier_grp, quantifier_filename_str).setValue(self.psocakeDir)
             self.setupPsocake()
 
             if args.localCalib:
@@ -2272,7 +2291,7 @@ class MainFrame(QtGui.QWidget):
                 print "clen: ", self.detectorDistance, self.clen
                 self.coffset = self.detectorDistance - self.clen
 
-            if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list
+            if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list: epix, rayonix
                 self.pixelSize = 110e-6
             elif 'pnccd' in self.detInfo.lower():
                 self.pixelSize = 75e-6
@@ -2427,7 +2446,6 @@ class MainFrame(QtGui.QWidget):
             self.quantifierInd = np.arange(len(self.quantifierMetric))
             self.quantifierHasData = True
             self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
-
             try:
                 if self.quantifier_dataset[0] == '/': # dataset starts with "/"
                     self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
@@ -2704,7 +2722,7 @@ class PowderProducer(QtCore.QThread):
         if not runList:
             print "Run(s) is empty. Please type in the run number(s)."
             return runsToDo
-        runLists = runList.split(",")
+        runLists = str(runList).split(",")
         for list in runLists:
             temp = list.split(":")
             if len(temp) == 2:
@@ -2719,18 +2737,21 @@ class PowderProducer(QtCore.QThread):
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
         print runsToDo
         for run in runsToDo:
+            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            if os.path.exists(runDir) is False:
+                os.makedirs(runDir, 0774)
             # Command for submitting to batch
             cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o .%J.log generatePowder exp="+self.experimentName+\
+                  " -o "+runDir+"/.%J.log generatePowder exp="+self.experimentName+\
                   ":run="+str(run)+" -d "+self.detInfo+\
-                  " -o "+str(self.parent.hitParam_outDir)
+                  " -o "+runDir
             if self.parent.hitParam_noe > 0:
                 cmd += " -n "+str(self.parent.hitParam_noe)
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = "."+jobid+".log"
+            myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
             print "bsub log filename: ", myLog
             # myKeyString = "The output (if any) is above this job summary."
             # mySuccessString = "Successfully completed."
@@ -2823,7 +2844,7 @@ class PeakFinder(QtCore.QThread):
         if not runList:
             print "Run(s) is empty. Please type in the run number(s)."
             return runsToDo
-        runLists = runList.split(",")
+        runLists = str(runList).split(",")
         for list in runLists:
             temp = list.split(":")
             if len(temp) == 2:
@@ -2840,11 +2861,15 @@ class PeakFinder(QtCore.QThread):
         print runsToDo
 
         for run in runsToDo:
+            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            if os.path.exists(runDir) is False:
+                os.makedirs(runDir, 0774)
             cmd = "bsub -q "+self.parent.hitParam_queue+\
               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o .%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
+              " -o "+self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/.%J.log"+\
+              " python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
               " -r "+str(run)+" -d "+self.detInfo+\
-              " --outDir "+str(self.parent.hitParam_outDir)+\
+              " --outDir "+runDir+\
               " --algorithm "+str(self.parent.algorithm)
 
             if self.parent.algorithm == 1:
@@ -2879,7 +2904,7 @@ class PeakFinder(QtCore.QThread):
                        " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
-                tempFilename = "tempUserMask.npy"
+                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
                 np.save(tempFilename,self.parent.userMask) # TODO: save
                 cmd += " --userMask_path "+str(tempFilename)
             if self.parent.streakMaskOn:
@@ -2899,35 +2924,9 @@ class PeakFinder(QtCore.QThread):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = "."+jobid+".log"
+            myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
             print "*******************"
             print "bsub log filename: ", myLog
-        # myKeyString = "The output (if any) is above this job summary."
-        # mySuccessString = "Successfully completed."
-        # notDone = 1
-        # haveFinished = 0
-        # while notDone:
-        #     if os.path.isfile(myLog):
-        #         p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-        #         output = p.communicate()[0]
-        #         p.stdout.close()
-        #         if myKeyString in output: # job has finished
-        #             # check job was a success or a failure
-        #             p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-        #             output = p.communicate()[0]
-        #             p.stdout.close()
-        #             if mySuccessString in output: # success
-        #                 print "successfully done"
-        #                 haveFinished = 1
-        #             else:
-        #                 print "failed attempt"
-        #             notDone = 0
-        #         else:
-        #             print "job hasn't finished yet"
-        #             time.sleep(10)
-        #     else:
-        #         print "no such file yet"
-        #         time.sleep(10)
 
 class HitFinder(QtCore.QThread):
     def __init__(self, parent = None):
@@ -2954,7 +2953,7 @@ class HitFinder(QtCore.QThread):
         if not runList:
             print "Run(s) is empty. Please type in the run number(s)."
             return runsToDo
-        runLists = runList.split(",")
+        runLists = str(runList).split(",")
         for list in runLists:
             temp = list.split(":")
             if len(temp) == 2:
@@ -2971,13 +2970,16 @@ class HitFinder(QtCore.QThread):
         print runsToDo
 
         for run in runsToDo:
+            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            if os.path.exists(runDir) is False:
+                os.makedirs(runDir, 0774)
             expRun = 'exp='+self.experimentName+':run='+str(run)
             cmd = "bsub -q "+self.parent.spiParam_queue+\
               " -a mympi -n "+str(self.parent.spiParam_cpus)+\
-              " -o .%J.log litPixel_HitMetric"+\
+              " -o "+runDir+"/.%J.log litPixel_HitMetric"+\
               " "+expRun+\
               " -d "+self.detInfo+\
-              " --outdir "+str(self.parent.spiParam_outDir)
+              " --outdir "+runDir
 
             if self.parent.spiParam_tag is not None:
                 cmd += " --tag "+str(self.parent.spiParam_tag)
@@ -2989,7 +2991,7 @@ class HitFinder(QtCore.QThread):
 
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
-                tempFilename = "tempUserMask.npy"
+                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
                 np.save(tempFilename,self.parent.userMask) # TODO: save
                 cmd += " --mask "+str(tempFilename)
 
@@ -2999,7 +3001,7 @@ class HitFinder(QtCore.QThread):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = "."+jobid+".log"
+            myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
             print "*******************"
             print "bsub log filename: ", myLog
 
@@ -3028,7 +3030,7 @@ class PeakFinder(QtCore.QThread):
         if not runList:
             print "Run(s) is empty. Please type in the run number(s)."
             return runsToDo
-        runLists = runList.split(",")
+        runLists = str(runList).split(",")
         for list in runLists:
             temp = list.split(":")
             if len(temp) == 2:
@@ -3042,14 +3044,24 @@ class PeakFinder(QtCore.QThread):
         print "Finding peaks!!!!!!!!!!!!"
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
-        print runsToDo
+        print "runsToDo: ", runsToDo
 
+        myLogList = []
         for run in runsToDo:
+            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            if os.path.exists(runDir) is False:
+                os.makedirs(runDir, 0774)
+
+            # Update elog
+            if self.parent.logger == True:
+                print "Updating e-log"
+                self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
+
             cmd = "bsub -q "+self.parent.hitParam_queue+\
               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o .%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
+              " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
               " -r "+str(run)+" -d "+self.detInfo+\
-              " --outDir "+str(self.parent.hitParam_outDir)+\
+              " --outDir "+runDir+\
               " --algorithm "+str(self.parent.algorithm)
 
             if self.parent.algorithm == 1:
@@ -3084,7 +3096,7 @@ class PeakFinder(QtCore.QThread):
                        " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
             # Save user mask to a deterministic path
             if self.parent.userMaskOn:
-                tempFilename = "tempUserMask.npy"
+                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
                 np.save(tempFilename,self.parent.userMask) # TODO: save
                 cmd += " --userMask_path "+str(tempFilename)
             if self.parent.streakMaskOn:
@@ -3104,8 +3116,60 @@ class PeakFinder(QtCore.QThread):
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
             jobid = out.split("<")[1].split(">")[0]
-            myLog = "."+jobid+".log"
+            myLog = runDir+"/."+jobid+".log"
+            myLogList.append(myLog)
             print "*******************"
+
+
+        myKeyString = "The output (if any) is above this job summary."
+        mySuccessString = "Successfully completed."
+        Done = 0
+        numWorkers = len(runsToDo)
+        haveFinished = np.zeros((numWorkers,))
+        while Done == 0:
+            for i,myLog in enumerate(myLogList):
+                if os.path.isfile(myLog):
+                    if haveFinished[i] == 0:
+                        p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
+                        output = p.communicate()[0]
+                        p.stdout.close()
+                        if myKeyString in output: # job has finished
+                            # check job was a success or a failure
+                            p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
+                            output = p.communicate()[0]
+                            p.stdout.close()
+                            if mySuccessString in output: # success
+                                print "successfully done: ", myLog
+                                haveFinished[i] = 1
+                                if len(np.where(haveFinished==1)[0]) == numWorkers:
+                                    Done = 1
+                            else:
+                                print "failed attempt"
+                                haveFinished[i] = -1
+                                Done = -1
+                        else:
+                            print "peak finding job hasn't finished yet: ", myLog
+                            time.sleep(10)
+                else:
+                    print "no such file yet: ", myLog
+                    time.sleep(10)
+
+                if haveFinished[i] == 1:
+                    # Read number of hits
+                    filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
+                    f = h5py.File(filename,'r')
+                    numPeaks = 15
+                    numHits = len(np.where(f['/entry_1/result_1/nPeaksAll'].value>=numPeaks)[0])
+                    f.close()
+                    # Update elog
+                    if self.parent.logger == True:
+                        print "Updating e-log"
+                        self.parent.table.setValue(runsToDo[i],"Number of hits",numHits)
+                elif haveFinished[i] == -1:
+                    # Update elog
+                    if self.parent.logger == True:
+                        print "Updating e-log"
+                        self.parent.table.setValue(runsToDo[i],"Number of hits","#Failed")
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
