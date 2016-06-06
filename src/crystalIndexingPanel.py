@@ -379,7 +379,7 @@ class IndexHandler(QtCore.QThread):
                       " --sample lysozyme" \
                       " --instrument "+self.parent.det.instrument()+" --pixelSize "+str(self.parent.pixelSize)+ \
                       " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+" --run "+str(self.runNumber)+\
-                      " --condition /entry_1/result_1/nPeaksAll,ge,15"
+                      " --condition /entry_1/result_1/nPeaksAll,ge,"+str(self.parent.hitParam_threshold)
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
@@ -503,26 +503,18 @@ class IndexHandler(QtCore.QThread):
                     totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
                     hitEvents = f['/LCLS/eventNumber'].value
                     indexedPeaks = np.zeros((totalEvents,),dtype=int)
-                    fff = 0
                     for i,val in enumerate(content):
                         if "Event: //" in val:
                             _evt = int(val.split("Event: //")[-1].strip())
-                            print "evt: ", _evt
                         if "indexed_by =" in val:
                             _ind = val.split("indexed_by =")[-1].strip()
-                            print "ind: ", _ind
                         if "num_peaks =" in val:
                             _num = val.split("num_peaks =")[-1].strip()
-                            print "num: ", _num
                             if 'none' in _ind:
                                 continue
                             else:
                                 indexedPeaks[hitEvents[_evt]] = _num
-                                print "found indexed"
-                                fff += 1
                     fstream.close()
-                    print "numIndexed: ", fff
-                    print "$$$$ Indexing results: ", indexedPeaks, np.where(indexedPeaks>0)[0], len(np.where(indexedPeaks>0)[0])
                     numIndexed = len(np.where(indexedPeaks>0)[0])
                     if '/entry_1/result_1/index' in f:
                         del f['/entry_1/result_1/index']
