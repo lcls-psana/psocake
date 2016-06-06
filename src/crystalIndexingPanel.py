@@ -102,10 +102,8 @@ class CrystalIndexing(object):
 
     def updateIndexStatus(self, data):
         self.indexingOn = data
-        print "indexing on: ", self.indexingOn
         if self.indexingOn:
             self.updateIndex()
-        print "Done updateIndexStatus"
 
     def updateGeom(self, data):
         self.geom = data
@@ -137,28 +135,22 @@ class CrystalIndexing(object):
             self.indexer = IndexHandler(parent=self.parent)
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb, self.indexingMethod)
-        print "Done updateIndex"
 
     def updateOutputDir(self, data):
         self.outDir = data
         self.outDir_overridden = True
-        print "Done updateOutputDir ", self.outDir
 
     def updateRuns(self, data):
         self.runs = data
-        print "Done updateRuns"
 
     def updateQueue(self, data):
         self.queue = data
-        print "Done updateQueue"
 
     def updateCpus(self, data):
         self.cpus = data
-        print "Done updateCpu"
 
     def updateNoe(self, data):
         self.noe = data
-        print "Done updateNoe"
 
     def launchIndexing(self, requestRun=None):
         self.batchIndexer = IndexHandler(parent=self.parent)
@@ -170,13 +162,11 @@ class CrystalIndexing(object):
             self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                        self.indexingMethod, self.outDir, self.runs, self.queue, self.cpus, self.noe)
-        print "outDir: ", self.outDir
-        print "Done updateIndex"
+        if self.parent.args.v >= 1: print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
-        print "WORKER!!!!!!!!!!"
         self.parent = parent
         self.experimentName = None
         self.runNumber = None
@@ -196,7 +186,7 @@ class IndexHandler(QtCore.QThread):
         self.noe = None
 
     def __del__(self):
-        print "del IndexHandler #$!@#$!#"
+        if self.parent.args.v >= 1: print "del IndexHandler"
         self.exiting = True
         self.wait()
 
@@ -233,7 +223,7 @@ class IndexHandler(QtCore.QThread):
 
     def run(self):
         if self.outDir is None: # interactive indexing
-            print "Running indexing!!!!!!!!!!!!"
+            if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
             # Running indexing ...
             self.parent.numIndexedPeaksFound = 0
             self.parent.indexedPeaks = None
@@ -256,7 +246,7 @@ class IndexHandler(QtCore.QThread):
             mySuccessString = "1 had crystals"
             # Read CrystFEL CSPAD geometry in stream
             if mySuccessString in err: # success
-                print "Indexing successful"
+                if self.parent.args.v >= 1: print "Indexing successful"
                 #print "Munging geometry file"
                 f = open(self.parent.hiddenCrystfelStream)
                 content = f.readlines()
@@ -307,7 +297,7 @@ class IndexHandler(QtCore.QThread):
                         counter += 1
                 f.close()
             else:
-                print "Indexing failed"
+                if self.parent.args.v >= 1: print "Indexing failed"
                 self.parent.drawIndexedPeaks()
 
             # Read CrystFEL indexed peaks
@@ -359,13 +349,12 @@ class IndexHandler(QtCore.QThread):
         else: # batch indexing
             # Update elog
             if self.parent.logger == True:
-                print "Updating e-log"
+                if self.parent.args.v >= 1: print "Updating e-log"
                 self.parent.table.setValue(self.runNumber,"Number of indexed","#ConvertingCXIDB")
 
             # Open hdf5
             peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
             try:
-                print "Opening: ", peakFile
                 f = h5py.File(peakFile,'r')
                 hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidbMPI'] == 'success'
                 f.close()
@@ -385,7 +374,6 @@ class IndexHandler(QtCore.QThread):
                 out, err = process.communicate()
                 jobid = out.split("<")[1].split(">")[0]
                 myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobid+".log"
-                print "*******************"
                 print "bsub log filename: ", myLog
                 myKeyString = "The output (if any) is above this job summary."
                 mySuccessString = "Successfully completed."
@@ -404,23 +392,23 @@ class IndexHandler(QtCore.QThread):
                                 print "successfully done: ", self.runNumber
                                 hasData = True
                             else:
-                                print "failed attempt"
+                                print "failed attempt", self.runNumber
                                 # Update elog
                                 if self.parent.logger == True:
-                                    print "Updating e-log"
+                                    if self.parent.args.v >= 1: print "Updating e-log"
                                     self.parent.table.setValue(self.runNumber,"Number of indexed","#FailedCXIDB")
                             notDone = 0
                         else:
-                            print "cxidb job hasn't finished yet: ", myLog
+                            if self.parent.args.v >= 1: print "cxidb job hasn't finished yet: ", myLog
                             time.sleep(10)
                     else:
-                        print "no such file yet"
+                        if self.parent.args.v >= 1: print "no such file yet"
                         time.sleep(10)
 
             if hasData:
                 # Update elog
                 if self.parent.logger == True:
-                    print "Updating e-log"
+                    if self.parent.args.v >= 1: print "Updating e-log"
                     self.parent.table.setValue(self.runNumber,"Number of indexed","#IndexingNow")
                 f = h5py.File(peakFile,'r')
                 eventList = f['/LCLS/eventNumber'].value
@@ -447,12 +435,12 @@ class IndexHandler(QtCore.QThread):
                           " --indexing="+self.indexingMethod+" -o "+myStream
                     if self.pdb is not '':
                         cmd += " --pdb="+self.pdb
+                    print "Submitting batch job: ", cmd
                     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                     out, err = process.communicate()
                     jobid = out.split("<")[1].split(">")[0]
                     myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobid+".log"
                     myLogList.append(myLog)
-                    print "*******************"
                     print "bsub log filename: ", myLog
 
                 myKeyString = "The output (if any) is above this job summary."
@@ -477,14 +465,14 @@ class IndexHandler(QtCore.QThread):
                                         if len(np.where(haveFinished==1)[0]) == numWorkers:
                                             Done = 1
                                     else:
-                                        print "failed attempt"
+                                        print "failed attempt", myLog
                                         haveFinished[i] = -1
                                         Done = -1
                                 else:
-                                    print "indexing job hasn't finished yet: ", self.runNumber
+                                    if self.parent.args.v >= 1: print "indexing job hasn't finished yet: ", self.runNumber
                                     time.sleep(10)
                         else:
-                            print "no such file yet: ", myLog
+                            if self.parent.args.v >= 1: print "no such file yet: ", myLog
                             time.sleep(10)
 
                 if Done == 1:
@@ -530,7 +518,7 @@ class IndexHandler(QtCore.QThread):
 
                     # Update elog
                     if self.parent.logger == True:
-                        print "Updating e-log numIndexed: ", numIndexed
+                        if self.parent.args.v >= 1: print "Updating e-log numIndexed: ", numIndexed
                         self.parent.table.setValue(self.runNumber,"Number of indexed",numIndexed)
 
 

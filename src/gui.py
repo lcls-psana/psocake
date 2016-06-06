@@ -40,6 +40,7 @@ parser.add_argument("-r","--run", help="Run number. This option is ignored if ex
 parser.add_argument("-d","--det", help="Detector alias or DAQ name (e.g. DscCsPad or CxiDs1.0:Cspad.0), default=''",default="", type=str)
 parser.add_argument("-n","--evt", help="Event number (e.g. 1), default=0",default=0, type=int)
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
+parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 #parser.add_argument("--more", help="display more panels", action='store_true')
 args = parser.parse_args()
 
@@ -234,14 +235,13 @@ class MainFrame(QtGui.QWidget):
     """        
     def __init__(self, arg_list):
         super(MainFrame, self).__init__()
+        self.args = args
         self.firstUpdate = True
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
         self.psocakeDir = os.getcwd()
-        print "@$%@$%@$%@$%: ", args.expRun
         # Init experiment parameters
         if args.expRun is not None and ':run=' in args.expRun:
-            print "@#$@$#$@#$#$$@$#@#$"
             self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
             self.runNumber = args.expRun.split('run=')[-1]
             if self.experimentName is not '':
@@ -828,13 +828,10 @@ class MainFrame(QtGui.QWidget):
                     np.savetxt(str(fname).split('.')[0]+".txt", self.calib.reshape((-1,self.calib.shape[-1])) )#,fmt='%0.18e')
         def load():
             fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', self.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
-            print "fname: ", fname, fname.split('.')[-1]
             if fname.split('.')[-1] in '.npz':
-                print "got npz"
                 temp = np.load(fname)
                 self.calib = temp['max']
             else:
-                print "got npy"
                 self.calib = np.load(fname)
             self.updateImage(self.calib)
 
@@ -948,12 +945,9 @@ class MainFrame(QtGui.QWidget):
 
         # mask
         def makeMaskRect():
-            print "makeMaskRect!!!!!!"
             self.initMask()
             if self.data is not None and self.maskingMode > 0:
-                print "makeMaskRect_data: ", self.data.shape
                 selected, coord = self.roi_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
-                print "selected, coord: ", np.max(coord[0]), np.max(coord[1]), coord.shape
                 # Remove mask elements outside data
                 coord_row = coord[0,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
                 coord_col = coord[1,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
@@ -971,11 +965,11 @@ class MainFrame(QtGui.QWidget):
 
                 self.displayMask()
                 self.algInitDone = False
-            print "done makeMaskRect!!!!!!"
+            if args.v >= 1:
+                print "done makeMaskRect!!!!!!"
         self.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), makeMaskRect)
 
         def makeMaskCircle():
-            print "makeMaskCircle!!!!!!"
             self.initMask()
             if self.data is not None and self.maskingMode > 0:
                 (radiusX,radiusY) = self.roi_circle.size()
@@ -1003,13 +997,15 @@ class MainFrame(QtGui.QWidget):
 
                 self.displayMask()
                 self.algInitDone = False
-            print "done makeMaskCircle!!!!!!"
+            if args.v >= 1:
+                print "done makeMaskCircle!!!!!!"
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
 
         def deployMask():
             print "*** deploy user-defined mask as mask.txt and mask.npy as DAQ shape ***"
             print "*** deploy user-defined mask as mask_natural_shape.npy as natural shape ***"
-            print "userMask: ", self.userMask.shape
+            if args.v >= 1:
+                print "natural userMask: ", self.userMask.shape
             if self.userMask is not None:
                 if self.userMask.size==2*185*388: # cspad2x2
                     # DAQ shape
@@ -1027,7 +1023,6 @@ class MainFrame(QtGui.QWidget):
 
         def loadMask():
             fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
-            print "fname: ", fname, fname.split('.')[-1]
             self.initMask()
             self.userMask = np.load(fname)
             if self.userMask.shape != self.calib.shape:
@@ -1048,28 +1043,21 @@ class MainFrame(QtGui.QWidget):
         self.thread = []
         self.threadCounter = 0
         def makePowder():
-            print "makePowder!!!!!!"
             self.thread.append(PowderProducer(self)) # send parent parameters with self
             self.thread[self.threadCounter].computePowder(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
-            #self.generatePowderBtn.setEnabled(False)
-            print "done makePowder!!!!!!"
         self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
         # Launch peak finding
         def findPeaks():
-            print "find peaks!!!!!!"
             self.thread.append(PeakFinder(self)) # send parent parameters with self
             self.thread[self.threadCounter].findPeaks(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
-            print "done finding peaks!!!!!!"
         self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
         # Launch hit finding
         def findHits():
-            print "find hits!!!!!!"
             self.thread.append(HitFinder(self)) # send parent parameters with self
             self.thread[self.threadCounter].findHits(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
-            print "done finding hits!!!!!!"
         self.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), findHits)
 
         # Launch indexing
@@ -1089,40 +1077,33 @@ class MainFrame(QtGui.QWidget):
             return runsToDo
 
         def indexPeaks():
-            print "index.runs: ", self.index.runs
             runsToDo = digestRunList(self.index.runs)
-            print "runsToDo: ", runsToDo
             for run in runsToDo:
-                print "index peaks!!!!!!"
                 self.thread.append(self.index) # send parent parameters with self
-                print "self.index: ", self.index.outDir, self.index.intRadius
                 self.thread[self.threadCounter].launchIndexing(run)
                 self.threadCounter+=1
         self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
+
         # Loading image stack
         def displayImageStack():
-            print "display image stack!!!!!!"
             if self.logscaleOn:
-                print "applying logscale..."
                 self.w7.setImage(np.log10(abs(self.threadpool.data)+eps), xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
                                                                      self.threadpool.data.shape[0]))
-                print "done applying logscale"
             else:
                 self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
                                                                      self.threadpool.data.shape[0]))
             self.startBtn.setEnabled(True)
-            print "Done display image stack!!!!!"
+            if args.v >= 1:
+                print "Done display image stack!!!!!"
         def loadStack():
-            print "loading stack!!!!!!"
             self.stackStart = self.spinBox.value()
             self.stackSize = self.stackSizeBox.value()
             self.threadpool.load(self.stackStart,self.stackSize)
             self.startBtn.setEnabled(False)
             self.w7.getView().setTitle("exp="+self.experimentName+":run="+str(self.runNumber)+":evt"+str(self.stackStart)+"-"
                                        +str(self.stackStart+self.stackSize))
-            print "done loading stack!!!!!!"
         self.threadpool = stackProducer(self) # send parent parameters
         self.connect(self.threadpool, QtCore.SIGNAL("finished()"), displayImageStack)
         self.connect(self.startBtn, QtCore.SIGNAL("clicked()"), loadStack)
@@ -1211,31 +1192,25 @@ class MainFrame(QtGui.QWidget):
         self.win.show()
 
     def initMask(self):
-        print "initMask"
         if self.gapAssemInd is None:
             self.gapAssem = self.det.image(self.evt,np.ones_like(self.calib,dtype='int'))
             self.gapAssemInd = np.where(self.gapAssem==0)
         if self.userMask is None and self.data is not None:
-            print "make user mask: ", self.data.shape, self.userMask
             # initialize
             self.userMaskAssem = np.ones_like(self.data,dtype='int')
             self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
         if self.streakMask is None:
             self.StreakMask = myskbeam.StreakMask(self.det, self.evt, width=self.streak_width, sigma=self.streak_sigma)
-        print "Done initMask"
+        if args.v >= 1:
+            print "Done initMask"
 
     def displayMask(self):
-        print "displayMask"
         # convert to RGB
-        print "mask on:", self.userMaskOn, self.streakMaskOn, self.psanaMaskOn
         if self.userMaskOn is False and self.streakMaskOn is False and self.psanaMaskOn is False:
-            print "No mask is being used"
             self.display_data = self.data
         elif self.userMaskAssem is None and self.streakMaskAssem is None and self.psanaMaskAssem is None:
-            print "No mask exists"
             self.display_data = self.data
         elif self.data is not None:
-            print "Mask exists"
             self.display_data = np.zeros((self.data.shape[0], self.data.shape[1], 3), dtype = self.data.dtype)
             self.display_data[:,:,0] = self.data
             self.display_data[:,:,1] = self.data
@@ -1261,10 +1236,10 @@ class MainFrame(QtGui.QWidget):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 0] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 1] = self.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.data[_userMaskInd] + (np.max(self.data) - self.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
-            print "display_data: ", self.display_data.shape
         if self.display_data is not None:
             self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-        print "Done drawing"
+        if args.v >= 1:
+            print "Done drawing"
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
@@ -1305,10 +1280,7 @@ class MainFrame(QtGui.QWidget):
         self.y_axis.setLabel('Y-axis (pixels)')
 
     def updateClassification(self):
-        print("**** Running hit finder ****")
-
         if self.streakMaskOn:
-            print "Getting streak mask!!!"
             self.initMask()
             self.streakMask = self.StreakMask.getStreakMaskCalib(self.evt)
             self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
@@ -1345,7 +1317,6 @@ class MainFrame(QtGui.QWidget):
         else:
             # Only initialize the hit finder algorithm once
             if self.algInitDone is False:
-                print("** Initializing peak finding algorithm **")
                 self.windows = None
                 self.alg = []
                 self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
@@ -1384,10 +1355,8 @@ class MainFrame(QtGui.QWidget):
                 self.peakRadius = int(self.hitParam_alg3_r0)
                 self.peaks = self.alg.peak_finder_v3(self.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
             elif self.algorithm == 4:
-                print("* Running peak finder 4 *")
                 # v4 - aka Droplet Finder - the same as v1, but uses rank and r0 parameters in stead of common radius.
                 self.peakRadius = int(self.hitParam_alg4_r0)
-                print(self.hitParam_alg4_thr_low,self.hitParam_alg4_thr_high,self.hitParam_alg4_rank,self.peakRadius,self.hitParam_alg4_dr)
                 self.peaks = self.alg.peak_finder_v4(self.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
                                            rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
             self.numPeaksFound = self.peaks.shape[0]
@@ -1395,18 +1364,16 @@ class MainFrame(QtGui.QWidget):
             fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'
             for peak in self.peaks :
                     seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-                    print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
-                                 rmin, rmax, cmin, cmax, bkgd, rms, son)
+                    if args.v >= 1:
+                        print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
+                                     rmin, rmax, cmin, cmax, bkgd, rms, son)
                     if self.isCspad:
                         cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                        print "cheetahRow,Col", cheetahRow, cheetahCol, atot
-
-            print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+            if args.v >= 1:
+                print "num peaks found: ", self.numPeaksFound, self.peaks.shape
             if self.showIndexedPeaks:
                 self.clearIndexedPeaks()
 
-
-                print "########################## Save peak finding"
                 #self.index.psana
                 #saveCxiLite(filename,expName,runNumber,detInfo,eventList)
                 maxNumPeaks = 2048
@@ -1440,7 +1407,6 @@ class MainFrame(QtGui.QWidget):
 
                 peaks = self.peaks.copy()
                 nPeaks = peaks.shape[0]
-                print "Number of peaks found: ", nPeaks
 
                 if nPeaks > maxNumPeaks:
                     peaks = peaks[:maxNumPeaks]
@@ -1458,7 +1424,6 @@ class MainFrame(QtGui.QWidget):
                 myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy# 8203.9019 #FIXME
                 dset[0,:,:] = img
                 myHdf5.close()
-                print "########################## Done save peak finding"
 
                 self.index.updateIndex()
 
@@ -1484,23 +1449,21 @@ class MainFrame(QtGui.QWidget):
                 cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                 cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                 diameter = self.peakRadius*2+1
-                print "cenX: ", cenX
-                print "cenY: ", cenY
-                print "diameter: ", diameter, self.peakRadius
                 self.peak_feature.setData(cenX, cenY, symbol='s', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
-                print "number of peaks drawn: ", len(cenX)
             else:
                 self.peak_feature.setData([], [], pxMode=False)
         else:
             self.peak_feature.setData([], [], pxMode=False)
-        print "Done updatePeaks"
+        if args.v >= 1:
+            print "Done updatePeaks"
 
     def clearIndexedPeaks(self):
         self.w1.getView().removeItem(self.abc_text)
         self.indexedPeak_feature.setData([], [], pxMode=False)
-        print "Done clearIndexedPeaks"
+        if args.v >= 1:
+            print "Done clearIndexedPeaks"
 
     def drawIndexedPeaks(self,unitCell=None):
         self.clearIndexedPeaks()
@@ -1514,19 +1477,14 @@ class MainFrame(QtGui.QWidget):
                 diameter[0:self.numIndexedPeaksFound] = float(self.index.intRadius.split(',')[0])*2
                 diameter[self.numIndexedPeaksFound:2*self.numIndexedPeaksFound] = float(self.index.intRadius.split(',')[1])*2
                 diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.index.intRadius.split(',')[2])*2
-                print "cenX: ", cenX
-                print "cenY: ", cenY
-                print "diameter: ", diameter#, self.peakRadius
                 self.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
-                print "number of peaks drawn: ", len(cenX)
 
                 # Write unit cell parameters
                 xMargin = 30 # pixels
                 maxX   = np.max(self.det.indexes_x(self.evt))+xMargin
                 maxY   = np.max(self.det.indexes_y(self.evt))
-                print "maxX, maxY: ", maxX, maxY, unitCell
                 myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 16pt;">a='+\
                             str(round(float(unitCell[0]),2))+'nm <br>b='+str(round(float(unitCell[1]),2))+'nm <br>c='+\
                             str(round(float(unitCell[2]),2))+'nm <br>&alpha;='+str(round(float(unitCell[3]),2))+\
@@ -1554,36 +1512,32 @@ class MainFrame(QtGui.QWidget):
                 self.abc_text.setPos(maxX,maxY)
         else:
             self.indexedPeak_feature.setData([], [], pxMode=False)
-        print "Done updatePeaks"
+        if args.v >= 1:
+            print "Done updatePeaks"
 
     def updateImage(self,calib=None):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
             if calib is None:
                 self.calib, self.data = self.getDetImage(self.eventNumber)
             else:
-                print "Got here getDetImage"
                 _, self.data = self.getDetImage(self.eventNumber,calib=calib)
 
             if self.firstUpdate:
                 if self.logscaleOn:
-                    print "################################# 11"
                     self.w1.setImage(np.log10(abs(self.data)+eps))
                     self.firstUpdate = False
                 else:
-                    print "################################# 22"
                     self.w1.setImage(self.data,levels=(0,np.percentile(self.data,self.displayMaxPercentile)))
                     self.firstUpdate = False
             else:
                 if self.logscaleOn:
-                    print "################################# 1"
                     self.w1.setImage(np.log10(abs(self.data)+eps),autoRange=False,autoLevels=False,autoHistogramRange=False)
                 else:
-                    print "################################# 2"
                     self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-        print "Done updateImage"
+        if args.v >= 1:
+            print "Done updateImage"
 
     def getEvt(self,evtNumber):
-        print "getEvt: ", evtNumber
         if self.hasRunNumber: #self.run is not None:
             evt = self.run.event(self.times[evtNumber])
             return evt
@@ -1631,7 +1585,8 @@ class MainFrame(QtGui.QWidget):
         if data is None:
             data = _calib
         toc = time.time()
-        print "time assemble: ", toc-tic
+        if args.v >= 1:
+            print "time assemble: ", toc-tic
         return data
 
     def getDetImage(self,evtNumber,calib=None):
@@ -1639,7 +1594,6 @@ class MainFrame(QtGui.QWidget):
             if self.image_property == 1: # gain corrected
                 calib = self.getCalib(evtNumber) * self.det.gain(self.evt)
             elif self.image_property == 2: # common mode corrected
-                print "$$$ image property: 2"
                 calib = self.getCalib(evtNumber)
             elif self.image_property == 3: # pedestal corrected
                 calib = self.det.raw(self.evt) - self.det.pedestals(self.evt)
@@ -1747,14 +1701,16 @@ class MainFrame(QtGui.QWidget):
     def change(self, panel, changes):
         for param, change, data in changes:
             path = panel.childPath(param)
-            print('  path: %s'% path)
-            print('  change:    %s'% change)
-            print('  data:      %s'% str(data))
-            print('  ----------')
+            if args.v >= 1:
+                print('  path: %s'% path)
+                print('  change:    %s'% change)
+                print('  data:      %s'% str(data))
+                print('  ----------')
             self.update(path,change,data)
 
     def update(self, path, change, data):
-        print "path: ", path
+        if args.v >= 1:
+            print "path: ", path
         ################################################
         # experiment parameters
         ################################################
@@ -2123,7 +2079,8 @@ class MainFrame(QtGui.QWidget):
         self.setupExperiment()
 
         self.updateImage()
-        print "Done updateExperimentName:", self.experimentName
+        if args.v >= 1:
+            print "Done updateExperimentName:", self.experimentName
 
     def updateRunNumber(self, data):
         if data == 0:
@@ -2134,7 +2091,8 @@ class MainFrame(QtGui.QWidget):
             self.hasRunNumber = True
             self.setupExperiment()
             self.updateImage()
-        print "Done updateRunNumber: ", self.runNumber
+        if args.v >= 1:
+            print "Done updateRunNumber: ", self.runNumber
 
     def updateDetInfo(self, data):
         if self.hasDetInfo is False or self.detInfo is not data:
@@ -2152,7 +2110,8 @@ class MainFrame(QtGui.QWidget):
         self.hasDetInfo = True
         self.setupExperiment()
         self.updateImage()
-        print "Done updateDetInfo: ", self.detInfo
+        if args.v >= 1:
+            print "Done updateDetInfo: ", self.detInfo
 
     def updateEventNumber(self, data):
         self.eventNumber = data
@@ -2168,7 +2127,8 @@ class MainFrame(QtGui.QWidget):
             self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
             self.updateImage()
-        print "Done updateEventNumber: ", self.eventNumber
+        if args.v >= 1:
+            print "Done updateEventNumber: ", self.eventNumber
 
     def resetMasks(self):
         self.userMask = None
@@ -2195,9 +2155,7 @@ class MainFrame(QtGui.QWidget):
             # Check such a run exists
             import glob
             xtcs = glob.glob('/reg/d/psdm/'+self.experimentName[0:3]+'/'+self.experimentName+'/xtc/*-r'+str(self.runNumber).zfill(4)+'-*.xtc')
-            #print "xtcs found: ", xtcs
             if len(xtcs) > 0:
-                print "hasExpRunInfo: True"
                 return True
             else:
                 # reset run number
@@ -2207,15 +2165,16 @@ class MainFrame(QtGui.QWidget):
                     self.updateRunNumber(self.runNumber)
                     self.p.param(exp_grp,exp_run_str).setValue(self.runNumber)
                     return False
-        print "hasExpRunInfo: False"
         return False
 
     def hasExpRunDetInfo(self):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            print "hasExpRunDetInfo: True ", self.runNumber
+            if args.v >= 1:
+                print "hasExpRunDetInfo: True ", self.runNumber
             return True
         else:
-            print "hasExpRunDetInfo: False"
+            if args.v >= 1:
+                print "hasExpRunDetInfo: False"
             return False
 
     def getUsername(self):
@@ -2227,30 +2186,38 @@ class MainFrame(QtGui.QWidget):
         self.getUsername()
         self.loggerFile = self.elogDir+'/logger.data'
         if os.path.exists(self.elogDir) is False:
-            os.makedirs(self.elogDir, 0774)
-            # setup permissions
-            process = subprocess.Popen('chgrp -R '+self.experimentName+' '+self.elogDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out,err=process.communicate()
-            process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx '+self.elogDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out,err=process.communicate()
-            #import stat
-            #os.chmod(self.psocakeDir, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_ISGID | stat.S_IROTH)
-            # create logger
-            with open(self.loggerFile,"w") as myfile:
-                myfile.write(self.username)
+            try:
+                os.makedirs(self.elogDir, 0774)
+                # setup permissions
+                process = subprocess.Popen('chgrp -R '+self.experimentName+' '+self.elogDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out,err=process.communicate()
+                process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx '+self.elogDir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out,err=process.communicate()
+                #import stat
+                #os.chmod(self.psocakeDir, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_ISGID | stat.S_IROTH)
+                # create logger
+                with open(self.loggerFile,"w") as myfile:
+                    myfile.write(self.username)
+            except:
+                print "No write access: ", self.elogDir
         else:
             # check if I'm a logger
             with open(self.loggerFile,"r") as myfile:
                 content = myfile.readlines()
                 if content[0].strip() == self.username:
                     self.logger = True
-                    print "I'm an elogger"
+                    if args.v >= 1:
+                        print "I'm an elogger"
                 else:
                     self.logger = False
-                    print "I'm not an elogger"
+                    if args.v >= 1:
+                        print "I'm not an elogger"
         # Make run folder
-        if os.path.exists(self.psocakeRunDir) is False:
-            os.makedirs(self.psocakeRunDir, 0774)
+        try:
+            if os.path.exists(self.psocakeRunDir) is False:
+                os.makedirs(self.psocakeRunDir, 0774)
+        except:
+            print "No write access: ", self.psocakeRunDir
 
     # def getKeyValues(self,state,layer=[]):
     #     for k,v in state.iteritems():
@@ -2263,14 +2230,13 @@ class MainFrame(QtGui.QWidget):
     #                 self.getKeyValues(v,layer)
 
     def setupExperiment(self):
-        print "Doing setupExperiment"
+        if args.v >= 1:
+            print "Doing setupExperiment"
         if self.hasExpRunInfo():
-            print "hasExpRunInfo"
             # Set up psocake directory in scratch
             self.elogDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
             self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/'+self.username+'/psocake'
             self.psocakeRunDir = self.psocakeDir+'/r'+str(self.runNumber).zfill(4)
-            print "self.psocakeRunDir: ", self.psocakeRunDir, self.hitParam_outDir_overridden
 
             # Update peak finder outdir and run number
             self.p3.param(hitParam_grp, hitParam_outDir_str).setValue(self.psocakeDir)
@@ -2282,14 +2248,14 @@ class MainFrame(QtGui.QWidget):
             self.p9.param(self.index.launch_grp, self.index.outDir_str).setValue(self.psocakeDir)
             self.p9.param(self.index.launch_grp, self.index.runs_str).setValue(self.runNumber)
             # Update quantifier filename
-            self.p2.param(quantifier_grp, quantifier_filename_str).setValue(self.psocakeDir)
+            self.p2.param(quantifier_grp, quantifier_filename_str).setValue(self.psocakeRunDir)
             self.setupPsocake()
 
             if args.localCalib:
-                print "Using local calib directory"
+                if args.v >= 1:
+                    print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
             try:
-                print "Let's get Datasource"
                 self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') # FIXME: psana crashes if runNumber is non-existent
             except:
                 print "############# No such datasource exists ###############"
@@ -2312,9 +2278,9 @@ class MainFrame(QtGui.QWidget):
                 except ValueError:
                     continue
             self.detInfoList = list(set(myAreaDetectors))
-            print "#######################"
+            print "#######################################"
             print "# Available detectors: ", self.detInfoList
-            print "#######################"
+            print "#######################################"
 
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
@@ -2322,9 +2288,10 @@ class MainFrame(QtGui.QWidget):
             # detector distance
             if 'cspad' in self.detInfo.lower():
                 self.clenEpics = str(self.detInfo)+'_z'
-                print "clenEpics: ", self.clenEpics
                 self.clen = self.epics.value(self.clenEpics)
-                print "clen: ", self.detectorDistance, self.clen
+                if args.v >= 1:
+                    print "clenEpics: ", self.clenEpics
+                    print "clen: ", self.detectorDistance, self.clen
                 self.coffset = self.detectorDistance - self.clen
 
             if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list: epix, rayonix
@@ -2339,7 +2306,6 @@ class MainFrame(QtGui.QWidget):
 
             if self.evt is None:
                 self.evt = self.run.event(self.times[0])
-            print "Setting up pixelInd"
             temp = self.det.calib(self.evt)
             if temp is None:
                 _temp = self.det.raw(self.evt) # why is this read-only?
@@ -2348,25 +2314,29 @@ class MainFrame(QtGui.QWidget):
                 self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
                 self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
                 self.pixelIndAssem -= 1 # First pixel is 0
-        print "Done setupExperiment"
+        if args.v >= 1:
+            print "Done setupExperiment"
 
     def updateLogscale(self, data):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
             self.firstUpdate = True # clicking logscale resets plot colorscale
             self.updateImage()
-        print "Done updateLogscale: ", self.logscaleOn
+        if args.v >= 1:
+            print "Done updateLogscale: ", self.logscaleOn
 
     def updateImageProperty(self, data):
         self.image_property = data
         self.updateImage()
-        print "##### Done updateImageProperty: ", self.image_property
+        if args.v >= 1:
+            print "Done updateImageProperty: ", self.image_property
 
     def updateAduThreshold(self, data):
         self.aduThresh = data
         if self.hasExpRunDetInfo():
             self.updateImage(self.calib)
-        print "Done updateAduThreshold: ", self.aduThresh
+        if args.v >= 1:
+            print "Done updateAduThreshold: ", self.aduThresh
 
     def updateDock42(self, data):
         a = ['a','b','c','d','e','k','m','n','r','s']
@@ -2391,17 +2361,20 @@ class MainFrame(QtGui.QWidget):
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
         self.updateCommonMode(self.applyCommonMode)
-        print "Done updateCommonModeParam: ", self.commonModeParams
+        if args.v >= 1:
+            print "Done updateCommonModeParam: ", self.commonModeParams
 
     def updateCommonMode(self, data):
         self.applyCommonMode = data
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
         if self.hasExpRunDetInfo():
-            print "%%% Redraw image with new common mode: ", self.commonMode
+            if args.v >= 1:
+                print "%%% Redraw image with new common mode: ", self.commonMode
             self.setupExperiment()
             self.updateImage()
-        print "Done updateCommonMode: ", self.commonMode
+        if args.v >= 1:
+            print "Done updateCommonMode: ", self.commonMode
 
     def checkCommonMode(self, _commonMode):
         # TODO: cspad2x2 can only use algorithms 1 and 5
@@ -2419,7 +2392,8 @@ class MainFrame(QtGui.QWidget):
             return None
 
     def updateEventID(self, sec, nanosec, fid):
-        print "eventID: ", sec, nanosec, fid
+        if args.v >= 1:
+            print "eventID: ", sec, nanosec, fid
         self.p.param(exp_grp,exp_evt_str,exp_second_str).setValue(self.eventSeconds)
         self.p.param(exp_grp,exp_evt_str,exp_nanosecond_str).setValue(self.eventNanoseconds)
         self.p.param(exp_grp,exp_evt_str,exp_fiducial_str).setValue(self.eventFiducial)
@@ -2431,36 +2405,42 @@ class MainFrame(QtGui.QWidget):
     def updateAlgorithm(self, data):
         self.algorithm = data
         self.updateClassification()
-        print "##### Done updateAlgorithm: ", self.algorithm
+        if args.v >= 1:
+            print "##### Done updateAlgorithm: ", self.algorithm
 
     def updateUserMask(self, data):
         self.userMaskOn = data
         self.updateClassification()
-        print "Done updateUserMask: ", self.userMaskOn
+        if args.v >= 1:
+            print "Done updateUserMask: ", self.userMaskOn
 
     def updateStreakMask(self, data):
         self.streakMaskOn = data
         self.updateClassification()
-        print "Done updateStreakMask: ", self.streakMaskOn
+        if args.v >= 1:
+            print "Done updateStreakMask: ", self.streakMaskOn
 
     def updateStreakWidth(self, data):
         self.streak_width = data
         self.streakMask = None
         self.initMask()
         self.updateClassification()
-        print "Done updateStreakWidth: ", self.streak_width
+        if args.v >= 1:
+            print "Done updateStreakWidth: ", self.streak_width
 
     def updateStreakSigma(self, data):
         self.streak_sigma = data
         self.streakMask = None
         self.initMask()
         self.updateClassification()
-        print "Done updateStreakSigma: ", self.streak_sigma
+        if args.v >= 1:
+            print "Done updateStreakSigma: ", self.streak_sigma
 
     def updatePsanaMask(self, data):
         self.psanaMaskOn = data
         self.updatePsanaMaskOn()
-        print "Done updatePsanaMask: ", self.psanaMaskOn
+        if args.v >= 1:
+            print "Done updatePsanaMask: ", self.psanaMaskOn
 
     ##################################
     ########### Quantifier ###########
@@ -2471,9 +2451,11 @@ class MainFrame(QtGui.QWidget):
         if self.quantifier_filename is not data and self.quantifierFileOpen:
             self.quantifierFile.close()
         self.quantifier_filename = data
-        self.quantifierFile = h5py.File(self.quantifier_filename,'r')
-        self.quantifierFileOpen = True
-        print "Done opening metric"
+        if os.path.isfile(self.quantifier_filename):
+            self.quantifierFile = h5py.File(self.quantifier_filename,'r')
+            self.quantifierFileOpen = True
+        if args.v >= 1:
+            print "Done opening metric"
 
     def updateQuantifierDataset(self, data):
         self.quantifier_dataset = data
@@ -2489,10 +2471,12 @@ class MainFrame(QtGui.QWidget):
                     self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
                 self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
             except:
-                print "Couldn't find /event dataset"
+                if args.v >= 1:
+                    print "Couldn't find /event dataset"
                 self.quantifierEvent = np.arange(len(self.quantifierMetric))
 
-            print "Done reading metric"
+            if args.v >= 1:
+                print "Done reading metric"
 
     def updateQuantifierSort(self, data):
         self.quantifier_sort = data
@@ -2506,9 +2490,6 @@ class MainFrame(QtGui.QWidget):
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
 #                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
                 self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
-        print "metric: ", self.quantifierMetric
-        print "ind: ", self.quantifierInd
-        print "event: ", self.quantifierEvent
 
     def updateQuantifierPlot(self,ind,metric):
         self.w9.getPlotItem().clear()
@@ -2531,13 +2512,13 @@ class MainFrame(QtGui.QWidget):
                 break
         indX = points.scatter.data[i][0]
         indY = points.scatter.data[i][1]
-        print "x,y: ", indX, indY
+        if args.v >= 1:
+            print "x,y: ", indX, indY
         if self.quantifier_sort:
             ind = self.quantifierInd[ind]
 
         # temp
         self.eventNumber = self.quantifierEvent[ind]
-        print "%%%% event number: ", self.eventNumber
         #self.eventNumber = ind
 
         self.calib, self.data = self.getDetImage(self.eventNumber)
@@ -2568,28 +2549,24 @@ class MainFrame(QtGui.QWidget):
         self.histogram1D = self.perPixelHistograms.reshape((-1,self.perPixelHistograms.shape[-1]))
 
         self.perPixelHistogramFileOpen = True
-        print "Done opening perPixelHistogram file"
+        if args.v >= 1:
+            print "Done opening perPixelHistogram file"
 
     # FIXME: I don't think pixelIndex is correct
     def updatePerPixelHistogramAdu(self, data):
-        print "$$$$$$ money: ", data
         self.perPixelHistogram_adu = data
         if self.perPixelHistogramFileOpen:
-            print "update slice"
             self.updatePerPixelHistogramSlice(self.perPixelHistogram_adu)
-        print "Done perPixelHistogram adu", self.perPixelHistogram_adu
+        if args.v >= 1:
+            print "Done perPixelHistogram adu", self.perPixelHistogram_adu
 
     def updatePerPixelHistogramSlice(self,adu):
-        print "%%% got ", adu
         self.histogramAduIndex = self.getHistogramIndex(adu)
-        print "^^^ ", self.histogramAduIndex
         self.calib = np.squeeze(self.perPixelHistogramFile['/dataHist/histogram'][:,:,:,self.histogramAduIndex])
-        print "updatePerPixelHistogramSlice: ", self.calib.shape
         self.updateImage(calib=self.calib)
 
     def getHistogramIndex(self,adu):
         histogramIndex = np.argmin(abs(self.histogram_adu - adu))
-        print "histogramIndex: ", self.histogram_adu, histogramIndex
         return histogramIndex
 
     def updatePerPixelHistogram(self, pixelIndex):
@@ -2632,10 +2609,10 @@ class MainFrame(QtGui.QWidget):
             # add ROIs
             self.w1.getView().addItem(self.roi_rect)
             self.w1.getView().addItem(self.roi_circle)
-        print "Done updateMaskingMode: ", self.maskingMode
+        if args.v >= 1:
+            print "Done updateMaskingMode: ", self.maskingMode
 
     def updatePsanaMaskFlag(self, flag, data):
-        print "Update psana mask flag"
         if flag == mask_calib_str:
             self.mask_calibOn = data
         elif flag == mask_status_str:
@@ -2651,7 +2628,6 @@ class MainFrame(QtGui.QWidget):
         self.updatePsanaMaskOn()
 
     def updatePsanaMaskOn(self):
-        print "Making psana mask"
         self.initMask()
         self.psanaMask = self.det.mask(self.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
                                       edges=self.mask_edgesOn, central=self.mask_centralOn,
@@ -2673,7 +2649,8 @@ class MainFrame(QtGui.QWidget):
         self.manifold_filename = data
         self.manifoldFile = h5py.File(self.manifold_filename,'r')
         self.manifoldFileOpen = True
-        print "Done opening manifold"
+        if args.v >= 1:
+            print "Done opening manifold"
 
     def updateManifoldDataset(self, data):
         self.manifold_dataset = data
@@ -2683,14 +2660,13 @@ class MainFrame(QtGui.QWidget):
             self.manifoldHasData = True
             self.updateManifoldPlot(self.manifoldEigs)
             self.manifoldInd = np.arange(self.manifoldNumHits)
-
             try:
                 eventDataset = "/" + self.manifold_dataset.split("/")[1] + "/event"
                 self.manifoldEvent = self.manifoldFile[eventDataset].value
             except:
                 self.manifoldEvent = np.arange(self.manifoldNumHits)
-
-            print "Done reading manifold"
+            if args.v >= 1:
+                print "Done reading manifold"
 
     def updateManifoldSigma(self, data):
         self.manifold_sigma = data
@@ -2698,7 +2674,6 @@ class MainFrame(QtGui.QWidget):
             self.updateManifoldPlot(self.manifoldInd,self.manifoldEigs)
 
     def updateManifoldPlot(self,ind,eigenvectors):
-        print "updateManifoldPlot"
         self.lastClicked = []
         self.w13.getPlotItem().clear()
         pos = np.random.normal(size=(2,10000), scale=1e-9)
@@ -2717,7 +2692,8 @@ class MainFrame(QtGui.QWidget):
                 break
         indX = points.scatter.data[i][0]
         indY = points.scatter.data[i][1]
-        print "x,y: ", indX, indY
+        if args.v >= 1:
+            print "x,y: ", indX, indY
 
         ind = self.manifoldInd[ind]
 
@@ -2736,14 +2712,12 @@ class ABC(object):
 class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
-        print "WORKER!!!!!!!!!!"
         self.parent = parent
         self.experimentName = None
         self.runNumber = None
         self.detInfo = None
 
     def __del__(self):
-        print "del PowderProducer #$!@#$!#"
         self.exiting = True
         self.wait()
 
@@ -2769,57 +2743,32 @@ class PowderProducer(QtCore.QThread):
         return runsToDo
 
     def run(self):
-        print "Generating powder!!!!!!!!!!!!"
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
-        print runsToDo
         for run in runsToDo:
             runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
-            if os.path.exists(runDir) is False:
-                os.makedirs(runDir, 0774)
-            # Command for submitting to batch
-            cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o "+runDir+"/.%J.log generatePowder exp="+self.experimentName+\
-                  ":run="+str(run)+" -d "+self.detInfo+\
-                  " -o "+runDir
-            if self.parent.hitParam_noe > 0:
-                cmd += " -n "+str(self.parent.hitParam_noe)
-            print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
-            jobid = out.split("<")[1].split(">")[0]
-            myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-            print "bsub log filename: ", myLog
-            # myKeyString = "The output (if any) is above this job summary."
-            # mySuccessString = "Successfully completed."
-            # notDone = 1
-            # havePowder = 0
-            # while notDone:
-            #     if os.path.isfile(myLog):
-            #         p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-            #         output = p.communicate()[0]
-            #         p.stdout.close()
-            #         if myKeyString in output: # job has finished
-            #             # check job was a success or a failure
-            #             p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-            #             output = p.communicate()[0]
-            #             p.stdout.close()
-            #             if mySuccessString in output: # success
-            #                 print "successfully done"
-            #                 havePowder = 1
-            #             else:
-            #                 print "failed attempt"
-            #             notDone = 0
-            #         else:
-            #             print "job hasn't finished yet"
-            #             time.sleep(10)
-            #     else:
-            #         print "no such file yet"
-            #         time.sleep(10)
+            try:
+                if os.path.exists(runDir) is False:
+                    os.makedirs(runDir, 0774)
+                # Command for submitting to batch
+                cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
+                      " -o "+runDir+"/.%J.log generatePowder exp="+self.experimentName+\
+                      ":run="+str(run)+" -d "+self.detInfo+\
+                      " -o "+runDir
+                if self.parent.hitParam_noe > 0:
+                    cmd += " -n "+str(self.parent.hitParam_noe)
+                print "Submitting batch job: ", cmd
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out, err = process.communicate()
+                jobid = out.split("<")[1].split(">")[0]
+                myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
+                if args.v >= 1:
+                    print "bsub log filename: ", myLog
+            except:
+                print "No write access to: ", runDir
 
 class stackProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
-        print "stack producer !!!!!!!!!!"
         self.exiting = False
         self.parent = parent
         self.startIndex = 0
@@ -2828,7 +2777,6 @@ class stackProducer(QtCore.QThread):
         self.data = None
 
     def __del__(self):
-        print "del stackProducer #$!@#$!#"
         self.exiting = True
         self.wait()
 
@@ -2838,7 +2786,6 @@ class stackProducer(QtCore.QThread):
         self.start()
 
     def run(self):
-        print "Doing WORK!!!!!!!!!!!!: ", self.startIndex,self.startIndex+self.numImages
         counter = 0
         for i in np.arange(self.startIndex,self.startIndex+self.numImages):
             if counter == 0:
@@ -2852,129 +2799,16 @@ class stackProducer(QtCore.QThread):
                 if data is not None:
                     self.data[counter,:,:] = data
                 counter += 1
-        #self.emit(QtCore.SIGNAL("done"))
-        #time.sleep(1)
-
-# class PeakFinder(QtCore.QThread):
-#     def __init__(self, parent = None):
-#         QtCore.QThread.__init__(self, parent)
-#         print "PeakFinder!!!!!!!!!!"
-#         self.parent = parent
-#         self.experimentName = None
-#         self.runNumber = None
-#         self.detInfo = None
-#
-#     def __del__(self):
-#         print "del PeakFinder #$!@#$!#"
-#         self.exiting = True
-#         self.wait()
-#
-#     def findPeaks(self,experimentName,runNumber,detInfo): # Pass in peak parameters
-#         self.experimentName = experimentName
-#         self.runNumber = runNumber
-#         self.detInfo = detInfo
-#         self.start()
-#
-#     def digestRunList(self,runList):
-#         runsToDo = []
-#         if not runList:
-#             print "Run(s) is empty. Please type in the run number(s)."
-#             return runsToDo
-#         runLists = str(runList).split(",")
-#         for list in runLists:
-#             temp = list.split(":")
-#             if len(temp) == 2:
-#                 for i in np.arange(int(temp[0]),int(temp[1])+1):
-#                     runsToDo.append(i)
-#             elif len(temp) == 1:
-#                 runsToDo.append(int(temp[0]))
-#         return runsToDo
-#
-#     def run(self):
-#         print "Finding peaks!!!!!!!!!!!!"
-#         # Digest the run list
-#         runsToDo = self.digestRunList(self.parent.hitParam_runs)
-#         print runsToDo
-#
-#         for run in runsToDo:
-#             runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
-#             if os.path.exists(runDir) is False:
-#                 os.makedirs(runDir, 0774)
-#             cmd = "bsub -q "+self.parent.hitParam_queue+\
-#               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-#               " -o "+self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/.%J.log"+\
-#               " python /reg/neh/home/yoon82/ana-current/psocake/src/mpi_driver.py -e "+self.experimentName+\
-#               " -r "+str(run)+" -d "+self.detInfo+\
-#               " --outDir "+runDir+\
-#               " --algorithm "+str(self.parent.algorithm)
-#
-#             if self.parent.algorithm == 1:
-#                 cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
-#                        " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
-#                        " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
-#                        " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
-#                        " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
-#                        " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-#                        " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-#                        " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-#                        " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
-#             elif self.parent.algorithm == 3:
-#                 cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
-#                        " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
-#                        " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
-#                        " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
-#                        " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
-#                        " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-#                        " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-#                        " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
-#             elif self.parent.algorithm == 4:
-#                 cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
-#                        " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
-#                        " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
-#                        " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
-#                        " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
-#                        " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
-#                        " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
-#                        " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
-#                        " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
-#                        " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
-#             # Save user mask to a deterministic path
-#             if self.parent.userMaskOn:
-#                 tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-#                 np.save(tempFilename,self.parent.userMask) # TODO: save
-#                 cmd += " --userMask_path "+str(tempFilename)
-#             if self.parent.streakMaskOn:
-#                 cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\
-#                    " --streakMask_width "+str(self.parent.streak_width)
-#             if self.parent.psanaMaskOn:
-#                 cmd += " --psanaMask_calib "+str(self.parent.mask_calibOn)+" "+\
-#                    " --psanaMask_status "+str(self.parent.mask_statusOn)+" "+\
-#                    " --psanaMask_edges "+str(self.parent.mask_edgesOn)+" "+\
-#                    " --psanaMask_central "+str(self.parent.mask_centralOn)+" "+\
-#                    " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+" "+\
-#                    " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
-#
-#             if self.parent.hitParam_noe > 0:
-#                 cmd += " --noe "+str(self.parent.hitParam_noe)
-#             print "Submitting batch job: ", cmd
-#             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-#             out, err = process.communicate()
-#             jobid = out.split("<")[1].split(">")[0]
-#             myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-#             print "*******************"
-#             print "bsub log filename: ", myLog
 
 class HitFinder(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
-        print "HitFinder!!!!!!!!!!"
         self.parent = parent
         self.experimentName = None
         self.runNumber = None
         self.detInfo = None
 
     def __del__(self):
-        print "del HitFinder #$!@#$!#"
         self.exiting = True
         self.wait()
 
@@ -3000,58 +2834,57 @@ class HitFinder(QtCore.QThread):
         return runsToDo
 
     def run(self):
-        print "Finding hits!!!!!!!!!!!!"
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.spiParam_runs)
-        print runsToDo
 
         for run in runsToDo:
             runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
-            if os.path.exists(runDir) is False:
-                os.makedirs(runDir, 0774)
-            expRun = 'exp='+self.experimentName+':run='+str(run)
-            cmd = "bsub -q "+self.parent.spiParam_queue+\
-              " -a mympi -n "+str(self.parent.spiParam_cpus)+\
-              " -o "+runDir+"/.%J.log litPixel_HitMetric"+\
-              " "+expRun+\
-              " -d "+self.detInfo+\
-              " --outdir "+runDir
+            try:
+                if os.path.exists(runDir) is False:
+                    os.makedirs(runDir, 0774)
+                expRun = 'exp='+self.experimentName+':run='+str(run)
+                cmd = "bsub -q "+self.parent.spiParam_queue+\
+                  " -a mympi -n "+str(self.parent.spiParam_cpus)+\
+                  " -o "+runDir+"/.%J.log litPixel_HitMetric"+\
+                  " "+expRun+\
+                  " -d "+self.detInfo+\
+                  " --outdir "+runDir
 
-            if self.parent.spiParam_tag is not None:
-                cmd += " --tag "+str(self.parent.spiParam_tag)
+                if self.parent.spiParam_tag is not None:
+                    cmd += " --tag "+str(self.parent.spiParam_tag)
 
-            if self.parent.spiAlgorithm == 1:
-                cmd += " --pruneInterval "+str(int(self.parent.spiParam_alg1_pruneInterval))
-            elif self.parent.spiAlgorithm == 2:
-                cmd += " --litPixelThreshold "+str(int(self.parent.spiParam_alg2_threshold))
+                if self.parent.spiAlgorithm == 1:
+                    cmd += " --pruneInterval "+str(int(self.parent.spiParam_alg1_pruneInterval))
+                elif self.parent.spiAlgorithm == 2:
+                    cmd += " --litPixelThreshold "+str(int(self.parent.spiParam_alg2_threshold))
 
-            # Save user mask to a deterministic path
-            if self.parent.userMaskOn:
-                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                np.save(tempFilename,self.parent.userMask) # TODO: save
-                cmd += " --mask "+str(tempFilename)
+                # Save user mask to a deterministic path
+                if self.parent.userMaskOn:
+                    tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
+                    np.save(tempFilename,self.parent.userMask) # TODO: save
+                    cmd += " --mask "+str(tempFilename)
 
-            if self.parent.spiParam_noe > 0:
-                cmd += " --noe "+str(self.parent.spiParam_noe)
-            print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
-            jobid = out.split("<")[1].split(">")[0]
-            myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-            print "*******************"
-            print "bsub log filename: ", myLog
+                if self.parent.spiParam_noe > 0:
+                    cmd += " --noe "+str(self.parent.spiParam_noe)
+                print "Submitting batch job: ", cmd
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out, err = process.communicate()
+                jobid = out.split("<")[1].split(">")[0]
+                myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
+                if args.v >= 1:
+                    print "bsub log filename: ", myLog
+            except:
+                print "No write access to: ", runDir
 
 class PeakFinder(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
-        print "PeakFinder!!!!!!!!!!"
         self.parent = parent
         self.experimentName = None
         self.runNumber = None
         self.detInfo = None
 
     def __del__(self):
-        print "del PeakFinder #$!@#$!#"
         self.exiting = True
         self.wait()
 
@@ -3077,84 +2910,83 @@ class PeakFinder(QtCore.QThread):
         return runsToDo
 
     def run(self):
-        print "Finding peaks!!!!!!!!!!!!"
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
-        print "runsToDo: ", runsToDo
 
         myLogList = []
         for run in runsToDo:
             runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
-            if os.path.exists(runDir) is False:
-                os.makedirs(runDir, 0774)
+            try:
+                if os.path.exists(runDir) is False:
+                    os.makedirs(runDir, 0774)
 
-            # Update elog
-            if self.parent.logger == True:
-                print "Updating e-log"
-                self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
+                # Update elog
+                if self.parent.logger == True:
+                    self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
 
-            cmd = "bsub -q "+self.parent.hitParam_queue+\
-              " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
-              " -r "+str(run)+" -d "+self.detInfo+\
-              " --outDir "+runDir+\
-              " --algorithm "+str(self.parent.algorithm)
+                cmd = "bsub -q "+self.parent.hitParam_queue+\
+                  " -a mympi -n "+str(self.parent.hitParam_cpus)+\
+                  " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
+                  " -r "+str(run)+" -d "+self.detInfo+\
+                  " --outDir "+runDir+\
+                  " --algorithm "+str(self.parent.algorithm)
 
-            if self.parent.algorithm == 1:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
-                       " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                       " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                       " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
-            elif self.parent.algorithm == 3:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
-                       " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                       " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                       " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
-            elif self.parent.algorithm == 4:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
-                       " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
-                       " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
-                       " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
-                       " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
-                       " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
-            # Save user mask to a deterministic path
-            if self.parent.userMaskOn:
-                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                np.save(tempFilename,self.parent.userMask) # TODO: save
-                cmd += " --userMask_path "+str(tempFilename)
-            if self.parent.streakMaskOn:
-                cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\
-                   " --streakMask_width "+str(self.parent.streak_width)
-            if self.parent.psanaMaskOn:
-                cmd += " --psanaMask_calib "+str(self.parent.mask_calibOn)+" "+\
-                   " --psanaMask_status "+str(self.parent.mask_statusOn)+" "+\
-                   " --psanaMask_edges "+str(self.parent.mask_edgesOn)+" "+\
-                   " --psanaMask_central "+str(self.parent.mask_centralOn)+" "+\
-                   " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+" "+\
-                   " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
+                if self.parent.algorithm == 1:
+                    cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
+                           " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
+                           " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
+                           " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
+                           " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
+                           " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                           " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                           " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                           " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
+                elif self.parent.algorithm == 3:
+                    cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
+                           " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
+                           " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
+                           " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
+                           " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
+                           " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                           " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                           " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+                elif self.parent.algorithm == 4:
+                    cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
+                           " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
+                           " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
+                           " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
+                           " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
+                           " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
+                           " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
+                           " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
+                           " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
+                           " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
+                # Save user mask to a deterministic path
+                if self.parent.userMaskOn:
+                    tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
+                    np.save(tempFilename,self.parent.userMask) # TODO: save
+                    cmd += " --userMask_path "+str(tempFilename)
+                if self.parent.streakMaskOn:
+                    cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\
+                       " --streakMask_width "+str(self.parent.streak_width)
+                if self.parent.psanaMaskOn:
+                    cmd += " --psanaMask_calib "+str(self.parent.mask_calibOn)+" "+\
+                       " --psanaMask_status "+str(self.parent.mask_statusOn)+" "+\
+                       " --psanaMask_edges "+str(self.parent.mask_edgesOn)+" "+\
+                       " --psanaMask_central "+str(self.parent.mask_centralOn)+" "+\
+                       " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+" "+\
+                       " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
 
-            if self.parent.hitParam_noe > 0:
-                cmd += " --noe "+str(self.parent.hitParam_noe)
-            print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
-            jobid = out.split("<")[1].split(">")[0]
-            myLog = runDir+"/."+jobid+".log"
-            myLogList.append(myLog)
-            print "*******************"
+                if self.parent.hitParam_noe > 0:
+                    cmd += " --noe "+str(self.parent.hitParam_noe)
+                print "Submitting batch job: ", cmd
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out, err = process.communicate()
+                jobid = out.split("<")[1].split(">")[0]
+                myLog = runDir+"/."+jobid+".log"
+                myLogList.append(myLog)
+            except:
+                print "No write access to: ", runDir
 
         myKeyString = "The output (if any) is above this job summary."
         mySuccessString = "Successfully completed."
@@ -3183,10 +3015,12 @@ class PeakFinder(QtCore.QThread):
                                 haveFinished[i] = -1
                                 Done = -1
                         else:
-                            print "peak finding job hasn't finished yet: ", myLog
+                            if args.v >= 1:
+                                print "peak finding job hasn't finished yet: ", myLog
                             time.sleep(10)
                 else:
-                    print "no such file yet: ", myLog
+                    if args.v >= 1:
+                        print "no such file yet: ", myLog
                     time.sleep(10)
 
                 if haveFinished[i] == 1:
@@ -3197,12 +3031,10 @@ class PeakFinder(QtCore.QThread):
                     f.close()
                     # Update elog
                     if self.parent.logger == True:
-                        print "Updating e-log"
                         self.parent.table.setValue(runsToDo[i],"Number of hits",numHits)
                 elif haveFinished[i] == -1:
                     # Update elog
                     if self.parent.logger == True:
-                        print "Updating e-log"
                         self.parent.table.setValue(runsToDo[i],"Number of hits","#Failed")
 
 def main():

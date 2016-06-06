@@ -75,9 +75,11 @@ class DiffractionGeometry(object):
         self.writeCrystfelGeom()
         self.parent.updateClassification()
         if self.hasGeometryInfo():
-            print "has geometry info"
+            if self.parent.args.v >= 1:
+                print "has geometry info"
             self.updateGeometry()
-        print "Done updateDetectorDistance"
+        if self.parent.args.v >= 1:
+            print "Done updateDetectorDistance"
 
     def updatePhotonEnergy(self, data):
         self.parent.photonEnergy = data
@@ -86,7 +88,6 @@ class DiffractionGeometry(object):
         c = 2.99792458e8 # m/s
         joulesPerEv = 1.602176621e-19 #J/eV
         self.parent.wavelength = (h/joulesPerEv*c)/self.parent.photonEnergy
-        print "wavelength: ", self.parent.wavelength
         self.parent.p1.param(self.geom_grp,self.geom_wavelength_str).setValue(self.parent.wavelength)
         if self.hasGeometryInfo():
             self.updateGeometry()
@@ -109,8 +110,9 @@ class DiffractionGeometry(object):
             f = h5py.File(self.parent.hiddenCXI,'r')
             encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
             f.close()
-            print "##### self.parent.detectorDistance - encoderVal: ", self.parent.detectorDistance, encoderVal
             coffset = self.parent.detectorDistance - encoderVal
+            if self.parent.args.v >= 1:
+                print "detector to ip (coffset): ", coffset
             coffsetStr = "coffset = "+str(coffset)+"\n"
 
             # Replace coffset
@@ -136,16 +138,19 @@ class DiffractionGeometry(object):
             self.dMin_crystal[i] = 1/self.qMax_crystal[i]
             self.qMax_physics[i] = 4*np.pi/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
             self.dMin_physics[i] = np.pi/self.qMax_physics[i]
-            print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
+            if self.parent.args.v >= 1:
+                print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
             if self.parent.resolutionRingsOn:
                 self.updateRings()
-        print "Done updateGeometry"
+        if self.parent.args.v >= 1:
+            print "Done updateGeometry"
 
     def updateResolutionRings(self, data):
         self.parent.resolutionRingsOn = data
         if self.parent.hasExpRunDetInfo():
             self.updateRings()
-        print "Done updateResolutionRings: ", self.parent.resolutionRingsOn
+        if self.parent.args.v >= 1:
+            print "Done updateResolutionRings"
 
     def updateResolution(self, data):
         # convert to array of floats
@@ -169,7 +174,8 @@ class DiffractionGeometry(object):
             self.updateGeometry()
         if self.parent.hasExpRunDetInfo():
             self.updateRings()
-        print "Done updateResolution: ", self.parent.resolution, self.parent.hasUserDefinedResolution
+        if self.parent.args.v >= 1:
+            print "Done updateResolution"
 
     def updateResolutionUnits(self, data):
         # convert to array of floats
@@ -178,7 +184,8 @@ class DiffractionGeometry(object):
             self.updateGeometry()
         if self.parent.hasExpRunDetInfo():
             self.updateRings()
-        print "Done updateResolutionUnits: ", self.parent.resolutionUnits
+        if self.parent.args.v >= 1:
+            print "Done updateResolutionUnits"
 
     def updateRings(self):
         if self.parent.resolutionRingsOn:
@@ -186,7 +193,6 @@ class DiffractionGeometry(object):
 
             cenx = np.ones_like(self.myResolutionRingList)*self.parent.cx
             ceny = np.ones_like(self.myResolutionRingList)*self.parent.cy
-            print "self.myResolutionRingList, diameter: ", self.myResolutionRingList
             diameter = 2*self.myResolutionRingList
 
             self.parent.ring_feature.setData(cenx, ceny, symbol='o', \
@@ -212,11 +218,11 @@ class DiffractionGeometry(object):
                 self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.parent.cx, self.parent.cy)
         else:
             self.clearRings()
-        print "Done updateRings"
+        if self.parent.args.v >= 1:
+            print "Done updateRings"
 
     def clearRings(self):
         if self.resolutionText:
-            print "going to clear rings: ", self.resolutionText, len(self.resolutionText)
             cen = [0,]
             self.parent.ring_feature.setData(cen, cen, size=0)
             for i,val in enumerate(self.resolutionText):
