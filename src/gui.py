@@ -242,6 +242,7 @@ class MainFrame(QtGui.QWidget):
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
         self.psocakeDir = os.getcwd()
+        self.psocakeRunDir = os.getcwd()
         # Init experiment parameters
         if args.expRun is not None and ':run=' in args.expRun:
             self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
@@ -1026,7 +1027,7 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), deployMask)
 
         def loadMask():
-            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', './', 'ndarray image (*.npy *.npz)'))
+            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', self.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
             self.initMask()
             self.userMask = np.load(fname)
             if self.userMask.shape != self.calib.shape:
