@@ -412,7 +412,8 @@ class MainFrame(QtGui.QWidget):
 
         # Threads
         self.stackStart = 0
-        self.stackSize = 60
+        self.stackSizeMax = 120
+        self.stackSize = 20
         self.params = [
             {'name': exp_grp, 'type': 'group', 'children': [
                 {'name': exp_name_str, 'type': 'str', 'value': self.experimentName, 'tip': "Experiment name, .e.g. cxic0415"},
@@ -862,7 +863,7 @@ class MainFrame(QtGui.QWidget):
         self.spinBox.setValue(0)
         self.label = QtGui.QLabel("Event Number:")
         self.stackSizeBox = QtGui.QSpinBox()
-        self.stackSizeBox.setMaximum(self.stackSize)
+        self.stackSizeBox.setMaximum(self.stackSizeMax)
         self.stackSizeBox.setValue(self.stackSize)
         self.startBtn = QtGui.QPushButton("&Load image stack")
 
