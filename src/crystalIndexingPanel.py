@@ -24,7 +24,8 @@ class CrystalIndexing(object):
         self.launch_grp = 'Batch'
         self.outDir_str = 'Output directory'
         self.runs_str = 'Runs(s)'
-        self.queue_str = 'queue'
+        self.sample_str = 'Sample name'
+        self.queue_str = 'Queue'
         self.cpu_str = 'CPUs'
         self.noe_str = 'Number of events to process'
         (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str) = \
@@ -33,6 +34,7 @@ class CrystalIndexing(object):
         self.outDir = self.parent.psocakeDir
         self.outDir_overridden = False
         self.runs = ''
+        self.sample = 'crystal'
         self.queue = self.psanaq_str
         self.cpus = 24
         self.noe = 0
@@ -59,6 +61,7 @@ class CrystalIndexing(object):
             {'name': self.launch_grp, 'type': 'group', 'children': [
                 {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
                 {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
+                {'name': self.sample_str, 'type': 'str', 'value': self.sample, 'tip': "name of the sample saved in the cxidb file, e.g. lysozyme"},
                 {'name': self.queue_str, 'type': 'list', 'values': {self.psfehhiprioq_str: self.psfehhiprioq_str,
                                                                self.psnehhiprioq_str: self.psnehhiprioq_str,
                                                                self.psfehprioq_str: self.psfehprioq_str,
@@ -68,7 +71,7 @@ class CrystalIndexing(object):
                                                                self.psanaq_str: self.psanaq_str},
                  'value': self.queue, 'tip': "Choose queue"},
                 {'name': self.cpu_str, 'type': 'int', 'value': self.cpus, 'tip': "number of cpus to use per run"},
-                {'name': self.noe_str, 'type': 'int', 'value': self.noe, 'tip': "number of events to process, default=0 means process all events"},
+                #{'name': self.noe_str, 'type': 'int', 'value': self.noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
 
@@ -93,6 +96,8 @@ class CrystalIndexing(object):
             self.updateOutputDir(data)
         elif path[1] == self.runs_str:
             self.updateRuns(data)
+        elif path[1] == self.sample_str:
+            self.updateSample(data)
         elif path[1] == self.queue_str:
             self.updateQueue(data)
         elif path[1] == self.cpu_str:
@@ -143,6 +148,9 @@ class CrystalIndexing(object):
     def updateRuns(self, data):
         self.runs = data
 
+    def updateSample(self, data):
+        self.sample = data
+
     def updateQueue(self, data):
         self.queue = data
 
@@ -157,11 +165,11 @@ class CrystalIndexing(object):
         if requestRun is None:
             self.batchIndexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.outDir, self.runs, self.queue, self.cpus, self.noe)
+                                       self.indexingMethod, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         else:
             self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.outDir, self.runs, self.queue, self.cpus, self.noe)
+                                       self.indexingMethod, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -181,6 +189,7 @@ class IndexHandler(QtCore.QThread):
         # batch
         self.outDir = None
         self.runs = None
+        self.sample = None
         self.queue = None
         self.cpus = None
         self.noe = None
@@ -191,7 +200,7 @@ class IndexHandler(QtCore.QThread):
         self.wait()
 
     def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod,
-                     outDir=None, runs=None, queue=None, cpus=None, noe=None):
+                     outDir=None, runs=None, sample=None, queue=None, cpus=None, noe=None):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
@@ -204,6 +213,7 @@ class IndexHandler(QtCore.QThread):
         # batch
         self.outDir = outDir
         self.runs = runs
+        self.sample = sample
         self.queue = queue
         self.cpus = cpus
         self.noe = noe
@@ -220,6 +230,40 @@ class IndexHandler(QtCore.QThread):
         myChunk = jobChunks[rank]
         myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
         return myJobs
+
+    def getIndexedPeaks(self):
+        # Merge all stream files into one
+        totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber)+".stream"
+        with open(totalStream, 'w') as outfile:
+            for fname in self.myStreamList:
+                with open(fname) as infile:
+                    outfile.write(infile.read())
+
+        # Add indexed peaks and remove images in hdf5
+        f = h5py.File(self.peakFile,'r+')
+        # Add indexed peaks
+        fstream = open(totalStream,'r')
+        content=fstream.readlines()
+        totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
+        hitEvents = f['/LCLS/eventNumber'].value
+        numHits = len(np.where(hitEvents>=self.parent.hitParam_threshold)[0])
+        indexedPeaks = np.zeros((totalEvents,),dtype=int)
+        numProcessed = 0
+        for i,val in enumerate(content):
+            if "Event: //" in val:
+                _evt = int(val.split("Event: //")[-1].strip())
+            if "indexed_by =" in val:
+                _ind = val.split("indexed_by =")[-1].strip()
+            if "num_peaks =" in val:
+                _num = val.split("num_peaks =")[-1].strip()
+                numProcessed += 1
+                if 'none' in _ind:
+                    continue
+                else:
+                    indexedPeaks[hitEvents[_evt]] = _num
+        fstream.close()
+        f.close()
+        return indexedPeaks, numProcessed
 
     def run(self):
         if self.outDir is None: # interactive indexing
@@ -356,19 +400,20 @@ class IndexHandler(QtCore.QThread):
                 self.parent.table.setValue(self.runNumber,"Number of indexed","#ConvertingCXIDB")
 
             # Open hdf5
-            peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
+            self.peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
             try:
-                f = h5py.File(peakFile,'r')
+                f = h5py.File(self.peakFile,'r')
                 hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidbMPI'] == 'success'
                 f.close()
             except:
-                print "Could not open file: ", peakFile
+                print "Could not open file: ", self.peakFile
 
             if hasData is False:
                 # Run xtc2cxidbMPI
-                cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r"+str(self.runNumber).zfill(4)+"/.%J.log python xtc2cxidbMPI.py" \
+                cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r"\
+                      +str(self.runNumber).zfill(4)+"/.%J.log python xtc2cxidbMPI.py"+\
                       " -e "+self.experimentName+" -d "+self.detInfo+" -i "+self.outDir+'/r'+str(self.runNumber).zfill(4)+\
-                      " --sample lysozyme" \
+                      " --sample "+self.sample+\
                       " --instrument "+self.parent.det.instrument()+" --pixelSize "+str(self.parent.pixelSize)+ \
                       " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+" --run "+str(self.runNumber)+\
                       " --condition /entry_1/result_1/nPeaksAll,ge,"+str(self.parent.hitParam_threshold)
@@ -413,27 +458,28 @@ class IndexHandler(QtCore.QThread):
                 if self.parent.logger == True:
                     if self.parent.args.v >= 1: print "Updating e-log"
                     self.parent.table.setValue(self.runNumber,"Number of indexed","#IndexingNow")
-                f = h5py.File(peakFile,'r')
+                f = h5py.File(self.peakFile,'r')
                 eventList = f['/LCLS/eventNumber'].value
                 numEvents = len(eventList)
                 f.close()
                 # Split into chunks for faster indexing
                 numWorkers = 4
                 myLogList = []
-                myStreamList = []
+                self.myStreamList = []
                 for rank in range(numWorkers):
                     myJobs = self.getMyUnfairShare(numEvents,numWorkers,rank)
 
                     myList = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".lst"
                     myStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".stream"
-                    myStreamList.append(myStream)
+                    self.myStreamList.append(myStream)
 
                     # Write list
                     with open(myList, "w") as text_file:
                         for i,val in enumerate(myJobs):
-                            text_file.write("{} //{}\n".format(peakFile,val))
+                            text_file.write("{} //{}\n".format(self.peakFile,val))
 
-                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -o "+self.outDir+"/r"+str(self.runNumber).zfill(4)+"/.%J.log indexamajig -j "+str(self.cpus)+" -i "+myList+\
+                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -o "+self.outDir+"/r"+str(self.runNumber).zfill(4)+\
+                          "/.%J.log indexamajig -j "+str(self.cpus)+" -i "+myList+\
                           " -g "+self.geom+" --peaks="+self.peakMethod+" --int-radius="+self.intRadius+\
                           " --indexing="+self.indexingMethod+" -o "+myStream
                     if self.pdb is not '':
@@ -473,6 +519,26 @@ class IndexHandler(QtCore.QThread):
                                         Done = -1
                                 else:
                                     if self.parent.args.v >= 0: print "indexing job hasn't finished yet: ", self.runNumber
+                                    indexedPeaks,numProcessed = self.getIndexedPeaks()
+
+                                    f = h5py.File(self.peakFile,'r')
+                                    hitEvents = f['/entry_1/result_1/nPeaksAll'].value
+                                    numHits = len(np.where(hitEvents>=self.parent.hitParam_threshold)[0])
+                                    f.close()
+
+                                    numIndexedNow = len(np.where(indexedPeaks>0)[0])
+                                    #numFailedNow = len(np.where(indexedPeaks==0)[0])
+                                    #numDoneNow = numIndexedNow + numFailedNow
+                                    if numProcessed == 0:
+                                        indexRate = 0
+                                    else:
+                                        indexRate = numIndexedNow*100./numProcessed
+                                    fracDone = numProcessed*100./numHits
+                                    #print "numEvents, numIndexedNow, numProcessNow, fracDone: ", numEvents,numIndexedNow,numFailedNow,fracDone
+                                    # Update elog
+                                    if self.parent.logger == True:
+                                        msg = str(numIndexedNow)+' indexed / {0:.1f}% rate / {1:.1f}% done'.format(indexRate,fracDone)
+                                        self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
                                     time.sleep(10)
                         else:
                             if self.parent.args.v >= 0: print "no such file yet: ", self.runNumber
@@ -482,31 +548,15 @@ class IndexHandler(QtCore.QThread):
                     # Merge all stream files into one
                     totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber)+".stream"
                     with open(totalStream, 'w') as outfile:
-                        for fname in myStreamList:
+                        for fname in self.myStreamList:
                             with open(fname) as infile:
                                 outfile.write(infile.read())
 
-                    # Add indexed peaks and remove images in hdf5
-                    f = h5py.File(peakFile,'r+')
-                    # Add indexed peaks
-                    fstream = open(totalStream,'r')
-                    content=fstream.readlines()
-                    totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
-                    hitEvents = f['/LCLS/eventNumber'].value
-                    indexedPeaks = np.zeros((totalEvents,),dtype=int)
-                    for i,val in enumerate(content):
-                        if "Event: //" in val:
-                            _evt = int(val.split("Event: //")[-1].strip())
-                        if "indexed_by =" in val:
-                            _ind = val.split("indexed_by =")[-1].strip()
-                        if "num_peaks =" in val:
-                            _num = val.split("num_peaks =")[-1].strip()
-                            if 'none' in _ind:
-                                continue
-                            else:
-                                indexedPeaks[hitEvents[_evt]] = _num
-                    fstream.close()
+                    indexedPeaks,_ = self.getIndexedPeaks()
                     numIndexed = len(np.where(indexedPeaks>0)[0])
+
+                    # Write number of indexed
+                    f = h5py.File(self.peakFile,'r+')
                     if '/entry_1/result_1/index' in f:
                         del f['/entry_1/result_1/index']
                     f['/entry_1/result_1/index'] = indexedPeaks
@@ -516,7 +566,7 @@ class IndexHandler(QtCore.QThread):
                     f.close()
 
                     # Clean up temp files
-                    for fname in myStreamList:
+                    for fname in self.myStreamList:
                         os.remove(fname)
 
                     # Update elog

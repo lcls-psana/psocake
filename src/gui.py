@@ -31,6 +31,7 @@ from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 import diffractionGeometryPanel
 import crystalIndexingPanel
 from LogBook.runtables import RunTables
+import PSCalib.GlobalUtils as gu
 import json
 
 parser = argparse.ArgumentParser()
@@ -244,7 +245,7 @@ class MainFrame(QtGui.QWidget):
         # Init experiment parameters
         if args.expRun is not None and ':run=' in args.expRun:
             self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
-            self.runNumber = args.expRun.split('run=')[-1]
+            self.runNumber = int(args.expRun.split('run=')[-1])
             #if self.experimentName is not '':
             #    self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         else:
@@ -519,7 +520,7 @@ class MainFrame(QtGui.QWidget):
                 {'name': hitParam_noe_str, 'type': 'int', 'value': self.hitParam_noe, 'tip': "number of events to process, default=0 means process all events"},
                 #{'name': hitParam_threshold_str, 'type': 'int', 'value': self.hitParam_threshold, 'tip': "number of peaks considered indexable, default=0 means process all events"},
             ]},
-            {'name': 'Load Parameter', 'type': 'action'},#{'name': 'abc', 'type': 'bool', 'value': False, 'tip': "Show peaks found shot-to-shot"},
+            #{'name': 'Load Parameter', 'type': 'action'},#{'name': 'abc', 'type': 'bool', 'value': False, 'tip': "Show peaks found shot-to-shot"},
         ]
         self.paramsQuantifier = [
             {'name': quantifier_grp, 'type': 'group', 'children': [
@@ -2334,17 +2335,47 @@ class MainFrame(QtGui.QWidget):
 
             # Write a temporary geom file
             if 'cspad' in self.detInfo.lower():
-                print "Generating geom"
-                self.p9.param(self.index.index_grp, self.index.index_geom_str).setValue(self.psocakeRunDir+'/.temp.geom')
-                cmd = ["python","/reg/neh/home/yoon82/psgeom/psana2crystfel.py","/reg/d/psdm/cxi/cxi06216/calib/CsPad::CalibV1/CxiDs1.0:Cspad.0/geometry/22-end.data",self.psocakeRunDir+"/.temp.geom"]
-                print "cmd: ", cmd
-                p = subprocess.Popen(cmd,stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
-                print "output: ", output
-                #from psgeom import camera
-                #cspad = camera.Cspad.from_psana_file('/reg/d/psdm/cxi/cxi06216/calib/CsPad::CalibV1/CxiDs1.0:Cspad.0/geometry/22-end.data')
-                #cspad.to_crystfel_file(self.psocakeRunDir+'/.temp.geom')
+                self.source = Detector.PyDetector.map_alias_to_source(self.detInfo,self.ds.env()) #'DetInfo(CxiDs2.0:Cspad.0)'
+                self.calibSource = self.source.split('(')[-1].split(')')[0] # 'CxiDs2.0:Cspad.0'
+                self.detectorType =gu.det_type_from_source(self.source) # 1
+                self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType] # 'CsPad::CalibV1'
+                self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper() # 'CSPAD'
+                self.calibPath = "/reg/d/psdm/"+self.experimentName[0:3]+"/"+self.experimentName+"/calib/"+self.calibGroup+"/"+self.calibSource+"/geometry"
+                if args.v >= 1: print "### calibPath: ", self.calibPath
+
+                # Determine which calib file to use
+                geometryFiles = os.listdir(self.calibPath)
+                if args.v >= 1: print "geom: ", geometryFiles
+                calibFile = None
+                minDiff = -1e6
+                for fname in geometryFiles:
+                    if fname.endswith('.data'):
+                        endValid = False
+                        startNum = int(fname.split('-')[0])
+                        endNum = fname.split('-')[-1].split('.data')[0]
+                        diff = startNum - self.runNumber
+                        # Make sure it's end number is valid too
+                        if 'end' in endNum:
+                            endValid = True
+                        else:
+                            try:
+                                if self.runNumber <= int(endNum):
+                                    endValid = True
+                            except:
+                                continue
+                        if diff <= 0 and diff > minDiff and endValid is True:
+                            minDiff = diff
+                            calibFile = fname
+
+                if calibFile is not None:
+                    # Convert psana geometry to crystfel geom
+                    self.p9.param(self.index.index_grp, self.index.index_geom_str).setValue(self.psocakeRunDir+'/.temp.geom')
+                    cmd = ["python","/reg/neh/home/yoon82/psgeom/psana2crystfel.py",self.calibPath+'/'+calibFile,self.psocakeRunDir+"/.temp.geom"]
+                    if args.v >= 1: print "cmd: ", cmd
+                    p = subprocess.Popen(cmd,stdout=subprocess.PIPE)
+                    output = p.communicate()[0]
+                    p.stdout.close()
+                    if args.v >= 1: print "output: ", output
 
         if args.v >= 1:
             print "Done setupExperiment"
@@ -2956,76 +2987,76 @@ class PeakFinder(QtCore.QThread):
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
-
-                # Update elog
-                if self.parent.logger == True:
-                    self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
-
-                cmd = "bsub -q "+self.parent.hitParam_queue+\
-                  " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-                  " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
-                  " -r "+str(run)+" -d "+self.detInfo+\
-                  " --outDir "+runDir+\
-                  " --algorithm "+str(self.parent.algorithm)
-
-                if self.parent.algorithm == 1:
-                    cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
-                           " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
-                           " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
-                           " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
-                           " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
-                           " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                           " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                           " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                           " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
-                elif self.parent.algorithm == 3:
-                    cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
-                           " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
-                           " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
-                           " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
-                           " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
-                           " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                           " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                           " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
-                elif self.parent.algorithm == 4:
-                    cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
-                           " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
-                           " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
-                           " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
-                           " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
-                           " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
-                           " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
-                           " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
-                           " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
-                           " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
-                # Save user mask to a deterministic path
-                if self.parent.userMaskOn:
-                    tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                    np.save(tempFilename,self.parent.userMask) # TODO: save
-                    cmd += " --userMask_path "+str(tempFilename)
-                if self.parent.streakMaskOn:
-                    cmd += " --streakMask_on "+str(self.parent.streakMaskOn)+\
-                        " --streakMask_sigma "+str(self.parent.streak_sigma)+\
-                       " --streakMask_width "+str(self.parent.streak_width)
-                if self.parent.psanaMaskOn:
-                    cmd += " --psanaMask_on "+str(self.parent.psanaMaskOn)+\
-                       " --psanaMask_calib "+str(self.parent.mask_calibOn)+\
-                       " --psanaMask_status "+str(self.parent.mask_statusOn)+\
-                       " --psanaMask_edges "+str(self.parent.mask_edgesOn)+\
-                       " --psanaMask_central "+str(self.parent.mask_centralOn)+\
-                       " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+\
-                       " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
-
-                if self.parent.hitParam_noe > 0:
-                    cmd += " --noe "+str(self.parent.hitParam_noe)
-                print "Submitting batch job: ", cmd
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                out, err = process.communicate()
-                jobid = out.split("<")[1].split(">")[0]
-                myLog = runDir+"/."+jobid+".log"
-                myLogList.append(myLog)
             except:
                 print "No write access to: ", runDir
+
+            # Update elog
+            if self.parent.logger == True:
+                self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
+
+            cmd = "bsub -q "+self.parent.hitParam_queue+\
+              " -a mympi -n "+str(self.parent.hitParam_cpus)+\
+              " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
+              " -r "+str(run)+" -d "+self.detInfo+\
+              " --outDir "+runDir+\
+              " --algorithm "+str(self.parent.algorithm)
+
+            if self.parent.algorithm == 1:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
+                       " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
+                       " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
+                       " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
+                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
+            elif self.parent.algorithm == 3:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
+                       " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
+                       " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
+                       " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
+            elif self.parent.algorithm == 4:
+                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
+                       " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
+                       " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
+                       " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
+                       " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
+                       " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
+            # Save user mask to a deterministic path
+            if self.parent.userMaskOn:
+                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
+                np.save(tempFilename,self.parent.userMask) # TODO: save
+                cmd += " --userMask_path "+str(tempFilename)
+            if self.parent.streakMaskOn:
+                cmd += " --streakMask_on "+str(self.parent.streakMaskOn)+\
+                    " --streakMask_sigma "+str(self.parent.streak_sigma)+\
+                   " --streakMask_width "+str(self.parent.streak_width)
+            if self.parent.psanaMaskOn:
+                cmd += " --psanaMask_on "+str(self.parent.psanaMaskOn)+\
+                   " --psanaMask_calib "+str(self.parent.mask_calibOn)+\
+                   " --psanaMask_status "+str(self.parent.mask_statusOn)+\
+                   " --psanaMask_edges "+str(self.parent.mask_edgesOn)+\
+                   " --psanaMask_central "+str(self.parent.mask_centralOn)+\
+                   " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+\
+                   " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
+
+            if self.parent.hitParam_noe > 0:
+                cmd += " --noe "+str(self.parent.hitParam_noe)
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+            jobid = out.split("<")[1].split(">")[0]
+            myLog = runDir+"/."+jobid+".log"
+            myLogList.append(myLog)
 
         myKeyString = "The output (if any) is above this job summary."
         mySuccessString = "Successfully completed."
@@ -3056,6 +3087,24 @@ class PeakFinder(QtCore.QThread):
                         else:
                             if args.v >= 0:
                                 print "peak finding job hasn't finished yet: ", myLog
+                            # Update elog
+                            if self.parent.logger == True:
+                                if self.parent.args.v >= 1: print "Updating e-log"
+                                f = h5py.File(str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi','r')
+                                nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
+                                numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
+                                numLeftNow = len(np.where(nPeaksAll == -1)[0])
+                                numEvents = len(nPeaksAll)
+                                numDoneNow = numEvents-numLeftNow
+                                if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
+                                if numDoneNow == 0:
+                                    hitRate = 0
+                                else:
+                                    hitRate = numHitsNow*100./numDoneNow
+                                fracDone = numDoneNow*100./numEvents
+                                msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
+                                f.close()
+                                self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
                             time.sleep(10)
                 else:
                     if args.v >= 0:
@@ -3066,7 +3115,7 @@ class PeakFinder(QtCore.QThread):
                     # Read number of hits
                     filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
                     f = h5py.File(filename,'r')
-                    numHits = len(np.where(f['/entry_1/result_1/nPeaksAll'].value>=self.parent.hitParam_threshold)[0])
+                    numHits = len(np.where(f['/entry_1/result_1/nPeaksAll'].value >= self.parent.hitParam_threshold)[0])
                     f.close()
                     # Update elog
                     if self.parent.logger == True:

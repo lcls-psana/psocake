@@ -6,6 +6,7 @@ size = comm.Get_size()
 import h5py
 from mpidata import mpidata
 import psana
+import numpy as np
 
 def runmaster(args,nClients):
 
@@ -37,7 +38,7 @@ def runmaster(args,nClients):
     if grpName in myHdf5:
         del myHdf5[pName]
     grp = myHdf5.create_group(grpName)
-    myHdf5.create_dataset(grpName+dset_nPeaks, (numJobs,), dtype='int')
+    myHdf5.create_dataset(grpName+dset_nPeaks, data=np.ones(numJobs,)*-1, dtype='int')
     myHdf5.create_dataset(grpName+dset_posX, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_posY, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_atot, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
@@ -74,9 +75,10 @@ def runmaster(args,nClients):
             counter += 1
             if counter == saveInterval:
                 myHdf5.close()
+    if '/status/findPeaks' in myHdf5:
+        del myHdf5['/status/findPeaks']
+    myHdf5['/status/findPeaks'] = 'success'
     myHdf5.close()
-
-
 
 def convert_peaks_to_cheetah(s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
