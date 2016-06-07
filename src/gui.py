@@ -40,6 +40,7 @@ parser.add_argument("-r","--run", help="Run number. This option is ignored if ex
 parser.add_argument("-d","--det", help="Detector alias or DAQ name (e.g. DscCsPad or CxiDs1.0:Cspad.0), default=''",default="", type=str)
 parser.add_argument("-n","--evt", help="Event number (e.g. 1), default=0",default=0, type=int)
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
+parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 #parser.add_argument("--more", help="display more panels", action='store_true')
 args = parser.parse_args()
@@ -244,13 +245,13 @@ class MainFrame(QtGui.QWidget):
         if args.expRun is not None and ':run=' in args.expRun:
             self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
             self.runNumber = args.expRun.split('run=')[-1]
-            if self.experimentName is not '':
-                self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+            #if self.experimentName is not '':
+            #    self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         else:
             self.experimentName = args.exp
             self.runNumber = int(args.run)
-            if self.experimentName is not '':
-                self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+            #if self.experimentName is not '':
+            #    self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         self.detInfo = args.det
         self.isCspad = False
         self.isCamera = False
@@ -354,9 +355,9 @@ class MainFrame(QtGui.QWidget):
         self.hiddenCXI = '.temp.cxi'
         self.hiddenCrystfelStream = '.temp.stream'
         self.hiddenCrystfelList = '.temp.lst'
-        if os.path.isfile(self.hiddenCXI): os.remove(self.hiddenCXI)
-        if os.path.isfile(self.hiddenCrystfelStream): os.remove(self.hiddenCrystfelStream)
-        if os.path.isfile(self.hiddenCrystfelList): os.remove(self.hiddenCrystfelList)
+        #if os.path.isfile(self.hiddenCXI): os.remove(self.hiddenCXI)
+        #if os.path.isfile(self.hiddenCrystfelStream): os.remove(self.hiddenCrystfelStream)
+        #if os.path.isfile(self.hiddenCrystfelList): os.remove(self.hiddenCrystfelList)
 
         # Init hit finding
         self.spiAlgorithm = 1
@@ -453,7 +454,6 @@ class MainFrame(QtGui.QWidget):
                 ]},
             ]},
         ]
-
         self.paramsPeakFinder = [
             {'name': hitParam_grp, 'type': 'group', 'children': [
                 {'name': hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks, 'tip': "Show peaks found shot-to-shot"},
@@ -1185,6 +1185,14 @@ class MainFrame(QtGui.QWidget):
                             self.userMaskAssem[indexX,indexY] = (1-self.userMaskAssem[indexX,indexY])
                         self.displayMask()
 
+                        self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+                        #assem = self.pixelIndAssem.copy()+1
+                        #pixInd = assem[np.where(self.userMaskAssem==0)]
+                        #pixInd = pixInd[np.nonzero(pixInd)]-1
+                        #calibMask=np.ones((self.calib.size,))
+                        #calibMask[pixInd.astype(int)] = 0
+                        #self.userMask=calibMask.reshape(self.calib.shape)
+
         # Signal proxy
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
@@ -1289,8 +1297,8 @@ class MainFrame(QtGui.QWidget):
         self.displayMask()
 
         # update combined mask
-        if self.combinedMask is None:
-            self.combinedMask = np.ones_like(self.calib)
+        #if self.combinedMask is None:
+        self.combinedMask = np.ones_like(self.calib)
         if self.streakMask is not None:
             self.combinedMask *= self.streakMask
         if self.userMask is not None:
@@ -2234,8 +2242,12 @@ class MainFrame(QtGui.QWidget):
             print "Doing setupExperiment"
         if self.hasExpRunInfo():
             # Set up psocake directory in scratch
-            self.elogDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
-            self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/'+self.username+'/psocake'
+            if args.outDir is None:
+                self.elogDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
+                self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/'+self.username+'/psocake'
+            else:
+                self.elogDir = args.outDir+'/psocake'
+                self.psocakeDir = args.outDir+'/'+self.username+'/psocake'
             self.psocakeRunDir = self.psocakeDir+'/r'+str(self.runNumber).zfill(4)
 
             # Update peak finder outdir and run number
@@ -2250,6 +2262,11 @@ class MainFrame(QtGui.QWidget):
             # Update quantifier filename
             self.p2.param(quantifier_grp, quantifier_filename_str).setValue(self.psocakeRunDir)
             self.setupPsocake()
+
+            # Update hidden CrystFEL files
+            self.hiddenCXI = self.psocakeRunDir+'/.temp.cxi'
+            self.hiddenCrystfelStream = self.psocakeRunDir+'/.temp.stream'
+            self.hiddenCrystfelList = self.psocakeRunDir+'/.temp.lst'
 
             if args.localCalib:
                 if args.v >= 1:
@@ -2293,11 +2310,11 @@ class MainFrame(QtGui.QWidget):
                     print "clenEpics: ", self.clenEpics
                     print "clen: ", self.detectorDistance, self.clen
                 self.coffset = self.detectorDistance - self.clen
-
             if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list: epix, rayonix
                 self.pixelSize = 110e-6
             elif 'pnccd' in self.detInfo.lower():
                 self.pixelSize = 75e-6
+
             self.p1.param(self.geom.geom_grp,self.geom.geom_pixelSize_str).setValue(self.pixelSize)
             # photon energy
             self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
@@ -2314,6 +2331,21 @@ class MainFrame(QtGui.QWidget):
                 self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
                 self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
                 self.pixelIndAssem -= 1 # First pixel is 0
+
+            # Write a temporary geom file
+            if 'cspad' in self.detInfo.lower():
+                print "Generating geom"
+                self.p9.param(self.index.index_grp, self.index.index_geom_str).setValue(self.psocakeRunDir+'/.temp.geom')
+                cmd = ["python","/reg/neh/home/yoon82/psgeom/psana2crystfel.py","/reg/d/psdm/cxi/cxi06216/calib/CsPad::CalibV1/CxiDs1.0:Cspad.0/geometry/22-end.data",self.psocakeRunDir+"/.temp.geom"]
+                print "cmd: ", cmd
+                p = subprocess.Popen(cmd,stdout=subprocess.PIPE)
+                output = p.communicate()[0]
+                p.stdout.close()
+                print "output: ", output
+                #from psgeom import camera
+                #cspad = camera.Cspad.from_psana_file('/reg/d/psdm/cxi/cxi06216/calib/CsPad::CalibV1/CxiDs1.0:Cspad.0/geometry/22-end.data')
+                #cspad.to_crystfel_file(self.psocakeRunDir+'/.temp.geom')
+
         if args.v >= 1:
             print "Done setupExperiment"
 
@@ -2449,10 +2481,14 @@ class MainFrame(QtGui.QWidget):
     def updateQuantifierFilename(self, data):
         # close previously open file
         if self.quantifier_filename is not data and self.quantifierFileOpen:
+        #try:
             self.quantifierFile.close()
+            self.quantifierFileOpen = False
+        #except:
+        #    print "couldn't close file"
         self.quantifier_filename = data
         if os.path.isfile(self.quantifier_filename):
-            self.quantifierFile = h5py.File(self.quantifier_filename,'r')
+            self.quantifierFile = h5py.File(self.quantifier_filename,'r')#,swmr=True)
             self.quantifierFileOpen = True
         if args.v >= 1:
             print "Done opening metric"
@@ -2503,9 +2539,10 @@ class MainFrame(QtGui.QWidget):
         self.curve.sigClicked.connect(self.clicked)
 
     def clicked(self,points):
-        print("curve clicked",points)
-        from pprint import pprint
-        pprint(vars(points.scatter))
+        if args.v >= 1:
+            print("curve clicked",points)
+            from pprint import pprint
+            pprint(vars(points.scatter))
         for i in range(len(points.scatter.data)):
             if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
                 ind = i
@@ -2967,14 +3004,16 @@ class PeakFinder(QtCore.QThread):
                     np.save(tempFilename,self.parent.userMask) # TODO: save
                     cmd += " --userMask_path "+str(tempFilename)
                 if self.parent.streakMaskOn:
-                    cmd += " --streakMask_sigma "+str(self.parent.streak_sigma)+\
+                    cmd += " --streakMask_on "+str(self.parent.streakMaskOn)+\
+                        " --streakMask_sigma "+str(self.parent.streak_sigma)+\
                        " --streakMask_width "+str(self.parent.streak_width)
                 if self.parent.psanaMaskOn:
-                    cmd += " --psanaMask_calib "+str(self.parent.mask_calibOn)+" "+\
-                       " --psanaMask_status "+str(self.parent.mask_statusOn)+" "+\
-                       " --psanaMask_edges "+str(self.parent.mask_edgesOn)+" "+\
-                       " --psanaMask_central "+str(self.parent.mask_centralOn)+" "+\
-                       " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+" "+\
+                    cmd += " --psanaMask_on "+str(self.parent.psanaMaskOn)+\
+                       " --psanaMask_calib "+str(self.parent.mask_calibOn)+\
+                       " --psanaMask_status "+str(self.parent.mask_statusOn)+\
+                       " --psanaMask_edges "+str(self.parent.mask_edgesOn)+\
+                       " --psanaMask_central "+str(self.parent.mask_centralOn)+\
+                       " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+\
                        " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
 
                 if self.parent.hitParam_noe > 0:
@@ -3015,11 +3054,11 @@ class PeakFinder(QtCore.QThread):
                                 haveFinished[i] = -1
                                 Done = -1
                         else:
-                            if args.v >= 1:
+                            if args.v >= 0:
                                 print "peak finding job hasn't finished yet: ", myLog
                             time.sleep(10)
                 else:
-                    if args.v >= 1:
+                    if args.v >= 0:
                         print "no such file yet: ", myLog
                     time.sleep(10)
 

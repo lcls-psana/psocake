@@ -41,7 +41,7 @@ class CrystalIndexing(object):
         self.geom = '.temp.geom'
         self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
-        self.pdb = 'lys.cell'
+        self.pdb = ''#lys.cell'
         self.indexingMethod = 'dirax-axes-latt'
 
         #######################
@@ -50,15 +50,15 @@ class CrystalIndexing(object):
         self.params = [
             {'name': self.index_grp, 'type': 'group', 'children': [
                 {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
-                {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "Turn on indexing"},
+                {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "CrystFEL geometry file"},
                 #{'name': self.index_peakMethod_str, 'type': 'str', 'value': self.peakMethod, 'tip': "Turn on indexing"},
-                {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Turn on indexing"},
-                {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "Turn on indexing"},
-                {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "Turn on indexing"},
+                {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Integration radii"},
+                {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "(Optional) CrystFEL unitcell file"},
+                {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "comma separated indexing methods"},
             ]},
             {'name': self.launch_grp, 'type': 'group', 'children': [
                 {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
-                {'name': self.runs_str, 'type': 'str', 'value': self.runs},
+                {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
                 {'name': self.queue_str, 'type': 'list', 'values': {self.psfehhiprioq_str: self.psfehhiprioq_str,
                                                                self.psnehhiprioq_str: self.psnehhiprioq_str,
                                                                self.psfehprioq_str: self.psfehprioq_str,
@@ -67,7 +67,7 @@ class CrystalIndexing(object):
                                                                self.psnehq_str: self.psnehq_str,
                                                                self.psanaq_str: self.psanaq_str},
                  'value': self.queue, 'tip': "Choose queue"},
-                {'name': self.cpu_str, 'type': 'int', 'value': self.cpus},
+                {'name': self.cpu_str, 'type': 'int', 'value': self.cpus, 'tip': "number of cpus to use per run"},
                 {'name': self.noe_str, 'type': 'int', 'value': self.noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
@@ -279,21 +279,24 @@ class IndexHandler(QtCore.QThread):
                         myAsic = indexScan[counter]
                         for k in columns:
                             myLine = [s for s in geom if myAsic+'/'+k in s]
-                            myVal = myLine[-1].split('=')[-1].rstrip().lstrip()
-                            if k == 'fs' or k == 'ss':
-                                dfGeom.loc[myAsic,k] = myVal
+                            if myLine: # sometimes elements in columns can be missing
+                                myVal = myLine[-1].split('=')[-1].rstrip().lstrip()
+                                if k == 'fs' or k == 'ss':
+                                    dfGeom.loc[myAsic,k] = myVal
+                                else:
+                                    dfGeom.loc[myAsic,k] = float(myVal)
+                                if k == 'fs':
+                                    fsx = float(myVal.split('x')[0])
+                                    fsy = float(myVal.split('x')[-1].split('y')[0])
+                                    dfScan.loc[myAsic,'fsx'] = fsx
+                                    dfScan.loc[myAsic,'fsy'] = fsy
+                                elif k == 'ss':
+                                    ssx = float(myVal.split('x')[0])
+                                    ssy = float(myVal.split('x')[-1].split('y')[0])
+                                    dfScan.loc[myAsic,'ssx'] = ssx
+                                    dfScan.loc[myAsic,'ssy'] = ssy
                             else:
-                                dfGeom.loc[myAsic,k] = float(myVal)
-                            if k == 'fs':
-                                fsx = float(myVal.split('x')[0])
-                                fsy = float(myVal.split('x')[-1].split('y')[0])
-                                dfScan.loc[myAsic,'fsx'] = fsx
-                                dfScan.loc[myAsic,'fsy'] = fsy
-                            elif k == 'ss':
-                                ssx = float(myVal.split('x')[0])
-                                ssy = float(myVal.split('x')[-1].split('y')[0])
-                                dfScan.loc[myAsic,'ssx'] = ssx
-                                dfScan.loc[myAsic,'ssy'] = ssy
+                                if self.parent.args.v >= 1: print myAsic+'/'+k + " doesn't exist"
                         counter += 1
                 f.close()
             else:
@@ -399,10 +402,10 @@ class IndexHandler(QtCore.QThread):
                                     self.parent.table.setValue(self.runNumber,"Number of indexed","#FailedCXIDB")
                             notDone = 0
                         else:
-                            if self.parent.args.v >= 1: print "cxidb job hasn't finished yet: ", myLog
+                            if self.parent.args.v >= 0: print "cxidb job hasn't finished yet: ", myLog
                             time.sleep(10)
                     else:
-                        if self.parent.args.v >= 1: print "no such file yet"
+                        if self.parent.args.v >= 0: print "no such file yet", myLog
                         time.sleep(10)
 
             if hasData:
@@ -469,10 +472,10 @@ class IndexHandler(QtCore.QThread):
                                         haveFinished[i] = -1
                                         Done = -1
                                 else:
-                                    if self.parent.args.v >= 1: print "indexing job hasn't finished yet: ", self.runNumber
+                                    if self.parent.args.v >= 0: print "indexing job hasn't finished yet: ", self.runNumber
                                     time.sleep(10)
                         else:
-                            if self.parent.args.v >= 1: print "no such file yet: ", myLog
+                            if self.parent.args.v >= 0: print "no such file yet: ", self.runNumber
                             time.sleep(10)
 
                 if Done == 1:

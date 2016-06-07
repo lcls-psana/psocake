@@ -106,21 +106,24 @@ class DiffractionGeometry(object):
             return False
 
     def writeCrystfelGeom(self):
+        print "writeCrystfelGeom: ", self.parent.index.geom, self.parent.hiddenCXI
         if os.path.isfile(self.parent.hiddenCXI):
             f = h5py.File(self.parent.hiddenCXI,'r')
             encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
             f.close()
             coffset = self.parent.detectorDistance - encoderVal
-            if self.parent.args.v >= 1:
+            if 1:#self.parent.args.v >= 1:
                 print "detector to ip (coffset): ", coffset
             coffsetStr = "coffset = "+str(coffset)+"\n"
+            print "coffsetStr: ", coffsetStr
 
-            # Replace coffset
+            # Replace coffset value in geometry file
             for line in fileinput.input(self.parent.index.geom, inplace=True):
                 if 'coffset' in line and line.strip()[0] is not ';':
-                    print coffsetStr,
+                    coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
+                    print coffsetStr, # comma is required
                 else:
-                    print line,
+                    print line, # comma is required
 
     def updateGeometry(self):
         if self.parent.hasUserDefinedResolution:

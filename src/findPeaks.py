@@ -1,6 +1,6 @@
 # Find Bragg peaks
-from master import runmaster
-from client import runclient
+from peakFinderMaster import runmaster
+from peakFinderClient import runclient
 import h5py
 import psana
 
@@ -36,9 +36,11 @@ parser.add_argument("--alg4_thr_high",help="number of events to process",default
 parser.add_argument("--alg4_rank",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg4_r0",help="number of events to process",default=5, type=int)
 parser.add_argument("--alg4_dr",help="number of events to process",default=0.05, type=float)
+parser.add_argument("--streakMask_on",help="streak mask on",default=False, type=bool)
 parser.add_argument("--streakMask_sigma",help="streak mask sigma above background",default=0., type=float)
 parser.add_argument("--streakMask_width",help="streak mask width",default=0, type=float)
 parser.add_argument("--userMask_path",help="full path to user mask numpy array",default=None, type=str)
+parser.add_argument("--psanaMask_on",help="psana mask on",default=False, type=bool)
 parser.add_argument("--psanaMask_calib",help="psana calib on",default=False, type=bool)
 parser.add_argument("--psanaMask_status",help="psana status on",default=False, type=bool)
 parser.add_argument("--psanaMask_edges",help="psana edges on",default=False, type=bool)
