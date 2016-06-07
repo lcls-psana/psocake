@@ -41,7 +41,11 @@ def runmaster(args,nClients):
     myHdf5.create_dataset(grpName+dset_posX, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_posY, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_atot, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
+    myHdf5.close()
 
+    myHdf5 = h5py.File(fname, 'r+')
+    saveInterval = 60
+    counter = 0
     while nClients > 0:
         # Remove client if the run ended
         md = mpidata()
@@ -49,6 +53,8 @@ def runmaster(args,nClients):
         if md.small.endrun:
             nClients -= 1
         else:
+            if counter == saveInterval:
+                myHdf5 = h5py.File(fname, 'r+')
             #save to hdf5
             try:
                 nPeaks = md.peaks.shape[0]
@@ -65,8 +71,12 @@ def runmaster(args,nClients):
                 myHdf5[grpName+dset_posY][md.small.eventNum,i] = cheetahRow
                 myHdf5[grpName+dset_atot][md.small.eventNum,i] = atot
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
-
+            counter += 1
+            if counter == saveInterval:
+                myHdf5.close()
     myHdf5.close()
+
+
 
 def convert_peaks_to_cheetah(s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
