@@ -83,6 +83,6 @@ def runclient(args):
         md=mpidata()
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
-        if ((nevent)%1 == 0): # send mpi data object to master when desired
-            md.send()
+        md.send() # send mpi data object to master when desired
+
     md.endrun()

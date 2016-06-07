@@ -2995,8 +2995,11 @@ class PeakFinder(QtCore.QThread):
                 print "No write access to: ", runDir
 
             # Update elog
-            if self.parent.logger == True:
-                self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
+            try:
+                if self.parent.logger == True:
+                    self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
+            except AttributeError:
+                print "e-Log table does not exist"
 
             cmd = "bsub -q "+self.parent.hitParam_queue+\
               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
@@ -3092,23 +3095,26 @@ class PeakFinder(QtCore.QThread):
                             if args.v >= 0:
                                 print "peak finding job hasn't finished yet: ", myLog
                             # Update elog
-                            if self.parent.logger == True:
-                                if self.parent.args.v >= 1: print "Updating e-log"
-                                f = h5py.File(str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi','r')
-                                nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
-                                numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
-                                numLeftNow = len(np.where(nPeaksAll == -1)[0])
-                                numEvents = len(nPeaksAll)
-                                numDoneNow = numEvents-numLeftNow
-                                if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
-                                if numDoneNow == 0:
-                                    hitRate = 0
-                                else:
-                                    hitRate = numHitsNow*100./numDoneNow
-                                fracDone = numDoneNow*100./numEvents
-                                msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
-                                f.close()
-                                self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
+                            try:
+                                if self.parent.logger == True:
+                                    if self.parent.args.v >= 1: print "Updating e-log"
+                                    f = h5py.File(str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi','r')
+                                    nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
+                                    numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
+                                    numLeftNow = len(np.where(nPeaksAll == -1)[0])
+                                    numEvents = len(nPeaksAll)
+                                    numDoneNow = numEvents-numLeftNow
+                                    if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
+                                    if numDoneNow == 0:
+                                        hitRate = 0
+                                    else:
+                                        hitRate = numHitsNow*100./numDoneNow
+                                    fracDone = numDoneNow*100./numEvents
+                                    msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
+                                    f.close()
+                                    self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
+                            except AttributeError:
+                                print "e-Log table does not exist"
                             time.sleep(10)
                 else:
                     if args.v >= 0:
@@ -3122,12 +3128,18 @@ class PeakFinder(QtCore.QThread):
                     numHits = len(np.where(f['/entry_1/result_1/nPeaksAll'].value >= self.parent.hitParam_threshold)[0])
                     f.close()
                     # Update elog
-                    if self.parent.logger == True:
-                        self.parent.table.setValue(runsToDo[i],"Number of hits",numHits)
+                    try:
+                        if self.parent.logger == True:
+                            self.parent.table.setValue(runsToDo[i],"Number of hits",numHits)
+                    except AttributeError:
+                        print "e-Log table does not exist"
                 elif haveFinished[i] == -1:
                     # Update elog
-                    if self.parent.logger == True:
-                        self.parent.table.setValue(runsToDo[i],"Number of hits","#Failed")
+                    try:
+                        if self.parent.logger == True:
+                            self.parent.table.setValue(runsToDo[i],"Number of hits","#Failed")
+                    except AttributeError:
+                        print "e-Log table does not exist"
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)

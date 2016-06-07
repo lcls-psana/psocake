@@ -395,9 +395,12 @@ class IndexHandler(QtCore.QThread):
                     self.parent.drawIndexedPeaks(self.unitCell)
         else: # batch indexing
             # Update elog
-            if self.parent.logger == True:
-                if self.parent.args.v >= 1: print "Updating e-log"
-                self.parent.table.setValue(self.runNumber,"Number of indexed","#ConvertingCXIDB")
+            try:
+                if self.parent.logger == True:
+                    if self.parent.args.v >= 1: print "Updating e-log"
+                    self.parent.table.setValue(self.runNumber,"Number of indexed","#ConvertingCXIDB")
+            except AttributeError:
+                print "e-Log table does not exist"
 
             # Open hdf5
             self.peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
@@ -442,9 +445,12 @@ class IndexHandler(QtCore.QThread):
                             else:
                                 print "failed attempt", self.runNumber
                                 # Update elog
-                                if self.parent.logger == True:
-                                    if self.parent.args.v >= 1: print "Updating e-log"
-                                    self.parent.table.setValue(self.runNumber,"Number of indexed","#FailedCXIDB")
+                                try:
+                                    if self.parent.logger == True:
+                                        if self.parent.args.v >= 1: print "Updating e-log"
+                                        self.parent.table.setValue(self.runNumber,"Number of indexed","#FailedCXIDB")
+                                except AttributeError:
+                                    print "e-Log table does not exist"
                             notDone = 0
                         else:
                             if self.parent.args.v >= 0: print "cxidb job hasn't finished yet: ", myLog
@@ -455,9 +461,12 @@ class IndexHandler(QtCore.QThread):
 
             if hasData:
                 # Update elog
-                if self.parent.logger == True:
-                    if self.parent.args.v >= 1: print "Updating e-log"
-                    self.parent.table.setValue(self.runNumber,"Number of indexed","#IndexingNow")
+                try:
+                    if self.parent.logger == True:
+                        if self.parent.args.v >= 1: print "Updating e-log"
+                        self.parent.table.setValue(self.runNumber,"Number of indexed","#IndexingNow")
+                except AttributeError:
+                    print "e-Log table does not exist"
                 f = h5py.File(self.peakFile,'r')
                 eventList = f['/LCLS/eventNumber'].value
                 numEvents = len(eventList)
@@ -536,9 +545,12 @@ class IndexHandler(QtCore.QThread):
                                     fracDone = numProcessed*100./numHits
                                     #print "numEvents, numIndexedNow, numProcessNow, fracDone: ", numEvents,numIndexedNow,numFailedNow,fracDone
                                     # Update elog
-                                    if self.parent.logger == True:
-                                        msg = str(numIndexedNow)+' indexed / {0:.1f}% rate / {1:.1f}% done'.format(indexRate,fracDone)
-                                        self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
+                                    try:
+                                        if self.parent.logger == True:
+                                            msg = str(numIndexedNow)+' indexed / {0:.1f}% rate / {1:.1f}% done'.format(indexRate,fracDone)
+                                            self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
+                                    except AttributeError:
+                                        print "e-Log table does not exist"
                                     time.sleep(10)
                         else:
                             if self.parent.args.v >= 0: print "no such file yet: ", self.runNumber
@@ -570,8 +582,11 @@ class IndexHandler(QtCore.QThread):
                         os.remove(fname)
 
                     # Update elog
-                    if self.parent.logger == True:
-                        if self.parent.args.v >= 1: print "Updating e-log numIndexed: ", numIndexed
-                        self.parent.table.setValue(self.runNumber,"Number of indexed",numIndexed)
+                    try:
+                        if self.parent.logger == True:
+                            if self.parent.args.v >= 1: print "Updating e-log numIndexed: ", numIndexed
+                            self.parent.table.setValue(self.runNumber,"Number of indexed",numIndexed)
+                    except AttributeError:
+                        print "e-Log table does not exist"
 
 
