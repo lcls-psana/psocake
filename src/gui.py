@@ -645,14 +645,14 @@ class MainFrame(QtGui.QWidget):
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
-        self.d1 = Dock("Image Panel", size=(400, 400))     ## give this dock the minimum possible size
+        self.d1 = Dock("Image Panel", size=(500, 400))     ## give this dock the minimum possible size
         self.d2 = Dock("Experiment Parameters", size=(1, 1))
         self.d3 = Dock("Diffraction Geometry", size=(1, 1))
         self.d4 = Dock("ROI Histogram", size=(1, 1))
-        self.d5 = Dock("Mouse", size=(400, 75), closable=False)
+        self.d5 = Dock("Mouse", size=(500, 75), closable=False)
         self.d6 = Dock("Image Control", size=(1, 1))
         self.d7 = Dock("Image Scroll", size=(1, 1))
-        self.d8 = Dock("Small Data", size=(1, 1))
+        self.d8 = Dock("Small Data", size=(100, 100))
         self.d9 = Dock("Peak Finder", size=(1, 1))
         self.d10 = Dock("Manifold", size=(1, 1))
         self.d12 = Dock("Mask Panel", size=(1, 1))
@@ -723,9 +723,11 @@ class MainFrame(QtGui.QWidget):
 
         self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
         self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
-        self.area.addDock(self.d8, 'bottom', self.d2)
-        self.area.moveDock(self.d3, 'above', self.d8)
-        self.area.moveDock(self.d4, 'above', self.d8)
+        self.area.moveDock(self.d3, 'above', self.d2)
+        self.area.moveDock(self.d4, 'above', self.d2)
+
+        self.area.addDock(self.d8, 'right')#, self.d2)
+        self.area.moveDock(self.d2, 'above', self.d3)
 
         #if args.more:
         #    self.area.addDock(self.d10, 'bottom', self.d6)
