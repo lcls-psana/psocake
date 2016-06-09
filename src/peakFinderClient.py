@@ -9,17 +9,20 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 def runclient(args):
-    ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':smd')
+    ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':idx')
+    run = ds.runs().next()
     env = ds.env()
+    times = run.times()
     d = psana.Detector(args.det)
 
-    for nevent,evt in enumerate(ds.events()):
+    for nevent in np.arange(len(times)):
         if nevent == args.noe : break
         if nevent%(size-1)!=rank-1: continue # different ranks look at different events
         try:
+            evt = run.event(times[nevent])
             detarr = d.calib(evt) * d.gain(evt)
         except:
-            print '*** failed to get img'
+            print '*** failed to get img: ', rank, nevent
             continue
 
         # Initialize hit finding
@@ -84,5 +87,4 @@ def runclient(args):
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.send() # send mpi data object to master when desired
-
     md.endrun()

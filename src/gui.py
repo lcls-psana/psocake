@@ -1605,13 +1605,25 @@ class MainFrame(QtGui.QWidget):
     def getDetImage(self,evtNumber,calib=None):
         if calib is None:
             if self.image_property == 1: # gain corrected
-                calib = self.getCalib(evtNumber) * self.det.gain(self.evt)
+                calib = self.getCalib(evtNumber)
+                if calib is None:
+                    calib = np.zeros_like(self.det.gain(self.evt))
+                else:
+                    calib *= self.det.gain(self.evt)
             elif self.image_property == 2: # common mode corrected
                 calib = self.getCalib(evtNumber)
+                if calib is None:
+                    calib = np.zeros_like(self.det.gain(self.evt))
             elif self.image_property == 3: # pedestal corrected
-                calib = self.det.raw(self.evt) - self.det.pedestals(self.evt)
+                calib = self.det.raw(self.evt)
+                if calib is None:
+                    calib = np.zeros_like(self.det.gain(self.evt))
+                else:
+                    calib -= self.det.pedestals(self.evt)
             elif self.image_property == 4: # raw
                 calib = self.det.raw(self.evt)
+                if calib is None:
+                    calib = np.zeros_like(self.det.gain(self.evt))
             elif self.image_property == 5: # photon counts
                 print "Sorry, this feature is not available"
             elif self.image_property == 6: # pedestal
@@ -3003,7 +3015,7 @@ class PeakFinder(QtCore.QThread):
 
             cmd = "bsub -q "+self.parent.hitParam_queue+\
               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-current/psocake/src/findPeaks.py -e "+self.experimentName+\
+              " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-0.18.3/psocake/src/findPeaks.py -e "+self.experimentName+\
               " -r "+str(run)+" -d "+self.detInfo+\
               " --outDir "+runDir+\
               " --algorithm "+str(self.parent.algorithm)
@@ -3061,6 +3073,8 @@ class PeakFinder(QtCore.QThread):
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
+            print "out: ", out
+            print "err: ", err
             jobid = out.split("<")[1].split(">")[0]
             myLog = runDir+"/."+jobid+".log"
             myLogList.append(myLog)
@@ -3112,7 +3126,7 @@ class PeakFinder(QtCore.QThread):
                                     fracDone = numDoneNow*100./numEvents
                                     msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
                                     f.close()
-                                    self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
+                                    if numDoneNow > 0: self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
                             except AttributeError:
                                 print "e-Log table does not exist"
                             time.sleep(10)

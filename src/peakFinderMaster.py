@@ -59,7 +59,7 @@ def runmaster(args,nClients):
             #save to hdf5
             try:
                 nPeaks = md.peaks.shape[0]
-                print "Number of peaks found: ", nPeaks
+                #print "Number of peaks found: ", nPeaks
             except:
                 continue
             if nPeaks > args.maxNumPeaks:
@@ -102,5 +102,6 @@ def getNoe(args):
             numJobs = args.noe
         else:
             numJobs = len(times)
+    print "run, numJobs: ", args.run, numJobs
     return numJobs
 
