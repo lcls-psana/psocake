@@ -310,12 +310,12 @@ class MainFrame(QtGui.QWidget):
         self.peaks = None
         self.hitParam_alg1_npix_min = 1.
         self.hitParam_alg1_npix_max = 45.
-        self.hitParam_alg1_amax_thr = 250.
+        self.hitParam_alg1_amax_thr = 270.
         self.hitParam_alg1_atot_thr = 330.
         self.hitParam_alg1_son_min = 10.
         self.hitParam_alg1_thr_low = 80.
-        self.hitParam_alg1_thr_high = 270.
-        self.hitParam_alg1_radius = 3
+        self.hitParam_alg1_thr_high = self.hitParam_alg1_amax_thr
+        self.hitParam_alg1_radius = 2
         self.hitParam_alg1_dr = 1
         self.hitParam_alg2_npix_min = 1.
         self.hitParam_alg2_npix_max = 5000.
@@ -3112,20 +3112,23 @@ class PeakFinder(QtCore.QThread):
                             try:
                                 if self.parent.logger == True:
                                     if self.parent.args.v >= 1: print "Updating e-log"
-                                    f = h5py.File(str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi','r')
-                                    nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
-                                    numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
-                                    numLeftNow = len(np.where(nPeaksAll == -1)[0])
-                                    numEvents = len(nPeaksAll)
-                                    numDoneNow = numEvents-numLeftNow
-                                    if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
-                                    if numDoneNow == 0:
-                                        hitRate = 0
-                                    else:
-                                        hitRate = numHitsNow*100./numDoneNow
-                                    fracDone = numDoneNow*100./numEvents
-                                    msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
-                                    f.close()
+                                    filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
+                                    print filename
+                                    if os.path.isfile(filename):
+                                        f = h5py.File(filename,'r')
+                                        nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
+                                        numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
+                                        numLeftNow = len(np.where(nPeaksAll == -1)[0])
+                                        numEvents = len(nPeaksAll)
+                                        numDoneNow = numEvents-numLeftNow
+                                        if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
+                                        if numDoneNow == 0:
+                                            hitRate = 0
+                                        else:
+                                            hitRate = numHitsNow*100./numDoneNow
+                                        fracDone = numDoneNow*100./numEvents
+                                        msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
+                                        f.close()
                                     if numDoneNow > 0: self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
                             except AttributeError:
                                 print "e-Log table does not exist"
@@ -3137,14 +3140,24 @@ class PeakFinder(QtCore.QThread):
 
                 if haveFinished[i] == 1:
                     # Read number of hits
-                    filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
+                    #filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
                     f = h5py.File(filename,'r')
-                    numHits = len(np.where(f['/entry_1/result_1/nPeaksAll'].value >= self.parent.hitParam_threshold)[0])
+                    nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
+                    numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
+                    numLeftNow = len(np.where(nPeaksAll == -1)[0])
+                    numEvents = len(nPeaksAll)
+                    numDoneNow = numEvents - numLeftNow
+                    if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
+                    if numDoneNow == 0:
+                        hitRate = 0
+                    else:
+                        hitRate = numHitsNow * 100. / numDoneNow
+                    msg = str(numHitsNow) + ' hits / {0:.1f}% rate'.format(hitRate)
                     f.close()
                     # Update elog
                     try:
                         if self.parent.logger == True:
-                            self.parent.table.setValue(runsToDo[i],"Number of hits",numHits)
+                            self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
                     except AttributeError:
                         print "e-Log table does not exist"
                 elif haveFinished[i] == -1:
