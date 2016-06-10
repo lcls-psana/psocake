@@ -1387,8 +1387,6 @@ class MainFrame(QtGui.QWidget):
             if self.showIndexedPeaks:
                 self.clearIndexedPeaks()
 
-                #self.index.psana
-                #saveCxiLite(filename,expName,runNumber,detInfo,eventList)
                 maxNumPeaks = 2048
                 myHdf5 = h5py.File(self.hiddenCXI, 'w')
                 grpName = "/entry_1/result_1"
@@ -3140,7 +3138,6 @@ class PeakFinder(QtCore.QThread):
 
                 if haveFinished[i] == 1:
                     # Read number of hits
-                    #filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
                     f = h5py.File(filename,'r')
                     nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
                     numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])

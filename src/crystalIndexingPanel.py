@@ -138,8 +138,10 @@ class CrystalIndexing(object):
     def updateIndex(self):
         if self.indexingOn:
             self.indexer = IndexHandler(parent=self.parent)
+            print "self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe: ", self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
-                                      self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb, self.indexingMethod)
+                                      self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
+                                      self.indexingMethod, self.outDir, queue=None)
 
     def updateOutputDir(self, data):
         self.outDir = data
@@ -266,7 +268,7 @@ class IndexHandler(QtCore.QThread):
         return indexedPeaks, numProcessed
 
     def run(self):
-        if self.outDir is None: # interactive indexing
+        if self.queue is None: # interactive indexing
             if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
             # Running indexing ...
             self.parent.numIndexedPeaksFound = 0
@@ -279,7 +281,8 @@ class IndexHandler(QtCore.QThread):
 
             # FIXME: convert psana geom to crystfel geom
             cmd = "indexamajig -j 1 -i "+self.parent.hiddenCrystfelList+" -g "+self.geom+" --peaks="+self.peakMethod+\
-                  " --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+" -o "+self.parent.hiddenCrystfelStream
+                  " --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+\
+                  " -o "+self.parent.hiddenCrystfelStream+" --temp-dir="+self.outDir+"/r"+str(self.runNumber).zfill(4)
             if self.pdb is not '':
                 cmd += " --pdb="+self.pdb
 
@@ -477,9 +480,9 @@ class IndexHandler(QtCore.QThread):
                 self.myStreamList = []
                 for rank in range(numWorkers):
                     myJobs = self.getMyUnfairShare(numEvents,numWorkers,rank)
-
-                    myList = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".lst"
-                    myStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".stream"
+                    outDir = self.outDir+"/r"+str(self.runNumber).zfill(4)
+                    myList = outDir+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".lst"
+                    myStream = outDir+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".stream"
                     self.myStreamList.append(myStream)
 
                     # Write list
@@ -487,10 +490,10 @@ class IndexHandler(QtCore.QThread):
                         for i,val in enumerate(myJobs):
                             text_file.write("{} //{}\n".format(self.peakFile,val))
 
-                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -o "+self.outDir+"/r"+str(self.runNumber).zfill(4)+\
+                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -o "+outDir+\
                           "/.%J.log indexamajig -j "+str(self.cpus)+" -i "+myList+\
                           " -g "+self.geom+" --peaks="+self.peakMethod+" --int-radius="+self.intRadius+\
-                          " --indexing="+self.indexingMethod+" -o "+myStream
+                          " --indexing="+self.indexingMethod+" -o "+myStream+" --temp-dir="+outDir
                     if self.pdb is not '':
                         cmd += " --pdb="+self.pdb
                     print "Submitting batch job: ", cmd
