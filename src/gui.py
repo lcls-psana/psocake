@@ -33,6 +33,7 @@ import crystalIndexingPanel
 from LogBook.runtables import RunTables
 import PSCalib.GlobalUtils as gu
 import json
+from _version import __version__
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")
@@ -44,6 +45,8 @@ parser.add_argument("--localCalib", help="Use local calib directory. A calib dir
 parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 #parser.add_argument("--more", help="display more panels", action='store_true')
+parser.add_argument('--version', action='version',
+                    version='%(prog)s {version}'.format(version=__version__))
 args = parser.parse_args()
 
 # Set up tolerance
