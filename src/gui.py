@@ -310,7 +310,7 @@ class MainFrame(QtGui.QWidget):
         self.peaks = None
         self.hitParam_alg1_npix_min = 1.
         self.hitParam_alg1_npix_max = 45.
-        self.hitParam_alg1_amax_thr = 270.
+        self.hitParam_alg1_amax_thr = 250.
         self.hitParam_alg1_atot_thr = 330.
         self.hitParam_alg1_son_min = 10.
         self.hitParam_alg1_thr_low = 80.
@@ -755,18 +755,43 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.abc_text)
 
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[0, -200], size=[100, 100], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
+        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'y', 'width': 4})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-        self.roi.addRotateHandle([0.5, 0.5], [1, 1])
+        self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
+        self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+        self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
         self.w1.getView().addItem(self.roi)
+        self.roiPoly = pg.PolyLineROI([[300, -250], [500, -250], [400, -50]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'y', 'width': 4})
+        self.w1.getView().addItem(self.roiPoly)
+
         # Callbacks for handling user interaction
         def updateRoiHistogram():
             if self.data is not None:
                 selected, coord = self.roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
-        self.roi.sigRegionChangeFinished.connect(updateRoiHistogram)
+
+        def updateRoi(roi):
+            if self.data is not None:
+                self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                if isinstance(self.ret,tuple): # rectangle
+                    selected, coord = self.ret
+                    x0 = int(coord[0][0][0])
+                    x1 = int(coord[0][-1][0])+1
+                    y0 = int(coord[1][0][0])
+                    y1 = int(coord[1][0][-1])+1
+                    print "ROI: ["+str(x0)+":"+str(x1)+","+str(y0)+":"+str(y1)+"]" # Note: self.data[x0:x1,y0:y1]
+                else:
+                    selected = self.ret
+                hist, bin = np.histogram(selected.flatten(), bins=1000)
+                self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
+
+        self.rois = []
+        self.rois.append(self.roi)
+        self.rois.append(self.roiPoly)
+        for roi in self.rois:
+            roi.sigRegionChangeFinished.connect(updateRoi)
 
         # Connect listeners to functions
         self.d1.addWidget(self.w1)
