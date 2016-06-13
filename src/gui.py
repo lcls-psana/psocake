@@ -44,9 +44,9 @@ parser.add_argument("-n","--evt", help="Event number (e.g. 1), default=0",defaul
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
-#parser.add_argument("--more", help="display more panels", action='store_true')
 parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
+parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
 args = parser.parse_args()
 
 # Set up tolerance
@@ -315,7 +315,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg1_npix_max = 45.
         self.hitParam_alg1_amax_thr = 250.
         self.hitParam_alg1_atot_thr = 330.
-        self.hitParam_alg1_son_min = 10.
+        self.hitParam_alg1_son_min = 4.
         self.hitParam_alg1_thr_low = 80.
         self.hitParam_alg1_thr_high = self.hitParam_alg1_amax_thr
         self.hitParam_alg1_radius = 2
@@ -332,7 +332,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg3_npix_max = 5000.
         self.hitParam_alg3_amax_thr = 0.
         self.hitParam_alg3_atot_thr = 0.
-        self.hitParam_alg3_son_min = 10.
+        self.hitParam_alg3_son_min = 4.
         self.hitParam_alg3_rank = 3
         self.hitParam_alg3_r0 = 5.
         self.hitParam_alg3_dr = 0.05
@@ -340,11 +340,11 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_alg4_npix_max = 45.
         self.hitParam_alg4_amax_thr = 250.
         self.hitParam_alg4_atot_thr = 330.
-        self.hitParam_alg4_son_min = 10.
+        self.hitParam_alg4_son_min = 4.
         self.hitParam_alg4_thr_low = 80.
-        self.hitParam_alg4_thr_high = 270.
+        self.hitParam_alg4_thr_high = 250.
         self.hitParam_alg4_rank = 3
-        self.hitParam_alg4_r0 = 3
+        self.hitParam_alg4_r0 = 2
         self.hitParam_alg4_dr = 1
         self.hitParam_outDir = self.psocakeDir
         self.hitParam_outDir_overridden = False
@@ -360,9 +360,6 @@ class MainFrame(QtGui.QWidget):
         self.hiddenCXI = '.temp.cxi'
         self.hiddenCrystfelStream = '.temp.stream'
         self.hiddenCrystfelList = '.temp.lst'
-        #if os.path.isfile(self.hiddenCXI): os.remove(self.hiddenCXI)
-        #if os.path.isfile(self.hiddenCrystfelStream): os.remove(self.hiddenCrystfelStream)
-        #if os.path.isfile(self.hiddenCrystfelList): os.remove(self.hiddenCrystfelList)
 
         # Init hit finding
         self.spiAlgorithm = 1
@@ -474,8 +471,8 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg1_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg1_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
                     {'name': hitParam_alg1_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg1_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
                     {'name': hitParam_alg1_son_min_str, 'type': 'float', 'value': self.hitParam_alg1_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
-                    {'name': hitParam_alg1_thr_low_str, 'type': 'float', 'value': self.hitParam_alg1_thr_low, 'tip': "Only consider values above this value"},
-                    {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg1_thr_low_str, 'type': 'float', 'value': self.hitParam_alg1_thr_low, 'tip': "Grow a seed peak if above this value"},
+                    {'name': hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high, 'tip': "Start a seed peak if above this value"},
                     {'name': hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr, 'tip': "background region outside the region of interest"},
                 ]},
@@ -505,8 +502,8 @@ class MainFrame(QtGui.QWidget):
                     {'name': hitParam_alg4_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg4_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
                     {'name': hitParam_alg4_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg4_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
                     {'name': hitParam_alg4_son_min_str, 'type': 'float', 'value': self.hitParam_alg4_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
-                    {'name': hitParam_alg4_thr_low_str, 'type': 'float', 'value': self.hitParam_alg4_thr_low, 'tip': "Only consider values above this value"},
-                    {'name': hitParam_alg4_thr_high_str, 'type': 'float', 'value': self.hitParam_alg4_thr_high, 'tip': "Only keep the peak if max value is above this value"},
+                    {'name': hitParam_alg4_thr_low_str, 'type': 'float', 'value': self.hitParam_alg4_thr_low, 'tip': "Grow a seed peak if above this value"},
+                    {'name': hitParam_alg4_thr_high_str, 'type': 'float', 'value': self.hitParam_alg4_thr_high, 'tip': "Start a seed peak if above this value"},
                     {'name': hitParam_alg4_rank_str, 'type': 'int', 'value': self.hitParam_alg4_rank, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg4_r0_str, 'type': 'int', 'value': self.hitParam_alg4_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
                     {'name': hitParam_alg4_dr_str, 'type': 'float', 'value': self.hitParam_alg4_dr, 'tip': "background region outside the region of interest"},
@@ -661,9 +658,8 @@ class MainFrame(QtGui.QWidget):
         self.d9 = Dock("Peak Finder", size=(1, 1))
         self.d10 = Dock("Manifold", size=(1, 1))
         self.d12 = Dock("Mask Panel", size=(1, 1))
-        self.d13 = Dock("Detector Correction", size=(1, 1))
-        self.d14 = Dock("Hit Finder", size=(1, 1))
-        self.d15 = Dock("Indexing", size=(1, 1))
+        self.d13 = Dock("Hit Finder", size=(1, 1))
+        self.d14 = Dock("Indexing", size=(1, 1))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -710,32 +706,85 @@ class MainFrame(QtGui.QWidget):
                 self.setStyleSheet(self.hStyle)
         DockLabel.updateStyle = updateStylePatched
 
-        # Dock positions on the main frame
-        self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-        self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
-        self.area.addDock(self.d7, 'bottom', self.d5)
-        self.area.addDock(self.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
-        self.area.moveDock(self.d1, 'above', self.d7)
+        if args.mode == 'sfx':
+            # Dock positions on the main frame
+            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.d5)
+            self.area.addDock(self.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.moveDock(self.d1, 'above', self.d7)
 
-        self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
-        self.area.addDock(self.d9, 'bottom', self.d2)
-        self.area.addDock(self.d12, 'bottom',self.d2)
-        self.area.addDock(self.d14, 'bottom', self.d2)
-        self.area.addDock(self.d15, 'bottom', self.d2)
-        self.area.moveDock(self.d9, 'above', self.d12)
-        self.area.moveDock(self.d14, 'above', self.d12)
-        self.area.moveDock(self.d15, 'above', self.d12)
+            self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
+            self.area.addDock(self.d9, 'bottom', self.d2)
+            self.area.addDock(self.d12, 'bottom',self.d2)
+            self.area.addDock(self.d14, 'bottom', self.d2)
+            self.area.moveDock(self.d9, 'above', self.d12)
+            self.area.moveDock(self.d14, 'above', self.d12)
 
-        self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
-        self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
-        self.area.moveDock(self.d3, 'above', self.d2)
-        self.area.moveDock(self.d4, 'above', self.d2)
+            self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
+            self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
+            self.area.moveDock(self.d3, 'above', self.d2)
+            self.area.moveDock(self.d4, 'above', self.d2)
 
-        self.area.addDock(self.d8, 'right')#, self.d2)
-        self.area.moveDock(self.d2, 'above', self.d3)
+            self.area.addDock(self.d8, 'right')#, self.d2)
+            self.area.moveDock(self.d2, 'above', self.d3)
+        elif args.mode == 'spi':
+            # Dock positions on the main frame
+            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.d5)
+            self.area.addDock(self.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.moveDock(self.d1, 'above', self.d7)
 
-        #if args.more:
-        #    self.area.addDock(self.d10, 'bottom', self.d6)
+            self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
+            self.area.addDock(self.d12, 'bottom',self.d2)
+            self.area.addDock(self.d13, 'bottom', self.d2)
+            self.area.addDock(self.d14, 'bottom', self.d2)
+            self.area.moveDock(self.d13, 'above', self.d12)
+            self.area.moveDock(self.d14, 'above', self.d12)
+
+            self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
+            self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
+            self.area.moveDock(self.d3, 'above', self.d2)
+            self.area.moveDock(self.d4, 'above', self.d2)
+
+            self.area.addDock(self.d8, 'right')#, self.d2)
+            self.area.moveDock(self.d2, 'above', self.d3)
+        elif args.mode == 'all':
+            # Dock positions on the main frame
+            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.d5)
+            self.area.addDock(self.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.moveDock(self.d1, 'above', self.d7)
+
+            self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
+            self.area.addDock(self.d9, 'bottom', self.d2)
+            self.area.addDock(self.d12, 'bottom', self.d2)
+            self.area.addDock(self.d13, 'bottom', self.d2)
+            self.area.addDock(self.d14, 'bottom', self.d2)
+            self.area.moveDock(self.d9, 'above', self.d12)
+            self.area.moveDock(self.d13, 'above', self.d12)
+            self.area.moveDock(self.d14, 'above', self.d12)
+
+            self.area.addDock(self.d3, 'bottom', self.d2)  ## place d3 at bottom edge of d1
+            self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
+            self.area.moveDock(self.d3, 'above', self.d2)
+            self.area.moveDock(self.d4, 'above', self.d2)
+
+            self.area.addDock(self.d8, 'right')  # , self.d2)
+            self.area.moveDock(self.d2, 'above', self.d3)
+        else:
+            # Dock positions on the main frame
+            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.d5)
+            self.area.addDock(self.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.moveDock(self.d1, 'above', self.d7)
+
+            self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
+            self.area.addDock(self.d12, 'bottom', self.d2)
+            self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -955,26 +1004,24 @@ class MainFrame(QtGui.QWidget):
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
-        ## Dock 13: Correction Panel
-
-        ## Dock 14: Hit finder
+        ## Dock 13: Hit finder
         self.w19 = ParameterTree()
         self.w19.setParameters(self.p8, showTop=False)
-        self.d14.addWidget(self.w19)
+        self.d13.addWidget(self.w19)
         self.w20 = pg.LayoutWidget()
         self.launchSpiBtn = QtGui.QPushButton('Launch hit finder')
         self.w20.addWidget(self.launchSpiBtn, row=1, col=0)
-        self.d14.addWidget(self.w20)
+        self.d13.addWidget(self.w20)
 
-        ## Dock 15: Indexing
+        ## Dock 14: Indexing
         self.w21 = ParameterTree()
         self.w21.setParameters(self.p9, showTop=False)
         self.w21.setWindowTitle('Indexing')
-        self.d15.addWidget(self.w21)
+        self.d14.addWidget(self.w21)
         self.w22 = pg.LayoutWidget()
         self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
         self.w22.addWidget(self.launchIndexBtn, row=0, col=0)
-        self.d15.addWidget(self.w22)
+        self.d14.addWidget(self.w22)
 
         # mask
         def makeMaskRect():
