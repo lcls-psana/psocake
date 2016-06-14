@@ -221,6 +221,12 @@ mask_edges_str = 'edge pixels'
 mask_central_str = 'central pixels'
 mask_unbond_str = 'unbonded pixels'
 mask_unbondnrs_str = 'unbonded pixel neighbors'
+powder_grp = 'Generate Average Image'
+powder_outDir_str = 'Output directory'
+powder_runs_str = 'Run(s)'
+powder_queue_str = 'Queue'
+powder_cpu_str = 'CPUs'
+powder_noe_str = 'Number of events to process'
 
 # Color scheme
 cardinalRed_hex = str("#8C1515") # Cardinal red
@@ -352,7 +358,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_queue = hitParam_psanaq_str
         self.hitParam_cpus = 24
         self.hitParam_noe = 0
-        self.hitParam_threshold = 15
+        self.hitParam_threshold = 15 # usually crystals with less than 15 peaks are not indexable
 
         # Indexing
         self.showIndexedPeaks = True
@@ -395,6 +401,9 @@ class MainFrame(QtGui.QWidget):
         self.correction_radialBackground = False
         self.correction_polarization = False
 
+        ######################
+        # Mask
+        ######################
         self.maskingMode = 0
         self.userMaskOn = False
         self.streakMaskOn = False
@@ -408,8 +417,14 @@ class MainFrame(QtGui.QWidget):
         self.mask_unbondOn = True
         self.mask_unbondnrsOn = True
         self.display_data = None
-        self.roi_rect = None
-        self.roi_circle = None
+        self.mask_rect = None
+        self.mask_circle = None
+        #self.mask_poly = None
+        self.powder_outDir = self.psocakeDir
+        self.powder_runs = ''
+        self.powder_queue = hitParam_psanaq_str
+        self.powder_cpus = 24
+        self.powder_noe = 0
 
         # Threads
         self.stackStart = 0
@@ -560,7 +575,22 @@ class MainFrame(QtGui.QWidget):
                     {'name': mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
                     {'name': mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
                 ]},
-            ]}
+            ]},
+            {'name': powder_grp, 'type': 'group', 'children': [
+                {'name': powder_outDir_str, 'type': 'str', 'value': self.powder_outDir},
+                {'name': powder_runs_str, 'type': 'str', 'value': self.powder_runs,
+                 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
+                {'name': powder_queue_str, 'type': 'list', 'values': {hitParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                        hitParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                        hitParam_psfehprioq_str: 'psfehprioq',
+                                                                        hitParam_psnehprioq_str: 'psnehprioq',
+                                                                        hitParam_psfehq_str: 'psfehq',
+                                                                        hitParam_psnehq_str: 'psnehq',
+                                                                        hitParam_psanaq_str: 'psanaq'},
+                 'value': self.powder_queue, 'tip': "Choose queue"},
+                {'name': powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
+                {'name': powder_noe_str, 'type': 'int', 'value': self.powder_noe, 'tip': "number of events to process, default=0 means process all events"},
+            ]},
         ]
         self.paramsCorrection = [
             {'name': correction_grp, 'type': 'group', 'children': [
@@ -807,14 +837,16 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.abc_text)
 
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'y', 'width': 4})
+        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
         self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
         self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+        self.roi.name = 'rect'
         self.w1.getView().addItem(self.roi)
-        self.roiPoly = pg.PolyLineROI([[300, -250], [500, -250], [400, -50]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'y', 'width': 4})
+        self.roiPoly = pg.PolyLineROI([[300, -250], [500, -250], [400, -50]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
+        self.roiPoly.name = 'poly'
         self.w1.getView().addItem(self.roiPoly)
 
         # Callbacks for handling user interaction
@@ -826,7 +858,14 @@ class MainFrame(QtGui.QWidget):
 
         def updateRoi(roi):
             if self.data is not None:
-                self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                calib = np.ones_like(self.calib)
+                img = self.det.image(self.evt, calib)
+                pixelsExist = roi.getArrayRegion(img, self.w1.getImageItem())
+                if roi.name == 'poly':
+                    self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                    self.ret = self.ret[np.where(pixelsExist==1)]
+                else:
+                    self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 if isinstance(self.ret,tuple): # rectangle
                     selected, coord = self.ret
                     x0 = int(coord[0][0][0])
@@ -834,6 +873,7 @@ class MainFrame(QtGui.QWidget):
                     y0 = int(coord[1][0][0])
                     y1 = int(coord[1][0][-1])+1
                     print "ROI: ["+str(x0)+":"+str(x1)+","+str(y0)+":"+str(y1)+"]" # Note: self.data[x0:x1,y0:y1]
+                    selected = selected[np.where(pixelsExist == 1)]
                 else:
                     selected = self.ret
                 hist, bin = np.histogram(selected.flatten(), bins=1000)
@@ -970,10 +1010,10 @@ class MainFrame(QtGui.QWidget):
         self.w10.setParameters(self.p3, showTop=False)
         self.d9.addWidget(self.w10)
         self.w11 = pg.LayoutWidget()
-        self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
+        #self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
         self.launchBtn = QtGui.QPushButton('Launch peak finder')
-        self.w11.addWidget(self.launchBtn, row=1, col=0)
-        self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
+        self.w11.addWidget(self.launchBtn, row=0,col=0)
+        #self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
         self.d9.addWidget(self.w11)
 
         ## Dock 10: Manifold
@@ -989,10 +1029,12 @@ class MainFrame(QtGui.QWidget):
         self.w17.setParameters(self.p6, showTop=False)
         self.d12.addWidget(self.w17)
         self.w18 = pg.LayoutWidget()
-        self.maskRectBtn = QtGui.QPushButton('mask rectangular ROI')
+        self.maskRectBtn = QtGui.QPushButton('Stamp rectangular mask')
         self.w18.addWidget(self.maskRectBtn, row=0, col=0, colspan=2)
-        self.maskCircleBtn = QtGui.QPushButton('mask circular ROI')
+        self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
         self.w18.addWidget(self.maskCircleBtn, row=1, col=0, colspan=2)
+        #self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
+        #self.w18.addWidget(self.maskPolyBtn, row=2, col=0, colspan=2)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.deployMaskBtn.setText('Save user-defined mask')
@@ -1001,6 +1043,8 @@ class MainFrame(QtGui.QWidget):
         self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.loadMaskBtn.setText('Load user-defined mask')
         self.w18.addWidget(self.loadMaskBtn, row=2, col=1)
+        self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
+        self.w18.addWidget(self.generatePowderBtn, row=3, col=0, colspan=2)
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
@@ -1027,7 +1071,7 @@ class MainFrame(QtGui.QWidget):
         def makeMaskRect():
             self.initMask()
             if self.data is not None and self.maskingMode > 0:
-                selected, coord = self.roi_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                selected, coord = self.mask_rect.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 # Remove mask elements outside data
                 coord_row = coord[0,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
                 coord_col = coord[1,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
@@ -1052,8 +1096,8 @@ class MainFrame(QtGui.QWidget):
         def makeMaskCircle():
             self.initMask()
             if self.data is not None and self.maskingMode > 0:
-                (radiusX,radiusY) = self.roi_circle.size()
-                (cornerX,cornerY) = self.roi_circle.pos()
+                (radiusX,radiusY) = self.mask_circle.size()
+                (cornerX,cornerY) = self.mask_circle.pos()
                 i0, j0 = np.meshgrid(range(int(radiusY)),
                                      range(int(radiusX)), indexing = 'ij')
                 r = np.sqrt(np.square((i0 - radiusY/2).astype(np.float)) +
@@ -1080,6 +1124,97 @@ class MainFrame(QtGui.QWidget):
             if args.v >= 1:
                 print "done makeMaskCircle!!!!!!"
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
+
+        def makeMaskPoly():
+            self.initMask()
+            if self.data is not None and self.maskingMode > 0:
+                calib = np.ones_like(self.calib)
+                img = self.det.image(self.evt,calib)
+                # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
+                self.selected = self.mask_poly.getArrayRegion(img, self.w1.getImageItem(), returnMappedCoords=True)
+
+                import matplotlib.pyplot as plt
+                #plt.imshow(self.selected, vmax=1, vmin=0)
+                #plt.show()
+
+                self.selected = 1-self.selected
+
+                x = self.mask_poly.parentBounds().x()
+                y = self.mask_poly.parentBounds().y()
+                sx = self.mask_poly.parentBounds().size().height()
+                sy = self.mask_poly.parentBounds().size().width()
+                print "x,y: ", x, y, sx, sy, self.data.shape[0], self.data.shape[1]
+                localx = 0
+                localy = 0
+                newx = x
+                newy = y
+                newsx = sx
+                newsy = sy
+                if x < 0: # if mask is outside detector
+                    localx = -x
+                    newx = 0
+                    newsx += x
+                if y < 0:
+                    localy = -y
+                    newy = 0
+                    newsy += y
+                if x+sx >= self.data.shape[0]:
+                    newsx = self.data.shape[0]-x
+                if y+sy >= self.data.shape[1]:
+                    newsy = self.data.shape[1]-y
+                print "self.selected: ", self.selected.shape
+                #plt.imshow(self.selected,vmax=1,vmin=0)
+                #plt.show()
+
+                print "newsx,newsy: ", newsx,newsy
+                print "x1,y1: ", newx, newx+newsx, newy, newy+newsy
+                print "ox1,oy1: ", localx, localx+newsx, localy, localy+newsy
+                #print "coord_row, coord_col: ",
+
+                _mask = np.ones_like(img)
+                a = _mask[newx:(newx+newsx),newy:(newy+newsy)]
+                b= self.selected[localx:(localx+newsx),localy:(localy+newsy)]
+                print "a: ", a.shape
+                print "b: ", b.shape, len(np.arange(localx,localx+newsx))
+                _mask[newx:(newx+newsx),newy:(newy+newsy)] = self.selected[1:,1:] #[localx:(localx+newsx),localy:(localy+newsy)]
+
+                #plt.imshow(_mask,vmax=1,vmin=0)
+                #plt.show()
+
+
+                # Remove mask elements outside data
+                #pixIndAssem = self.pixelIndAssem.copy()+1
+                #x=self.mask_poly.parentBounds().x()
+                #y=self.mask_poly.parentBounds().y()
+                #sx=self.mask_poly.parentBounds().size().height()
+                #sy=self.mask_poly.parentBounds().size().width()
+                #print "x,y: ", x,y,sx,sy
+                #self.pixelExists = pixIndAssem[x:x+sx,y:y+sy]
+
+
+                #(pixX,pixY) = np.where(self.pixelExists>0)
+
+                # coord_row = coord[0,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
+                # coord_col = coord[1,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
+                #_mask = np.ones_like(self.data)
+                #_mask[coord_row.astype('int'),coord_col.astype('int')] = 0
+                if self.maskingMode == 1: # masking mode
+                    self.userMaskAssem *= _mask
+                #    plt.imshow(self.userMaskAssem,vmax=1,vmin=0)
+                #    plt.show()
+                #elif self.maskingMode == 2: # unmasking mode
+                #    self.userMaskAssem[coord_row.astype('int'),coord_col.astype('int')] = 1
+                #elif self.maskingMode == 3: # toggle mode
+                #    self.userMaskAssem[coord_row.astype('int'),coord_col.astype('int')] = (1-self.userMaskAssem[coord_row.astype('int'),coord_col.astype('int')])
+                #
+                # update userMask
+                self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+                #
+                self.displayMask()
+                # self.algInitDone = False
+            if args.v >= 1:
+                print "done makeMaskPoly!!!!!!"
+        #self.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), makeMaskPoly)
 
         def deployMask():
             print "*** deploy user-defined mask as mask.txt and mask.npy as DAQ shape ***"
@@ -2150,6 +2285,18 @@ class MainFrame(QtGui.QWidget):
                 elif path[2] == mask_unbondnrs_str:
                     self.algInitDone = False
                     self.updatePsanaMaskFlag(path[2],data)
+        elif path[0] == powder_grp:
+                if path[1] == powder_outDir_str:
+                    self.powder_outDir = data
+                elif path[1] == powder_runs_str:
+                    self.powder_runs = data
+                elif path[1] == powder_queue_str:
+                    self.powder_queue = data
+                elif path[1] == powder_cpu_str:
+                    self.powder_cpus = data
+                elif path[1] == powder_noe_str:
+                    self.powder_noe = data
+
         ################################################
         # crystal indexing parameters
         ################################################
@@ -2343,6 +2490,9 @@ class MainFrame(QtGui.QWidget):
             # Update peak finder outdir and run number
             self.p3.param(hitParam_grp, hitParam_outDir_str).setValue(self.psocakeDir)
             self.p3.param(hitParam_grp, hitParam_runs_str).setValue(self.runNumber)
+            # Update powder outdir and run number
+            self.p6.param(powder_grp, powder_outDir_str).setValue(self.psocakeDir)
+            self.p6.param(powder_grp, powder_runs_str).setValue(self.runNumber)
             # Update hit finding outdir, run number
             self.p8.param(spiParam_grp, spiParam_outDir_str).setValue(self.psocakeDir)
             self.p8.param(spiParam_grp, spiParam_runs_str).setValue(self.runNumber)
@@ -2746,26 +2896,30 @@ class MainFrame(QtGui.QWidget):
             # do not display user mask
             self.displayMask()
             # remove ROIs
-            self.w1.getView().removeItem(self.roi_rect)
-            self.w1.getView().removeItem(self.roi_circle)
+            self.w1.getView().removeItem(self.mask_rect)
+            self.w1.getView().removeItem(self.mask_circle)
+            self.w1.getView().removeItem(self.mask_poly)
         else:
             # display text
             self.label.setText(masking_mode_message)
             # display user mask
             self.displayMask()
             # init masks
-            if self.roi_rect is None:
+            if self.mask_rect is None:
                 # Rect mask
-                self.roi_rect = pg.ROI(pos=[-300,0], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
-                self.roi_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
-                self.roi_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
-                self.roi_rect.addRotateHandle([0.5, 0.5], [1, 1])
+                self.mask_rect = pg.ROI(pos=[-300,0], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
+                self.mask_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
+                self.mask_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
+                self.mask_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
-                self.roi_circle = pg.CircleROI([-300,300], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
+                self.mask_circle = pg.CircleROI([-300,300], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
+                # Polygon mask
+                #self.mask_poly = pg.PolyLineROI([[-300, 600], [-100, 700], [-300, 800]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 
             # add ROIs
-            self.w1.getView().addItem(self.roi_rect)
-            self.w1.getView().addItem(self.roi_circle)
+            self.w1.getView().addItem(self.mask_rect)
+            self.w1.getView().addItem(self.mask_circle)
+            #self.w1.getView().addItem(self.mask_poly)
         if args.v >= 1:
             print "Done updateMaskingMode: ", self.maskingMode
 
@@ -2861,11 +3015,6 @@ class MainFrame(QtGui.QWidget):
         self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
-class ABC(object):
-    def __init__(self, parent = None):
-        self.parent = parent
-        self.t = 5
-
 class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
@@ -2900,19 +3049,19 @@ class PowderProducer(QtCore.QThread):
         return runsToDo
 
     def run(self):
-        runsToDo = self.digestRunList(self.parent.hitParam_runs)
+        runsToDo = self.digestRunList(self.parent.powder_runs)
         for run in runsToDo:
             runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
                 # Command for submitting to batch
-                cmd = "bsub -q "+self.parent.hitParam_queue+" -a mympi -n "+str(self.parent.hitParam_cpus)+\
+                cmd = "bsub -q "+self.parent.powder_queue+" -a mympi -n "+str(self.parent.powder_cpus)+\
                       " -o "+runDir+"/.%J.log generatePowder exp="+self.experimentName+\
                       ":run="+str(run)+" -d "+self.detInfo+\
                       " -o "+runDir
-                if self.parent.hitParam_noe > 0:
-                    cmd += " -n "+str(self.parent.hitParam_noe)
+                if self.parent.powder_noe > 0:
+                    cmd += " -n "+str(self.parent.powder_noe)
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
