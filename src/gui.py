@@ -1640,7 +1640,7 @@ class MainFrame(QtGui.QWidget):
                     myHdf5[grpName+dset_atot][0,i] = atot
                 myHdf5[grpName+dset_nPeaks][0] = nPeaks
 
-                if 'cspad' in self.detInfo.lower():
+                if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
                     myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.clen #-419.9938 # FIXME
                 myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy# 8203.9019 #FIXME
                 dset[0,:,:] = img
@@ -2543,7 +2543,7 @@ class MainFrame(QtGui.QWidget):
             self.det = psana.Detector(str(self.detInfo), self.env)
             self.epics = self.ds.env().epicsStore()
             # detector distance
-            if 'cspad' in self.detInfo.lower():
+            if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
                 self.clenEpics = str(self.detInfo)+'_z'
                 self.clen = self.epics.value(self.clenEpics)
                 if args.v >= 1:
