@@ -837,7 +837,7 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.abc_text)
 
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
+        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
@@ -845,9 +845,13 @@ class MainFrame(QtGui.QWidget):
         self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
         self.roi.name = 'rect'
         self.w1.getView().addItem(self.roi)
-        self.roiPoly = pg.PolyLineROI([[300, -250], [500, -250], [400, -50]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4})
+        self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roiPoly.name = 'poly'
         self.w1.getView().addItem(self.roiPoly)
+        self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                        pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
+        self.roiCircle.name = 'circ'
+        self.w1.getView().addItem(self.roiCircle)
 
         # Callbacks for handling user interaction
         def updateRoiHistogram():
@@ -863,6 +867,9 @@ class MainFrame(QtGui.QWidget):
                 pixelsExist = roi.getArrayRegion(img, self.w1.getImageItem())
                 if roi.name == 'poly':
                     self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                    self.ret = self.ret[np.where(pixelsExist==1)]
+                elif roi.name == 'circ':
+                    self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem())
                     self.ret = self.ret[np.where(pixelsExist==1)]
                 else:
                     self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
@@ -882,6 +889,7 @@ class MainFrame(QtGui.QWidget):
         self.rois = []
         self.rois.append(self.roi)
         self.rois.append(self.roiPoly)
+        self.rois.append(self.roiCircle)
         for roi in self.rois:
             roi.sigRegionChangeFinished.connect(updateRoi)
 
