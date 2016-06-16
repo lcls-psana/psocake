@@ -310,11 +310,11 @@ class MainFrame(QtGui.QWidget):
         self.streakMaskAssem = None
         self.combinedMask = None # combined mask
         self.gapAssemInd = None
+        self.updateRoiStatus = True
         # Init peak finding parameters
         self.algInitDone = False
         self.algorithm = 0
         self.classify = False
-
         self.showPeaks = True
         self.peaks = None
         self.hitParam_alg1_npix_min = 1.
@@ -848,7 +848,7 @@ class MainFrame(QtGui.QWidget):
         self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roiPoly.name = 'poly'
         self.w1.getView().addItem(self.roiPoly)
-        self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
+        self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=0.1, scaleSnap=False, translateSnap=False,
                                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roiCircle.name = 'circ'
         self.w1.getView().addItem(self.roiCircle)
@@ -861,7 +861,7 @@ class MainFrame(QtGui.QWidget):
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
 
         def updateRoi(roi):
-            if self.data is not None:
+            if self.data is not None and self.updateRoiStatus == True:
                 calib = np.ones_like(self.calib)
                 img = self.det.image(self.evt, calib)
                 pixelsExist = roi.getArrayRegion(img, self.w1.getImageItem())
@@ -873,7 +873,7 @@ class MainFrame(QtGui.QWidget):
                     self.ret = self.ret[np.where(pixelsExist==1)]
                 else:
                     self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
-                if isinstance(self.ret,tuple): # rectangle
+                if roi.name == 'rect':#isinstance(self.ret,tuple): # rectangle
                     selected, coord = self.ret
                     x0 = int(coord[0][0][0])
                     x1 = int(coord[0][-1][0])+1
@@ -881,10 +881,21 @@ class MainFrame(QtGui.QWidget):
                     y1 = int(coord[1][0][-1])+1
                     print "ROI: ["+str(x0)+":"+str(x1)+","+str(y0)+":"+str(y1)+"]" # Note: self.data[x0:x1,y0:y1]
                     selected = selected[np.where(pixelsExist == 1)]
+                elif roi.name == 'circ':
+                    selected = self.ret
+                    centreX = roi.x()+roi.size().x()/2
+                    centreY = roi.y()+roi.size().y()/2
+                    print "Centre: ["+str(centreX)+","+str(centreY)+"]"
                 else:
                     selected = self.ret
                 hist, bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
+
+        def updateRoiStatus():
+            if self.roiCheckbox.checkState() == 0:
+                self.updateRoiStatus = False
+            else:
+                self.updateRoiStatus = True
 
         self.rois = []
         self.rois.append(self.roi)
@@ -913,6 +924,16 @@ class MainFrame(QtGui.QWidget):
         hist,bin = np.histogram(np.random.random(1000), bins=1000)
         self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
         self.d4.addWidget(self.w4)
+        self.roiCheckbox = QtGui.QCheckBox('Update ROI')
+        self.roiCheckbox.setCheckState(True)
+        self.roiCheckbox.setTristate(False)
+        self.roiCheckbox.stateChanged.connect(updateRoiStatus)
+        # Layout
+        self.w4a = pg.LayoutWidget()
+        self.w4a.addWidget(self.roiCheckbox, row=0, col=0)
+        self.d4.addWidget(self.w4a)
+
+        #self.roiCheckbox.
 
         ## Dock 5 - mouse intensity display
         #self.d5.hideTitleBar()
