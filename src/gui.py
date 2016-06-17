@@ -8,6 +8,7 @@
 # TODO: Display xtcav, acqiris
 # TODO: Downsampler
 # TODO: Radial background, polarization correction
+# TODO: Run from ffb
 
 import sys, signal
 import numpy as np
@@ -32,7 +33,7 @@ import diffractionGeometryPanel
 import crystalIndexingPanel
 from LogBook.runtables import RunTables
 import PSCalib.GlobalUtils as gu
-import json
+import matplotlib.pyplot as plt
 from _version import __version__
 
 parser = argparse.ArgumentParser()
@@ -875,17 +876,43 @@ class MainFrame(QtGui.QWidget):
                     self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
                 if roi.name == 'rect':#isinstance(self.ret,tuple): # rectangle
                     selected, coord = self.ret
-                    x0 = int(coord[0][0][0])
-                    x1 = int(coord[0][-1][0])+1
-                    y0 = int(coord[1][0][0])
-                    y1 = int(coord[1][0][-1])+1
-                    print "ROI: ["+str(x0)+":"+str(x1)+","+str(y0)+":"+str(y1)+"]" # Note: self.data[x0:x1,y0:y1]
+                    self.x0 = int(coord[0][0][0])
+                    self.x1 = int(coord[0][-1][0])+1
+                    self.y0 = int(coord[1][0][0])
+                    self.y1 = int(coord[1][0][-1])+1
+                    print "shape: ", self.data.shape
+                    # Limit coordinates to inside the assembled image
+                    if self.x0 < 0: self.x0 = 0
+                    if self.y0 < 0: self.y0 = 0
+                    if self.x1 > self.data.shape[0]: self.x1 = self.data.shape[0]
+                    if self.y1 > self.data.shape[1]: self.y1 = self.data.shape[1]
+                    print "######################################################"
+                    print "Assembled ROI: ["+str(self.x0)+":"+str(self.x1)+","+str(self.y0)+":"+str(self.y1)+"]" # Note: self.data[x0:x1,y0:y1]
                     selected = selected[np.where(pixelsExist == 1)]
+
+                    mask_roi = np.zeros_like(self.data)
+                    mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
+                    self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None, xy0_off_pix=None)
+                    for itile, tile in enumerate(self.nda):
+                        if tile.sum() > 0:
+                            ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
+                            ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
+                            print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
+                            itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
+                            if args.v >= 1:
+                                fig = plt.figure(figsize=(6, 6))
+                                plt.imshow(self.calib[itile, ax1.min():ax1.max(), ax0.min():ax0.max()],
+                                           interpolation='none')
+                                plt.show()
+                    print "######################################################"
+
                 elif roi.name == 'circ':
                     selected = self.ret
                     centreX = roi.x()+roi.size().x()/2
                     centreY = roi.y()+roi.size().y()/2
+                    print "###########################################"
                     print "Centre: ["+str(centreX)+","+str(centreY)+"]"
+                    print "###########################################"
                 else:
                     selected = self.ret
                 hist, bin = np.histogram(selected.flatten(), bins=1000)
@@ -1062,18 +1089,20 @@ class MainFrame(QtGui.QWidget):
         self.w18.addWidget(self.maskRectBtn, row=0, col=0, colspan=2)
         self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
         self.w18.addWidget(self.maskCircleBtn, row=1, col=0, colspan=2)
+        self.maskThreshBtn = QtGui.QPushButton('Mask outside histogram')
+        self.w18.addWidget(self.maskThreshBtn, row=2, col=0, colspan=2)
         #self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
         #self.w18.addWidget(self.maskPolyBtn, row=2, col=0, colspan=2)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.deployMaskBtn.setText('Save user-defined mask')
-        self.w18.addWidget(self.deployMaskBtn, row=2, col=0)
+        self.w18.addWidget(self.deployMaskBtn, row=3, col=0)
         self.loadMaskBtn = QtGui.QPushButton()
         self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.loadMaskBtn.setText('Load user-defined mask')
-        self.w18.addWidget(self.loadMaskBtn, row=2, col=1)
+        self.w18.addWidget(self.loadMaskBtn, row=3, col=1)
         self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
-        self.w18.addWidget(self.generatePowderBtn, row=3, col=0, colspan=2)
+        self.w18.addWidget(self.generatePowderBtn, row=4, col=0, colspan=2)
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
@@ -1154,6 +1183,32 @@ class MainFrame(QtGui.QWidget):
                 print "done makeMaskCircle!!!!!!"
         self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), makeMaskCircle)
 
+        def makeMaskThresh():
+            print "Mask Thresh"
+            self.initMask()
+            if self.data is not None and self.maskingMode > 0:
+                histLevels = self.w1.getHistogramWidget().item.getLevels()
+                print "histLevels: ", histLevels
+                _mask = np.ones_like(self.data)
+                _mask[np.where(self.data < histLevels[0])] = 0
+                _mask[np.where(self.data > histLevels[1])] = 0
+                if self.maskingMode == 1: # masking mode
+                    self.userMaskAssem *= _mask
+                elif self.maskingMode == 2: # unmasking mode
+                    self.userMaskAssem[np.where(_mask==0)] = 1
+                elif self.maskingMode == 3: # toggle mode
+                    print "You can only mask/unmask based on threshold "
+                    #self.userMaskAssem[np.where(_mask==1)] = (1-self.userMaskAssem[np.where(_mask==1)])
+
+                # update userMask
+                self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+
+                self.displayMask()
+                self.algInitDone = False
+            if args.v >= 1:
+                print "done makeMaskThresh!!!!!!"
+        self.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), makeMaskThresh)
+
         def makeMaskPoly():
             self.initMask()
             if self.data is not None and self.maskingMode > 0:
@@ -1162,7 +1217,6 @@ class MainFrame(QtGui.QWidget):
                 # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
                 self.selected = self.mask_poly.getArrayRegion(img, self.w1.getImageItem(), returnMappedCoords=True)
 
-                import matplotlib.pyplot as plt
                 #plt.imshow(self.selected, vmax=1, vmin=0)
                 #plt.show()
 
@@ -1847,6 +1901,8 @@ class MainFrame(QtGui.QWidget):
                     calib = np.zeros_like(self.det.gain(self.evt))
                 else:
                     calib *= self.det.gain(self.evt)
+                if self.det.gain_mask(gain=6.85) is not None: # None if not cspad or cspad2x2
+                    calib *= self.det.gain_mask(gain=6.85)
             elif self.image_property == 2: # common mode corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None:

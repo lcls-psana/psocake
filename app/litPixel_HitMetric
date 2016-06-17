@@ -79,6 +79,9 @@ numDet = len(aliasList)
 def getGains(evt):
     for d in myDetList:
         d.gain = d.gain(evt) # CHUCK: gain is not deployed for amo87215, returns 1
+        hybridGain = d.gain_mask(gain=6.85)
+        if hybridGain is not None:
+            d.gain *= hybridGain
 
 def getMasks(evt):
     for d in myDetList:

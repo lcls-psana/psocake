@@ -14,6 +14,7 @@ def runclient(args):
     env = ds.env()
     times = run.times()
     d = psana.Detector(args.det)
+    hybridGain = d.gain_mask(gain=6.85)
 
     for nevent in np.arange(len(times)):
         if nevent == args.noe : break
@@ -21,6 +22,8 @@ def runclient(args):
         try:
             evt = run.event(times[nevent])
             detarr = d.calib(evt) * d.gain(evt)
+            if hybridGain is not None:  # None if not cspad or cspad2x2
+                detarr *= hybridGain
         except:
             print '*** failed to get img: ', rank, nevent
             continue

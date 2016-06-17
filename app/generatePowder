@@ -89,9 +89,8 @@ detlist = [Detector(s, env) for s in detname]
 for d,n in zip(detlist,detname):
     d.detname = n
 
-nevent = np.array([0])
-
 for run in ds.runs():
+    nevent = np.array([0])
     runnumber = run.run()
     # list of all events
     times = run.times()
@@ -108,16 +107,24 @@ for run in ds.runs():
 
     print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
-    for i,time in enumerate(mytimes):
-        if i%100==0: print 'Rank',rank,'processing event', i,'of',len(mytimes)
-        evt = run.event(time)
-        # very useful for seeing what data is in the event
-        if evt is None:
-            print '*** event fetch failed'
-            continue
-        for d in detlist:
+    for d in detlist:
+        print "detname: ", d.detname
+        gain = d.gain(run.event(mytimes[0]))
+        hybridGain = d.gain_mask(gain=6.85)
+        if hybridGain is not None:
+            print "applying hybrid gain"
+            gain *= hybridGain
+        for i,time in enumerate(mytimes):
+            print "i: ", i
+            if i%100==0: print 'Rank',rank,'processing event', i,'of',len(mytimes)
+            evt = run.event(time)
+            print "evt: ", evt
+            # very useful for seeing what data is in the event
+            #if evt is None:
+            #    print '*** event fetch failed'
+            #    continue
             try:
-                detarr = d.calib_data(evt)
+                detarr = d.calib(evt)
             except ValueError:
                 id = evt.get(EventId)
                 print 'Value Error!'
@@ -127,13 +134,16 @@ for run in ds.runs():
             if detarr is None:
                 print '*** failed to get detarr'
                 continue
-            gain = d.gain(evt)
             if gain is not None: detarr *= gain
+            print "detarr: ", detarr.shape, i
             if not hasattr(d,'stats'):
+                print "##### init"
                 d.stats = Stats(detarr,env.experiment(),evt.run(),d.detname)
             else:
+                print "##### update"
                 d.stats.update(detarr)
-        nevent+=1
-
-for d in detlist: d.stats.store()
+            nevent+=1
+        if hasattr(d, 'stats'):
+            print "### store"
+            d.stats.store()
 MPI.Finalize()
