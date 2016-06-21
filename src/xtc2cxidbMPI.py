@@ -8,10 +8,7 @@
 
 import h5py
 import numpy as np
-import math
 import psana
-from IPython import embed
-import matplotlib.pyplot as plt
 import time
 import argparse
 import os
@@ -186,9 +183,9 @@ print "Reading file: %s" % (filename)
 if rank == 0:
     f = h5py.File(filename, "r+")
 
-    if "/status/xtc2cxidbMPI" in f:
-        del f["/status/xtc2cxidbMPI"]
-    f["/status/xtc2cxidbMPI"] = 'fail'
+    if "/status/xtc2cxidb" in f:
+        del f["/status/xtc2cxidb"]
+    f["/status/xtc2cxidb"] = 'fail'
 
     # Condition:
     if args.condition:
@@ -210,6 +207,9 @@ if rank == 0:
         hitInd = np.argwhere(operations[comparator](metric,cond))
         print "hitInd", hitInd
         numHits = len(hitInd)
+    else:
+        numHits = len(f["/entry_1/result_1/nPeaksAll"])
+        hitInd = np.arange(numHits)
     nPeaks = f["/entry_1/result_1/nPeaksAll"].value
     posX = f["/entry_1/result_1/peakXPosRawAll"].value
     posY = f["/entry_1/result_1/peakYPosRawAll"].value
@@ -519,9 +519,9 @@ f.close()
 
 if rank == 0:
     f = h5py.File(filename, "r+")
-    if "/status/xtc2cxidbMPI" in f:
-        del f["/status/xtc2cxidbMPI"]
-    f["/status/xtc2cxidbMPI"] = 'success'
+    if "/status/xtc2cxidb" in f:
+        del f["/status/xtc2cxidb"]
+    f["/status/xtc2cxidb"] = 'success'
     f.close()
     toc = time.time()
     print "time taken: ", toc-tic

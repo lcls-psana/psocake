@@ -836,6 +836,8 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.z_direction1)
         self.abc_text = pg.TextItem(html='', anchor=(0,0))
         self.w1.getView().addItem(self.abc_text)
+        self.peak_text = pg.TextItem(html='', anchor=(0,0))
+        self.w1.getView().addItem(self.peak_text)
 
         # Custom ROI for selecting an image region
         self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
@@ -1329,9 +1331,9 @@ class MainFrame(QtGui.QWidget):
                 self.userMaskAssem = self.det.image(self.evt,self.userMask)
             else:
                 self.userMaskAssem = None
-            self.updateClassification()
             self.userMaskOn = True
-            self.p6.param(mask_grp,user_mask_str).setValue(self.userMaskOn)
+            self.p6.param(mask_grp, user_mask_str).setValue(self.userMaskOn)
+            self.updateClassification()
         self.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), loadMask)
 
         ###############
@@ -1484,12 +1486,8 @@ class MainFrame(QtGui.QWidget):
                         self.displayMask()
 
                         self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
-                        #assem = self.pixelIndAssem.copy()+1
-                        #pixInd = assem[np.where(self.userMaskAssem==0)]
-                        #pixInd = pixInd[np.nonzero(pixInd)]-1
-                        #calibMask=np.ones((self.calib.size,))
-                        #calibMask[pixInd.astype(int)] = 0
-                        #self.userMask=calibMask.reshape(self.calib.shape)
+                        self.algInitDone = False
+                        self.updateClassification()
 
         # Signal proxy
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
@@ -1597,11 +1595,11 @@ class MainFrame(QtGui.QWidget):
         # update combined mask
         #if self.combinedMask is None:
         self.combinedMask = np.ones_like(self.calib)
-        if self.streakMask is not None:
+        if self.streakMask is not None and self.streakMaskOn is True:
             self.combinedMask *= self.streakMask
-        if self.userMask is not None:
+        if self.userMask is not None and self.userMaskOn is True:
             self.combinedMask *= self.userMask
-        if self.psanaMask is not None:
+        if self.psanaMask is not None and self.psanaMaskOn is True:
             self.combinedMask *= self.psanaMask
 
         # Peak output (0-16):
@@ -1742,7 +1740,20 @@ class MainFrame(QtGui.QWidget):
         col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
         return row2d, col2d
 
+    def getMaxRes(self, posX, posY, centerX, centerY):
+        maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
+        print "maxRes: ", maxRes
+        print "number of peaks found: ", self.numPeaksFound
+        return maxRes # in pixels
+
+    def clearPeakMessage(self):
+        self.w1.getView().removeItem(self.peak_text)
+        self.peak_feature.setData([], [], pxMode=False)
+        if args.v >= 1:
+            print "Done clearPeakMessage"
+
     def drawPeaks(self):
+        self.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
                 iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
@@ -1752,12 +1763,26 @@ class MainFrame(QtGui.QWidget):
                     iY = np.expand_dims(iY,axis=0)
                 cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                 cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                self.peaksMaxRes = self.getMaxRes(cenX,cenY,self.cx,self.cy)
                 diameter = self.peakRadius*2+1
                 self.peak_feature.setData(cenX, cenY, symbol='s', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
+                # Write number of peaks found
+                xMargin = 30 # pixels
+                yMargin = 0  # pixels
+                maxX = np.max(self.det.indexes_x(self.evt)) + xMargin
+                maxY = np.max(self.det.indexes_y(self.evt)) - yMargin
+                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
+                            str(self.numPeaksFound) + ' <br>Res=' + str(int(self.peaksMaxRes)) + '<br></span></div>'
+                self.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+                self.w1.getView().addItem(self.peak_text)
+                self.peak_text.setPos(maxX, maxY)
             else:
                 self.peak_feature.setData([], [], pxMode=False)
+                self.peak_text = pg.TextItem(html='', anchor=(0, 0))
+                self.w1.getView().addItem(self.peak_text)
+                self.peak_text.setPos(0,0)
         else:
             self.peak_feature.setData([], [], pxMode=False)
         if args.v >= 1:
@@ -1786,10 +1811,11 @@ class MainFrame(QtGui.QWidget):
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
 
                 # Write unit cell parameters
-                xMargin = 30 # pixels
-                maxX   = np.max(self.det.indexes_x(self.evt))+xMargin
-                maxY   = np.max(self.det.indexes_y(self.evt))
-                myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 16pt;">a='+\
+                xMargin = 30
+                yMargin = 400
+                maxX   = np.max(self.det.indexes_x(self.evt)) + xMargin
+                maxY   = np.max(self.det.indexes_y(self.evt)) - yMargin
+                myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">a='+\
                             str(round(float(unitCell[0]),2))+'nm <br>b='+str(round(float(unitCell[1]),2))+'nm <br>c='+\
                             str(round(float(unitCell[2]),2))+'nm <br>&alpha;='+str(round(float(unitCell[3]),2))+\
                             '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
@@ -2420,6 +2446,7 @@ class MainFrame(QtGui.QWidget):
             self.runNumber = data
             self.hasRunNumber = True
             self.setupExperiment()
+            self.resetMasks()
             self.updateImage()
         if args.v >= 1:
             print "Done updateRunNumber: ", self.runNumber
@@ -2791,19 +2818,22 @@ class MainFrame(QtGui.QWidget):
 
     def updateAlgorithm(self, data):
         self.algorithm = data
+        self.algInitDone = False
         self.updateClassification()
         if args.v >= 1:
             print "##### Done updateAlgorithm: ", self.algorithm
 
     def updateUserMask(self, data):
         self.userMaskOn = data
-        self.updateClassification()
+        self.algInitDone = False
+        if self.userMaskOn: self.updateClassification()
         if args.v >= 1:
             print "Done updateUserMask: ", self.userMaskOn
 
     def updateStreakMask(self, data):
         self.streakMaskOn = data
-        self.updateClassification()
+        self.algInitDone = False
+        if self.streakMaskOn: self.updateClassification()
         if args.v >= 1:
             print "Done updateStreakMask: ", self.streakMaskOn
 
@@ -2811,7 +2841,8 @@ class MainFrame(QtGui.QWidget):
         self.streak_width = data
         self.streakMask = None
         self.initMask()
-        self.updateClassification()
+        self.algInitDone = False
+        if self.streakMaskOn: self.updateClassification()
         if args.v >= 1:
             print "Done updateStreakWidth: ", self.streak_width
 
@@ -2819,12 +2850,14 @@ class MainFrame(QtGui.QWidget):
         self.streak_sigma = data
         self.streakMask = None
         self.initMask()
-        self.updateClassification()
+        self.algInitDone = False
+        if self.streakMaskOn: self.updateClassification()
         if args.v >= 1:
             print "Done updateStreakSigma: ", self.streak_sigma
 
     def updatePsanaMask(self, data):
         self.psanaMaskOn = data
+        self.algInitDone = False
         self.updatePsanaMaskOn()
         if args.v >= 1:
             print "Done updatePsanaMask: ", self.psanaMaskOn
@@ -2894,28 +2927,29 @@ class MainFrame(QtGui.QWidget):
         self.curve.sigClicked.connect(self.clicked)
 
     def clicked(self,points):
-        if args.v >= 1:
-            print("curve clicked",points)
-            from pprint import pprint
-            pprint(vars(points.scatter))
-        for i in range(len(points.scatter.data)):
-            if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
-                ind = i
-                break
-        indX = points.scatter.data[i][0]
-        indY = points.scatter.data[i][1]
-        if args.v >= 1:
-            print "x,y: ", indX, indY
-        if self.quantifier_sort:
-            ind = self.quantifierInd[ind]
+        with pg.BusyCursor():
+            if args.v >= 1:
+                print("curve clicked",points)
+                from pprint import pprint
+                pprint(vars(points.scatter))
+            for i in range(len(points.scatter.data)):
+                if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
+                    ind = i
+                    break
+            indX = points.scatter.data[i][0]
+            indY = points.scatter.data[i][1]
+            if args.v >= 1:
+                print "x,y: ", indX, indY
+            if self.quantifier_sort:
+                ind = self.quantifierInd[ind]
 
-        # temp
-        self.eventNumber = self.quantifierEvent[ind]
-        #self.eventNumber = ind
+            # temp
+            self.eventNumber = self.quantifierEvent[ind]
+            #self.eventNumber = ind
 
-        self.calib, self.data = self.getDetImage(self.eventNumber)
-        self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-        self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
+            self.calib, self.data = self.getDetImage(self.eventNumber)
+            self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
 
     ##################################
     ###### Per Pixel Histogram #######
@@ -3322,8 +3356,8 @@ class PeakFinder(QtCore.QThread):
 
             cmd = "bsub -q "+self.parent.hitParam_queue+\
               " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o "+runDir+"/.%J.log python /reg/neh/home/yoon82/ana-0.18.3/psocake/src/findPeaks.py -e "+self.experimentName+\
-              " -r "+str(run)+" -d "+self.detInfo+\
+              " -o "+runDir+"/.%J.log findPeaks -e "+self.experimentName+\
+              " -d "+self.detInfo+\
               " --outDir "+runDir+\
               " --algorithm "+str(self.parent.algorithm)
 
@@ -3377,6 +3411,7 @@ class PeakFinder(QtCore.QThread):
 
             if self.parent.hitParam_noe > 0:
                 cmd += " --noe "+str(self.parent.hitParam_noe)
+            cmd += " -r " + str(run)
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
@@ -3420,7 +3455,7 @@ class PeakFinder(QtCore.QThread):
                                 if self.parent.logger == True:
                                     if self.parent.args.v >= 1: print "Updating e-log"
                                     filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
-                                    print filename
+                                    if self.parent.args.v >= 1: print "filename: ", filename
                                     if os.path.isfile(filename):
                                         f = h5py.File(filename,'r')
                                         nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
@@ -3436,7 +3471,7 @@ class PeakFinder(QtCore.QThread):
                                         fracDone = numDoneNow*100./numEvents
                                         msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
                                         f.close()
-                                    if numDoneNow > 0: self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
+                                        if numDoneNow > 0: self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
                             except AttributeError:
                                 print "e-Log table does not exist"
                             time.sleep(10)
@@ -3445,8 +3480,10 @@ class PeakFinder(QtCore.QThread):
                         print "no such file yet: ", myLog
                     time.sleep(10)
 
-                if haveFinished[i] == 1:
+                if haveFinished[i] == 1: # success
                     # Read number of hits
+                    filename = str(self.parent.hitParam_outDir) + '/r' + str(runsToDo[i]).zfill(4) + '/' + self.experimentName + '_' + str(runsToDo[i]).zfill(4) + '.cxi'
+                    if self.parent.args.v >= 1: print "filename: ", filename
                     f = h5py.File(filename,'r')
                     nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
                     numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
@@ -3466,7 +3503,7 @@ class PeakFinder(QtCore.QThread):
                             self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
                     except AttributeError:
                         print "e-Log table does not exist"
-                elif haveFinished[i] == -1:
+                elif haveFinished[i] == -1: # failure
                     # Update elog
                     try:
                         if self.parent.logger == True:

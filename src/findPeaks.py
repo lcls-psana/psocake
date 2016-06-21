@@ -1,8 +1,6 @@
 # Find Bragg peaks
 from peakFinderMaster import runmaster
 from peakFinderClient import runclient
-import h5py
-import psana
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD

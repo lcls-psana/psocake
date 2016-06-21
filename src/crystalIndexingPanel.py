@@ -20,6 +20,9 @@ class CrystalIndexing(object):
         self.index_intRadius_str = 'Integration radii'
         self.index_pdb_str = 'PDB'
         self.index_method_str = 'Indexing method'
+        self.index_minPeaks_str = 'Minimum number of peaks'
+        self.index_maxPeaks_str = 'Maximum number of peaks'
+        self.index_minRes_str = 'Minimum resolution (pixels)'
 
         self.launch_grp = 'Batch'
         self.outDir_str = 'Output directory'
@@ -43,8 +46,11 @@ class CrystalIndexing(object):
         self.geom = '.temp.geom'
         self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
-        self.pdb = ''#lys.cell'
-        self.indexingMethod = 'dirax-axes-latt'
+        self.pdb = ''
+        self.indexingMethod = 'dirax-raw-nolatt'
+        self.minPeaks = 15
+        self.maxPeaks = 300
+        self.minRes = 0
 
         #######################
         # Mandatory parameter #
@@ -57,6 +63,12 @@ class CrystalIndexing(object):
                 {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Integration radii"},
                 {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "(Optional) CrystFEL unitcell file"},
                 {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "comma separated indexing methods"},
+                {'name': self.index_minPeaks_str, 'type': 'int', 'value': self.minPeaks,
+                 'tip': "Index only if there are more Bragg peaks found"},
+                {'name': self.index_maxPeaks_str, 'type': 'int', 'value': self.maxPeaks,
+                 'tip': "Index only if there are less Bragg peaks found"},
+                {'name': self.index_minRes_str, 'type': 'int', 'value': self.minRes,
+                 'tip': "Index only if Bragg peak resolution is at least this"},
             ]},
             {'name': self.launch_grp, 'type': 'group', 'children': [
                 {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
@@ -91,6 +103,12 @@ class CrystalIndexing(object):
             self.updatePDB(data)
         elif path[1] == self.index_method_str:
             self.updateIndexingMethod(data)
+        elif path[1] == self.index_minPeaks_str:
+            self.updateMinPeaks(data)
+        elif path[1] == self.index_maxPeaks_str:
+            self.updateMaxPeaks(data)
+        elif path[1] == self.index_minRes_str:
+            self.updateMinRes(data)
         # launch grp
         elif path[1] == self.outDir_str:
             self.updateOutputDir(data)
@@ -135,13 +153,28 @@ class CrystalIndexing(object):
         if self.indexingOn:
             self.updateIndex()
 
+    def updateMinPeaks(self, data):
+        self.minPeaks = data
+        if self.indexingOn:
+            self.updateIndex()
+
+    def updateMaxPeaks(self, data):
+        self.maxPeaks = data
+        if self.indexingOn:
+            self.updateIndex()
+
+    def updateMinRes(self, data):
+        self.minRes = data
+        if self.indexingOn:
+            self.updateIndex()
+
     def updateIndex(self):
         if self.indexingOn:
             self.indexer = IndexHandler(parent=self.parent)
             print "self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe: ", self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                      self.indexingMethod, self.outDir, queue=None)
+                                      self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes, self.outDir, queue=None)
 
     def updateOutputDir(self, data):
         self.outDir = data
@@ -167,11 +200,13 @@ class CrystalIndexing(object):
         if requestRun is None:
             self.batchIndexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
+                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
+                                           self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         else:
             self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
+                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
+                                           self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -188,6 +223,9 @@ class IndexHandler(QtCore.QThread):
         self.pdb = None
         self.indexingMethod = None
         self.unitCell = None
+        self.minPeaks = None
+        self.maxPeaks = None
+        self.minRes = None
         # batch
         self.outDir = None
         self.runs = None
@@ -202,7 +240,7 @@ class IndexHandler(QtCore.QThread):
         self.wait()
 
     def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod,
-                     outDir=None, runs=None, sample=None, queue=None, cpus=None, noe=None):
+                     minPeaks, maxPeaks, minRes, outDir=None, runs=None, sample=None, queue=None, cpus=None, noe=None):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
@@ -212,6 +250,9 @@ class IndexHandler(QtCore.QThread):
         self.intRadius = intRadius
         self.pdb = pdb
         self.indexingMethod = indexingMethod
+        self.minPeaks = minPeaks
+        self.maxPeaks = maxPeaks
+        self.minRes = minRes
         # batch
         self.outDir = outDir
         self.runs = runs
@@ -238,8 +279,11 @@ class IndexHandler(QtCore.QThread):
         totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber)+".stream"
         with open(totalStream, 'w') as outfile:
             for fname in self.myStreamList:
-                with open(fname) as infile:
-                    outfile.write(infile.read())
+                try:
+                    with open(fname) as infile:
+                        outfile.write(infile.read())
+                except: # file may not exist yet
+                    continue
 
         # Add indexed peaks and remove images in hdf5
         f = h5py.File(self.peakFile,'r+')
@@ -269,133 +313,156 @@ class IndexHandler(QtCore.QThread):
 
     def run(self):
         if self.queue is None: # interactive indexing
-            if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
-            # Running indexing ...
-            self.parent.numIndexedPeaksFound = 0
-            self.parent.indexedPeaks = None
-            self.parent.clearIndexedPeaks()
+            # Check if requirements are met for indexing
+            if self.parent.numPeaksFound >= self.minPeaks and \
+                self.parent.numPeaksFound <= self.maxPeaks and \
+                self.parent.peaksMaxRes >= self.minRes:
+                print "OK, I'll index this pattern now"
 
-            # Write list
-            with open(self.parent.hiddenCrystfelList, "w") as text_file:
-                text_file.write("{} //0".format(self.parent.hiddenCXI))
+                if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
+                # Running indexing ...
+                self.parent.numIndexedPeaksFound = 0
+                self.parent.indexedPeaks = None
+                self.parent.clearIndexedPeaks()
 
-            # FIXME: convert psana geom to crystfel geom
-            cmd = "indexamajig -j 1 -i "+self.parent.hiddenCrystfelList+" -g "+self.geom+" --peaks="+self.peakMethod+\
-                  " --int-radius="+self.intRadius+" --indexing="+self.indexingMethod+\
-                  " -o "+self.parent.hiddenCrystfelStream+" --temp-dir="+self.outDir+"/r"+str(self.runNumber).zfill(4)
-            if self.pdb is not '':
-                cmd += " --pdb="+self.pdb
+                # Write list
+                with open(self.parent.hiddenCrystfelList, "w") as text_file:
+                    text_file.write("{} //0".format(self.parent.hiddenCXI))
 
-            print "cmd: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
+                # FIXME: convert psana geom to crystfel geom
+                cmd = "indexamajig -j 1 -i " + self.parent.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
+                      " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
+                      " -o " + self.parent.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
+                    self.runNumber).zfill(4)
+                if self.pdb:  # is not '': # FIXME: somehow doesn't work
+                    cmd += " --pdb=" + self.pdb
 
-            mySuccessString = "1 had crystals"
-            # Read CrystFEL CSPAD geometry in stream
-            if mySuccessString in err: # success
-                if self.parent.args.v >= 1: print "Indexing successful"
-                #print "Munging geometry file"
-                f = open(self.parent.hiddenCrystfelStream)
-                content = f.readlines()
-                for i, val in enumerate(content):
-                    if '----- Begin geometry file -----' in val:
-                        startLine = i
-                    elif   '----- End geometry file -----' in val:
-                        endLine = i
-                        break
-                geom = content[startLine:endLine]
-                numLines = endLine-startLine
-                # Remove comments
-                for i in np.arange(numLines-1,-1,-1): # Start from bottom
-                    if ';' in geom[i].lstrip(' ')[0]: geom.pop(i)
+                print "cmd: ", cmd
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out, err = process.communicate()
 
-                numQuads = 4
-                numAsics = 16
-                columns=['min_fs','min_ss','max_fs','max_ss','res','fs','ss','corner_x','corner_y']
-                columnsScan=['fsx','fsy','ssx','ssy']
-                indexScan=[]
-                for i in np.arange(numQuads):
-                    for j in np.arange(numAsics):
-                        indexScan.append('q'+str(i)+'a'+str(j))
+                mySuccessString = "1 had crystals"
+                # Read CrystFEL CSPAD geometry in stream
+                if mySuccessString in err:  # success
+                    if self.parent.args.v >= 1: print "Indexing successful"
+                    # print "Munging geometry file"
+                    f = open(self.parent.hiddenCrystfelStream)
+                    content = f.readlines()
+                    for i, val in enumerate(content):
+                        if '----- Begin geometry file -----' in val:
+                            startLine = i
+                        elif '----- End geometry file -----' in val:
+                            endLine = i
+                            break
+                    geom = content[startLine:endLine]
+                    numLines = endLine - startLine
+                    # Remove comments
+                    for i in np.arange(numLines - 1, -1, -1):  # Start from bottom
+                        if ';' in geom[i].lstrip(' ')[0]: geom.pop(i)
 
-                dfGeom = pd.DataFrame(np.empty((numQuads*numAsics,len(columns))), index=indexScan, columns=columns)
-                dfScan = pd.DataFrame(np.empty((numQuads*numAsics,len(columnsScan))), index=indexScan, columns=columnsScan)
-                counter = 0
-                for i in np.arange(numQuads):
-                    for j in np.arange(numAsics):
-                        myAsic = indexScan[counter]
-                        for k in columns:
-                            myLine = [s for s in geom if myAsic+'/'+k in s]
-                            if myLine: # sometimes elements in columns can be missing
-                                myVal = myLine[-1].split('=')[-1].rstrip().lstrip()
-                                if k == 'fs' or k == 'ss':
-                                    dfGeom.loc[myAsic,k] = myVal
+                    numQuads = 4
+                    numAsics = 16
+                    columns = ['min_fs', 'min_ss', 'max_fs', 'max_ss', 'res', 'fs', 'ss', 'corner_x', 'corner_y']
+                    columnsScan = ['fsx', 'fsy', 'ssx', 'ssy']
+                    indexScan = []
+                    for i in np.arange(numQuads):
+                        for j in np.arange(numAsics):
+                            indexScan.append('q' + str(i) + 'a' + str(j))
+
+                    dfGeom = pd.DataFrame(np.empty((numQuads * numAsics, len(columns))), index=indexScan,
+                                          columns=columns)
+                    dfScan = pd.DataFrame(np.empty((numQuads * numAsics, len(columnsScan))), index=indexScan,
+                                          columns=columnsScan)
+                    counter = 0
+                    for i in np.arange(numQuads):
+                        for j in np.arange(numAsics):
+                            myAsic = indexScan[counter]
+                            for k in columns:
+                                myLine = [s for s in geom if myAsic + '/' + k in s]
+                                if myLine:  # sometimes elements in columns can be missing
+                                    myVal = myLine[-1].split('=')[-1].rstrip().lstrip()
+                                    if k == 'fs' or k == 'ss':
+                                        dfGeom.loc[myAsic, k] = myVal
+                                    else:
+                                        dfGeom.loc[myAsic, k] = float(myVal)
+                                    if k == 'fs':
+                                        fsx = float(myVal.split('x')[0])
+                                        fsy = float(myVal.split('x')[-1].split('y')[0])
+                                        dfScan.loc[myAsic, 'fsx'] = fsx
+                                        dfScan.loc[myAsic, 'fsy'] = fsy
+                                    elif k == 'ss':
+                                        ssx = float(myVal.split('x')[0])
+                                        ssy = float(myVal.split('x')[-1].split('y')[0])
+                                        dfScan.loc[myAsic, 'ssx'] = ssx
+                                        dfScan.loc[myAsic, 'ssy'] = ssy
                                 else:
-                                    dfGeom.loc[myAsic,k] = float(myVal)
-                                if k == 'fs':
-                                    fsx = float(myVal.split('x')[0])
-                                    fsy = float(myVal.split('x')[-1].split('y')[0])
-                                    dfScan.loc[myAsic,'fsx'] = fsx
-                                    dfScan.loc[myAsic,'fsy'] = fsy
-                                elif k == 'ss':
-                                    ssx = float(myVal.split('x')[0])
-                                    ssy = float(myVal.split('x')[-1].split('y')[0])
-                                    dfScan.loc[myAsic,'ssx'] = ssx
-                                    dfScan.loc[myAsic,'ssy'] = ssy
-                            else:
-                                if self.parent.args.v >= 1: print myAsic+'/'+k + " doesn't exist"
-                        counter += 1
-                f.close()
+                                    if self.parent.args.v >= 1: print myAsic + '/' + k + " doesn't exist"
+                            counter += 1
+                    f.close()
+                else:
+                    if self.parent.args.v >= 1: print "Indexing failed"
+                    self.parent.drawIndexedPeaks()
+
+                # Read CrystFEL indexed peaks
+                if mySuccessString in err:  # success
+                    f = open(self.parent.hiddenCrystfelStream)
+                    content = f.readlines()
+                    for i, val in enumerate(content):
+                        if 'num_peaks =' in val:
+                            numPeaks = int(val.split('=')[-1])
+                        elif 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in val:
+                            startLine = i + 1
+                            endLine = startLine + numPeaks
+                        elif 'Cell parameters' in val:
+                            (_, _, a, b, c, _, al, be, ga, _) = val.split()
+                            self.unitCell = (a, b, c, al, be, ga)
+
+                    columns = ['fs', 'ss', 'res', 'intensity', 'asic']
+                    df = pd.DataFrame(np.empty((numPeaks, len(columns))), columns=columns)
+                    for i in np.arange(numPeaks):
+                        contentLine = startLine + i
+                        df['fs'][i] = float(content[contentLine][0:7])
+                        df['ss'][i] = float(content[contentLine][7:15])
+                        df['res'][i] = float(content[contentLine][15:26])
+                        df['intensity'][i] = float(content[contentLine][26:38])
+                        df['asic'][i] = str(content[contentLine][38:-1])
+                    f.close()
+
+                    # Convert to CrystFEL coordinates
+                    columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
+                    dfPeaks = pd.DataFrame(np.empty((numPeaks, len(columnsPeaks))), columns=columnsPeaks)
+                    for i in np.arange(numPeaks):
+                        myAsic = df['asic'][i].strip()
+                        x = (df['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + (df['ss'][i] -
+                                                                                                        dfGeom.loc[
+                                                                                                            myAsic, 'min_ss']) * \
+                                                                                                       dfScan.loc[
+                                                                                                           myAsic, 'ssx']
+                        x += dfGeom.loc[myAsic, 'corner_x']
+                        y = (df['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + (df['ss'][i] -
+                                                                                                        dfGeom.loc[
+                                                                                                            myAsic, 'min_ss']) * \
+                                                                                                       dfScan.loc[
+                                                                                                           myAsic, 'ssy']
+                        y += dfGeom.loc[myAsic, 'corner_y']
+                        dfPeaks['x'][i] = x
+                        dfPeaks['y'][i] = y
+
+                    # Convert to psocake coordinates
+                    for i in np.arange(numPeaks):
+                        dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
+                        dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
+
+                    if self.parent.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
+                        self.parent.numIndexedPeaksFound = numPeaks
+                        self.parent.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
+                        self.parent.drawIndexedPeaks(self.unitCell)
             else:
-                if self.parent.args.v >= 1: print "Indexing failed"
-                self.parent.drawIndexedPeaks()
+                print "Indexing requirement not met."
+                if self.parent.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
+                if self.parent.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
+                if self.parent.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
 
-            # Read CrystFEL indexed peaks
-            if mySuccessString in err: # success
-                f = open(self.parent.hiddenCrystfelStream)
-                content = f.readlines()
-                for i, val in enumerate(content):
-                    if   'num_peaks =' in val:
-                        numPeaks = int(val.split('=')[-1])
-                    elif   'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in val:
-                        startLine = i+1
-                        endLine = startLine+numPeaks
-                    elif 'Cell parameters' in val:
-                        (_,_,a,b,c,_,al,be,ga,_) = val.split()
-                        self.unitCell = (a,b,c,al,be,ga)
-
-                columns=['fs','ss','res','intensity','asic']
-                df = pd.DataFrame(np.empty((numPeaks,len(columns))), columns=columns)
-                for i in np.arange(numPeaks):
-                    contentLine = startLine+i
-                    df['fs'][i] = float(content[contentLine][0:7])
-                    df['ss'][i] = float(content[contentLine][7:15])
-                    df['res'][i] = float(content[contentLine][15:26])
-                    df['intensity'][i] = float(content[contentLine][26:38])
-                    df['asic'][i] = str(content[contentLine][38:-1])
-                f.close()
-
-                # Convert to CrystFEL coordinates
-                columnsPeaks=['x','y','psocakeX','psocakeY']
-                dfPeaks = pd.DataFrame(np.empty((numPeaks,len(columnsPeaks))), columns=columnsPeaks)
-                for i in np.arange(numPeaks):
-                    myAsic = df['asic'][i].strip()
-                    x = (df['fs'][i] - dfGeom.loc[myAsic,'min_fs'])*dfScan.loc[myAsic,'fsx'] + (df['ss'][i] - dfGeom.loc[myAsic,'min_ss'])*dfScan.loc[myAsic,'ssx']
-                    x += dfGeom.loc[myAsic,'corner_x']
-                    y = (df['fs'][i] - dfGeom.loc[myAsic,'min_fs'])*dfScan.loc[myAsic,'fsy'] + (df['ss'][i] - dfGeom.loc[myAsic,'min_ss'])*dfScan.loc[myAsic,'ssy']
-                    y += dfGeom.loc[myAsic,'corner_y']
-                    dfPeaks['x'][i]=x
-                    dfPeaks['y'][i]=y
-
-                # Convert to psocake coordinates
-                for i in np.arange(numPeaks):
-                    dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
-                    dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
-
-                if self.parent.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                    self.parent.numIndexedPeaksFound = numPeaks
-                    self.parent.indexedPeaks = dfPeaks[['psocakeX','psocakeY']].as_matrix()
-                    self.parent.drawIndexedPeaks(self.unitCell)
         else: # batch indexing
             # Update elog
             try:
@@ -409,7 +476,7 @@ class IndexHandler(QtCore.QThread):
             self.peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
             try:
                 f = h5py.File(self.peakFile,'r')
-                hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidbMPI'] == 'success'
+                hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidb'] == 'success'
                 f.close()
             except:
                 print "Could not open file: ", self.peakFile
@@ -417,12 +484,13 @@ class IndexHandler(QtCore.QThread):
             if hasData is False:
                 # Run xtc2cxidbMPI
                 cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r"\
-                      +str(self.runNumber).zfill(4)+"/.%J.log python xtc2cxidbMPI.py"+\
+                      +str(self.runNumber).zfill(4)+"/.%J.log xtc2cxidb"+\
                       " -e "+self.experimentName+" -d "+self.detInfo+" -i "+self.outDir+'/r'+str(self.runNumber).zfill(4)+\
                       " --sample "+self.sample+\
                       " --instrument "+self.parent.det.instrument()+" --pixelSize "+str(self.parent.pixelSize)+ \
-                      " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+" --run "+str(self.runNumber)+\
-                      " --condition /entry_1/result_1/nPeaksAll,ge,"+str(self.parent.hitParam_threshold)
+                      " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+\
+                      " --condition /entry_1/result_1/nPeaksAll,ge,"+str(self.parent.hitParam_threshold)+ \
+                      " --run " + str(self.runNumber)
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
@@ -494,7 +562,7 @@ class IndexHandler(QtCore.QThread):
                           "/.%J.log indexamajig -j "+str(self.cpus)+" -i "+myList+\
                           " -g "+self.geom+" --peaks="+self.peakMethod+" --int-radius="+self.intRadius+\
                           " --indexing="+self.indexingMethod+" -o "+myStream+" --temp-dir="+outDir
-                    if self.pdb is not '':
+                    if self.pdb:# is not '':
                         cmd += " --pdb="+self.pdb
                     print "Submitting batch job: ", cmd
                     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -510,7 +578,7 @@ class IndexHandler(QtCore.QThread):
                 haveFinished = np.zeros((numWorkers,))
                 while Done == 0:
                     for i,myLog in enumerate(myLogList):
-                        if os.path.isfile(myLog):
+                        if os.path.isfile(myLog): # log file exists
                             if haveFinished[i] == 0:
                                 p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
                                 output = p.communicate()[0]
@@ -525,7 +593,7 @@ class IndexHandler(QtCore.QThread):
                                         haveFinished[i] = 1
                                         if len(np.where(haveFinished==1)[0]) == numWorkers:
                                             Done = 1
-                                    else:
+                                    else: # failure
                                         print "failed attempt", myLog
                                         haveFinished[i] = -1
                                         Done = -1
@@ -575,9 +643,10 @@ class IndexHandler(QtCore.QThread):
                     if '/entry_1/result_1/index' in f:
                         del f['/entry_1/result_1/index']
                     f['/entry_1/result_1/index'] = indexedPeaks
+
                     # Remove large data
-                    if '/entry_1/instrument_1/detector_1/data' in f:
-                        del f['/entry_1/instrument_1/detector_1/data']
+                    #if '/entry_1/instrument_1/detector_1/data' in f:
+                    #    del f['/entry_1/instrument_1/detector_1/data']
                     f.close()
 
                     # Clean up temp files
