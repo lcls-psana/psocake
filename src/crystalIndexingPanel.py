@@ -49,7 +49,7 @@ class CrystalIndexing(object):
         self.pdb = ''
         self.indexingMethod = 'dirax-raw-nolatt'
         self.minPeaks = 15
-        self.maxPeaks = 300
+        self.maxPeaks = 2048
         self.minRes = 0
 
         #######################
@@ -292,7 +292,8 @@ class IndexHandler(QtCore.QThread):
         content=fstream.readlines()
         totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
         hitEvents = f['/LCLS/eventNumber'].value
-        numHits = len(np.where(hitEvents>=self.parent.hitParam_threshold)[0])
+        #numHits = len(np.where(hitEvents>=self.parent.hitParam_threshold)[0])
+        print "totalEvents: ", totalEvents
         indexedPeaks = np.zeros((totalEvents,),dtype=int)
         numProcessed = 0
         for i,val in enumerate(content):
@@ -306,6 +307,7 @@ class IndexHandler(QtCore.QThread):
                 if 'none' in _ind:
                     continue
                 else:
+                    print "indexed: ", hitEvents[_evt], _evt
                     indexedPeaks[hitEvents[_evt]] = _num
         fstream.close()
         f.close()
@@ -462,7 +464,6 @@ class IndexHandler(QtCore.QThread):
                 if self.parent.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
                 if self.parent.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
                 if self.parent.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
-
         else: # batch indexing
             # Update elog
             try:
@@ -477,19 +478,28 @@ class IndexHandler(QtCore.QThread):
             try:
                 f = h5py.File(self.peakFile,'r')
                 hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidb'] == 'success'
-                f.close()
+                minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
+                maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
+                minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
+                if hasData and self.minPeaks == minPeaksUsed and self.maxPeaks == maxPeaksUsed and self.minRes == minResUsed:
+                    hasData = True
+                else:
+                    hasData = False
+                f.close() #FIXME: must check whether hit selection criteria changed
             except:
                 print "Could not open file: ", self.peakFile
 
             if hasData is False:
                 # Run xtc2cxidbMPI
-                cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r"\
-                      +str(self.runNumber).zfill(4)+"/.%J.log xtc2cxidb"+\
-                      " -e "+self.experimentName+" -d "+self.detInfo+" -i "+self.outDir+'/r'+str(self.runNumber).zfill(4)+\
-                      " --sample "+self.sample+\
+                cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r" \
+                      +str(self.runNumber).zfill(4)+"/.%J.log xtc2cxidb"+ \
+                      " -e "+self.experimentName+" -d "+self.detInfo+" -i "+self.outDir+'/r'+str(self.runNumber).zfill(4)+ \
+                      " --sample "+self.sample+ \
                       " --instrument "+self.parent.det.instrument()+" --pixelSize "+str(self.parent.pixelSize)+ \
-                      " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+\
-                      " --condition /entry_1/result_1/nPeaksAll,ge,"+str(self.parent.hitParam_threshold)+ \
+                      " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+ \
+                      " --minPeaks "+str(self.minPeaks)+ \
+                      " --maxPeaks "+str(self.maxPeaks)+ \
+                      " --minRes "+str(self.minRes)+ \
                       " --run " + str(self.runNumber)
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -511,7 +521,7 @@ class IndexHandler(QtCore.QThread):
                             output = p.communicate()[0]
                             p.stdout.close()
                             if mySuccessString in output: # success
-                                print "successfully done: ", self.runNumber
+                                print "successfully done converting to cxidb: ", self.runNumber
                                 hasData = True
                             else:
                                 print "failed attempt", self.runNumber
@@ -543,7 +553,7 @@ class IndexHandler(QtCore.QThread):
                 numEvents = len(eventList)
                 f.close()
                 # Split into chunks for faster indexing
-                numWorkers = 4
+                numWorkers = int(self.cpus/2.)
                 myLogList = []
                 self.myStreamList = []
                 for rank in range(numWorkers):
@@ -579,7 +589,7 @@ class IndexHandler(QtCore.QThread):
                 while Done == 0:
                     for i,myLog in enumerate(myLogList):
                         if os.path.isfile(myLog): # log file exists
-                            if haveFinished[i] == 0:
+                            if haveFinished[i] == 0: # job has not finished
                                 p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
                                 output = p.communicate()[0]
                                 p.stdout.close()
@@ -589,7 +599,7 @@ class IndexHandler(QtCore.QThread):
                                     output = p.communicate()[0]
                                     p.stdout.close()
                                     if mySuccessString in output: # success
-                                        print "successfully done: ", myLog
+                                        print "successfully done indexing: ", myLog
                                         haveFinished[i] = 1
                                         if len(np.where(haveFinished==1)[0]) == numWorkers:
                                             Done = 1
@@ -597,7 +607,7 @@ class IndexHandler(QtCore.QThread):
                                         print "failed attempt", myLog
                                         haveFinished[i] = -1
                                         Done = -1
-                                else:
+                                else: # job is still going, update indexing rate
                                     if self.parent.args.v >= 0: print "indexing job hasn't finished yet: ", self.runNumber
                                     indexedPeaks,numProcessed = self.getIndexedPeaks()
 
@@ -607,8 +617,6 @@ class IndexHandler(QtCore.QThread):
                                     f.close()
 
                                     numIndexedNow = len(np.where(indexedPeaks>0)[0])
-                                    #numFailedNow = len(np.where(indexedPeaks==0)[0])
-                                    #numDoneNow = numIndexedNow + numFailedNow
                                     if numProcessed == 0:
                                         indexRate = 0
                                     else:
@@ -657,7 +665,12 @@ class IndexHandler(QtCore.QThread):
                     try:
                         if self.parent.logger == True:
                             if self.parent.args.v >= 1: print "Updating e-log numIndexed: ", numIndexed
-                            self.parent.table.setValue(self.runNumber,"Number of indexed",numIndexed)
+                            if numProcessed == 0:
+                                indexRate = 0
+                            else:
+                                indexRate = numIndexed * 100. / numProcessed
+                            msg = str(numIndexed) + ' indexed / {0:.1f}% rate'.format(indexRate)
+                            self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
                     except AttributeError:
                         print "e-Log table does not exist"
 

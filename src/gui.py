@@ -186,7 +186,7 @@ spiParam_noe_str = 'Number of events to process'
 # Quantifier parameter tree
 quantifier_grp = 'Small data'
 quantifier_filename_str = 'filename'
-quantifier_dataset_str = 'metric_dataset'
+quantifier_dataset_str = 'dataset'
 quantifier_sort_str = 'sort'
 
 # PerPixelHistogram parameter tree
@@ -320,10 +320,10 @@ class MainFrame(QtGui.QWidget):
         self.peaks = None
         self.hitParam_alg1_npix_min = 1.
         self.hitParam_alg1_npix_max = 45.
-        self.hitParam_alg1_amax_thr = 250.
-        self.hitParam_alg1_atot_thr = 330.
-        self.hitParam_alg1_son_min = 4.
-        self.hitParam_alg1_thr_low = 80.
+        self.hitParam_alg1_amax_thr = 800.
+        self.hitParam_alg1_atot_thr = 800.
+        self.hitParam_alg1_son_min = 7.
+        self.hitParam_alg1_thr_low = 200.
         self.hitParam_alg1_thr_high = self.hitParam_alg1_amax_thr
         self.hitParam_alg1_radius = 2
         self.hitParam_alg1_dr = 1
@@ -1769,7 +1769,7 @@ class MainFrame(QtGui.QWidget):
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
                 # Write number of peaks found
-                xMargin = 30 # pixels
+                xMargin = 5 # pixels
                 yMargin = 0  # pixels
                 maxX = np.max(self.det.indexes_x(self.evt)) + xMargin
                 maxY = np.max(self.det.indexes_y(self.evt)) - yMargin
@@ -1811,7 +1811,7 @@ class MainFrame(QtGui.QWidget):
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
 
                 # Write unit cell parameters
-                xMargin = 30
+                xMargin = 5
                 yMargin = 400
                 maxX   = np.max(self.det.indexes_x(self.evt)) + xMargin
                 maxY   = np.max(self.det.indexes_y(self.evt)) - yMargin
@@ -1825,7 +1825,7 @@ class MainFrame(QtGui.QWidget):
                 self.w1.getView().addItem(self.abc_text)
                 self.abc_text.setPos(maxX, maxY)
             else:
-                xMargin = 30 # pixels
+                xMargin = 5 # pixels
                 maxX   = np.max(self.det.indexes_x(self.evt))+xMargin
                 maxY   = np.max(self.det.indexes_y(self.evt))
                 # Draw a big X
@@ -2826,14 +2826,14 @@ class MainFrame(QtGui.QWidget):
     def updateUserMask(self, data):
         self.userMaskOn = data
         self.algInitDone = False
-        if self.userMaskOn: self.updateClassification()
+        self.updateClassification()
         if args.v >= 1:
             print "Done updateUserMask: ", self.userMaskOn
 
     def updateStreakMask(self, data):
         self.streakMaskOn = data
         self.algInitDone = False
-        if self.streakMaskOn: self.updateClassification()
+        self.updateClassification()
         if args.v >= 1:
             print "Done updateStreakMask: ", self.streakMaskOn
 
@@ -2842,7 +2842,7 @@ class MainFrame(QtGui.QWidget):
         self.streakMask = None
         self.initMask()
         self.algInitDone = False
-        if self.streakMaskOn: self.updateClassification()
+        self.updateClassification()
         if args.v >= 1:
             print "Done updateStreakWidth: ", self.streak_width
 
@@ -2851,7 +2851,7 @@ class MainFrame(QtGui.QWidget):
         self.streakMask = None
         self.initMask()
         self.algInitDone = False
-        if self.streakMaskOn: self.updateClassification()
+        self.updateClassification()
         if args.v >= 1:
             print "Done updateStreakSigma: ", self.streak_sigma
 
@@ -3428,10 +3428,13 @@ class PeakFinder(QtCore.QThread):
         haveFinished = np.zeros((numWorkers,))
         while Done == 0:
             for i,myLog in enumerate(myLogList):
+                print "logfile: ", myLog
                 if os.path.isfile(myLog):
+                    print "logfile exists: ", myLog
                     if haveFinished[i] == 0:
                         p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
                         output = p.communicate()[0]
+                        print "output: ", output
                         p.stdout.close()
                         if myKeyString in output: # job has finished
                             # check job was a success or a failure
@@ -3476,8 +3479,7 @@ class PeakFinder(QtCore.QThread):
                                 print "e-Log table does not exist"
                             time.sleep(10)
                 else:
-                    if args.v >= 0:
-                        print "no such file yet: ", myLog
+                    if args.v >= 0: print "no such file yet: ", myLog
                     time.sleep(10)
 
                 if haveFinished[i] == 1: # success

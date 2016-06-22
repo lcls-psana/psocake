@@ -14,6 +14,7 @@ class PeakFinder:
         self.detname = detname
         self.det = detector
         self.algorithm = algorithm
+        self.maxRes = 0
 
         self.npix_min=hitParam_alg_npix_min
         self.npix_max=hitParam_alg_npix_max
@@ -77,6 +78,13 @@ class PeakFinder:
 
         self.maxNumPeaks = 2048
         self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
+        self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
+        print "### cx, cy: ", self.cx, self.cy
+        self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
+        self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
+        if len(self.iX.shape) == 2:
+            self.iX = np.expand_dims(self.iX, axis=0)
+            self.iY = np.expand_dims(self.iY, axis=0)
 
     def findPeaks(self,calib, evt):
         if self.streakMask_on: # make new streak mask
@@ -106,4 +114,19 @@ class PeakFinder:
                                    rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
             #tic4 = time.time()
             #print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
+        self.numPeaksFound = self.peaks.shape[0]
+        print "numPeaksFound: ",self.numPeaksFound
 
+        if self.numPeaksFound > 0:
+            cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
+                self.peaks[:, 2], dtype=np.int64)] + 0.5
+            cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
+                self.peaks[:, 2], dtype=np.int64)] + 0.5
+            self.maxRes = getMaxRes(cenX, cenY, self.cx, self.cy)
+        else:
+            self.maxRes = 0
+        print "maxRes: ", self.maxRes
+
+def getMaxRes(posX, posY, centerX, centerY):
+    maxRes = np.max(np.sqrt((posX - centerX) ** 2 + (posY - centerY) ** 2))
+    return maxRes

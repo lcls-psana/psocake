@@ -17,6 +17,7 @@ def runmaster(args,nClients):
     numJobs = getNoe(args)
 
     # Create hdf5 and save psana input
+    #print "### Writing: ", fname
     myHdf5 = h5py.File(fname, 'w')
     #myHdf5.swmr_mode = True
     myHdf5['/status/findPeaks'] = 'fail'
@@ -35,31 +36,37 @@ def runmaster(args,nClients):
     dset_posX = "/peakXPosRawAll"
     dset_posY = "/peakYPosRawAll"
     dset_atot = "/peakTotalIntensityAll"
+    dset_maxRes = "/maxResAll"
     if grpName in myHdf5:
-        del myHdf5[pName]
+        del myHdf5[grpName]
     grp = myHdf5.create_group(grpName)
     myHdf5.create_dataset(grpName+dset_nPeaks, data=np.ones(numJobs,)*-1, dtype='int')
     myHdf5.create_dataset(grpName+dset_posX, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_posY, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_atot, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
+    myHdf5.create_dataset(grpName+dset_maxRes, data=np.ones(numJobs,)*-1, dtype='int')
     myHdf5.close()
 
     myHdf5 = h5py.File(fname, 'r+')
-    saveInterval = 60
+    #saveInterval = 10
     counter = 0
+    #print "### nClients: ", nClients
     while nClients > 0:
+        #print "GOT HERE!!!!!!!!!!!"
         # Remove client if the run ended
         md = mpidata()
         md.recv()
         if md.small.endrun:
             nClients -= 1
         else:
-            if counter == saveInterval:
-                myHdf5 = h5py.File(fname, 'r+')
+            #print "### Recv: ", md.peaks, md.small.maxRes, md.small.endrun
+            #if counter == saveInterval:
+            #    myHdf5 = h5py.File(fname, 'r+')
             #save to hdf5
             try:
                 nPeaks = md.peaks.shape[0]
-                #print "Number of peaks found: ", nPeaks
+                maxRes = md.small.maxRes
+                #print "### nPeaks, maxRes: ", nPeaks, maxRes
             except:
                 continue
             if nPeaks > args.maxNumPeaks:
@@ -72,9 +79,11 @@ def runmaster(args,nClients):
                 myHdf5[grpName+dset_posY][md.small.eventNum,i] = cheetahRow
                 myHdf5[grpName+dset_atot][md.small.eventNum,i] = atot
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
+            myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
             counter += 1
-            if counter == saveInterval:
-                myHdf5.close()
+            #if counter == saveInterval:
+            #    myHdf5.close()
+    #print "### Done clients"
     if '/status/findPeaks' in myHdf5:
         del myHdf5['/status/findPeaks']
     myHdf5['/status/findPeaks'] = 'success'

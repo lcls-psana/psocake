@@ -18,7 +18,7 @@ def runclient(args):
 
     for nevent in np.arange(len(times)):
         if nevent == args.noe : break
-        if nevent%(size-1)!=rank-1: continue # different ranks look at different events
+        if nevent%(size-1) != rank-1: continue # different ranks look at different events
         try:
             evt = run.event(times[nevent])
             detarr = d.calib(evt) * d.gain(evt)
@@ -89,5 +89,7 @@ def runclient(args):
         md=mpidata()
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
+        md.small.maxRes = d.peakFinder.maxRes
+        print "d.peakFinder: ", d.peakFinder.peaks, d.peakFinder.maxRes
         md.send() # send mpi data object to master when desired
     md.endrun()
