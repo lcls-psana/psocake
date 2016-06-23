@@ -90,6 +90,12 @@ def runclient(args):
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes
-        print "d.peakFinder: ", d.peakFinder.peaks, d.peakFinder.maxRes
+        md.small.powder = 0
         md.send() # send mpi data object to master when desired
+    # At the end of the run, send the powder of hits and misses
+    md = mpidata()
+    md.small.powder = 1
+    md.addarray('powderHits', d.peakFinder.powderHits)
+    md.addarray('powderMisses', d.peakFinder.powderMisses)
+    md.send()
     md.endrun()

@@ -129,7 +129,6 @@ atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
 maxRes = f["/entry_1/result_1/maxResAll"].value
 hitInd = ((nPeaks >= args.minPeaks) & (nPeaks <= args.maxPeaks) & (maxRes >= args.minRes)).nonzero()[0]
 numHits = len(hitInd)
-print "hitInd, numHits: ", hitInd, numHits
 f.close()
 
 # Get image shape
@@ -137,7 +136,6 @@ firstHit = hitInd[0]
 ps.getEvent(firstHit)
 img = ps.getCheetahImg()
 (dim0, dim1) = img.shape
-print "dim0, dim1: ", dim0, dim1
 
 if rank == 0:
     tic = time.time()
@@ -190,7 +188,6 @@ elif hasDetectorDistance:
 # Read list of files
 runStr = "%04d" % runNumber
 filename = inDir+'/'+experimentName+'_'+runStr+'.cxi'
-print "Reading file: %s" % (filename)
 
 if rank == 0:
     f = h5py.File(filename, "r+")
@@ -358,16 +355,11 @@ if rank == 0:
 ###################################################
 # All workers get the to-do list
 ###################################################
-print "hitInd, numHits: ", hitInd, numHits
 
 f = h5py.File(filename, "r+", driver='mpio', comm=MPI.COMM_WORLD)
 myJobs = getMyUnfairShare(numHits,size,rank)
 
-print "rank,myJobs: ", rank,myJobs
-
 myHitInd = hitInd[myJobs]
-
-print "mhHitInd: ", myHitInd
 
 ds_expId = f.require_dataset("entry_1/experimental_identifier",(numHits,),dtype=int)
 dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data",(numHits,dim0,dim1),dtype=float)#,chunks=(1,dim0,dim1))
@@ -403,7 +395,6 @@ ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
 
 for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
-    print "globalInd: ", rank, globalInd
     ds_expId[globalInd] = val #cheetahfilename.split("/")[-1].split(".")[0]
 
     ps.getEvent(val)
@@ -489,7 +480,7 @@ for i,val in enumerate(myHitInd):
 
     ds_evtNum_1[globalInd] = val
 
-    if i%1 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+    if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 f.close()
 
 if rank == 0:

@@ -292,8 +292,6 @@ class IndexHandler(QtCore.QThread):
         content=fstream.readlines()
         totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
         hitEvents = f['/LCLS/eventNumber'].value
-        #numHits = len(np.where(hitEvents>=self.parent.hitParam_threshold)[0])
-        print "totalEvents: ", totalEvents
         indexedPeaks = np.zeros((totalEvents,),dtype=int)
         numProcessed = 0
         for i,val in enumerate(content):
@@ -307,7 +305,6 @@ class IndexHandler(QtCore.QThread):
                 if 'none' in _ind:
                     continue
                 else:
-                    print "indexed: ", hitEvents[_evt], _evt
                     indexedPeaks[hitEvents[_evt]] = _num
         fstream.close()
         f.close()
@@ -469,7 +466,7 @@ class IndexHandler(QtCore.QThread):
             try:
                 if self.parent.logger == True:
                     if self.parent.args.v >= 1: print "Updating e-log"
-                    self.parent.table.setValue(self.runNumber,"Number of indexed","#ConvertingCXIDB")
+                    self.parent.table.setValue(self.runNumber,"Number of indexed","#StartCXIDB")
             except AttributeError:
                 print "e-Log table does not exist"
 
@@ -477,10 +474,11 @@ class IndexHandler(QtCore.QThread):
             self.peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
             try:
                 f = h5py.File(self.peakFile,'r')
-                hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidb'] == 'success'
+                hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidb'].value == 'success'
                 minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
                 maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
                 minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
+                print "Peak criteria: ", hasData, self.minPeaks, minPeaksUsed, self.maxPeaks, maxPeaksUsed, self.minRes, minResUsed
                 if hasData and self.minPeaks == minPeaksUsed and self.maxPeaks == maxPeaksUsed and self.minRes == minResUsed:
                     hasData = True
                 else:
@@ -488,6 +486,8 @@ class IndexHandler(QtCore.QThread):
                 f.close() #FIXME: must check whether hit selection criteria changed
             except:
                 print "Could not open file: ", self.peakFile
+                hasData = False
+            print "hasData: ", hasData
 
             if hasData is False:
                 # Run xtc2cxidbMPI
@@ -539,6 +539,14 @@ class IndexHandler(QtCore.QThread):
                     else:
                         if self.parent.args.v >= 0: print "no such file yet", myLog
                         time.sleep(10)
+
+            # Update elog
+            try:
+                if self.parent.logger == True:
+                    if self.parent.args.v >= 1: print "Updating e-log"
+                    self.parent.table.setValue(self.runNumber,"Number of indexed","#DoneCXIDB")
+            except AttributeError:
+                print "e-Log table does not exist"
 
             if hasData:
                 # Update elog

@@ -314,6 +314,7 @@ class MainFrame(QtGui.QWidget):
         self.updateRoiStatus = True
         # Init peak finding parameters
         self.algInitDone = False
+        self.peaksMaxRes = 0
         self.algorithm = 0
         self.classify = False
         self.showPeaks = True

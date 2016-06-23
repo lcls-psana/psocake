@@ -47,12 +47,15 @@ class PeakFinder:
                                            unbond=psanaMask_unbond, unbondnbrs=psanaMask_unbondnrs)
 
         # Combine userMask and psanaMask
-        #if self.userMask is not None or self.psanaMask is not None:
         self.userPsanaMask = np.ones_like(self.det.calib(evt))
         if self.userMask is not None:
             self.userPsanaMask *= self.userMask
         if self.psanaMask is not None:
             self.userPsanaMask *= self.psanaMask
+
+        # Powder of hits and misses
+        self.powderHits = np.zeros_like(self.userPsanaMask)
+        self.powderMisses = np.zeros_like(self.userPsanaMask)
 
         self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
         # set peak-selector parameters:
@@ -115,7 +118,6 @@ class PeakFinder:
             #tic4 = time.time()
             #print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
         self.numPeaksFound = self.peaks.shape[0]
-        print "numPeaksFound: ",self.numPeaksFound
 
         if self.numPeaksFound > 0:
             cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
@@ -125,7 +127,11 @@ class PeakFinder:
             self.maxRes = getMaxRes(cenX, cenY, self.cx, self.cy)
         else:
             self.maxRes = 0
-        print "maxRes: ", self.maxRes
+
+        if self.numPeaksFound >= 15:
+            self.powderHits = np.maximum(self.powderHits, calib)
+        else:
+            self.powderMisses = np.maximum(self.powderMisses, calib)
 
 def getMaxRes(posX, posY, centerX, centerY):
     maxRes = np.max(np.sqrt((posX - centerX) ** 2 + (posY - centerY) ** 2))

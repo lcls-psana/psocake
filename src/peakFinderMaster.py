@@ -16,10 +16,11 @@ def runmaster(args,nClients):
     # Get number of events to process
     numJobs = getNoe(args)
 
+    powderHits = None
+    powderMisses = None
+
     # Create hdf5 and save psana input
-    #print "### Writing: ", fname
     myHdf5 = h5py.File(fname, 'w')
-    #myHdf5.swmr_mode = True
     myHdf5['/status/findPeaks'] = 'fail'
     dt = h5py.special_dtype(vlen=bytes)
     myInput = ""
@@ -48,21 +49,21 @@ def runmaster(args,nClients):
     myHdf5.close()
 
     myHdf5 = h5py.File(fname, 'r+')
-    #saveInterval = 10
     counter = 0
-    #print "### nClients: ", nClients
     while nClients > 0:
-        #print "GOT HERE!!!!!!!!!!!"
         # Remove client if the run ended
         md = mpidata()
         md.recv()
         if md.small.endrun:
             nClients -= 1
+        elif md.small.powder == 1:
+            if powderHits is None:
+                powderHits = md.powderHits
+                powderMisses = md.powderMisses
+            else:
+                powderHits = np.maximum(powderHits, md.powderHits)
+                powderMisses = np.maximum(powderMisses, md.powderMisses)
         else:
-            #print "### Recv: ", md.peaks, md.small.maxRes, md.small.endrun
-            #if counter == saveInterval:
-            #    myHdf5 = h5py.File(fname, 'r+')
-            #save to hdf5
             try:
                 nPeaks = md.peaks.shape[0]
                 maxRes = md.small.maxRes
@@ -81,13 +82,16 @@ def runmaster(args,nClients):
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
             counter += 1
-            #if counter == saveInterval:
-            #    myHdf5.close()
-    #print "### Done clients"
+
     if '/status/findPeaks' in myHdf5:
         del myHdf5['/status/findPeaks']
     myHdf5['/status/findPeaks'] = 'success'
     myHdf5.close()
+
+    fnameHits = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.npy"
+    fnameMisses = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses.npy"
+    np.save(fnameHits,powderHits)
+    np.save(fnameMisses, powderMisses)
 
 def convert_peaks_to_cheetah(s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
@@ -111,6 +115,5 @@ def getNoe(args):
             numJobs = args.noe
         else:
             numJobs = len(times)
-    print "run, numJobs: ", args.run, numJobs
     return numJobs
 
