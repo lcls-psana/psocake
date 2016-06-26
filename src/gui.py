@@ -370,7 +370,7 @@ class MainFrame(QtGui.QWidget):
         self.hiddenCrystfelList = '.temp.lst'
 
         # Init hit finding
-        self.spiAlgorithm = 1
+        self.spiAlgorithm = 2
 
         self.spiParam_alg1_pruneInterval = 0
         self.spiParam_alg2_threshold = 100
@@ -2314,6 +2314,7 @@ class MainFrame(QtGui.QWidget):
                 #self.algInitDone = False
                 #self.updateAlgorithm(data)
                 self.spiAlgorithm = data
+                print "#### self.spiAlgorithm: ", self.spiAlgorithm
             elif path[1] == spiParam_outDir_str:
                 self.spiParam_outDir = data
                 self.spiParam_outDir_overridden = True
