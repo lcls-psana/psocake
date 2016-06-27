@@ -2897,12 +2897,9 @@ class MainFrame(QtGui.QWidget):
                     self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
                 self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
             except:
-                if args.v >= 1:
-                    print "Couldn't find /event dataset"
+                if args.v >= 1: print "Couldn't find /event dataset"
                 self.quantifierEvent = np.arange(len(self.quantifierMetric))
-
-            if args.v >= 1:
-                print "Done reading metric"
+            if args.v >= 1: print "Done reading metric"
 
     def updateQuantifierSort(self, data):
         self.quantifier_sort = data
@@ -2914,7 +2911,7 @@ class MainFrame(QtGui.QWidget):
             else:
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
-#                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
                 self.updateQuantifierPlot(self.quantifierInd,self.quantifierMetric)
 
     def updateQuantifierPlot(self,ind,metric):
