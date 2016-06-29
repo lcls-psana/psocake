@@ -1496,7 +1496,7 @@ class MainFrame(QtGui.QWidget):
 
     def initMask(self):
         if self.gapAssemInd is None:
-            self.gapAssem = self.det.image(self.evt,np.ones_like(self.calib,dtype='int'))
+            self.gapAssem = self.det.image(self.evt,np.ones_like(self.detGuaranteed,dtype='int'))
             self.gapAssemInd = np.where(self.gapAssem==0)
         if self.userMask is None and self.data is not None:
             # initialize
@@ -3266,7 +3266,7 @@ class HitFinder(QtCore.QThread):
                 expRun = 'exp='+self.experimentName+':run='+str(run)
                 cmd = "bsub -q "+self.parent.spiParam_queue+\
                   " -a mympi -n "+str(self.parent.spiParam_cpus)+\
-                  " -o "+runDir+"/.%J.log litPixel_HitMetric"+\
+                  " -o "+runDir+"/.%J.log /reg/neh/home/yoon82/ana-0.18.3/psocake/app/litPixels"+\
                   " "+expRun+\
                   " -d "+self.detInfo+\
                   " --outdir "+runDir
