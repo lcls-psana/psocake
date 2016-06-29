@@ -71,6 +71,7 @@ disp_log_str = 'Logscale'
 disp_image_str = 'Image properties'
 disp_adu_str = 'gain corrected ADU'
 disp_gain_str = 'gain'
+disp_gainMask_str = 'gain_mask'
 disp_coordx_str = 'coord_x'
 disp_coordy_str = 'coord_y'
 disp_quad_str = 'quad number'
@@ -453,7 +454,8 @@ class MainFrame(QtGui.QWidget):
             ]},
             {'name': disp_grp, 'type': 'group', 'children': [
                 {'name': disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': disp_image_str, 'type': 'list', 'values': {disp_coordy_str: 16,
+                {'name': disp_image_str, 'type': 'list', 'values': {disp_gainMask_str: 17,
+                                                                    disp_coordy_str: 16,
                                                                     disp_coordx_str: 15,
                                                                     disp_col_str: 14,
                                                                     disp_row_str: 13,
@@ -1943,28 +1945,29 @@ class MainFrame(QtGui.QWidget):
 
     def getDetImage(self,evtNumber,calib=None):
         if calib is None:
-            if self.image_property == 1: # gain corrected
+            if self.image_property == 1: # gain and hybrid gain corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None:
-                    calib = np.zeros_like(self.det.gain(self.evt))
+                    calib = np.zeros_like(self.det.calib(self.evt))
                 else:
-                    calib *= self.det.gain(self.evt)
-                if self.det.gain_mask(gain=6.85) is not None: # None if not cspad or cspad2x2
-                    calib *= self.det.gain_mask(gain=6.85)
+                    if self.det.gain(self.evt) is not None:
+                        calib *= self.det.gain(self.evt)
+                if self.det.gain_mask(self.evt, gain=6.85) is not None: # None if not cspad or cspad2x2
+                    calib *= self.det.gain_mask(self.evt, gain=6.85)
             elif self.image_property == 2: # common mode corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None:
-                    calib = np.zeros_like(self.det.gain(self.evt))
+                    calib = np.zeros_like(self.det.calib(self.evt))
             elif self.image_property == 3: # pedestal corrected
                 calib = self.det.raw(self.evt)
                 if calib is None:
-                    calib = np.zeros_like(self.det.gain(self.evt))
+                    calib = np.zeros_like(self.det.calib(self.evt))
                 else:
                     calib -= self.det.pedestals(self.evt)
             elif self.image_property == 4: # raw
                 calib = self.det.raw(self.evt)
                 if calib is None:
-                    calib = np.zeros_like(self.det.gain(self.evt))
+                    calib = np.zeros_like(self.det.calib(self.evt))
             elif self.image_property == 5: # photon counts
                 print "Sorry, this feature is not available"
             elif self.image_property == 6: # pedestal
@@ -1977,6 +1980,8 @@ class MainFrame(QtGui.QWidget):
                 calib = self.getCommonMode(evtNumber)
             elif self.image_property == 10: # gain
                 calib = self.det.gain(self.evt)
+            elif self.image_property == 17: # gain_mask
+                calib = self.det.gain_mask(self.evt)
             elif self.image_property == 15: # coords_x
                 calib = self.det.coords_x(self.evt)
             elif self.image_property == 16: # coords_y
@@ -2027,28 +2032,29 @@ class MainFrame(QtGui.QWidget):
                     elif shape[0] == 4: # pnccd
                         for i in range(512):
                             calib[:,:,i] = i
-            else:
-                print "psocake can't handle this detector"
 
         # Update photon energy
         self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-        self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
+        if self.ebeam:
+            self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
+        else:
+            self.photonEnergy = 0
         self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
 
         if calib is not None:
             # assemble image
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
-            return calib, data
-        else: # TODO: this is a hack that assumes opal is the only detector without calib
-            # we have an opal / epix
-            data = self.det.raw(self.evt)
-            if data is not None:
-                data = data.copy()
-                # Do not display ADUs below threshold
-                data[np.where(data<self.aduThresh)]=0
+            if self.cx is None:
                 self.cx, self.cy = self.getCentre(data.shape)
-            return data, data
+            return calib, data
+        else:
+            calib = np.zeros_like(self.det.calib(self.evt))
+            data = self.getAssembledImage(calib)
+            self.cx, self.cy = self.det.point_indexes(self.evt, pxy_um=(0, 0))
+            if self.cx is None:
+                self.cx, self.cy = self.getCentre(data.shape)
+            return calib, data
 
     def getCentre(self,shape):
         cx = shape[1]/2
@@ -2664,17 +2670,18 @@ class MainFrame(QtGui.QWidget):
 
             self.evt = self.run.event(self.times[0])
             myAreaDetectors = []
-            for k in self.evt.keys():
+            self.detnames = psana.DetNames()
+            for k in self.detnames:
                 try:
-                    source_string = Detector.PyDetector.map_alias_to_source(k.alias(), self.env)
-                    if source_string is not '':
-                        if Detector.PyDetector.dettype(source_string, self.env) == Detector.AreaDetector.AreaDetector:
-                            myAreaDetectors.append(k.alias())
+                    if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
+                        myAreaDetectors.append(k)
                 except ValueError:
                     continue
             self.detInfoList = list(set(myAreaDetectors))
             print "#######################################"
-            print "# Available detectors: ", self.detInfoList
+            print "# Available area detectors: "
+            for k in self.detInfoList:
+                print "#", k
             print "#######################################"
 
         if self.hasExpRunDetInfo():
@@ -2696,8 +2703,11 @@ class MainFrame(QtGui.QWidget):
             self.p1.param(self.geom.geom_grp,self.geom.geom_pixelSize_str).setValue(self.pixelSize)
             # photon energy
             self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-            self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
-            self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
+            if self.ebeam:
+                self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
+            else:
+                self.photonEnergy = 0
+            self.p1.param(self.geom.geom_grp, self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
 
             if self.evt is None:
                 self.evt = self.run.event(self.times[0])
