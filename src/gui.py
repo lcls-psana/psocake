@@ -9,6 +9,8 @@
 # TODO: Downsampler
 # TODO: Radial background, polarization correction
 # TODO: Run from ffb
+# TODO: script for histogram of lit pixels, percentile display
+# TODO: hit threshold on hit finding panel
 
 import sys, signal
 import numpy as np
@@ -1255,7 +1257,7 @@ class MainFrame(QtGui.QWidget):
                 y = self.mask_poly.parentBounds().y()
                 sx = self.mask_poly.parentBounds().size().height()
                 sy = self.mask_poly.parentBounds().size().width()
-                print "x,y: ", x, y, sx, sy, self.data.shape[0], self.data.shape[1]
+                #print "x,y: ", x, y, sx, sy, self.data.shape[0], self.data.shape[1]
                 localx = 0
                 localy = 0
                 newx = x
@@ -1274,42 +1276,12 @@ class MainFrame(QtGui.QWidget):
                     newsx = self.data.shape[0]-x
                 if y+sy >= self.data.shape[1]:
                     newsy = self.data.shape[1]-y
-                print "self.selected: ", self.selected.shape
-                #plt.imshow(self.selected,vmax=1,vmin=0)
-                #plt.show()
-
-                print "newsx,newsy: ", newsx,newsy
-                print "x1,y1: ", newx, newx+newsx, newy, newy+newsy
-                print "ox1,oy1: ", localx, localx+newsx, localy, localy+newsy
-                #print "coord_row, coord_col: ",
 
                 _mask = np.ones_like(img)
                 a = _mask[newx:(newx+newsx),newy:(newy+newsy)]
                 b= self.selected[localx:(localx+newsx),localy:(localy+newsy)]
-                print "a: ", a.shape
-                print "b: ", b.shape, len(np.arange(localx,localx+newsx))
                 _mask[newx:(newx+newsx),newy:(newy+newsy)] = self.selected[1:,1:] #[localx:(localx+newsx),localy:(localy+newsy)]
 
-                #plt.imshow(_mask,vmax=1,vmin=0)
-                #plt.show()
-
-
-                # Remove mask elements outside data
-                #pixIndAssem = self.pixelIndAssem.copy()+1
-                #x=self.mask_poly.parentBounds().x()
-                #y=self.mask_poly.parentBounds().y()
-                #sx=self.mask_poly.parentBounds().size().height()
-                #sy=self.mask_poly.parentBounds().size().width()
-                #print "x,y: ", x,y,sx,sy
-                #self.pixelExists = pixIndAssem[x:x+sx,y:y+sy]
-
-
-                #(pixX,pixY) = np.where(self.pixelExists>0)
-
-                # coord_row = coord[0,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
-                # coord_col = coord[1,(coord[0]>=0) & (coord[0]<self.data.shape[0]) & (coord[1]>=0) & (coord[1]<self.data.shape[1])].ravel()
-                #_mask = np.ones_like(self.data)
-                #_mask[coord_row.astype('int'),coord_col.astype('int')] = 0
                 if self.maskingMode == 1: # masking mode
                     self.userMaskAssem *= _mask
                 #    plt.imshow(self.userMaskAssem,vmax=1,vmin=0)
@@ -1532,8 +1504,7 @@ class MainFrame(QtGui.QWidget):
             self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
         if self.streakMask is None:
             self.StreakMask = myskbeam.StreakMask(self.det, self.evt, width=self.streak_width, sigma=self.streak_sigma)
-        if args.v >= 1:
-            print "Done initMask"
+        if args.v >= 1: print "Done initMask"
 
     def displayMask(self):
         # convert to RGB
