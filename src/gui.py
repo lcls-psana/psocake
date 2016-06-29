@@ -3266,7 +3266,7 @@ class HitFinder(QtCore.QThread):
                 expRun = 'exp='+self.experimentName+':run='+str(run)
                 cmd = "bsub -q "+self.parent.spiParam_queue+\
                   " -a mympi -n "+str(self.parent.spiParam_cpus)+\
-                  " -o "+runDir+"/.%J.log /reg/neh/home/yoon82/ana-0.18.3/psocake/app/litPixels"+\
+                  " -o "+runDir+"/.%J.log litPixels"+\
                   " "+expRun+\
                   " -d "+self.detInfo+\
                   " --outdir "+runDir
