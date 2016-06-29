@@ -283,7 +283,10 @@ class MainFrame(QtGui.QWidget):
         self.logscaleOn = False
         self.image_property = 1
         self.aduThresh = -100.
+        self.maxPercentile = 0
+        self.minPercentile = 0
         self.displayMaxPercentile = 99.0
+        self.displayMinPercentile = 1.0
 
         self.hasUserDefinedResolution = False
         self.hasCommonMode = False
@@ -1566,8 +1569,7 @@ class MainFrame(QtGui.QWidget):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.data[_userMaskInd] + (np.max(self.data) - self.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
         if self.display_data is not None:
             self.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-        if args.v >= 1:
-            print "Done drawing"
+        if args.v >= 1: print "Done drawing"
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
@@ -1697,8 +1699,7 @@ class MainFrame(QtGui.QWidget):
                                      rmin, rmax, cmin, cmax, bkgd, rms, son)
                     if self.isCspad:
                         cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-            if args.v >= 1:
-                print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+            if args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
             if self.showIndexedPeaks:
                 self.clearIndexedPeaks()
 
@@ -1766,15 +1767,13 @@ class MainFrame(QtGui.QWidget):
 
     def getMaxRes(self, posX, posY, centerX, centerY):
         maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
-        print "maxRes: ", maxRes
-        print "number of peaks found: ", self.numPeaksFound
+        if args.v >= 1: print "maxRes: ", maxRes
         return maxRes # in pixels
 
     def clearPeakMessage(self):
         self.w1.getView().removeItem(self.peak_text)
         self.peak_feature.setData([], [], pxMode=False)
-        if args.v >= 1:
-            print "Done clearPeakMessage"
+        if args.v >= 1: print "Done clearPeakMessage"
 
     def drawPeaks(self):
         self.clearPeakMessage()
@@ -1809,14 +1808,12 @@ class MainFrame(QtGui.QWidget):
                 self.peak_text.setPos(0,0)
         else:
             self.peak_feature.setData([], [], pxMode=False)
-        if args.v >= 1:
-            print "Done updatePeaks"
+        if args.v >= 1: print "Done updatePeaks"
 
     def clearIndexedPeaks(self):
         self.w1.getView().removeItem(self.abc_text)
         self.indexedPeak_feature.setData([], [], pxMode=False)
-        if args.v >= 1:
-            print "Done clearIndexedPeaks"
+        if args.v >= 1: print "Done clearIndexedPeaks"
 
     def drawIndexedPeaks(self,unitCell=None):
         self.clearIndexedPeaks()
@@ -1866,8 +1863,7 @@ class MainFrame(QtGui.QWidget):
                 self.abc_text.setPos(maxX,maxY)
         else:
             self.indexedPeak_feature.setData([], [], pxMode=False)
-        if args.v >= 1:
-            print "Done updatePeaks"
+        if args.v >= 1: print "Done updatePeaks"
 
     def updateImage(self,calib=None):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
@@ -1881,15 +1877,21 @@ class MainFrame(QtGui.QWidget):
                     self.w1.setImage(np.log10(abs(self.data)+eps))
                     self.firstUpdate = False
                 else:
-                    self.w1.setImage(self.data,levels=(0,np.percentile(self.data,self.displayMaxPercentile)))
+                    self.minPercentile = np.percentile(self.data, self.displayMinPercentile)
+                    self.maxPercentile = np.percentile(self.data,self.displayMaxPercentile)
+                    self.w1.setImage(self.data,levels=(self.minPercentile, self.maxPercentile))
                     self.firstUpdate = False
             else:
                 if self.logscaleOn:
                     self.w1.setImage(np.log10(abs(self.data)+eps),autoRange=False,autoLevels=False,autoHistogramRange=False)
                 else:
-                    self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-        if args.v >= 1:
-            print "Done updateImage"
+                    if self.minPercentile == 0 and self.maxPercentile == 0:
+                        self.minPercentile = np.percentile(self.data, self.displayMinPercentile)
+                        self.maxPercentile = np.percentile(self.data, self.displayMaxPercentile)
+                        self.w1.setImage(self.data,levels=(self.minPercentile, self.maxPercentile))
+                    else:
+                        self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+        if args.v >= 1: print "Done updateImage"
 
     def getEvt(self,evtNumber):
         if self.hasRunNumber: #self.run is not None:
@@ -1932,15 +1934,14 @@ class MainFrame(QtGui.QWidget):
     def getAssembledImage(self,calib):
         _calib = calib.copy() # this is important
         # Do not display ADUs below threshold
-        if self.image_property == 1:
-            _calib[np.where(_calib<self.aduThresh)]=0
+        if self.image_property == 1: # gain and gain_mask corrected
+            _calib[np.where(_calib<self.aduThresh)] = 0
         tic = time.time()
         data = self.det.image(self.evt, _calib)
         if data is None:
             data = _calib
         toc = time.time()
-        if args.v >= 1:
-            print "time assemble: ", toc-tic
+        if args.v >= 1: print "time assemble: ", toc-tic
         return data
 
     def getDetImage(self,evtNumber,calib=None):
@@ -1948,7 +1949,7 @@ class MainFrame(QtGui.QWidget):
             if self.image_property == 1: # gain and hybrid gain corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None:
-                    calib = np.zeros_like(self.det.calib(self.evt))
+                    calib = np.zeros_like(self.detGuaranteed)
                 else:
                     if self.det.gain(self.evt) is not None:
                         calib *= self.det.gain(self.evt)
@@ -1957,17 +1958,17 @@ class MainFrame(QtGui.QWidget):
             elif self.image_property == 2: # common mode corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None:
-                    calib = np.zeros_like(self.det.calib(self.evt))
+                    calib = np.zeros_like(self.detGuaranteed)
             elif self.image_property == 3: # pedestal corrected
                 calib = self.det.raw(self.evt)
                 if calib is None:
-                    calib = np.zeros_like(self.det.calib(self.evt))
+                    calib = np.zeros_like(self.detGuaranteed)
                 else:
                     calib -= self.det.pedestals(self.evt)
             elif self.image_property == 4: # raw
                 calib = self.det.raw(self.evt)
                 if calib is None:
-                    calib = np.zeros_like(self.det.calib(self.evt))
+                    calib = np.zeros_like(self.detGuaranteed)
             elif self.image_property == 5: # photon counts
                 print "Sorry, this feature is not available"
             elif self.image_property == 6: # pedestal
@@ -2047,9 +2048,10 @@ class MainFrame(QtGui.QWidget):
             self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
             if self.cx is None:
                 self.cx, self.cy = self.getCentre(data.shape)
+            if args.v >= 1: print "cx, cy: ", self.cx, self.cy
             return calib, data
         else:
-            calib = np.zeros_like(self.det.calib(self.evt))
+            calib = np.zeros_like(self.detGuaranteed)
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.det.point_indexes(self.evt, pxy_um=(0, 0))
             if self.cx is None:
@@ -2081,8 +2083,7 @@ class MainFrame(QtGui.QWidget):
             self.update(path,change,data)
 
     def update(self, path, change, data):
-        if args.v >= 1:
-            print "path: ", path
+        if args.v >= 1: print "path: ", path
         ################################################
         # experiment parameters
         ################################################
@@ -2338,10 +2339,7 @@ class MainFrame(QtGui.QWidget):
         ################################################
         if path[0] == spiParam_grp:
             if path[1] == spiParam_algorithm_str:
-                #self.algInitDone = False
-                #self.updateAlgorithm(data)
                 self.spiAlgorithm = data
-                print "#### self.spiAlgorithm: ", self.spiAlgorithm
             elif path[1] == spiParam_outDir_str:
                 self.spiParam_outDir = data
                 self.spiParam_outDir_overridden = True
@@ -2464,8 +2462,7 @@ class MainFrame(QtGui.QWidget):
         self.setupExperiment()
 
         self.updateImage()
-        if args.v >= 1:
-            print "Done updateExperimentName:", self.experimentName
+        if args.v >= 1: print "Done updateExperimentName:", self.experimentName
 
     def updateRunNumber(self, data):
         if data == 0:
@@ -2477,8 +2474,7 @@ class MainFrame(QtGui.QWidget):
             self.setupExperiment()
             self.resetMasks()
             self.updateImage()
-        if args.v >= 1:
-            print "Done updateRunNumber: ", self.runNumber
+        if args.v >= 1: print "Done updateRunNumber: ", self.runNumber
 
     def updateDetInfo(self, data):
         if self.hasDetInfo is False or self.detInfo is not data:
@@ -2496,8 +2492,7 @@ class MainFrame(QtGui.QWidget):
         self.hasDetInfo = True
         self.setupExperiment()
         self.updateImage()
-        if args.v >= 1:
-            print "Done updateDetInfo: ", self.detInfo
+        if args.v >= 1: print "Done updateDetInfo: ", self.detInfo
 
     def updateEventNumber(self, data):
         self.eventNumber = data
@@ -2514,10 +2509,8 @@ class MainFrame(QtGui.QWidget):
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
             self.updateImage()
         # update labels
-        if self.evtLabels is not None:
-            self.evtLabels.refresh()
-        if args.v >= 1:
-            print "Done updateEventNumber: ", self.eventNumber
+        if self.evtLabels is not None: self.evtLabels.refresh()
+        if args.v >= 1: print "Done updateEventNumber: ", self.eventNumber
 
     def resetMasks(self):
         self.userMask = None
@@ -2558,12 +2551,10 @@ class MainFrame(QtGui.QWidget):
 
     def hasExpRunDetInfo(self):
         if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            if args.v >= 1:
-                print "hasExpRunDetInfo: True ", self.runNumber
+            if args.v >= 1: print "hasExpRunDetInfo: True ", self.runNumber
             return True
         else:
-            if args.v >= 1:
-                print "hasExpRunDetInfo: False"
+            if args.v >= 1: print "hasExpRunDetInfo: False"
             return False
 
     def getUsername(self):
@@ -2595,12 +2586,10 @@ class MainFrame(QtGui.QWidget):
                 content = myfile.readlines()
                 if content[0].strip() == self.username:
                     self.logger = True
-                    if args.v >= 1:
-                        print "I'm an elogger"
+                    if args.v >= 1: print "I'm an elogger"
                 else:
                     self.logger = False
-                    if args.v >= 1:
-                        print "I'm not an elogger"
+                    if args.v >= 1: print "I'm not an elogger"
         # Make run folder
         try:
             if os.path.exists(self.psocakeRunDir) is False:
@@ -2619,8 +2608,7 @@ class MainFrame(QtGui.QWidget):
     #                 self.getKeyValues(v,layer)
 
     def setupExperiment(self):
-        if args.v >= 1:
-            print "Doing setupExperiment"
+        if args.v >= 1: print "Doing setupExperiment"
         if self.hasExpRunInfo():
             # Set up psocake directory in scratch
             if args.outDir is None:
@@ -2653,8 +2641,7 @@ class MainFrame(QtGui.QWidget):
             self.hiddenCrystfelList = self.psocakeRunDir+'/.temp.lst'
 
             if args.localCalib:
-                if args.v >= 1:
-                    print "Using local calib directory"
+                if args.v >= 1: print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
             try:
                 self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') # FIXME: psana crashes if runNumber is non-existent
@@ -2711,12 +2698,17 @@ class MainFrame(QtGui.QWidget):
 
             if self.evt is None:
                 self.evt = self.run.event(self.times[0])
-            temp = self.det.calib(self.evt)
-            if temp is None:
-                _temp = self.det.raw(self.evt) # why is this read-only?
-                temp = _temp.copy()
-            if temp is not None:
-                self.pixelInd = np.reshape(np.arange(temp.size)+1,temp.shape)
+            self.detGuaranteed = self.det.calib(self.evt)
+            if self.detGuaranteed is None: # image isn't present for this event
+                print "No image in this event. Searching for an event..."
+                for i in np.arange(len(self.times)):
+                    evt = self.run.event(self.times[i])
+                    self.detGuaranteed = self.det.calib(evt)
+                    if self.detGuaranteed is not None:
+                        print "Found an event"
+                        break
+            if self.detGuaranteed is not None:
+                self.pixelInd = np.reshape(np.arange(self.detGuaranteed.size)+1,self.detGuaranteed.shape)
                 self.pixelIndAssem = self.getAssembledImage(self.pixelInd)
                 self.pixelIndAssem -= 1 # First pixel is 0
 
@@ -2764,29 +2756,25 @@ class MainFrame(QtGui.QWidget):
                     p.stdout.close()
                     if args.v >= 1: print "output: ", output
 
-        if args.v >= 1:
-            print "Done setupExperiment"
+        if args.v >= 1: print "Done setupExperiment"
 
     def updateLogscale(self, data):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
             self.firstUpdate = True # clicking logscale resets plot colorscale
             self.updateImage()
-        if args.v >= 1:
-            print "Done updateLogscale: ", self.logscaleOn
+        if args.v >= 1: print "Done updateLogscale: ", self.logscaleOn
 
     def updateImageProperty(self, data):
         self.image_property = data
         self.updateImage()
-        if args.v >= 1:
-            print "Done updateImageProperty: ", self.image_property
+        if args.v >= 1: print "Done updateImageProperty: ", self.image_property
 
     def updateAduThreshold(self, data):
         self.aduThresh = data
         if self.hasExpRunDetInfo():
             self.updateImage(self.calib)
-        if args.v >= 1:
-            print "Done updateAduThreshold: ", self.aduThresh
+        if args.v >= 1: print "Done updateAduThreshold: ", self.aduThresh
 
     def updateDock42(self, data):
         a = ['a','b','c','d','e','k','m','n','r','s']
@@ -2811,20 +2799,17 @@ class MainFrame(QtGui.QWidget):
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
         self.updateCommonMode(self.applyCommonMode)
-        if args.v >= 1:
-            print "Done updateCommonModeParam: ", self.commonModeParams
+        if args.v >= 1: print "Done updateCommonModeParam: ", self.commonModeParams
 
     def updateCommonMode(self, data):
         self.applyCommonMode = data
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
         if self.hasExpRunDetInfo():
-            if args.v >= 1:
-                print "%%% Redraw image with new common mode: ", self.commonMode
+            if args.v >= 1: print "%%% Redraw image with new common mode: ", self.commonMode
             self.setupExperiment()
             self.updateImage()
-        if args.v >= 1:
-            print "Done updateCommonMode: ", self.commonMode
+        if args.v >= 1: print "Done updateCommonMode: ", self.commonMode
 
     def checkCommonMode(self, _commonMode):
         # TODO: cspad2x2 can only use algorithms 1 and 5
@@ -2842,8 +2827,7 @@ class MainFrame(QtGui.QWidget):
             return None
 
     def updateEventID(self, sec, nanosec, fid):
-        if args.v >= 1:
-            print "eventID: ", sec, nanosec, fid
+        if args.v >= 1: print "eventID: ", sec, nanosec, fid
         self.p.param(exp_grp,exp_evt_str,exp_second_str).setValue(self.eventSeconds)
         self.p.param(exp_grp,exp_evt_str,exp_nanosecond_str).setValue(self.eventNanoseconds)
         self.p.param(exp_grp,exp_evt_str,exp_fiducial_str).setValue(self.eventFiducial)
@@ -2856,22 +2840,19 @@ class MainFrame(QtGui.QWidget):
         self.algorithm = data
         self.algInitDone = False
         self.updateClassification()
-        if args.v >= 1:
-            print "##### Done updateAlgorithm: ", self.algorithm
+        if args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm
 
     def updateUserMask(self, data):
         self.userMaskOn = data
         self.algInitDone = False
         self.updateClassification()
-        if args.v >= 1:
-            print "Done updateUserMask: ", self.userMaskOn
+        if args.v >= 1: print "Done updateUserMask: ", self.userMaskOn
 
     def updateStreakMask(self, data):
         self.streakMaskOn = data
         self.algInitDone = False
         self.updateClassification()
-        if args.v >= 1:
-            print "Done updateStreakMask: ", self.streakMaskOn
+        if args.v >= 1: print "Done updateStreakMask: ", self.streakMaskOn
 
     def updateStreakWidth(self, data):
         self.streak_width = data
@@ -2879,8 +2860,7 @@ class MainFrame(QtGui.QWidget):
         self.initMask()
         self.algInitDone = False
         self.updateClassification()
-        if args.v >= 1:
-            print "Done updateStreakWidth: ", self.streak_width
+        if args.v >= 1: print "Done updateStreakWidth: ", self.streak_width
 
     def updateStreakSigma(self, data):
         self.streak_sigma = data
@@ -2888,15 +2868,13 @@ class MainFrame(QtGui.QWidget):
         self.initMask()
         self.algInitDone = False
         self.updateClassification()
-        if args.v >= 1:
-            print "Done updateStreakSigma: ", self.streak_sigma
+        if args.v >= 1: print "Done updateStreakSigma: ", self.streak_sigma
 
     def updatePsanaMask(self, data):
         self.psanaMaskOn = data
         self.algInitDone = False
         self.updatePsanaMaskOn()
-        if args.v >= 1:
-            print "Done updatePsanaMask: ", self.psanaMaskOn
+        if args.v >= 1: print "Done updatePsanaMask: ", self.psanaMaskOn
 
     ##################################
     ########### Quantifier ###########
@@ -2914,8 +2892,7 @@ class MainFrame(QtGui.QWidget):
         if os.path.isfile(self.quantifier_filename):
             self.quantifierFile = h5py.File(self.quantifier_filename,'r')#,swmr=True)
             self.quantifierFileOpen = True
-        if args.v >= 1:
-            print "Done opening metric"
+        if args.v >= 1: print "Done opening metric"
 
     def updateQuantifierDataset(self, data):
         self.quantifier_dataset = data
@@ -2971,8 +2948,7 @@ class MainFrame(QtGui.QWidget):
                     break
             indX = points.scatter.data[i][0]
             indY = points.scatter.data[i][1]
-            if args.v >= 1:
-                print "x,y: ", indX, indY
+            if args.v >= 1: print "x,y: ", indX, indY
             if self.quantifier_sort:
                 ind = self.quantifierInd[ind]
 
@@ -3008,16 +2984,14 @@ class MainFrame(QtGui.QWidget):
         self.histogram1D = self.perPixelHistograms.reshape((-1,self.perPixelHistograms.shape[-1]))
 
         self.perPixelHistogramFileOpen = True
-        if args.v >= 1:
-            print "Done opening perPixelHistogram file"
+        if args.v >= 1: print "Done opening perPixelHistogram file"
 
     # FIXME: I don't think pixelIndex is correct
     def updatePerPixelHistogramAdu(self, data):
         self.perPixelHistogram_adu = data
         if self.perPixelHistogramFileOpen:
             self.updatePerPixelHistogramSlice(self.perPixelHistogram_adu)
-        if args.v >= 1:
-            print "Done perPixelHistogram adu", self.perPixelHistogram_adu
+        if args.v >= 1: print "Done perPixelHistogram adu", self.perPixelHistogram_adu
 
     def updatePerPixelHistogramSlice(self,adu):
         self.histogramAduIndex = self.getHistogramIndex(adu)
@@ -3072,8 +3046,7 @@ class MainFrame(QtGui.QWidget):
             self.w1.getView().addItem(self.mask_rect)
             self.w1.getView().addItem(self.mask_circle)
             #self.w1.getView().addItem(self.mask_poly)
-        if args.v >= 1:
-            print "Done updateMaskingMode: ", self.maskingMode
+        if args.v >= 1: print "Done updateMaskingMode: ", self.maskingMode
 
     def updatePsanaMaskFlag(self, flag, data):
         if flag == mask_calib_str:
@@ -3112,8 +3085,7 @@ class MainFrame(QtGui.QWidget):
         self.manifold_filename = data
         self.manifoldFile = h5py.File(self.manifold_filename,'r')
         self.manifoldFileOpen = True
-        if args.v >= 1:
-            print "Done opening manifold"
+        if args.v >= 1: print "Done opening manifold"
 
     def updateManifoldDataset(self, data):
         self.manifold_dataset = data
@@ -3128,8 +3100,7 @@ class MainFrame(QtGui.QWidget):
                 self.manifoldEvent = self.manifoldFile[eventDataset].value
             except:
                 self.manifoldEvent = np.arange(self.manifoldNumHits)
-            if args.v >= 1:
-                print "Done reading manifold"
+            if args.v >= 1: print "Done reading manifold"
 
     def updateManifoldSigma(self, data):
         self.manifold_sigma = data
@@ -3155,8 +3126,7 @@ class MainFrame(QtGui.QWidget):
                 break
         indX = points.scatter.data[i][0]
         indY = points.scatter.data[i][1]
-        if args.v >= 1:
-            print "x,y: ", indX, indY
+        if args.v >= 1: print "x,y: ", indX, indY
 
         ind = self.manifoldInd[ind]
 
