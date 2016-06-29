@@ -1969,24 +1969,33 @@ class MainFrame(QtGui.QWidget):
                 calib = self.det.raw(self.evt)
                 if calib is None:
                     calib = np.zeros_like(self.detGuaranteed)
+                self.firstUpdate = True
             elif self.image_property == 5: # photon counts
                 print "Sorry, this feature is not available"
             elif self.image_property == 6: # pedestal
                 calib = self.det.pedestals(self.evt)
+                self.firstUpdate = True
             elif self.image_property == 7: # status
                 calib = self.det.status(self.evt)
+                self.firstUpdate = True
             elif self.image_property == 8: # rms
                 calib = self.det.rms(self.evt)
+                self.firstUpdate = True
             elif self.image_property == 9: # common mode
                 calib = self.getCommonMode(evtNumber)
+                self.firstUpdate = True
             elif self.image_property == 10: # gain
                 calib = self.det.gain(self.evt)
+                self.firstUpdate = True
             elif self.image_property == 17: # gain_mask
                 calib = self.det.gain_mask(self.evt)
+                self.firstUpdate = True
             elif self.image_property == 15: # coords_x
                 calib = self.det.coords_x(self.evt)
+                self.firstUpdate = True
             elif self.image_property == 16: # coords_y
                 calib = self.det.coords_y(self.evt)
+                self.firstUpdate = True
 
             shape = self.det.shape(self.evt)
             if len(shape) == 3:
@@ -2000,6 +2009,7 @@ class MainFrame(QtGui.QWidget):
                             calib[i,:,:] = int(i)%2
                         elif shape[0] == 4: # pnccd
                             calib[i,:,:] = int(i)%4
+                    self.firstUpdate = True
                 elif self.image_property == 12: # seg ind
                     calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
@@ -2011,6 +2021,7 @@ class MainFrame(QtGui.QWidget):
                     elif shape[0] == 4: # pnccd
                         for i in range(4):
                             calib[i,:,:] = int(i)
+                    self.firstUpdate = True
                 elif self.image_property == 13: # row ind
                     calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
@@ -2022,6 +2033,7 @@ class MainFrame(QtGui.QWidget):
                     elif shape[0] == 4: # pnccd
                         for i in range(512):
                             calib[:,i,:] = i
+                    self.firstUpdate = True
                 elif self.image_property == 14: # col ind
                     calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
@@ -2033,6 +2045,7 @@ class MainFrame(QtGui.QWidget):
                     elif shape[0] == 4: # pnccd
                         for i in range(512):
                             calib[:,:,i] = i
+                    self.firstUpdate = True
 
         # Update photon energy
         self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
