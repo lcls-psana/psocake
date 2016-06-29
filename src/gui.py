@@ -1783,12 +1783,9 @@ class MainFrame(QtGui.QWidget):
                 try:
                     ix = self.det.indexes_x(self.evt)
                     iy = self.det.indexes_y(self.evt)
-                    if ix is None: # FIXME: opal peak finding doesn't work
-                        ix = np.tile(np.arange(self.calib.shape[0]),[self.calib.shape[1], 1])
-                        iy = np.transpose(ix)
-                        ix = np.fliplr(ix)
-                        iy = np.flipud(iy)
-                        print "ix,iy: ", ix, iy, ix.shape, iy.shape
+                    if ix is None:
+                        iy = np.tile(np.arange(self.calib.shape[0]),[self.calib.shape[1], 1])
+                        ix = np.transpose(iy)
                     iX = np.array(ix, dtype=np.int64)
                     iY = np.array(iy, dtype=np.int64)
                     if len(iX.shape)==2:

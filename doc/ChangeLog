@@ -11,6 +11,12 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-21
+2016-06-29 Chunhong Yoon
+- Handle area detectors with 2D shape
+- Auto level for various image properties
+- Peak finding on Opal
+
 Tag: V00-01-20
 2016-06-17 Chunhong Yoon
 - Added hybrid gain for cspad types
