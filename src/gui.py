@@ -368,7 +368,7 @@ class MainFrame(QtGui.QWidget):
         self.hitParam_threshold = 15 # usually crystals with less than 15 peaks are not indexable
 
         # Indexing
-        self.showIndexedPeaks = True
+        self.showIndexedPeaks = False
         self.indexedPeaks = None
         self.hiddenCXI = '.temp.cxi'
         self.hiddenCrystfelStream = '.temp.stream'
@@ -1670,6 +1670,7 @@ class MainFrame(QtGui.QWidget):
                                             son_min=self.hitParam_alg4_son_min)
                 self.algInitDone = True
 
+            self.calib = self.calib * 1.0 # Neccessary when int is returned
             if self.algorithm == 1:
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                 #                           around pixel with maximal intensity.
@@ -1779,28 +1780,39 @@ class MainFrame(QtGui.QWidget):
         self.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
-                iX  = np.array(self.det.indexes_x(self.evt), dtype=np.int64)
-                iY  = np.array(self.det.indexes_y(self.evt), dtype=np.int64)
-                if len(iX.shape)==2:
-                    iX = np.expand_dims(iX,axis=0)
-                    iY = np.expand_dims(iY,axis=0)
-                cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-                cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-                self.peaksMaxRes = self.getMaxRes(cenX,cenY,self.cx,self.cy)
-                diameter = self.peakRadius*2+1
-                self.peak_feature.setData(cenX, cenY, symbol='s', \
-                                          size=diameter, brush=(255,255,255,0), \
-                                          pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
-                # Write number of peaks found
-                xMargin = 5 # pixels
-                yMargin = 0  # pixels
-                maxX = np.max(self.det.indexes_x(self.evt)) + xMargin
-                maxY = np.max(self.det.indexes_y(self.evt)) - yMargin
-                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
-                            str(self.numPeaksFound) + ' <br>Res=' + str(int(self.peaksMaxRes)) + '<br></span></div>'
-                self.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
-                self.w1.getView().addItem(self.peak_text)
-                self.peak_text.setPos(maxX, maxY)
+                try:
+                    ix = self.det.indexes_x(self.evt)
+                    iy = self.det.indexes_y(self.evt)
+                    if ix is None: # FIXME: opal peak finding doesn't work
+                        ix = np.tile(np.arange(self.calib.shape[0]),[self.calib.shape[1], 1])
+                        iy = np.transpose(ix)
+                        ix = np.fliplr(ix)
+                        iy = np.flipud(iy)
+                        print "ix,iy: ", ix, iy, ix.shape, iy.shape
+                    iX = np.array(ix, dtype=np.int64)
+                    iY = np.array(iy, dtype=np.int64)
+                    if len(iX.shape)==2:
+                        iX = np.expand_dims(iX,axis=0)
+                        iY = np.expand_dims(iY,axis=0)
+                    cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                    cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                    self.peaksMaxRes = self.getMaxRes(cenX,cenY,self.cx,self.cy)
+                    diameter = self.peakRadius*2+1
+                    self.peak_feature.setData(cenX, cenY, symbol='s', \
+                                              size=diameter, brush=(255,255,255,0), \
+                                              pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
+                    # Write number of peaks found
+                    xMargin = 5 # pixels
+                    yMargin = 0  # pixels
+                    maxX = np.max(self.det.indexes_x(self.evt)) + xMargin
+                    maxY = np.max(self.det.indexes_y(self.evt)) - yMargin
+                    myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
+                                str(self.numPeaksFound) + ' <br>Res=' + str(int(self.peaksMaxRes)) + '<br></span></div>'
+                    self.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+                    self.w1.getView().addItem(self.peak_text)
+                    self.peak_text.setPos(maxX, maxY)
+                except:
+                    pass
             else:
                 self.peak_feature.setData([], [], pxMode=False)
                 self.peak_text = pg.TextItem(html='', anchor=(0, 0))

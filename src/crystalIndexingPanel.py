@@ -125,6 +125,7 @@ class CrystalIndexing(object):
 
     def updateIndexStatus(self, data):
         self.indexingOn = data
+        self.parent.showIndexedPeaks = data
         if self.indexingOn:
             self.updateIndex()
 
