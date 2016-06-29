@@ -31,6 +31,7 @@ from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 # Panel modules
 import diffractionGeometryPanel
 import crystalIndexingPanel
+import labelPanel
 from LogBook.runtables import RunTables
 import PSCalib.GlobalUtils as gu
 import matplotlib.pyplot as plt
@@ -403,6 +404,12 @@ class MainFrame(QtGui.QWidget):
         self.correction_radialBackground = False
         self.correction_polarization = False
 
+        # Label
+        self.labelA = False
+        self.labelB = False
+        self.labelC = False
+        self.labelD = False
+
         ######################
         # Mask
         ######################
@@ -631,6 +638,7 @@ class MainFrame(QtGui.QWidget):
         # Instantiate panels
         self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
         self.index = crystalIndexingPanel.CrystalIndexing(self)
+        self.evtLabels = labelPanel.Labels(self)
 
         self.getUsername()
 
@@ -665,6 +673,8 @@ class MainFrame(QtGui.QWidget):
                                    children=self.paramsHitFinder, expanded=True)
         self.p9 = Parameter.create(name='paramsCrystalIndexing', type='group', \
                                    children=self.index.params, expanded=True)
+        self.pLabels = Parameter.create(name='paramsLabel', type='group', \
+                                   children=self.evtLabels.params, expanded=True)
         self.p.sigTreeStateChanged.connect(self.change)
         self.p1.sigTreeStateChanged.connect(self.change)
         self.p2.sigTreeStateChanged.connect(self.change)
@@ -675,6 +685,7 @@ class MainFrame(QtGui.QWidget):
         self.p7.sigTreeStateChanged.connect(self.change)
         self.p8.sigTreeStateChanged.connect(self.change)
         self.p9.sigTreeStateChanged.connect(self.change)
+        self.pLabels.sigTreeStateChanged.connect(self.change)
 
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
@@ -692,6 +703,7 @@ class MainFrame(QtGui.QWidget):
         self.d12 = Dock("Mask Panel", size=(1, 1))
         self.d13 = Dock("Hit Finder", size=(1, 1))
         self.d14 = Dock("Indexing", size=(1, 1))
+        self.dLabels = Dock("Labels", size=(1, 1))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -760,6 +772,7 @@ class MainFrame(QtGui.QWidget):
 
             self.area.addDock(self.d8, 'right')#, self.d2)
             self.area.moveDock(self.d2, 'above', self.d3)
+            self.evtLabels = None
         elif args.mode == 'spi':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
@@ -771,9 +784,7 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom',self.d2)
             self.area.addDock(self.d13, 'bottom', self.d2)
-            self.area.addDock(self.d14, 'bottom', self.d2)
             self.area.moveDock(self.d13, 'above', self.d12)
-            self.area.moveDock(self.d14, 'above', self.d12)
 
             self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
             self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
@@ -782,6 +793,7 @@ class MainFrame(QtGui.QWidget):
 
             self.area.addDock(self.d8, 'right')#, self.d2)
             self.area.moveDock(self.d2, 'above', self.d3)
+            self.evtLabels = None
         elif args.mode == 'all':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
@@ -806,7 +818,9 @@ class MainFrame(QtGui.QWidget):
 
             self.area.addDock(self.d8, 'right')  # , self.d2)
             self.area.moveDock(self.d2, 'above', self.d3)
-        else:
+
+            self.area.addDock(self.dLabels, 'bottom', self.d8)
+        else: # lite
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
@@ -817,6 +831,7 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom', self.d2)
             self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
+            self.evtLabels = None
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())
@@ -1127,6 +1142,12 @@ class MainFrame(QtGui.QWidget):
         self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
         self.w22.addWidget(self.launchIndexBtn, row=0, col=0)
         self.d14.addWidget(self.w22)
+
+        ## Dock: Labels
+        self.wLabels = ParameterTree()
+        self.wLabels.setParameters(self.pLabels, showTop=False)
+        self.wLabels.setWindowTitle('Labels')
+        self.dLabels.addWidget(self.wLabels)
 
         # mask
         def makeMaskRect():
@@ -2486,6 +2507,9 @@ class MainFrame(QtGui.QWidget):
             self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
             self.updateImage()
+        # update labels
+        if self.evtLabels is not None:
+            self.evtLabels.refresh()
         if args.v >= 1:
             print "Done updateEventNumber: ", self.eventNumber
 
