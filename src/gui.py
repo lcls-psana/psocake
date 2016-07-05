@@ -2462,6 +2462,14 @@ class MainFrame(QtGui.QWidget):
         elif path[0] == self.index.launch_grp:
             self.index.paramUpdate(path, change, data)
 
+        ################################################
+        # label parameters
+        ################################################
+        if path[0] == self.evtLabels.labels_grp:
+            self.evtLabels.paramUpdate(path, change, data)
+        elif path[0] == self.evtLabels.labels_grp:
+            self.evtLabels.paramUpdate(path, change, data)
+
     ###################################
     ###### Experiment Parameters ######
     ###################################

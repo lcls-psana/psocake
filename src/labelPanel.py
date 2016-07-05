@@ -6,6 +6,7 @@ import os
 
 class Labels(object):
     def __init__(self, parent = None):
+        print "init!!!!!"
         self.parent = parent
 
         self.labels_grp = 'Labels'
@@ -30,6 +31,7 @@ class Labels(object):
     ##############################
     def paramUpdate(self, path, change, data):
         if path[1] == self.labels_A_str:
+            print "A"
             self.labelA = data
         elif path[1] == self.labels_B_str:
             self.labelB = data
