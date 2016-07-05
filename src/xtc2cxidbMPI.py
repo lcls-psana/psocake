@@ -48,7 +48,6 @@ class psanaWhisperer():
         self.env = self.ds.env()
         self.evt = self.run.event(self.times[0])
         self.det = psana.Detector(str(self.detInfo), self.env)
-        self.gain = self.det.gain(self.evt)
         # Get epics variable, clen
         if "cxi" in self.experimentName:
             self.epics = self.ds.env().epicsStore()
@@ -57,22 +56,11 @@ class psanaWhisperer():
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
 
-    def getImg(self, number):
-        self.getEvent(number)
-        img = self.det.image(self.evt, self.det.calib(self.evt) * self.gain)
-        return img
-
-    def getImg(self):
-        if self.evt is not None:
-            img = self.det.image(self.evt, self.det.calib(self.evt) * self.gain)
-            return img
-        return None
-
     def getCheetahImg(self):
         """Converts seg, row, col assuming (32,185,388)
            to cheetah 2-d table row and col (8*185, 4*388)
         """
-        calib = self.det.calib(self.evt) * self.gain  # (32,185,388)
+        calib = self.det.calib(self.evt) # (32,185,388)
         img = np.zeros((8 * 185, 4 * 388))
         counter = 0
         for quad in range(4):

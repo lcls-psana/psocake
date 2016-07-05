@@ -917,7 +917,9 @@ class MainFrame(QtGui.QWidget):
 
                     mask_roi = np.zeros_like(self.data)
                     mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
+                    print "mask_roi: ", mask_roi.shape
                     self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None, xy0_off_pix=None)
+                    print "self.nda: ", self.nda.shape
                     for itile, tile in enumerate(self.nda):
                         if tile.sum() > 0:
                             ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
@@ -1584,13 +1586,15 @@ class MainFrame(QtGui.QWidget):
         if self.streakMaskOn:
             self.initMask()
             self.streakMask = self.StreakMask.getStreakMaskCalib(self.evt)
-            self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
+            if self.streakMask is None:
+                self.streakMaskAssem = None
+            else:
+                self.streakMaskAssem = self.det.image(self.evt,self.streakMask)
             self.algInitDone = False
 
         self.displayMask()
 
         # update combined mask
-        #if self.combinedMask is None:
         self.combinedMask = np.ones_like(self.calib)
         if self.streakMask is not None and self.streakMaskOn is True:
             self.combinedMask *= self.streakMask
@@ -1895,6 +1899,30 @@ class MainFrame(QtGui.QWidget):
         else:
             return None
 
+    def getCommonModeCorrected(self,evtNumber):
+        if self.run is not None:
+            try:
+                self.evt = self.getEvt(evtNumber)
+                pedestalCorrected = self.det.raw(self.evt) - self.det.pedestals(self.evt)
+                if self.applyCommonMode:  # play with different common mode
+                    if self.commonMode[0] == 5:  # Algorithm 5
+                        commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1]))
+                        commonModeCorrected = pedestalCorrected - commonMode #self.det.common_mode_apply(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1]))
+                    else:  # Algorithms 1 to 4
+                        print "### Overriding common mode: ", self.commonMode
+                        commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected,
+                                                                     cmpars=(self.commonMode[0], self.commonMode[1],
+                                                                             self.commonMode[2], self.commonMode[3]))
+                        commonModeCorrected = pedestalCorrected - commonMode #self.det.common_mode_apply(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1], self.commonMode[2], self.commonMode[3]))
+                else:
+                    commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected)
+                    commonModeCorrected = pedestalCorrected - commonMode
+                return commonModeCorrected
+            except:
+                return None
+        else:
+            return None
+
     def getCommonMode(self,evtNumber):
         if self.run is not None:
             self.evt = self.getEvt(evtNumber)
@@ -1928,17 +1956,15 @@ class MainFrame(QtGui.QWidget):
         if calib is None:
             if self.image_property == 1: # gain and hybrid gain corrected
                 calib = self.getCalib(evtNumber)
-                if calib is None:
-                    calib = np.zeros_like(self.detGuaranteed)
-                else:
-                    if self.det.gain(self.evt) is not None:
-                        calib *= self.det.gain(self.evt)
-                if self.det.gain_mask(self.evt, gain=6.85) is not None: # None if not cspad or cspad2x2
-                    calib *= self.det.gain_mask(self.evt, gain=6.85)
+                if calib is None: calib = np.zeros_like(self.detGuaranteed)
+                #else:
+                #    if self.det.gain(self.evt) is not None:
+                #        calib *= self.det.gain(self.evt)
+                #if self.det.gain_mask(self.evt, gain=6.85) is not None: # None if not cspad or cspad2x2
+                #    calib *= self.det.gain_mask(self.evt, gain=6.85)
             elif self.image_property == 2: # common mode corrected
-                calib = self.getCalib(evtNumber)
-                if calib is None:
-                    calib = np.zeros_like(self.detGuaranteed)
+                calib = self.getCommonModeCorrected(evtNumber)
+                if calib is None: calib = np.zeros_like(self.detGuaranteed)
             elif self.image_property == 3: # pedestal corrected
                 calib = self.det.raw(self.evt)
                 if calib is None:
@@ -2666,6 +2692,8 @@ class MainFrame(QtGui.QWidget):
 
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
+            self.det.do_reshape_2d_to_3d(flag=True)
+
             self.epics = self.ds.env().epicsStore()
             # detector distance
             if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
@@ -2700,6 +2728,7 @@ class MainFrame(QtGui.QWidget):
                     if self.detGuaranteed is not None:
                         print "Found an event"
                         break
+            print "HEY!!!: ", self.detGuaranteed.shape
             if self.detGuaranteed is not None:
                 self.pixelInd = np.reshape(np.arange(self.detGuaranteed.size)+1,self.detGuaranteed.shape)
                 self.pixelIndAssem = self.getAssembledImage(self.pixelInd)

@@ -76,12 +76,12 @@ print("#### aliasList: ", aliasList)
 myDetList = [psana.Detector(src) for src in aliasList]
 numDet = len(aliasList)
 
-def getGains(evt):
-    for d in myDetList:
-        d.gains = d.gain(evt) # CHUCK: gain is not deployed for amo87215, returns 1
-        hybridGain = d.gain_mask(evt,gain=6.85)
-        if hybridGain is not None:
-            d.gains *= hybridGain
+# def getGains(evt):
+#     for d in myDetList:
+#         d.gains = d.gain(evt) # CHUCK: gain is not deployed for amo87215, returns 1
+#         hybridGain = d.gain_mask(evt,gain=6.85)
+#         if hybridGain is not None:
+#             d.gains *= hybridGain
 
 def getMasks(evt):
     for d in myDetList:
@@ -220,12 +220,12 @@ class slave_class(object):
     def setup(self):
         evt = self.run.event(self.myJobs[0])
         getMasks(evt)
-        getGains(evt)
+        #getGains(evt)
         self.myMsg = smallMsg()
 
         for i in range(numDet):
             self.myMask[i]  = myDetList[i].spiMask.copy() # important to copy
-        self.myMask[0] *= myDetList[0].gains # save time by applying gain to mask
+        #self.myMask[0] *= myDetList[0].gains # save time by applying gain to mask
 
     def process_run(self):
         print('Rank', self.rank, 'starts event loop at', time.strftime('%H:%M:%S'))

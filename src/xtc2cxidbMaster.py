@@ -2,6 +2,8 @@ import os
 import h5py
 import psana
 from mpi4py import MPI
+import numpy as np
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
@@ -288,22 +290,22 @@ class psanaWhisperer():
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
 
-    def getImg(self, number):
-        self.getEvent(number)
-        img = self.det.image(self.evt, self.det.calib(self.evt) * self.gain)
-        return img
-
-    def getImg(self):
-        if self.evt is not None:
-            img = self.det.image(self.evt, self.det.calib(self.evt) * self.gain)
-            return img
-        return None
+    # def getImg(self, number):
+    #     self.getEvent(number)
+    #     img = self.det.image(self.evt, self.det.calib(self.evt))# * self.gain)
+    #     return img
+    #
+    # def getImg(self):
+    #     if self.evt is not None:
+    #         img = self.det.image(self.evt, self.det.calib(self.evt))# * self.gain)
+    #         return img
+    #     return None
 
     def getCheetahImg(self):
         """Converts seg, row, col assuming (32,185,388)
            to cheetah 2-d table row and col (8*185, 4*388)
         """
-        calib = self.det.calib(self.evt) * self.gain  # (32,185,388)
+        calib = self.det.calib(self.evt) #* self.gain  # (32,185,388)
         img = np.zeros((8 * 185, 4 * 388))
         counter = 0
         for quad in range(4):
