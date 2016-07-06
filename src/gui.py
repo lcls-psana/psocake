@@ -905,7 +905,7 @@ class MainFrame(QtGui.QWidget):
                     self.x1 = int(coord[0][-1][0])+1
                     self.y0 = int(coord[1][0][0])
                     self.y1 = int(coord[1][0][-1])+1
-                    print "shape: ", self.data.shape
+
                     # Limit coordinates to inside the assembled image
                     if self.x0 < 0: self.x0 = 0
                     if self.y0 < 0: self.y0 = 0
@@ -917,9 +917,7 @@ class MainFrame(QtGui.QWidget):
 
                     mask_roi = np.zeros_like(self.data)
                     mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
-                    print "mask_roi: ", mask_roi.shape
                     self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None, xy0_off_pix=None)
-                    print "self.nda: ", self.nda.shape
                     for itile, tile in enumerate(self.nda):
                         if tile.sum() > 0:
                             ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
@@ -932,7 +930,6 @@ class MainFrame(QtGui.QWidget):
                                            interpolation='none')
                                 plt.show()
                     print "######################################################"
-
                 elif roi.name == 'circ':
                     selected = self.ret
                     centreX = roi.x()+roi.size().x()/2
@@ -1180,8 +1177,7 @@ class MainFrame(QtGui.QWidget):
 
                 self.displayMask()
                 self.algInitDone = False
-            if args.v >= 1:
-                print "done makeMaskRect!!!!!!"
+            if args.v >= 1: print "done makeMaskRect!!!!!!"
         self.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), makeMaskRect)
 
         def makeMaskCircle():
@@ -2465,10 +2461,11 @@ class MainFrame(QtGui.QWidget):
         ################################################
         # label parameters
         ################################################
-        if path[0] == self.evtLabels.labels_grp:
-            self.evtLabels.paramUpdate(path, change, data)
-        elif path[0] == self.evtLabels.labels_grp:
-            self.evtLabels.paramUpdate(path, change, data)
+        if args.mode == 'all':
+            if path[0] == self.evtLabels.labels_grp:
+                self.evtLabels.paramUpdate(path, change, data)
+            elif path[0] == self.evtLabels.labels_grp:
+                self.evtLabels.paramUpdate(path, change, data)
 
     ###################################
     ###### Experiment Parameters ######
@@ -2736,7 +2733,7 @@ class MainFrame(QtGui.QWidget):
                     if self.detGuaranteed is not None:
                         print "Found an event"
                         break
-            print "HEY!!!: ", self.detGuaranteed.shape
+
             if self.detGuaranteed is not None:
                 self.pixelInd = np.reshape(np.arange(self.detGuaranteed.size)+1,self.detGuaranteed.shape)
                 self.pixelIndAssem = self.getAssembledImage(self.pixelInd)

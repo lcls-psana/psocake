@@ -466,7 +466,7 @@ class IndexHandler(QtCore.QThread):
             # Update elog
             try:
                 if self.parent.logger == True:
-                    if self.parent.args.v >= 1: print "Updating e-log"
+                    if self.parent.args.v >= 1: print "Updating e-log #StartCXIDB ", self.runNumber
                     self.parent.table.setValue(self.runNumber,"Number of indexed","#StartCXIDB")
             except AttributeError:
                 print "e-Log table does not exist"
@@ -484,14 +484,14 @@ class IndexHandler(QtCore.QThread):
                     hasData = True
                 else:
                     hasData = False
-                f.close() #FIXME: must check whether hit selection criteria changed
+                f.close()
             except:
                 print "Could not open file: ", self.peakFile
                 hasData = False
             print "hasData: ", hasData
 
             if hasData is False:
-                # Run xtc2cxidbMPI
+                # No image data was found, run xtc2cxidbMPI
                 cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r" \
                       +str(self.runNumber).zfill(4)+"/.%J.log xtc2cxidb"+ \
                       " -e "+self.experimentName+" -d "+self.detInfo+" -i "+self.outDir+'/r'+str(self.runNumber).zfill(4)+ \
@@ -516,7 +516,7 @@ class IndexHandler(QtCore.QThread):
                         p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
                         output = p.communicate()[0]
                         p.stdout.close()
-                        if myKeyString in output: # job has finished
+                        if myKeyString in output: # job has completely finished
                             # check job was a success or a failure
                             p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
                             output = p.communicate()[0]
@@ -524,6 +524,9 @@ class IndexHandler(QtCore.QThread):
                             if mySuccessString in output: # success
                                 print "successfully done converting to cxidb: ", self.runNumber
                                 hasData = True
+                                if self.parent.logger == True:
+                                    if self.parent.args.v >= 1: print "Updating e-log"
+                                    self.parent.table.setValue(self.runNumber, "Number of indexed", "#DoneCXIDB")
                             else:
                                 print "failed attempt", self.runNumber
                                 # Update elog
@@ -540,16 +543,10 @@ class IndexHandler(QtCore.QThread):
                     else:
                         if self.parent.args.v >= 0: print "no such file yet", myLog
                         time.sleep(10)
+            else:
+                if self.parent.args.v >= 1: print "Image data exists: ", self.runNumber
 
-            # Update elog
-            try:
-                if self.parent.logger == True:
-                    if self.parent.args.v >= 1: print "Updating e-log"
-                    self.parent.table.setValue(self.runNumber,"Number of indexed","#DoneCXIDB")
-            except AttributeError:
-                print "e-Log table does not exist"
-
-            if hasData:
+            if hasData is True:
                 # Update elog
                 try:
                     if self.parent.logger == True:
@@ -602,7 +599,7 @@ class IndexHandler(QtCore.QThread):
                                 p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
                                 output = p.communicate()[0]
                                 p.stdout.close()
-                                if myKeyString in output: # job has finished
+                                if myKeyString in output: # job has completely finished
                                     # check job was a success or a failure
                                     p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
                                     output = p.communicate()[0]
@@ -682,5 +679,7 @@ class IndexHandler(QtCore.QThread):
                             self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
                     except AttributeError:
                         print "e-Log table does not exist"
+            else:
+                print "This shouldn't happend. hasData is False"
 
 
