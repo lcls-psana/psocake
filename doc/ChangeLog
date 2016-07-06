@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-24
+2016-07-05 Chunhong Yoon
+- Masking for 2D detectors
+
 Tag: V00-01-23
 2016-06-29 Chunhong Yoon
 - fix LitPixels
