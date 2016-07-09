@@ -287,12 +287,14 @@ class IndexHandler(QtCore.QThread):
                     continue
 
         # Add indexed peaks and remove images in hdf5
-        f = h5py.File(self.peakFile,'r+')
+        f = h5py.File(self.peakFile,'r')
+        totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
+        hitEvents = f['/LCLS/eventNumber'].value
+        f.close()
         # Add indexed peaks
         fstream = open(totalStream,'r')
         content=fstream.readlines()
-        totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
-        hitEvents = f['/LCLS/eventNumber'].value
+        fstream.close()
         indexedPeaks = np.zeros((totalEvents,),dtype=int)
         numProcessed = 0
         for i,val in enumerate(content):
@@ -307,9 +309,17 @@ class IndexHandler(QtCore.QThread):
                     continue
                 else:
                     indexedPeaks[hitEvents[_evt]] = _num
-        fstream.close()
-        f.close()
         return indexedPeaks, numProcessed
+
+    def checkJobExit(self, jobID):
+        cmd = "bjobs -d | grep "+str(jobID)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        if "EXIT" in out:
+            "*********** NODE FAILURE ************ ", jobID
+            return 1
+        else:
+            return 0
 
     def run(self):
         if self.queue is None: # interactive indexing
@@ -468,8 +478,8 @@ class IndexHandler(QtCore.QThread):
                 if self.parent.logger == True:
                     if self.parent.args.v >= 1: print "Updating e-log #StartCXIDB ", self.runNumber
                     self.parent.table.setValue(self.runNumber,"Number of indexed","#StartCXIDB")
-            except AttributeError:
-                print "e-Log table does not exist"
+            except:
+                print "Couldn't write to e-Log table, possibly does not exist"
 
             # Open hdf5
             self.peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
@@ -505,8 +515,8 @@ class IndexHandler(QtCore.QThread):
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
-                jobid = out.split("<")[1].split(">")[0]
-                myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobid+".log"
+                jobID = out.split("<")[1].split(">")[0]
+                myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobID+".log"
                 print "bsub log filename: ", myLog
                 myKeyString = "The output (if any) is above this job summary."
                 mySuccessString = "Successfully completed."
@@ -525,42 +535,67 @@ class IndexHandler(QtCore.QThread):
                                 print "successfully done converting to cxidb: ", self.runNumber
                                 hasData = True
                                 if self.parent.logger == True:
-                                    if self.parent.args.v >= 1: print "Updating e-log"
+                                    if self.parent.args.v >= 1: print "#DoneCXIDB"
                                     self.parent.table.setValue(self.runNumber, "Number of indexed", "#DoneCXIDB")
                             else:
                                 print "failed attempt", self.runNumber
                                 # Update elog
                                 try:
                                     if self.parent.logger == True:
-                                        if self.parent.args.v >= 1: print "Updating e-log"
+                                        if self.parent.args.v >= 1: print "#FailedCXIDB"
                                         self.parent.table.setValue(self.runNumber,"Number of indexed","#FailedCXIDB")
-                                except AttributeError:
-                                    print "e-Log table does not exist"
+                                except:
+                                    print "Couldn't write to e-Log table, possibly does not exist"
                             notDone = 0
                         else:
                             if self.parent.args.v >= 0: print "cxidb job hasn't finished yet: ", myLog
                             time.sleep(10)
                     else:
                         if self.parent.args.v >= 0: print "no such file yet", myLog
+                        nodeFailed = self.checkJobExit(jobID)
+                        if nodeFailed == 1:
+                            if self.parent.args.v >= 0: print "cxidb job node failure: ", myLog
+                            notDone = 0
                         time.sleep(10)
             else:
                 if self.parent.args.v >= 1: print "Image data exists: ", self.runNumber
+                # Update elog
+                try:
+                    if self.parent.logger == True:
+                        if self.parent.args.v >= 1: print "#ImageExists"
+                        self.parent.table.setValue(self.runNumber, "Number of indexed", "#ImageExists")
+                except:
+                    print "Couldn't write to e-Log table, possibly does not exist"
 
             if hasData is True:
                 # Update elog
                 try:
                     if self.parent.logger == True:
-                        if self.parent.args.v >= 1: print "Updating e-log"
-                        self.parent.table.setValue(self.runNumber,"Number of indexed","#IndexingNow")
-                except AttributeError:
-                    print "e-Log table does not exist"
-                f = h5py.File(self.peakFile,'r')
-                eventList = f['/LCLS/eventNumber'].value
-                numEvents = len(eventList)
-                f.close()
+                        if self.parent.args.v >= 1: print "#IndexingNow"
+                        self.parent.table.setValue(self.runNumber,"Number of indexed", "#IndexingNow")
+                except:
+                    print "Couldn't write to e-Log table, possibly does not exist"
+
+                try:
+                    f = h5py.File(self.peakFile,'r')
+                    eventList = f['/LCLS/eventNumber'].value
+                    numEvents = len(eventList)
+                    f.close()
+                except:
+                    print "Couldn't read file: ", self.peakFile
+                    numEvents = 0
+
+                # Update elog
+                try:
+                    if self.parent.logger == True:
+                        if self.parent.args.v >= 1: print "#GettingEvents"
+                        self.parent.table.setValue(self.runNumber,"Number of indexed", "#GettingEvents: "+str(numEvents))
+                except:
+                    print "Couldn't write to e-Log table, possibly does not exist"
                 # Split into chunks for faster indexing
                 numWorkers = int(self.cpus/2.)
                 myLogList = []
+                myJobList = []
                 self.myStreamList = []
                 for rank in range(numWorkers):
                     myJobs = self.getMyUnfairShare(numEvents,numWorkers,rank)
@@ -574,7 +609,7 @@ class IndexHandler(QtCore.QThread):
                         for i,val in enumerate(myJobs):
                             text_file.write("{} //{}\n".format(self.peakFile,val))
 
-                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -o "+outDir+\
+                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -R 'span[hosts=1]' -o "+outDir+\
                           "/.%J.log indexamajig -j "+str(self.cpus)+" -i "+myList+\
                           " -g "+self.geom+" --peaks="+self.peakMethod+" --int-radius="+self.intRadius+\
                           " --indexing="+self.indexingMethod+" -o "+myStream+" --temp-dir="+outDir
@@ -583,15 +618,22 @@ class IndexHandler(QtCore.QThread):
                     print "Submitting batch job: ", cmd
                     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                     out, err = process.communicate()
-                    jobid = out.split("<")[1].split(">")[0]
-                    myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobid+".log"
+                    jobID = out.split("<")[1].split(">")[0]
+                    myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobID+".log"
+                    myJobList.append(jobID)
                     myLogList.append(myLog)
                     print "bsub log filename: ", myLog
+                    time.sleep(1)
 
                 myKeyString = "The output (if any) is above this job summary."
                 mySuccessString = "Successfully completed."
                 Done = 0
                 haveFinished = np.zeros((numWorkers,))
+                f = h5py.File(self.peakFile, 'r')
+                hitEvents = f['/entry_1/result_1/nPeaksAll'].value
+                numHits = len(np.where(hitEvents >= self.parent.hitParam_threshold)[0])
+                f.close()
+
                 while Done == 0:
                     for i,myLog in enumerate(myLogList):
                         if os.path.isfile(myLog): # log file exists
@@ -605,22 +647,20 @@ class IndexHandler(QtCore.QThread):
                                     output = p.communicate()[0]
                                     p.stdout.close()
                                     if mySuccessString in output: # success
-                                        print "successfully done indexing: ", myLog
+                                        print "successfully done indexing: ", self.runNumber, myLog
                                         haveFinished[i] = 1
-                                        if len(np.where(haveFinished==1)[0]) == numWorkers:
+                                        if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
+                                            print "Done indexing"
                                             Done = 1
                                     else: # failure
-                                        print "failed attempt", myLog
+                                        print "failed attempt", self.runNumber, myLog
                                         haveFinished[i] = -1
-                                        Done = -1
+                                        if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
+                                            print "Done indexing"
+                                            Done = -1
                                 else: # job is still going, update indexing rate
-                                    if self.parent.args.v >= 0: print "indexing job hasn't finished yet: ", self.runNumber
-                                    indexedPeaks,numProcessed = self.getIndexedPeaks()
-
-                                    f = h5py.File(self.peakFile,'r')
-                                    hitEvents = f['/entry_1/result_1/nPeaksAll'].value
-                                    numHits = len(np.where(hitEvents>=self.parent.hitParam_threshold)[0])
-                                    f.close()
+                                    if self.parent.args.v >= 0: print "indexing hasn't finished yet: ", self.runNumber, myJobList, haveFinished
+                                    indexedPeaks, numProcessed = self.getIndexedPeaks()
 
                                     numIndexedNow = len(np.where(indexedPeaks>0)[0])
                                     if numProcessed == 0:
@@ -628,20 +668,25 @@ class IndexHandler(QtCore.QThread):
                                     else:
                                         indexRate = numIndexedNow*100./numProcessed
                                     fracDone = numProcessed*100./numHits
-                                    #print "numEvents, numIndexedNow, numProcessNow, fracDone: ", numEvents,numIndexedNow,numFailedNow,fracDone
+                                    print "Progress: ", self.runNumber, numIndexedNow, numProcessed, indexRate, fracDone
                                     # Update elog
                                     try:
                                         if self.parent.logger == True:
                                             msg = str(numIndexedNow)+' indexed / {0:.1f}% rate / {1:.1f}% done'.format(indexRate,fracDone)
                                             self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
-                                    except AttributeError:
-                                        print "e-Log table does not exist"
+                                    except:
+                                        print "Couldn't write to e-Log table, possibly does not exist"
                                     time.sleep(10)
                         else:
-                            if self.parent.args.v >= 0: print "no such file yet: ", self.runNumber
+                            if self.parent.args.v >= 0: print "no such file yet: ", self.runNumber, myLog
+                            nodeFailed = self.checkJobExit(myJobList[i])
+                            if nodeFailed == 1:
+                                if self.parent.args.v >= 0: print "indexing job node failure: ", myLog
+                                haveFinished[i] = -1
                             time.sleep(10)
 
-                if Done == 1:
+                if abs(Done) == 1:
+                    print "Merging stream file: ", self.runNumber
                     # Merge all stream files into one
                     totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber)+".stream"
                     with open(totalStream, 'w') as outfile:
@@ -649,19 +694,22 @@ class IndexHandler(QtCore.QThread):
                             with open(fname) as infile:
                                 outfile.write(infile.read())
 
-                    indexedPeaks,_ = self.getIndexedPeaks()
+                    indexedPeaks, _ = self.getIndexedPeaks()
                     numIndexed = len(np.where(indexedPeaks>0)[0])
 
                     # Write number of indexed
-                    f = h5py.File(self.peakFile,'r+')
-                    if '/entry_1/result_1/index' in f:
-                        del f['/entry_1/result_1/index']
-                    f['/entry_1/result_1/index'] = indexedPeaks
-
-                    # Remove large data
-                    #if '/entry_1/instrument_1/detector_1/data' in f:
-                    #    del f['/entry_1/instrument_1/detector_1/data']
-                    f.close()
+                    try:
+                        f = h5py.File(self.peakFile,'r+')
+                        if '/entry_1/result_1/index' in f:
+                            del f['/entry_1/result_1/index']
+                        f['/entry_1/result_1/index'] = indexedPeaks
+                        # Remove large data
+                        #if '/entry_1/instrument_1/detector_1/data' in f:
+                        #    del f['/entry_1/instrument_1/detector_1/data']
+                        f.close()
+                    except:
+                        if self.parent.args.v >= 0: print "Couldn't modify hdf5 file: ", self.peakFile
+                        pass
 
                     # Clean up temp files
                     for fname in self.myStreamList:
@@ -675,10 +723,13 @@ class IndexHandler(QtCore.QThread):
                                 indexRate = 0
                             else:
                                 indexRate = numIndexed * 100. / numProcessed
-                            msg = str(numIndexed) + ' indexed / {0:.1f}% rate'.format(indexRate)
+                            if Done == 1:
+                                msg = str(numIndexed) + ' indexed / {0:.1f}% rate'.format(indexRate)
+                            else:
+                                msg = str(numIndexed) + ' indexed / {0:.1f}% rate / Failure'.format(indexRate)
                             self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
-                    except AttributeError:
-                        print "e-Log table does not exist"
+                    except:
+                        print "Couldn't write to e-Log table, possibly does not exist"
             else:
                 print "This shouldn't happend. hasData is False"
 

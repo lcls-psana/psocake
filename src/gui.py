@@ -1234,8 +1234,7 @@ class MainFrame(QtGui.QWidget):
 
                 self.displayMask()
                 self.algInitDone = False
-            if args.v >= 1:
-                print "done makeMaskThresh!!!!!!"
+            if args.v >= 1: print "done makeMaskThresh!!!!!!"
         self.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), makeMaskThresh)
 
         def makeMaskPoly():
@@ -1491,6 +1490,7 @@ class MainFrame(QtGui.QWidget):
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
 
         self.win.show()
+        #self.show()
 
     def initMask(self):
         if self.gapAssemInd is None:
