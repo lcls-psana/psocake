@@ -3051,7 +3051,7 @@ class MainFrame(QtGui.QWidget):
             # remove ROIs
             self.w1.getView().removeItem(self.mask_rect)
             self.w1.getView().removeItem(self.mask_circle)
-            self.w1.getView().removeItem(self.mask_poly)
+            #self.w1.getView().removeItem(self.mask_poly)
         else:
             # display text
             self.label.setText(masking_mode_message)

@@ -105,20 +105,20 @@ for run in ds.runs():
     ind = getMyUnfairShare(numJobs,size,rank)
     mytimes = times[ind[0]:ind[-1]+1]
 
-    print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
+    #print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
 
     for d in detlist:
-        print "detname: ", d.detname
+        #print "detname: ", d.detname
         gain = d.gain(run.event(mytimes[0]))
-        hybridGain = d.gain_mask(gain=6.85)
+        hybridGain = d.gain_mask(run, gain=6.85)
         if hybridGain is not None:
-            print "applying hybrid gain"
+            #print "applying hybrid gain"
             gain *= hybridGain
         for i,time in enumerate(mytimes):
-            print "i: ", i
+            #print "i: ", i
             if i%100==0: print 'Rank',rank,'processing event', i,'of',len(mytimes)
             evt = run.event(time)
-            print "evt: ", evt
+            #print "evt: ", evt
             # very useful for seeing what data is in the event
             #if evt is None:
             #    print '*** event fetch failed'
@@ -135,15 +135,15 @@ for run in ds.runs():
                 print '*** failed to get detarr'
                 continue
             if gain is not None: detarr *= gain
-            print "detarr: ", detarr.shape, i
+            #print "detarr: ", detarr.shape, i
             if not hasattr(d,'stats'):
-                print "##### init"
+                #print "##### init"
                 d.stats = Stats(detarr,env.experiment(),evt.run(),d.detname)
             else:
-                print "##### update"
+                #print "##### update"
                 d.stats.update(detarr)
             nevent+=1
         if hasattr(d, 'stats'):
-            print "### store"
+            #print "### store"
             d.stats.store()
 MPI.Finalize()
