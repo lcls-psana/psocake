@@ -63,7 +63,10 @@ class Labels(object):
         if not dataSetFound:
            dset = labels.create_dataset("labelsDataSet", (self.parent.eventTotal, 3))
         else:
-           dset = labels["labelsDataSet"]
+            try:
+                dset = labels["labelsDataSet"]
+            except: # corrupt dataset, so create a new one
+                dset = labels.create_dataset("labelsDataSet", (self.parent.eventTotal, 3))
         #print dset.shape
         self.labelA = dset[self.parent.eventNumber][0]
         self.labelB = dset[self.parent.eventNumber][1]

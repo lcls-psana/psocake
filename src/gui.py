@@ -825,7 +825,6 @@ class MainFrame(QtGui.QWidget):
 
             self.area.addDock(self.d8, 'right')#, self.d2)
             self.area.moveDock(self.d2, 'above', self.d3)
-            self.evtLabels = None
         elif args.mode == 'spi':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
@@ -846,7 +845,6 @@ class MainFrame(QtGui.QWidget):
 
             self.area.addDock(self.d8, 'right')#, self.d2)
             self.area.moveDock(self.d2, 'above', self.d3)
-            self.evtLabels = None
         elif args.mode == 'all':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
@@ -884,7 +882,6 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom', self.d2)
             self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
-            self.evtLabels = None
 
         ## Dock 1: Image Panel
         self.w1 = pg.ImageView(view=pg.PlotItem())

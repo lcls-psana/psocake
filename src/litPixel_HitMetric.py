@@ -12,7 +12,7 @@ import socket
 
 parser = argparse.ArgumentParser()
 parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd7114:run=43)", type=str)
-parser.add_argument("-t","--tag",help="append tag to end of filename",default="", type=str)
+parser.add_argument("-t","--tag",help="append tag to end of filename",default=None, type=str)
 parser.add_argument("-d","--detectorName",help="psana detector alias, (e.g. pnccdBack, DsaCsPad)", type=str)
 parser.add_argument("-o","--outdir",help="output directory",default=0, type=str)
 parser.add_argument("-n","--noe",help="number of events, all events=0",default=0, type=int)
@@ -111,8 +111,10 @@ def getEventID(evt):
 
 def nunchakuAlgorithm(stickLength=15):
     # Generate output filename
-    outname = os.path.join(args.outdir,
-                           env.experiment()+'_'+str(run.run())+'_'+args.tag+'.h5')
+    if args.tag is None:
+        outname = os.path.join(args.outdir, env.experiment()+'_'+str(run.run())+'.h5')
+    else:
+        outname = os.path.join(args.outdir, env.experiment() + '_' + str(run.run()) + '_' + args.tag + '.h5')
     # Clean up hdf5 structure if it exists
     f = h5py.File(outname, 'r+')
     t             = f[grpName+'/eventTime'].value
@@ -268,7 +270,10 @@ def master():
     getMasks(junkevt)
 
     # Generate output filename
-    outname = os.path.join(args.outdir,env.experiment()+'_'+str(run.run())+'_'+args.tag+'.h5')
+    if args.tag is None:
+        outname = os.path.join(args.outdir,env.experiment()+'_'+str(run.run())+'.h5')
+    else:
+        outname = os.path.join(args.outdir, env.experiment() + '_' + str(run.run()) + '_' + args.tag + '.h5')
     # Clean up hdf5 structure if it exists
     f = h5py.File(outname, 'a')
     if grpName in f:
