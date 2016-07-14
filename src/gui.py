@@ -245,6 +245,53 @@ sandstone100_rgb = (221,207,153) # Sandstone
 beige_hex = ("#9d9573") # beige
 masking_mode_message = "<span style='color: " + black_hex + "; font-size: 24pt;'>Masking mode <br> </span>"
 
+class Window(QtGui.QMainWindow):
+    global ex
+    def previewEvent(self, eventNumber):
+        ex.eventNumber = eventNumber
+        ex.calib, ex.data = ex.getDetImage(ex.eventNumber)
+        ex.w1.setImage(ex.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+        ex.p.param(exp_grp,exp_evt_str).setValue(ex.eventNumber)
+    def keyPressEvent(self, event):
+        if type(event) == QtGui.QKeyEvent and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
+            path = ["", ""]
+            if event.key() == QtCore.Qt.Key_1 : 
+                path[1] = "Single"
+                data = True
+                if ex.evtLabels.labelA == True : data = False
+                ex.evtLabels.paramUpdate(path, data)
+            elif event.key() == QtCore.Qt.Key_2:
+                path[1] = "Multi"
+                data = True
+                if ex.evtLabels.labelB == True : data = False
+                ex.evtLabels.paramUpdate(path, data)
+            elif event.key() == QtCore.Qt.Key_3:
+                path[1] = "Dunno"
+                data = True
+                if ex.evtLabels.labelC == True : data = False
+                ex.evtLabels.paramUpdate(path, data)
+            elif event.key() == QtCore.Qt.Key_Period:
+                if ex.w9.getPlotItem().listDataItems() != []:
+                    idx = -1
+                    array = np.where(ex.quantifierEvent >= ex.eventNumber)
+                    if array[0].size != 0: 
+                        idx = array[0][0]
+                        if ex.quantifierEvent[idx] == ex.eventNumber: idx += 1
+                        if idx < (ex.quantifierEvent.size): self.previewEvent(ex.quantifierEvent[idx])
+            elif event.key() == QtCore.Qt.Key_N:
+                if ex.eventNumber < (ex.eventTotal - 1): self.previewEvent(ex.eventNumber+1)
+            elif event.key() == QtCore.Qt.Key_Comma:
+                if ex.w9.getPlotItem().listDataItems() != []:
+                    idx = -1
+                    array = np.where(ex.quantifierEvent <= ex.eventNumber)
+                    if array[0].size != 0:
+                        idx = array[0][array[0].size - 1]
+                        if ex.quantifierEvent[idx] == ex.eventNumber: idx -= 1
+                        if ex.quantifierEvent[idx] != 0: self.previewEvent(ex.quantifierEvent[idx])
+            elif event.key() == QtCore.Qt.Key_P:
+                if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
+            ex.evtLabels.refresh()
+
 class MainFrame(QtGui.QWidget):
     """
     The main frame of the application
@@ -648,12 +695,11 @@ class MainFrame(QtGui.QWidget):
         self.evtLabels = labelPanel.Labels(self)
 
         self.getUsername()
-
         self.initUI()
 
     def initUI(self):
         ## Define a top-level widget to hold everything
-        self.win = QtGui.QMainWindow()
+        self.win = Window()
         self.area = DockArea()
         self.win.setCentralWidget(self.area)
         self.win.resize(1300,650)
@@ -1488,6 +1534,7 @@ class MainFrame(QtGui.QWidget):
         # Signal proxy
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
+
 
         self.win.show()
         #self.show()
@@ -2463,11 +2510,10 @@ class MainFrame(QtGui.QWidget):
         ################################################
         # label parameters
         ################################################
-        if args.mode == 'all':
-            if path[0] == self.evtLabels.labels_grp:
-                self.evtLabels.paramUpdate(path, change, data)
-            elif path[0] == self.evtLabels.labels_grp:
-                self.evtLabels.paramUpdate(path, change, data)
+        if path[0] == self.evtLabels.labels_grp:
+            self.evtLabels.paramUpdate(path, data)
+        elif path[0] == self.evtLabels.labels_grp:
+            self.evtLabels.paramUpdate(path, data)
 
     ###################################
     ###### Experiment Parameters ######
@@ -2699,7 +2745,7 @@ class MainFrame(QtGui.QWidget):
 
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
-            self.det.do_reshape_2d_to_3d(flag=True)
+            #self.det.do_reshape_2d_to_3d(flag=True)
 
             self.epics = self.ds.env().epicsStore()
             # detector distance
@@ -3546,6 +3592,7 @@ class PeakFinder(QtCore.QThread):
                         print "e-Log table does not exist"
 
 def main():
+    global ex
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     app = QtGui.QApplication(sys.argv)
     ex = MainFrame(sys.argv)
