@@ -132,7 +132,7 @@ def nunchakuAlgorithm(stickLength=15):
     fids_ds    = f.require_dataset(grpName+"/fiducials", (numEvents,), dtype='uint32')
     evttime_ds[...] = t[timeOrder]
     fids_ds[...] = fid[timeOrder]
-
+    f.flush()
     f.close()
 
 class bigMsg:
@@ -279,6 +279,7 @@ def master():
     fids_ds    = grp.create_dataset("fiducials", (numEventsToProc,), dtype='uint32')
     # Initialize hit metric
     hitMetric_ds    = grp.create_dataset("hitMetric", (numEventsToProc,), dtype='float32')
+    f.flush()
 
     # Loop over all detectors and initialize/save fields
     for i in np.arange(len(myDetList)):
@@ -336,7 +337,7 @@ def master():
     hitMetric_ds.attrs['detectorName'] = args.detectorName
     hitMetric_ds.attrs['psanaVersion'] = psana_version
     hitMetric_ds.attrs['svnVersion'] = svn_version
-
+    f.flush()
     f.close()
 
 ################################################################################

@@ -489,15 +489,19 @@ class IndexHandler(QtCore.QThread):
                 minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
                 maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
                 minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
-                print "Peak criteria: ", hasData, self.minPeaks, minPeaksUsed, self.maxPeaks, maxPeaksUsed, self.minRes, minResUsed
-                if hasData and self.minPeaks == minPeaksUsed and self.maxPeaks == maxPeaksUsed and self.minRes == minResUsed:
-                    hasData = True
-                else:
-                    hasData = False
                 f.close()
             except:
                 print "Could not open file: ", self.peakFile
+                print "Restart the GUI"
                 hasData = False
+                return
+
+            print "Peak criteria: ", hasData, self.minPeaks, minPeaksUsed, self.maxPeaks, maxPeaksUsed, self.minRes, minResUsed
+            if hasData and self.minPeaks == minPeaksUsed and self.maxPeaks == maxPeaksUsed and self.minRes == minResUsed:
+                hasData = True
+            else:
+                hasData = False
+
             print "hasData: ", hasData
 
             if hasData is False:

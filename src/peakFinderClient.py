@@ -28,6 +28,9 @@ def runclient(args):
             print '*** failed to get img: ', rank, nevent
             continue
 
+        if detarr is None:
+            continue
+
         # Initialize hit finding
         if not hasattr(d,'peakFinder'):
             if args.algorithm == 1:

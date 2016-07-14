@@ -40,12 +40,14 @@ def runmaster(args,nClients):
     dset_maxRes = "/maxResAll"
     if grpName in myHdf5:
         del myHdf5[grpName]
+    myHdf5.flush()
     grp = myHdf5.create_group(grpName)
     myHdf5.create_dataset(grpName+dset_nPeaks, data=np.ones(numJobs,)*-1, dtype='int')
     myHdf5.create_dataset(grpName+dset_posX, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_posY, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_atot, (numJobs,args.maxNumPeaks), dtype='float32', chunks=(1,args.maxNumPeaks))
     myHdf5.create_dataset(grpName+dset_maxRes, data=np.ones(numJobs,)*-1, dtype='int')
+    myHdf5.flush()
     myHdf5.close()
 
     myHdf5 = h5py.File(fname, 'r+')
@@ -81,11 +83,13 @@ def runmaster(args,nClients):
                 myHdf5[grpName+dset_atot][md.small.eventNum,i] = atot
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
+            myHdf5.flush()
             counter += 1
 
     if '/status/findPeaks' in myHdf5:
         del myHdf5['/status/findPeaks']
     myHdf5['/status/findPeaks'] = 'success'
+    myHdf5.flush()
     myHdf5.close()
 
     fnameHits = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.npy"

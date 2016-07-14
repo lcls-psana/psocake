@@ -82,7 +82,7 @@ class PeakFinder:
         self.maxNumPeaks = 2048
         self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
         self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
-        print "### cx, cy: ", self.cx, self.cy
+        #print "### cx, cy: ", self.cx, self.cy
         self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
         self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
         if len(self.iX.shape) == 2:

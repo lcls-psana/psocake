@@ -1673,6 +1673,8 @@ class MainFrame(QtGui.QWidget):
                         cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
             if args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
             if self.showIndexedPeaks:
+                self.clen = self.epics.value(self.clenEpics)
+                print "clen: ", self.clen
                 self.clearIndexedPeaks()
 
                 maxNumPeaks = 2048
