@@ -13,7 +13,7 @@ import socket
 
 parser = argparse.ArgumentParser()
 parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd7114:run=43)", type=str)
-parser.add_argument("-t","--tag",help="append tag to end of filename",default="", type=str)
+parser.add_argument("-t","--tag",help="append tag to end of filename",default=None, type=str)
 parser.add_argument("-d","--detectorName",help="psana detector alias, (e.g. pnccdBack, DsaCsPad)", type=str)
 parser.add_argument("-o","--outdir",help="output directory",default=0, type=str)
 parser.add_argument("-n","--noe",help="number of events, all events=0",default=0, type=int)
