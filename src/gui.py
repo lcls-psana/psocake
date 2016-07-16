@@ -247,13 +247,17 @@ masking_mode_message = "<span style='color: " + black_hex + "; font-size: 24pt;'
 
 class Window(QtGui.QMainWindow):
     global ex
+
     def previewEvent(self, eventNumber):
         ex.eventNumber = eventNumber
         ex.calib, ex.data = ex.getDetImage(ex.eventNumber)
         ex.w1.setImage(ex.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         ex.p.param(exp_grp,exp_evt_str).setValue(ex.eventNumber)
+
     def keyPressEvent(self, event):
-        if type(event) == QtGui.QKeyEvent and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
+        super(Window, self).keyPressEvent(event)
+        if 1:#type(event) == QtGui.QKeyEvent:# and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
+            print "@$%#$%@: ", event.key()
             path = ["", ""]
             if event.key() == QtCore.Qt.Key_1 : 
                 path[1] = "Single"
@@ -431,7 +435,7 @@ class MainFrame(QtGui.QWidget):
 
         self.spiParam_outDir = self.psocakeDir
         self.spiParam_outDir_overridden = False
-        self.spiParam_tag = ''
+        self.spiParam_tag = None
         self.spiParam_runs = ''
         self.spiParam_queue = spiParam_psanaq_str
         self.spiParam_cpus = 24
@@ -930,60 +934,98 @@ class MainFrame(QtGui.QWidget):
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
 
         def updateRoi(roi):
-            if self.data is not None and self.updateRoiStatus == True:
-                calib = np.ones_like(self.calib)
-                img = self.det.image(self.evt, calib)
-                pixelsExist = roi.getArrayRegion(img, self.w1.getImageItem())
-                if roi.name == 'poly':
-                    self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
-                    self.ret = self.ret[np.where(pixelsExist==1)]
-                elif roi.name == 'circ':
-                    self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem())
-                    self.ret = self.ret[np.where(pixelsExist==1)]
-                else:
-                    self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
-                if roi.name == 'rect':#isinstance(self.ret,tuple): # rectangle
-                    selected, coord = self.ret
-                    self.x0 = int(coord[0][0][0])
-                    self.x1 = int(coord[0][-1][0])+1
-                    self.y0 = int(coord[1][0][0])
-                    self.y1 = int(coord[1][0][-1])+1
+            if self.data is not None:
+                if self.updateRoiStatus == True:
+                    calib = np.ones_like(self.calib)
+                    img = self.det.image(self.evt, calib)
+                    pixelsExist = roi.getArrayRegion(img, self.w1.getImageItem())
+                    if roi.name == 'poly':
+                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                        self.ret = self.ret[np.where(pixelsExist == 1)]
+                    elif roi.name == 'circ':
+                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem())
+                        self.ret = self.ret[np.where(pixelsExist == 1)]
+                    else:
+                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
 
-                    # Limit coordinates to inside the assembled image
-                    if self.x0 < 0: self.x0 = 0
-                    if self.y0 < 0: self.y0 = 0
-                    if self.x1 > self.data.shape[0]: self.x1 = self.data.shape[0]
-                    if self.y1 > self.data.shape[1]: self.y1 = self.data.shape[1]
-                    print "######################################################"
-                    print "Assembled ROI: ["+str(self.x0)+":"+str(self.x1)+","+str(self.y0)+":"+str(self.y1)+"]" # Note: self.data[x0:x1,y0:y1]
-                    selected = selected[np.where(pixelsExist == 1)]
+                    if roi.name == 'rect':  # isinstance(self.ret,tuple): # rectangle
+                        selected, coord = self.ret
+                        self.x0 = int(coord[0][0][0])
+                        self.x1 = int(coord[0][-1][0]) + 1
+                        self.y0 = int(coord[1][0][0])
+                        self.y1 = int(coord[1][0][-1]) + 1
 
-                    mask_roi = np.zeros_like(self.data)
-                    mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
-                    self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None, xy0_off_pix=None)
-                    for itile, tile in enumerate(self.nda):
-                        if tile.sum() > 0:
-                            ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
-                            ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
-                            print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
-                            itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
-                            if args.v >= 1:
-                                fig = plt.figure(figsize=(6, 6))
-                                plt.imshow(self.calib[itile, ax1.min():ax1.max(), ax0.min():ax0.max()],
-                                           interpolation='none')
-                                plt.show()
-                    print "######################################################"
-                elif roi.name == 'circ':
-                    selected = self.ret
-                    centreX = roi.x()+roi.size().x()/2
-                    centreY = roi.y()+roi.size().y()/2
-                    print "###########################################"
-                    print "Centre: ["+str(centreX)+","+str(centreY)+"]"
-                    print "###########################################"
-                else:
-                    selected = self.ret
-                hist, bin = np.histogram(selected.flatten(), bins=1000)
-                self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
+                        # Limit coordinates to inside the assembled image
+                        if self.x0 < 0: self.x0 = 0
+                        if self.y0 < 0: self.y0 = 0
+                        if self.x1 > self.data.shape[0]: self.x1 = self.data.shape[0]
+                        if self.y1 > self.data.shape[1]: self.y1 = self.data.shape[1]
+                        print "######################################################"
+                        print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
+                            self.y1) + "]"  # Note: self.data[x0:x1,y0:y1]
+                        selected = selected[np.where(pixelsExist == 1)]
+
+                        mask_roi = np.zeros_like(self.data)
+                        mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
+                        self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None,
+                                                               xy0_off_pix=None)
+                        for itile, tile in enumerate(self.nda):
+                            if tile.sum() > 0:
+                                ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
+                                ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
+                                print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
+                                    itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
+                                if args.v >= 1:
+                                    fig = plt.figure(figsize=(6, 6))
+                                    plt.imshow(self.calib[itile, ax1.min():ax1.max(), ax0.min():ax0.max()],
+                                               interpolation='none')
+                                    plt.show()
+                        print "######################################################"
+                    elif roi.name == 'circ':
+                        selected = self.ret
+                        centreX = roi.x() + roi.size().x() / 2
+                        centreY = roi.y() + roi.size().y() / 2
+                        print "###########################################"
+                        print "Centre: [" + str(centreX) + "," + str(centreY) + "]"
+                        print "###########################################"
+                    else:
+                        selected = self.ret
+                    hist, bin = np.histogram(selected.flatten(), bins=1000)
+                    self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
+                else: # update ROI off
+                    if roi.name == 'rect':  # isinstance(self.ret,tuple): # rectangle
+                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                        selected, coord = self.ret
+                        self.x0 = int(coord[0][0][0])
+                        self.x1 = int(coord[0][-1][0]) + 1
+                        self.y0 = int(coord[1][0][0])
+                        self.y1 = int(coord[1][0][-1]) + 1
+
+                        # Limit coordinates to inside the assembled image
+                        if self.x0 < 0: self.x0 = 0
+                        if self.y0 < 0: self.y0 = 0
+                        if self.x1 > self.data.shape[0]: self.x1 = self.data.shape[0]
+                        if self.y1 > self.data.shape[1]: self.y1 = self.data.shape[1]
+                        print "######################################################"
+                        print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
+                            self.y1) + "]"  # Note: self.data[x0:x1,y0:y1]
+                        mask_roi = np.zeros_like(self.data)
+                        mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
+                        self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None,
+                                                               xy0_off_pix=None)
+                        for itile, tile in enumerate(self.nda):
+                            if tile.sum() > 0:
+                                ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
+                                ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
+                                print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
+                                    itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
+                        print "######################################################"
+                    elif roi.name == 'circ':
+                        centreX = roi.x() + roi.size().x() / 2
+                        centreY = roi.y() + roi.size().y() / 2
+                        print "###########################################"
+                        print "Centre: [" + str(centreX) + "," + str(centreY) + "]"
+                        print "###########################################"
 
         def updateRoiStatus():
             if self.roiCheckbox.checkState() == 0:
@@ -1012,6 +1054,10 @@ class MainFrame(QtGui.QWidget):
         self.w3.setParameters(self.p1, showTop=False)
         self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
+        self.w3a = pg.LayoutWidget()
+        self.deployGeomBtn = QtGui.QPushButton('Deploy psana geometry')
+        self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
+        self.d3.addWidget(self.w3a)
 
         ## Dock 4: ROI histogram
         self.w4 = pg.PlotWidget(title="ROI histogram")
@@ -3350,7 +3396,7 @@ class HitFinder(QtCore.QThread):
                   " -d "+self.detInfo+\
                   " --outdir "+runDir
 
-                if self.parent.spiParam_tag is not None:
+                if self.parent.spiParam_tag:
                     cmd += " --tag "+str(self.parent.spiParam_tag)
 
                 if self.parent.spiAlgorithm == 1:
