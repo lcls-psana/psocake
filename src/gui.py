@@ -988,11 +988,13 @@ class MainFrame(QtGui.QWidget):
                         print "######################################################"
                     elif roi.name == 'circ':
                         selected = self.ret
-                        centreX = roi.x() + roi.size().x() / 2
-                        centreY = roi.y() + roi.size().y() / 2
+                        self.centreX = roi.x() + roi.size().x() / 2
+                        self.centreY = roi.y() + roi.size().y() / 2
                         print "###########################################"
-                        print "Centre: [" + str(centreX) + "," + str(centreY) + "]"
+                        print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
                         print "###########################################"
+                        print self.cx, self.cy
+
                     else:
                         selected = self.ret
                     hist, bin = np.histogram(selected.flatten(), bins=1000)
@@ -1026,10 +1028,10 @@ class MainFrame(QtGui.QWidget):
                                     itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
                         print "######################################################"
                     elif roi.name == 'circ':
-                        centreX = roi.x() + roi.size().x() / 2
-                        centreY = roi.y() + roi.size().y() / 2
+                        self.centreX = roi.x() + roi.size().x() / 2
+                        self.centreY = roi.y() + roi.size().y() / 2
                         print "###########################################"
-                        print "Centre: [" + str(centreX) + "," + str(centreY) + "]"
+                        print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
                         print "###########################################"
 
         def updateRoiStatus():
@@ -1060,7 +1062,7 @@ class MainFrame(QtGui.QWidget):
         self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
         self.w3a = pg.LayoutWidget()
-        self.deployGeomBtn = QtGui.QPushButton('Deploy psana geometry')
+        self.deployGeomBtn = QtGui.QPushButton('Save centred psana geometry')
         self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
         self.d3.addWidget(self.w3a)
 

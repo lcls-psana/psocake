@@ -237,4 +237,10 @@ class DiffractionGeometry(object):
             self.resolutionText = []
 
     def deploy(self):
-        print "Hello"
+        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            # Calculate detector translation in x and y
+            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.centreX) # microns
+            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.centreY) # microns
+            geo = self.parent.det.geometry(self.parent.evt)
+            geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
+            geo.save_pars_in_file(self.parent.psocakeRunDir+"/"+str(self.parent.runNumber)+'-end.data')
