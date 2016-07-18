@@ -1905,8 +1905,8 @@ class MainFrame(QtGui.QWidget):
                 maxX   = np.max(self.det.indexes_x(self.evt)) + xMargin
                 maxY   = np.max(self.det.indexes_y(self.evt)) - yMargin
                 myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">a='+\
-                            str(round(float(unitCell[0]),2))+'nm <br>b='+str(round(float(unitCell[1]),2))+'nm <br>c='+\
-                            str(round(float(unitCell[2]),2))+'nm <br>&alpha;='+str(round(float(unitCell[3]),2))+\
+                            str(round(float(unitCell[0])*10,2))+'A <br>b='+str(round(float(unitCell[1])*10,2))+'A <br>c='+\
+                            str(round(float(unitCell[2])*10,2))+'A <br>&alpha;='+str(round(float(unitCell[3]),2))+\
                             '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
                             str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
 
