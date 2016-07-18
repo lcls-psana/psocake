@@ -323,6 +323,7 @@ class MainFrame(QtGui.QWidget):
             #if self.experimentName is not '':
             #    self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         self.detInfo = args.det
+        self.detInfoList = None
         self.isCspad = False
         self.isCamera = False
         self.crawlerRunning = False
@@ -2560,6 +2561,7 @@ class MainFrame(QtGui.QWidget):
     def updateExpName(self, data):
         self.experimentName = data
         self.hasExperimentName = True
+        self.detInfoList = None
 
         # Setup elog
         self.rt = RunTables(**{'web-service-url': 'https://pswww.slac.stanford.edu/ws-kerb'})
@@ -2581,6 +2583,7 @@ class MainFrame(QtGui.QWidget):
         else:
             self.runNumber = data
             self.hasRunNumber = True
+            self.detInfoList = None
             self.setupExperiment()
             self.resetMasks()
             self.updateImage()
@@ -2775,21 +2778,22 @@ class MainFrame(QtGui.QWidget):
             self.p.param(exp_grp,exp_evt_str,exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
 
-            self.evt = self.run.event(self.times[0])
-            myAreaDetectors = []
-            self.detnames = psana.DetNames()
-            for k in self.detnames:
-                try:
-                    if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
-                        myAreaDetectors.append(k)
-                except ValueError:
-                    continue
-            self.detInfoList = list(set(myAreaDetectors))
-            print "#######################################"
-            print "# Available area detectors: "
-            for k in self.detInfoList:
-                print "#", k
-            print "#######################################"
+            if self.detInfoList is None:
+                self.evt = self.run.event(self.times[0])
+                myAreaDetectors = []
+                self.detnames = psana.DetNames()
+                for k in self.detnames:
+                    try:
+                        if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
+                            myAreaDetectors.append(k)
+                    except ValueError:
+                        continue
+                self.detInfoList = list(set(myAreaDetectors))
+                print "#######################################"
+                print "# Available area detectors: "
+                for k in self.detInfoList:
+                    print "#", k
+                print "#######################################"
 
             # Launch e-log crawler
             if self.logger and self.crawlerRunning == False:
