@@ -1802,7 +1802,7 @@ class MainFrame(QtGui.QWidget):
             myHdf5[grpName+dset_nPeaks][0] = nPeaks
 
             if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
-                print "^^^ hiddenCXI clen (mm): ", self.clen * 1000.
+                if args.v >= 1: print "hiddenCXI clen (mm): ", self.clen * 1000.
                 myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.clen * 1000. # mm
             myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy
             dset[0,:,:] = img
