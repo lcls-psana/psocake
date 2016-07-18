@@ -54,8 +54,8 @@ class LaunchPeakFinder(QtCore.QThread):
                 print "e-Log table does not exist"
 
             cmd = "bsub -q "+self.parent.hitParam_queue + \
-              " -a mympi -n "+str(self.parent.hitParam_cpus) + \
-              " -o "+runDir+"/.%J.log findPeaks -e "+self.experimentName+\
+              " -n "+str(self.parent.hitParam_cpus) + \
+              " -o "+runDir+"/.%J.log mpirun findPeaks -e "+self.experimentName+\
               " -d "+self.detInfo+\
               " --outDir "+runDir+\
               " --algorithm "+str(self.parent.algorithm)

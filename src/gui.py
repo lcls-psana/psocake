@@ -3311,8 +3311,8 @@ class PowderProducer(QtCore.QThread):
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
                 # Command for submitting to batch
-                cmd = "bsub -q "+self.parent.powder_queue+" -a mympi -n "+str(self.parent.powder_cpus)+\
-                      " -o "+runDir+"/.%J.log generatePowder exp="+self.experimentName+\
+                cmd = "bsub -q "+self.parent.powder_queue+" -n "+str(self.parent.powder_cpus)+\
+                      " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
                       ":run="+str(run)+" -d "+self.detInfo+\
                       " -o "+runDir
                 if self.parent.powder_noe > 0:
@@ -3405,8 +3405,8 @@ class HitFinder(QtCore.QThread):
                     os.makedirs(runDir, 0774)
                 expRun = 'exp='+self.experimentName+':run='+str(run)
                 cmd = "bsub -q "+self.parent.spiParam_queue+\
-                  " -a mympi -n "+str(self.parent.spiParam_cpus)+\
-                  " -o "+runDir+"/.%J.log litPixels"+\
+                  " -n "+str(self.parent.spiParam_cpus)+\
+                  " -o "+runDir+"/.%J.log mpirun litPixels"+\
                   " "+expRun+\
                   " -d "+self.detInfo+\
                   " --outdir "+runDir

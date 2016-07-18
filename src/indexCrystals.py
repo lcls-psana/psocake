@@ -145,8 +145,9 @@ if hasData and minPeaks == minPeaksUsed and maxPeaks == maxPeaksUsed and minRes 
     Done = 1
 else:
     print "Converting xtc to cxidb"
-    cmd = "bsub -q " + queue + " -n " + str(cpus) + " -o " + runDir + "/.%J.log xtc2cxidb" + \
-          " -e " + experimentName + " -d " + detInfo + \
+    cmd = "bsub -q " + queue + " -n " + str(cpus) + " -o " + runDir + "/.%J.log mpirun xtc2cxidb" + \
+          " -e " + experimentName + \
+          " -d " + detInfo + \
           " -i " + outDir + '/r' + str(runNumber).zfill(4) + \
           " --sample " + sample + \
           " --instrument " + instrument + " --pixelSize " + str(pixelSize) + \
@@ -225,7 +226,7 @@ if Done:
                 text_file.write("{} //{}\n".format(peakFile, val))
 
         cmd = "bsub -q " + queue + " -R 'span[hosts=1]' -o " + runDir + \
-              "/.%J.log indexamajig -j " + str(cpus) + " -i " + myList + \
+              "/.%J.log mpirun indexamajig -j " + str(cpus) + " -i " + myList + \
               " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
               " --indexing=" + indexingMethod + " -o " + myStream + " --temp-dir=" + runDir
         if pdb: cmd += " --pdb=" + pdb
@@ -237,7 +238,6 @@ if Done:
         myJobList.append(jobID)
         myLogList.append(myLog)
         print "bsub log filename: ", myLog
-        time.sleep(1)
 
     myKeyString = "The output (if any) is above this job summary."
     mySuccessString = "Successfully completed."
@@ -303,7 +303,7 @@ if Done:
         else:
             indexRate = numIndexedNow * 100. / numProcessed
         fracDone = numProcessed * 100. / numHits
-        print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
+        if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
 
         d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
         writeStatus(d)
