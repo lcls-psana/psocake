@@ -127,7 +127,6 @@ class CrystalIndexing(object):
             self.updateNoe(data)
         elif path[1] == self.keepData_str:
             self.keepData = data
-            print "keeping data: ", self.keepData
 
     def updateIndexStatus(self, data):
         self.indexingOn = data
@@ -178,7 +177,7 @@ class CrystalIndexing(object):
     def updateIndex(self):
         if self.indexingOn:
             self.indexer = IndexHandler(parent=self.parent)
-            print "self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe: ", self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe
+            #print "self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe: ", self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes, self.outDir, queue=None)
@@ -289,7 +288,6 @@ class IndexHandler(QtCore.QThread):
         self.queue = None
         self.cpus = None
         self.noe = None
-        print "5555"
 
     def __del__(self):
         if self.parent.args.v >= 1: print "del IndexHandler"

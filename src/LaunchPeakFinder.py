@@ -114,5 +114,3 @@ class LaunchPeakFinder(QtCore.QThread):
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
-            print "out: ", out
-            print "err: ", err

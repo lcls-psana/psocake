@@ -51,6 +51,7 @@ class Labels(object):
                 dset[self.parent.eventNumber] = np.array([dset[self.parent.eventNumber][0],dset[self.parent.eventNumber][1], 1])
             else:
                 dset[self.parent.eventNumber] = np.array([dset[self.parent.eventNumber][0],dset[self.parent.eventNumber][1], 0])
+
     def refresh(self):
         global dset
         dataSetFound = False

@@ -296,7 +296,8 @@ class Window(QtGui.QMainWindow):
                         if ex.quantifierEvent[idx] != 0: self.previewEvent(ex.quantifierEvent[idx])
             elif event.key() == QtCore.Qt.Key_P:
                 if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
-            ex.evtLabels.refresh()
+            if args.mode == "all":
+                ex.evtLabels.refresh()
 
 class MainFrame(QtGui.QWidget):
     """
@@ -1753,8 +1754,8 @@ class MainFrame(QtGui.QWidget):
             if args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
             #if self.showIndexedPeaks:
             self.clen = self.epics.value(self.clenEpics) / 1000. # metres
-            print "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"
-            print "$$$$$ updateClassification clen (m): ", self.clen
+            if args.v >= 1:
+                print "$ updateClassification clen (m): ", self.clen
             self.clearIndexedPeaks()
 
             maxNumPeaks = 2048
@@ -2618,7 +2619,8 @@ class MainFrame(QtGui.QWidget):
             self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
             self.updateImage()
         # update labels
-        if self.evtLabels is not None: self.evtLabels.refresh()
+        if args.mode == "all":
+            if self.evtLabels is not None: self.evtLabels.refresh()
         if args.v >= 1: print "Done updateEventNumber: ", self.eventNumber
 
     def resetMasks(self):
@@ -2791,7 +2793,7 @@ class MainFrame(QtGui.QWidget):
 
             # Launch e-log crawler
             if self.logger and self.crawlerRunning == False:
-                print "Launching crawler"
+                if args.v >= 1: print "Launching crawler"
                 self.launchCrawler()
                 self.crawlerRunning = True
 
@@ -2805,10 +2807,9 @@ class MainFrame(QtGui.QWidget):
                 self.clenEpics = str(self.detInfo)+'_z'
                 self.clen = self.epics.value(self.clenEpics) / 1000. # metres
                 self.coffset = self.detectorDistance - self.clen
-            if 1:  # args.v >= 1:
+            if args.v >= 1:
                 print "clenEpics: ", self.clenEpics
-                print "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-                print "@@@ self.detectorDistance (m), self.clen (m), self.coffset (m): ", self.detectorDistance, self.clen, self.coffset
+                print "@self.detectorDistance (m), self.clen (m), self.coffset (m): ", self.detectorDistance, self.clen, self.coffset
             if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list: epix, rayonix
                 self.pixelSize = 110e-6 # metres
             elif 'pnccd' in self.detInfo.lower():
@@ -2877,7 +2878,7 @@ class MainFrame(QtGui.QWidget):
                 if calibFile is not None:
                     # Convert psana geometry to crystfel geom
                     self.p9.param(self.index.index_grp, self.index.index_geom_str).setValue(self.psocakeRunDir+'/.temp.geom')
-                    cmd = ["python","/reg/neh/home/yoon82/psgeom/psana2crystfel.py",self.calibPath+'/'+calibFile,self.psocakeRunDir+"/.temp.geom"]
+                    cmd = ["python","psana2crystfel.py",self.calibPath+'/'+calibFile, self.psocakeRunDir+"/.temp.geom"]
                     if args.v >= 1: print "cmd: ", cmd
                     p = subprocess.Popen(cmd,stdout=subprocess.PIPE)
                     output = p.communicate()[0]

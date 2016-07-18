@@ -78,8 +78,5 @@ class LaunchIndexer(QtCore.QThread):
             if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
             cmd += " --run " + str(run)
             print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            print "submitted"
-            #out, err = process.communicate()
-            #print "out: ", out
-            #print "err: ", err
+            subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+

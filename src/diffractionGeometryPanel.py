@@ -75,10 +75,9 @@ class DiffractionGeometry(object):
             self.updateResolutionUnits(data)
 
     def updateDetectorDistance(self, data):
-        print "!updateDetectorDistance (mm): ", data
         self.parent.detectorDistance = data / 1000. # mm to metres
         self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-        print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+        if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
         self.writeCrystfelGeom()
         self.parent.updateClassification()
         if self.hasGeometryInfo():
@@ -113,17 +112,14 @@ class DiffractionGeometry(object):
             return False
 
     def writeCrystfelGeom(self):
-        print "writeCrystfelGeom: ", self.parent.index.geom, self.parent.hiddenCXI
         if os.path.isfile(self.parent.hiddenCXI):
             f = h5py.File(self.parent.hiddenCXI,'r')
             encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
             f.close()
             coffset = self.parent.detectorDistance - encoderVal
-            if 1:#self.parent.args.v >= 1:
-                print "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"
-                print "&&& coffset (m),detectorDistance (m) ,encoderVal (m): ",coffset, self.parent.detectorDistance, encoderVal
+            if self.parent.args.v >= 1:
+                print "& coffset (m),detectorDistance (m) ,encoderVal (m): ",coffset, self.parent.detectorDistance, encoderVal
             coffsetStr = "coffset = "+str(coffset)+"\n"
-            print "coffsetStr: ", coffsetStr
 
             # Replace coffset value in geometry file
             for line in fileinput.input(self.parent.index.geom, inplace=True):
