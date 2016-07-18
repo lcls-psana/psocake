@@ -3,6 +3,9 @@ from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import myskbeam
 import time
 
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
 class PeakFinder:
     def __init__(self,exp,run,detname,evt,detector,algorithm,hitParam_alg_npix_min,hitParam_alg_npix_max,
                  hitParam_alg_amax_thr,hitParam_alg_atot_thr,hitParam_alg_son_min,
@@ -22,11 +25,17 @@ class PeakFinder:
         self.atot_thr=hitParam_alg_atot_thr
         self.son_min=hitParam_alg_son_min
 
-        self.streakMask_on = streakMask_on
+        self.streakMask_on = str2bool(streakMask_on)
         self.streakMask_sigma = streakMask_sigma
         self.streakMask_width = streakMask_width
         self.userMask_path = userMask_path
-        self.psanaMask_on = psanaMask_on
+        self.psanaMask_on = str2bool(psanaMask_on)
+        self.psanaMask_calib = str2bool(psanaMask_calib)
+        self.psanaMask_status = str2bool(psanaMask_status)
+        self.psanaMask_edges = str2bool(psanaMask_edges)
+        self.psanaMask_central = str2bool(psanaMask_central)
+        self.psanaMask_unbond = str2bool(psanaMask_unbond)
+        self.psanaMask_unbondnrs = str2bool(psanaMask_unbondnrs)
 
         self.windows = windows
 
@@ -42,9 +51,9 @@ class PeakFinder:
 
         # Make psana mask
         if self.psanaMask_on:
-            self.psanaMask = detector.mask(evt, calib=psanaMask_calib, status=psanaMask_status,
-                                           edges=psanaMask_edges, central=psanaMask_central,
-                                           unbond=psanaMask_unbond, unbondnbrs=psanaMask_unbondnrs)
+            self.psanaMask = detector.mask(evt, calib=self.psanaMask_calib, status=self.psanaMask_status,
+                                           edges=self.psanaMask_edges, central=self.psanaMask_central,
+                                           unbond=self.psanaMask_unbond, unbondnbrs=self.psanaMask_unbondnrs)
 
         # Combine userMask and psanaMask
         self.userPsanaMask = np.ones_like(self.det.calib(evt))

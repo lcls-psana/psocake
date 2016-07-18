@@ -12,6 +12,7 @@ class DiffractionGeometry(object):
         self.resolutionText = []
         self.geom_grp = 'Diffraction geometry'
         self.geom_detectorDistance_str = 'Detector distance'
+        self.geom_clen_str = 'Home to Detector'
         self.geom_photonEnergy_str = 'Photon energy'
         self.geom_wavelength_str = "Wavelength"
         self.geom_pixelSize_str = 'Pixel size'
@@ -33,6 +34,8 @@ class DiffractionGeometry(object):
         self.params = [
             {'name': self.geom_grp, 'type': 'group', 'children': [
                 {'name': self.geom_detectorDistance_str, 'type': 'float', 'value': 0.0, 'precision': 6, 'minVal': 0.0001, 'siFormat': (6,6), 'siPrefix': True, 'suffix': 'mm'},
+                {'name': self.geom_clen_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True,
+                 'suffix': 'm', 'readonly': True},
                 {'name': self.geom_photonEnergy_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'eV'},
                 {'name': self.geom_wavelength_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'm', 'readonly': True},
                 {'name': self.geom_pixelSize_str, 'type': 'float', 'value': 0.0, 'precision': 12, 'minVal': 1e-6, 'siPrefix': True, 'suffix': 'm'},
@@ -56,6 +59,8 @@ class DiffractionGeometry(object):
     def paramUpdate(self, path, change, data):
         if path[1] == self.geom_detectorDistance_str:
             self.updateDetectorDistance(data)
+        elif path[1] == self.geom_clen_str:
+            pass
         elif path[1] == self.geom_photonEnergy_str:
             self.updatePhotonEnergy(data)
         elif path[1] == self.geom_pixelSize_str:
@@ -70,8 +75,10 @@ class DiffractionGeometry(object):
             self.updateResolutionUnits(data)
 
     def updateDetectorDistance(self, data):
-        self.parent.detectorDistance = data / 1000. # metres
+        print "!updateDetectorDistance (mm): ", data
+        self.parent.detectorDistance = data / 1000. # mm to metres
         self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+        print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
         self.writeCrystfelGeom()
         self.parent.updateClassification()
         if self.hasGeometryInfo():
@@ -113,7 +120,8 @@ class DiffractionGeometry(object):
             f.close()
             coffset = self.parent.detectorDistance - encoderVal
             if 1:#self.parent.args.v >= 1:
-                print "detector to ip (coffset): ", coffset
+                print "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"
+                print "&&& coffset (m),detectorDistance (m) ,encoderVal (m): ",coffset, self.parent.detectorDistance, encoderVal
             coffsetStr = "coffset = "+str(coffset)+"\n"
             print "coffsetStr: ", coffsetStr
 
@@ -231,3 +239,6 @@ class DiffractionGeometry(object):
             for i,val in enumerate(self.resolutionText):
                 self.parent.w1.getView().removeItem(self.resolutionText[i])
             self.resolutionText = []
+
+    def deploy(self):
+        print "Hello"

@@ -34,6 +34,9 @@ from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 import diffractionGeometryPanel
 import crystalIndexingPanel
 import labelPanel
+import LogbookCrawler
+import LaunchPeakFinder
+import LaunchIndexer
 from LogBook.runtables import RunTables
 import PSCalib.GlobalUtils as gu
 import matplotlib.pyplot as plt
@@ -256,8 +259,7 @@ class Window(QtGui.QMainWindow):
 
     def keyPressEvent(self, event):
         super(Window, self).keyPressEvent(event)
-        if 1:#type(event) == QtGui.QKeyEvent:# and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
-            print "@$%#$%@: ", event.key()
+        if type(event) == QtGui.QKeyEvent:# and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
             path = ["", ""]
             if event.key() == QtCore.Qt.Key_1 : 
                 path[1] = "Single"
@@ -322,6 +324,7 @@ class MainFrame(QtGui.QWidget):
         self.detInfo = args.det
         self.isCspad = False
         self.isCamera = False
+        self.crawlerRunning = False
         self.evt = None
         self.eventNumber = int(args.evt)
         self.eventSeconds = ""
@@ -1434,8 +1437,8 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
         # Launch peak finding
         def findPeaks():
-            self.thread.append(PeakFinder(self)) # send parent parameters with self
-            self.thread[self.threadCounter].findPeaks(self.experimentName,self.runNumber,self.detInfo)
+            self.thread.append(LaunchPeakFinder.LaunchPeakFinder(self)) # send parent parameters with self
+            self.thread[self.threadCounter].launch(self.experimentName, self.detInfo)
             self.threadCounter+=1
         self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
         # Launch hit finding
@@ -1446,28 +1449,14 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), findHits)
 
         # Launch indexing
-        def digestRunList(runList):
-            runsToDo = []
-            if not runList:
-                print "Run(s) is empty. Please type in the run number(s)."
-                return runsToDo
-            runLists = str(runList).split(",")
-            for list in runLists:
-                temp = list.split(":")
-                if len(temp) == 2:
-                    for i in np.arange(int(temp[0]),int(temp[1])+1):
-                        runsToDo.append(i)
-                elif len(temp) == 1:
-                    runsToDo.append(int(temp[0]))
-            return runsToDo
-
         def indexPeaks():
-            runsToDo = digestRunList(self.index.runs)
-            for run in runsToDo:
-                self.thread.append(self.index) # send parent parameters with self
-                self.thread[self.threadCounter].launchIndexing(run)
-                self.threadCounter+=1
-        self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
+            self.thread.append(LaunchIndexer.LaunchIndexer(self)) # send parent parameters with self
+            self.thread[self.threadCounter].launch(self.experimentName, self.detInfo)
+            self.threadCounter+=1
+        self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)#self.index.indexPeaks)
+
+        # Deploy psana geometry
+        self.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.geom.deploy)
 
         # Loading image stack
         def displayImageStack():
@@ -1762,60 +1751,63 @@ class MainFrame(QtGui.QWidget):
                     if self.isCspad:
                         cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
             if args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+            #if self.showIndexedPeaks:
+            self.clen = self.epics.value(self.clenEpics) / 1000. # metres
+            print "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$"
+            print "$$$$$ updateClassification clen (m): ", self.clen
+            self.clearIndexedPeaks()
+
+            maxNumPeaks = 2048
+            myHdf5 = h5py.File(self.hiddenCXI, 'w')
+            grpName = "/entry_1/result_1"
+            dset_nPeaks = "/nPeaks"
+            dset_posX = "/peakXPosRaw"
+            dset_posY = "/peakYPosRaw"
+            dset_atot = "/peakTotalIntensity"
+            if grpName in myHdf5:
+                del myHdf5[grpName]
+            grp = myHdf5.create_group(grpName)
+            myHdf5.create_dataset(grpName+dset_nPeaks, (1,), dtype='int')
+            myHdf5.create_dataset(grpName+dset_posX, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+            myHdf5.create_dataset(grpName+dset_posY, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+            myHdf5.create_dataset(grpName+dset_atot, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+
+            myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
+            myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
+            dim0 = 8*185
+            dim1 = 4*388
+            dset = myHdf5.create_dataset("/entry_1/data_1/data",(1,dim0,dim1),dtype=float)
+
+            # Convert calib image to cheetah image
+            img = np.zeros((dim0, dim1))
+            counter = 0
+            for quad in range(4):
+                for seg in range(8):
+                    img[seg*185:(seg+1)*185,quad*388:(quad+1)*388] = self.calib[counter,:,:]
+                    counter += 1
+
+            peaks = self.peaks.copy()
+            nPeaks = peaks.shape[0]
+
+            if nPeaks > maxNumPeaks:
+                peaks = peaks[:maxNumPeaks]
+                nPeaks = maxNumPeaks
+            for i,peak in enumerate(peaks):
+                seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
+                cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                myHdf5[grpName+dset_posX][0,i] = cheetahCol
+                myHdf5[grpName+dset_posY][0,i] = cheetahRow
+                myHdf5[grpName+dset_atot][0,i] = atot
+            myHdf5[grpName+dset_nPeaks][0] = nPeaks
+
+            if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
+                print "^^^ hiddenCXI clen (mm): ", self.clen * 1000.
+                myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.clen * 1000. # mm
+            myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy
+            dset[0,:,:] = img
+            myHdf5.close()
+
             if self.showIndexedPeaks:
-                self.clen = self.epics.value(self.clenEpics)
-                print "clen: ", self.clen
-                self.clearIndexedPeaks()
-
-                maxNumPeaks = 2048
-                myHdf5 = h5py.File(self.hiddenCXI, 'w')
-                grpName = "/entry_1/result_1"
-                dset_nPeaks = "/nPeaks"
-                dset_posX = "/peakXPosRaw"
-                dset_posY = "/peakYPosRaw"
-                dset_atot = "/peakTotalIntensity"
-                if grpName in myHdf5:
-                    del myHdf5[grpName]
-                grp = myHdf5.create_group(grpName)
-                myHdf5.create_dataset(grpName+dset_nPeaks, (1,), dtype='int')
-                myHdf5.create_dataset(grpName+dset_posX, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
-                myHdf5.create_dataset(grpName+dset_posY, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
-                myHdf5.create_dataset(grpName+dset_atot, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
-
-                myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
-                myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
-                dim0 = 8*185
-                dim1 = 4*388
-                dset = myHdf5.create_dataset("/entry_1/data_1/data",(1,dim0,dim1),dtype=float)
-
-                # Convert calib image to cheetah image
-                img = np.zeros((dim0, dim1))
-                counter = 0
-                for quad in range(4):
-                    for seg in range(8):
-                        img[seg*185:(seg+1)*185,quad*388:(quad+1)*388] = self.calib[counter,:,:]
-                        counter += 1
-
-                peaks = self.peaks.copy()
-                nPeaks = peaks.shape[0]
-
-                if nPeaks > maxNumPeaks:
-                    peaks = peaks[:maxNumPeaks]
-                    nPeaks = maxNumPeaks
-                for i,peak in enumerate(peaks):
-                    seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-                    cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                    myHdf5[grpName+dset_posX][0,i] = cheetahCol
-                    myHdf5[grpName+dset_posY][0,i] = cheetahRow
-                    myHdf5[grpName+dset_atot][0,i] = atot
-                myHdf5[grpName+dset_nPeaks][0] = nPeaks
-
-                if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
-                    myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.clen #-419.9938 # FIXME
-                myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy# 8203.9019 #FIXME
-                dset[0,:,:] = img
-                myHdf5.close()
-
                 self.index.updateIndex()
 
             self.drawPeaks()
@@ -2148,6 +2140,8 @@ class MainFrame(QtGui.QWidget):
         else:
             self.photonEnergy = 0
         self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
+        # Update clen
+        self.p1.param(self.geom.geom_grp, self.geom.geom_clen_str).setValue(self.clen)
 
         if calib is not None:
             # assemble image
@@ -2722,6 +2716,14 @@ class MainFrame(QtGui.QWidget):
     #                 layer.append(v.keys()[0])
     #                 self.getKeyValues(v,layer)
 
+    # Launch crawler
+    crawlerThread = []
+    crawlerThreadCounter = 0
+    def launchCrawler(self):
+        self.crawlerThread.append(LogbookCrawler.LogbookCrawler(self))  # send parent parameters with self
+        self.crawlerThread[self.crawlerThreadCounter].updateLogbook(self.experimentName, self.psocakeDir)
+        self.crawlerThreadCounter += 1
+
     def setupExperiment(self):
         if args.v >= 1: print "Doing setupExperiment"
         if self.hasExpRunInfo():
@@ -2758,6 +2760,7 @@ class MainFrame(QtGui.QWidget):
             if args.localCalib:
                 if args.v >= 1: print "Using local calib directory"
                 psana.setOption('psana.calib-dir','./calib')
+
             try:
                 self.ds = psana.DataSource('exp='+str(self.experimentName)+':run='+str(self.runNumber)+':idx') # FIXME: psana crashes if runNumber is non-existent
             except:
@@ -2786,6 +2789,12 @@ class MainFrame(QtGui.QWidget):
                 print "#", k
             print "#######################################"
 
+            # Launch e-log crawler
+            if self.logger and self.crawlerRunning == False:
+                print "Launching crawler"
+                self.launchCrawler()
+                self.crawlerRunning = True
+
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
             #self.det.do_reshape_2d_to_3d(flag=True)
@@ -2794,15 +2803,16 @@ class MainFrame(QtGui.QWidget):
             # detector distance
             if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
                 self.clenEpics = str(self.detInfo)+'_z'
-                self.clen = self.epics.value(self.clenEpics)
-                if args.v >= 1:
-                    print "clenEpics: ", self.clenEpics
-                    print "clen: ", self.detectorDistance, self.clen
+                self.clen = self.epics.value(self.clenEpics) / 1000. # metres
                 self.coffset = self.detectorDistance - self.clen
+            if 1:  # args.v >= 1:
+                print "clenEpics: ", self.clenEpics
+                print "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+                print "@@@ self.detectorDistance (m), self.clen (m), self.coffset (m): ", self.detectorDistance, self.clen, self.coffset
             if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list: epix, rayonix
-                self.pixelSize = 110e-6
+                self.pixelSize = 110e-6 # metres
             elif 'pnccd' in self.detInfo.lower():
-                self.pixelSize = 75e-6
+                self.pixelSize = 75e-6 # metres
 
             self.p1.param(self.geom.geom_grp,self.geom.geom_pixelSize_str).setValue(self.pixelSize)
             # photon energy
@@ -3422,217 +3432,7 @@ class HitFinder(QtCore.QThread):
             except:
                 print "No write access to: ", runDir
 
-class PeakFinder(QtCore.QThread):
-    def __init__(self, parent = None):
-        QtCore.QThread.__init__(self, parent)
-        self.parent = parent
-        self.experimentName = None
-        self.runNumber = None
-        self.detInfo = None
 
-    def __del__(self):
-        self.exiting = True
-        self.wait()
-
-    def findPeaks(self,experimentName,runNumber,detInfo): # Pass in peak parameters
-        self.experimentName = experimentName
-        self.runNumber = runNumber
-        self.detInfo = detInfo
-        self.start()
-
-    def digestRunList(self,runList):
-        runsToDo = []
-        if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
-            return runsToDo
-        runLists = str(runList).split(",")
-        for list in runLists:
-            temp = list.split(":")
-            if len(temp) == 2:
-                for i in np.arange(int(temp[0]),int(temp[1])+1):
-                    runsToDo.append(i)
-            elif len(temp) == 1:
-                runsToDo.append(int(temp[0]))
-        return runsToDo
-
-    def run(self):
-        # Digest the run list
-        runsToDo = self.digestRunList(self.parent.hitParam_runs)
-
-        myLogList = []
-        for run in runsToDo:
-            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
-            try:
-                if os.path.exists(runDir) is False:
-                    os.makedirs(runDir, 0774)
-            except:
-                print "No write access to: ", runDir
-
-            # Update elog
-            try:
-                if self.parent.logger == True:
-                    self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
-            except AttributeError:
-                print "e-Log table does not exist"
-
-            cmd = "bsub -q "+self.parent.hitParam_queue+\
-              " -a mympi -n "+str(self.parent.hitParam_cpus)+\
-              " -o "+runDir+"/.%J.log findPeaks -e "+self.experimentName+\
-              " -d "+self.detInfo+\
-              " --outDir "+runDir+\
-              " --algorithm "+str(self.parent.algorithm)
-
-            if self.parent.algorithm == 1:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
-                       " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                       " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                       " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
-            elif self.parent.algorithm == 3:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
-                       " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                       " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                       " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
-            elif self.parent.algorithm == 4:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
-                       " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
-                       " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
-                       " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
-                       " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
-                       " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
-            # Save user mask to a deterministic path
-            if self.parent.userMaskOn:
-                tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                np.save(tempFilename,self.parent.userMask) # TODO: save
-                cmd += " --userMask_path "+str(tempFilename)
-            if self.parent.streakMaskOn:
-                cmd += " --streakMask_on "+str(self.parent.streakMaskOn)+\
-                    " --streakMask_sigma "+str(self.parent.streak_sigma)+\
-                   " --streakMask_width "+str(self.parent.streak_width)
-            if self.parent.psanaMaskOn:
-                cmd += " --psanaMask_on "+str(self.parent.psanaMaskOn)+\
-                   " --psanaMask_calib "+str(self.parent.mask_calibOn)+\
-                   " --psanaMask_status "+str(self.parent.mask_statusOn)+\
-                   " --psanaMask_edges "+str(self.parent.mask_edgesOn)+\
-                   " --psanaMask_central "+str(self.parent.mask_centralOn)+\
-                   " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+\
-                   " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
-
-            if self.parent.hitParam_noe > 0:
-                cmd += " --noe "+str(self.parent.hitParam_noe)
-            cmd += " -r " + str(run)
-            print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
-            print "out: ", out
-            print "err: ", err
-            jobid = out.split("<")[1].split(">")[0]
-            myLog = runDir+"/."+jobid+".log"
-            myLogList.append(myLog)
-
-        myKeyString = "The output (if any) is above this job summary."
-        mySuccessString = "Successfully completed."
-        Done = 0
-        numWorkers = len(runsToDo)
-        haveFinished = np.zeros((numWorkers,))
-        while Done == 0:
-            for i,myLog in enumerate(myLogList):
-                print "logfile: ", myLog
-                if os.path.isfile(myLog):
-                    print "logfile exists: ", myLog
-                    if haveFinished[i] == 0:
-                        p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-                        output = p.communicate()[0]
-                        print "output: ", output
-                        p.stdout.close()
-                        if myKeyString in output: # job has finished
-                            # check job was a success or a failure
-                            p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-                            output = p.communicate()[0]
-                            p.stdout.close()
-                            if mySuccessString in output: # success
-                                print "successfully done: ", myLog
-                                haveFinished[i] = 1
-                                if len(np.where(haveFinished==1)[0]) == numWorkers:
-                                    Done = 1
-                            else:
-                                print "failed attempt"
-                                haveFinished[i] = -1
-                                Done = -1
-                        else:
-                            if args.v >= 0:
-                                print "peak finding job hasn't finished yet: ", myLog
-                            # Update elog
-                            try:
-                                if self.parent.logger == True:
-                                    if self.parent.args.v >= 1: print "Updating e-log"
-                                    filename = str(self.parent.hitParam_outDir)+'/r'+str(runsToDo[i]).zfill(4)+'/'+self.experimentName+'_'+str(runsToDo[i]).zfill(4)+'.cxi'
-                                    if self.parent.args.v >= 1: print "filename: ", filename
-                                    if os.path.isfile(filename):
-                                        f = h5py.File(filename,'r')
-                                        nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
-                                        numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
-                                        numLeftNow = len(np.where(nPeaksAll == -1)[0])
-                                        numEvents = len(nPeaksAll)
-                                        numDoneNow = numEvents-numLeftNow
-                                        if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
-                                        if numDoneNow == 0:
-                                            hitRate = 0
-                                        else:
-                                            hitRate = numHitsNow*100./numDoneNow
-                                        fracDone = numDoneNow*100./numEvents
-                                        msg = str(numHitsNow)+' hits / {0:.1f}% rate / {1:.1f}% done'.format(hitRate,fracDone)
-                                        f.close()
-                                        if numDoneNow > 0: self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
-                            except AttributeError:
-                                print "e-Log table does not exist"
-                            time.sleep(10)
-                else:
-                    if args.v >= 0: print "no such file yet: ", myLog
-                    time.sleep(10)
-
-                if haveFinished[i] == 1: # success
-                    # Read number of hits
-                    filename = str(self.parent.hitParam_outDir) + '/r' + str(runsToDo[i]).zfill(4) + '/' + self.experimentName + '_' + str(runsToDo[i]).zfill(4) + '.cxi'
-                    if self.parent.args.v >= 1: print "filename: ", filename
-                    f = h5py.File(filename,'r')
-                    nPeaksAll = f['/entry_1/result_1/nPeaksAll'].value
-                    numHitsNow = len(np.where(nPeaksAll >= self.parent.hitParam_threshold)[0])
-                    numLeftNow = len(np.where(nPeaksAll == -1)[0])
-                    numEvents = len(nPeaksAll)
-                    numDoneNow = numEvents - numLeftNow
-                    if self.parent.args.v >= 1: print "numDone,numHits,numLeft,numEvent: ", numDoneNow, numHitsNow, numLeftNow, numEvents
-                    if numDoneNow == 0:
-                        hitRate = 0
-                    else:
-                        hitRate = numHitsNow * 100. / numDoneNow
-                    msg = str(numHitsNow) + ' hits / {0:.1f}% rate'.format(hitRate)
-                    f.close()
-                    # Update elog
-                    try:
-                        if self.parent.logger == True:
-                            self.parent.table.setValue(runsToDo[i],"Number of hits",msg)
-                    except AttributeError:
-                        print "e-Log table does not exist"
-                elif haveFinished[i] == -1: # failure
-                    # Update elog
-                    try:
-                        if self.parent.logger == True:
-                            self.parent.table.setValue(runsToDo[i],"Number of hits","#Failed")
-                    except AttributeError:
-                        print "e-Log table does not exist"
 
 def main():
     global ex

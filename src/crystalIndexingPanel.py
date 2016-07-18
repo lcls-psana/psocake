@@ -30,6 +30,7 @@ class CrystalIndexing(object):
         self.sample_str = 'Sample name'
         self.queue_str = 'Queue'
         self.cpu_str = 'CPUs'
+        self.keepData_str = 'Keep CXI images'
         self.noe_str = 'Number of events to process'
         (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str) = \
             ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq')
@@ -51,6 +52,7 @@ class CrystalIndexing(object):
         self.minPeaks = 15
         self.maxPeaks = 2048
         self.minRes = 0
+        self.keepData = False
 
         #######################
         # Mandatory parameter #
@@ -83,6 +85,7 @@ class CrystalIndexing(object):
                                                                self.psanaq_str: self.psanaq_str},
                  'value': self.queue, 'tip': "Choose queue"},
                 {'name': self.cpu_str, 'type': 'int', 'value': self.cpus, 'tip': "number of cpus to use per run"},
+                {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
                 #{'name': self.noe_str, 'type': 'int', 'value': self.noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
@@ -122,6 +125,9 @@ class CrystalIndexing(object):
             self.updateCpus(data)
         elif path[1] == self.noe_str:
             self.updateNoe(data)
+        elif path[1] == self.keepData_str:
+            self.keepData = data
+            print "keeping data: ", self.keepData
 
     def updateIndexStatus(self, data):
         self.indexingOn = data
@@ -210,6 +216,55 @@ class CrystalIndexing(object):
                                            self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
 
+    # Launch indexing
+    def digestRunList(self, runList):
+        runsToDo = []
+        if not runList:
+            print "Run(s) is empty. Please type in the run number(s)."
+            return runsToDo
+        runLists = str(runList).split(",")
+        for list in runLists:
+            temp = list.split(":")
+            if len(temp) == 2:
+                for i in np.arange(int(temp[0]), int(temp[1]) + 1):
+                    runsToDo.append(i)
+            elif len(temp) == 1:
+                runsToDo.append(int(temp[0]))
+        return runsToDo
+
+    def indexPeaks(self):
+        runsToDo = self.digestRunList(self.runs)
+        for run in runsToDo:
+            cmd = "bsub -q " + self.parent.hitParam_queue + \
+                  " -o " + self.outDir + "/r" + str(run).zfill(4) + "/.%J.log" + \
+                  " ./indexCrystals.py" + \
+                  " -e " + self.parent.experimentName + " -d " + self.parent.detInfo + \
+                  " --geom " + self.geom + \
+                  " --peakMethod " + self.peakMethod + \
+                  " --integrationRadius " + self.intRadius + \
+                  " --indexingMethod " + self.indexingMethod + \
+                  " --minPeaks " + str(self.minPeaks) + \
+                  " --maxPeaks " + str(self.maxPeaks) + \
+                  " --minRes " + str(self.minRes) + \
+                  " --outDir " + self.outDir + \
+                  " --sample " + self.sample + \
+                  " --queue " + self.queue + \
+                  " --cpus " + str(self.cpus) + \
+                  " --noe " + str(self.noe) + \
+                  " --instrument " + self.parent.det.instrument() + \
+                  " --pixelSize " + str(self.parent.pixelSize) + \
+                  " --coffset " + str(self.parent.coffset) + \
+                  " --clenEpics " + self.parent.clenEpics + \
+                  " --logger " + str(self.parent.logger) + \
+                  " --hitParam_threshold " + str(self.parent.hitParam_threshold) + \
+                  " -v " + str(self.parent.args.v)
+            if self.pdb: cmd += " --pdb " + self.pdb
+            cmd += " --run " + str(run)
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+            print "out, err: ", out, err
+
 class IndexHandler(QtCore.QThread):
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
@@ -234,6 +289,7 @@ class IndexHandler(QtCore.QThread):
         self.queue = None
         self.cpus = None
         self.noe = None
+        print "5555"
 
     def __del__(self):
         if self.parent.args.v >= 1: print "del IndexHandler"
@@ -472,269 +528,17 @@ class IndexHandler(QtCore.QThread):
                 if self.parent.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
                 if self.parent.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
                 if self.parent.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
-        else: # batch indexing
-            # Update elog
-            try:
-                if self.parent.logger == True:
-                    if self.parent.args.v >= 1: print "Updating e-log #StartCXIDB ", self.runNumber
-                    self.parent.table.setValue(self.runNumber,"Number of indexed","#StartCXIDB")
-            except:
-                print "Couldn't write to e-Log table, possibly does not exist"
+        else:
+            #############################################
+            # batch indexing
+            #############################################
+            print "123"
 
-            # Open hdf5
-            self.peakFile = self.outDir+'/r'+str(self.runNumber).zfill(4)+'/'+self.experimentName+'_'+str(self.runNumber).zfill(4)+'.cxi'
-            try:
-                f = h5py.File(self.peakFile,'r')
-                hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidb'].value == 'success'
-                minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
-                maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
-                minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
-                f.close()
-            except:
-                print "Could not open file: ", self.peakFile
-                print "Restart the GUI"
-                hasData = False
-                return
 
-            print "Peak criteria: ", hasData, self.minPeaks, minPeaksUsed, self.maxPeaks, maxPeaksUsed, self.minRes, minResUsed
-            if hasData and self.minPeaks == minPeaksUsed and self.maxPeaks == maxPeaksUsed and self.minRes == minResUsed:
-                hasData = True
-            else:
-                hasData = False
 
-            print "hasData: ", hasData
+            print "Submitting batch job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
 
-            if hasData is False:
-                # No image data was found, run xtc2cxidbMPI
-                cmd = "bsub -q "+self.queue+" -a mympi -n "+str(self.cpus)+" -o "+self.outDir+"/r" \
-                      +str(self.runNumber).zfill(4)+"/.%J.log xtc2cxidb"+ \
-                      " -e "+self.experimentName+" -d "+self.detInfo+" -i "+self.outDir+'/r'+str(self.runNumber).zfill(4)+ \
-                      " --sample "+self.sample+ \
-                      " --instrument "+self.parent.det.instrument()+" --pixelSize "+str(self.parent.pixelSize)+ \
-                      " --coffset "+str(self.parent.coffset)+" --clen "+self.parent.clenEpics+ \
-                      " --minPeaks "+str(self.minPeaks)+ \
-                      " --maxPeaks "+str(self.maxPeaks)+ \
-                      " --minRes "+str(self.minRes)+ \
-                      " --run " + str(self.runNumber)
-                print "Submitting batch job: ", cmd
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                out, err = process.communicate()
-                jobID = out.split("<")[1].split(">")[0]
-                myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobID+".log"
-                print "bsub log filename: ", myLog
-                myKeyString = "The output (if any) is above this job summary."
-                mySuccessString = "Successfully completed."
-                notDone = 1
-                while notDone:
-                    if os.path.isfile(myLog):
-                        p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-                        output = p.communicate()[0]
-                        p.stdout.close()
-                        if myKeyString in output: # job has completely finished
-                            # check job was a success or a failure
-                            p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-                            output = p.communicate()[0]
-                            p.stdout.close()
-                            if mySuccessString in output: # success
-                                print "successfully done converting to cxidb: ", self.runNumber
-                                hasData = True
-                                if self.parent.logger == True:
-                                    if self.parent.args.v >= 1: print "#DoneCXIDB"
-                                    self.parent.table.setValue(self.runNumber, "Number of indexed", "#DoneCXIDB")
-                            else:
-                                print "failed attempt", self.runNumber
-                                # Update elog
-                                try:
-                                    if self.parent.logger == True:
-                                        if self.parent.args.v >= 1: print "#FailedCXIDB"
-                                        self.parent.table.setValue(self.runNumber,"Number of indexed","#FailedCXIDB")
-                                except:
-                                    print "Couldn't write to e-Log table, possibly does not exist"
-                            notDone = 0
-                        else:
-                            if self.parent.args.v >= 0: print "cxidb job hasn't finished yet: ", myLog
-                            time.sleep(10)
-                    else:
-                        if self.parent.args.v >= 0: print "no such file yet", myLog
-                        nodeFailed = self.checkJobExit(jobID)
-                        if nodeFailed == 1:
-                            if self.parent.args.v >= 0: print "cxidb job node failure: ", myLog
-                            notDone = 0
-                        time.sleep(10)
-            else:
-                if self.parent.args.v >= 1: print "Image data exists: ", self.runNumber
-                # Update elog
-                try:
-                    if self.parent.logger == True:
-                        if self.parent.args.v >= 1: print "#ImageExists"
-                        self.parent.table.setValue(self.runNumber, "Number of indexed", "#ImageExists")
-                except:
-                    print "Couldn't write to e-Log table, possibly does not exist"
-
-            if hasData is True:
-                # Update elog
-                try:
-                    if self.parent.logger == True:
-                        if self.parent.args.v >= 1: print "#IndexingNow"
-                        self.parent.table.setValue(self.runNumber,"Number of indexed", "#IndexingNow")
-                except:
-                    print "Couldn't write to e-Log table, possibly does not exist"
-
-                try:
-                    f = h5py.File(self.peakFile,'r')
-                    eventList = f['/LCLS/eventNumber'].value
-                    numEvents = len(eventList)
-                    f.close()
-                except:
-                    print "Couldn't read file: ", self.peakFile
-                    numEvents = 0
-
-                # Update elog
-                try:
-                    if self.parent.logger == True:
-                        if self.parent.args.v >= 1: print "#GettingEvents"
-                        self.parent.table.setValue(self.runNumber,"Number of indexed", "#GettingEvents: "+str(numEvents))
-                except:
-                    print "Couldn't write to e-Log table, possibly does not exist"
-                # Split into chunks for faster indexing
-                numWorkers = int(self.cpus/2.)
-                myLogList = []
-                myJobList = []
-                self.myStreamList = []
-                for rank in range(numWorkers):
-                    myJobs = self.getMyUnfairShare(numEvents,numWorkers,rank)
-                    outDir = self.outDir+"/r"+str(self.runNumber).zfill(4)
-                    myList = outDir+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".lst"
-                    myStream = outDir+"/temp_"+self.experimentName+"_"+str(self.runNumber)+"_"+str(rank)+".stream"
-                    self.myStreamList.append(myStream)
-
-                    # Write list
-                    with open(myList, "w") as text_file:
-                        for i,val in enumerate(myJobs):
-                            text_file.write("{} //{}\n".format(self.peakFile,val))
-
-                    cmd = "bsub -q "+self.queue+" -a mympi -n 1 -R 'span[hosts=1]' -o "+outDir+\
-                          "/.%J.log indexamajig -j "+str(self.cpus)+" -i "+myList+\
-                          " -g "+self.geom+" --peaks="+self.peakMethod+" --int-radius="+self.intRadius+\
-                          " --indexing="+self.indexingMethod+" -o "+myStream+" --temp-dir="+outDir
-                    if self.pdb:# is not '':
-                        cmd += " --pdb="+self.pdb
-                    print "Submitting batch job: ", cmd
-                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                    out, err = process.communicate()
-                    jobID = out.split("<")[1].split(">")[0]
-                    myLog = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/."+jobID+".log"
-                    myJobList.append(jobID)
-                    myLogList.append(myLog)
-                    print "bsub log filename: ", myLog
-                    time.sleep(1)
-
-                myKeyString = "The output (if any) is above this job summary."
-                mySuccessString = "Successfully completed."
-                Done = 0
-                haveFinished = np.zeros((numWorkers,))
-                f = h5py.File(self.peakFile, 'r')
-                hitEvents = f['/entry_1/result_1/nPeaksAll'].value
-                numHits = len(np.where(hitEvents >= self.parent.hitParam_threshold)[0])
-                f.close()
-
-                while Done == 0:
-                    for i,myLog in enumerate(myLogList):
-                        if os.path.isfile(myLog): # log file exists
-                            if haveFinished[i] == 0: # job has not finished
-                                p = subprocess.Popen(["grep", myKeyString, myLog],stdout=subprocess.PIPE)
-                                output = p.communicate()[0]
-                                p.stdout.close()
-                                if myKeyString in output: # job has completely finished
-                                    # check job was a success or a failure
-                                    p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-                                    output = p.communicate()[0]
-                                    p.stdout.close()
-                                    if mySuccessString in output: # success
-                                        print "successfully done indexing: ", self.runNumber, myLog
-                                        haveFinished[i] = 1
-                                        if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
-                                            print "Done indexing"
-                                            Done = 1
-                                    else: # failure
-                                        print "failed attempt", self.runNumber, myLog
-                                        haveFinished[i] = -1
-                                        if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
-                                            print "Done indexing"
-                                            Done = -1
-                                else: # job is still going, update indexing rate
-                                    if self.parent.args.v >= 0: print "indexing hasn't finished yet: ", self.runNumber, myJobList, haveFinished
-                                    indexedPeaks, numProcessed = self.getIndexedPeaks()
-
-                                    numIndexedNow = len(np.where(indexedPeaks>0)[0])
-                                    if numProcessed == 0:
-                                        indexRate = 0
-                                    else:
-                                        indexRate = numIndexedNow*100./numProcessed
-                                    fracDone = numProcessed*100./numHits
-                                    print "Progress: ", self.runNumber, numIndexedNow, numProcessed, indexRate, fracDone
-                                    # Update elog
-                                    try:
-                                        if self.parent.logger == True:
-                                            msg = str(numIndexedNow)+' indexed / {0:.1f}% rate / {1:.1f}% done'.format(indexRate,fracDone)
-                                            self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
-                                    except:
-                                        print "Couldn't write to e-Log table, possibly does not exist"
-                                    time.sleep(10)
-                        else:
-                            if self.parent.args.v >= 0: print "no such file yet: ", self.runNumber, myLog
-                            nodeFailed = self.checkJobExit(myJobList[i])
-                            if nodeFailed == 1:
-                                if self.parent.args.v >= 0: print "indexing job node failure: ", myLog
-                                haveFinished[i] = -1
-                            time.sleep(10)
-
-                if abs(Done) == 1:
-                    print "Merging stream file: ", self.runNumber
-                    # Merge all stream files into one
-                    totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber)+".stream"
-                    with open(totalStream, 'w') as outfile:
-                        for fname in self.myStreamList:
-                            with open(fname) as infile:
-                                outfile.write(infile.read())
-
-                    indexedPeaks, _ = self.getIndexedPeaks()
-                    numIndexed = len(np.where(indexedPeaks>0)[0])
-
-                    # Write number of indexed
-                    try:
-                        f = h5py.File(self.peakFile,'r+')
-                        if '/entry_1/result_1/index' in f:
-                            del f['/entry_1/result_1/index']
-                        f['/entry_1/result_1/index'] = indexedPeaks
-                        # Remove large data
-                        #if '/entry_1/instrument_1/detector_1/data' in f:
-                        #    del f['/entry_1/instrument_1/detector_1/data']
-                        f.close()
-                    except:
-                        if self.parent.args.v >= 0: print "Couldn't modify hdf5 file: ", self.peakFile
-                        pass
-
-                    # Clean up temp files
-                    for fname in self.myStreamList:
-                        os.remove(fname)
-
-                    # Update elog
-                    try:
-                        if self.parent.logger == True:
-                            if self.parent.args.v >= 1: print "Updating e-log numIndexed: ", numIndexed
-                            if numProcessed == 0:
-                                indexRate = 0
-                            else:
-                                indexRate = numIndexed * 100. / numProcessed
-                            if Done == 1:
-                                msg = str(numIndexed) + ' indexed / {0:.1f}% rate'.format(indexRate)
-                            else:
-                                msg = str(numIndexed) + ' indexed / {0:.1f}% rate / Failure'.format(indexRate)
-                            self.parent.table.setValue(self.runNumber,"Number of indexed",msg)
-                    except:
-                        print "Couldn't write to e-Log table, possibly does not exist"
-            else:
-                print "This shouldn't happend. hasData is False"
 
 
