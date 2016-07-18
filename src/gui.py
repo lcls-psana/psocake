@@ -2878,7 +2878,7 @@ class MainFrame(QtGui.QWidget):
                 if calibFile is not None:
                     # Convert psana geometry to crystfel geom
                     self.p9.param(self.index.index_grp, self.index.index_geom_str).setValue(self.psocakeRunDir+'/.temp.geom')
-                    cmd = ["python","psana2crystfel.py",self.calibPath+'/'+calibFile, self.psocakeRunDir+"/.temp.geom"]
+                    cmd = ["python","/reg/neh/home/yoon82/psgeom/psana2crystfel.py",self.calibPath+'/'+calibFile, self.psocakeRunDir+"/.temp.geom"]
                     if args.v >= 1: print "cmd: ", cmd
                     p = subprocess.Popen(cmd,stdout=subprocess.PIPE)
                     output = p.communicate()[0]
