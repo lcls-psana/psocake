@@ -14,6 +14,7 @@ reverse time order.
 Tag: V00-01-25
 2016-07-14 Chunhong Yoon
 - Added label panel
+- Decouple elog with gui
 
 Tag: V00-01-24
 2016-07-05 Chunhong Yoon
