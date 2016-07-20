@@ -229,9 +229,11 @@ class DiffractionGeometry(object):
 
     def drawCentre(self):
         # Always indicate centre of detector
-        self.parent.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
-                                           size=5, brush=(255, 255, 255, 0), \
-                                           pen='r', pxMode=False)
+        try:
+            self.parent.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
+                                               size=5, brush=(255, 255, 255, 0), pen='r', pxMode=False)
+        except:
+            pass
 
     def clearRings(self):
         if self.resolutionText:
@@ -248,4 +250,8 @@ class DiffractionGeometry(object):
             dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.centreY) # microns
             geo = self.parent.det.geometry(self.parent.evt)
             geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
-            geo.save_pars_in_file(self.parent.psocakeRunDir+"/"+str(self.parent.runNumber)+'-end.data')
+            fname = self.parent.psocakeRunDir+"/"+str(self.parent.runNumber)+'-end.data'
+            geo.save_pars_in_file(fname)
+            print "#################################################"
+            print "Saving psana detector geometry: ", fname
+            print "#################################################"
