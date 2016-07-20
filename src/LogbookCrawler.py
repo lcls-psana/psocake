@@ -23,37 +23,40 @@ class LogbookCrawler(QtCore.QThread):
 
     def run(self):
         while 1:
-            # Get number of runs
-            lastRun = self.table.values(0)['last_run']
-            for run in range(lastRun):
-                # hit finder
-                fname = self.outDir + '/r' + str(run).zfill(4) + '/status_hits.txt'
-                try:
-                    with open(fname) as infile:
-                        d = json.load(infile)
-                        numHits = d['numHits']
-                        hitRate = d['hitRate']
-                        fracDone = d['fracDone']
-                        if fracDone == 100:
-                            msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
-                        else:
-                            msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
-                        self.table.setValue(run, "Number of hits", msg)
-                except:  # file may not exist yet
-                    continue
-                # indexing
-                fname = self.outDir + '/r' + str(run).zfill(4) + '/status_index.txt'
-                try:
-                    with open(fname) as infile:
-                        d = json.load(infile)
-                        numIndexed = d['numIndexed']
-                        indexingRate = d['indexRate']
-                        fracDone = d['fracDone']
-                        if fracDone == 100:
-                            msg = '{0:.1f} indexed / {1:.1f}% rate'.format(numIndexed, indexingRate)
-                        else:
-                            msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
-                        self.table.setValue(run, "Number of indexed", msg)
-                except:  # file may not exist yet
-                    continue
-            time.sleep(10) # logbook update
+            try:
+                # Get number of runs
+                lastRun = self.table.values(0)['last_run']
+                for run in range(lastRun):
+                    # hit finder
+                    fname = self.outDir + '/r' + str(run).zfill(4) + '/status_hits.txt'
+                    try:
+                        with open(fname) as infile:
+                            d = json.load(infile)
+                            numHits = d['numHits']
+                            hitRate = d['hitRate']
+                            fracDone = d['fracDone']
+                            if fracDone == 100:
+                                msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
+                            else:
+                                msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
+                            self.table.setValue(run, "Number of hits", msg)
+                    except:  # file may not exist yet
+                        continue
+                    # indexing
+                    fname = self.outDir + '/r' + str(run).zfill(4) + '/status_index.txt'
+                    try:
+                        with open(fname) as infile:
+                            d = json.load(infile)
+                            numIndexed = d['numIndexed']
+                            indexingRate = d['indexRate']
+                            fracDone = d['fracDone']
+                            if fracDone == 100:
+                                msg = '{0:.1f} indexed / {1:.1f}% rate'.format(numIndexed, indexingRate)
+                            else:
+                                msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
+                            self.table.setValue(run, "Number of indexed", msg)
+                    except:  # file may not exist yet
+                        continue
+                    time.sleep(30)  # logbook update
+            except:
+                time.sleep(60)
