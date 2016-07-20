@@ -900,11 +900,13 @@ class MainFrame(QtGui.QWidget):
         self.w1.getView().addItem(self.img_feature)
 
         self.ring_feature = pg.ScatterPlotItem()
+        self.centre_feature = pg.ScatterPlotItem()
         self.peak_feature = pg.ScatterPlotItem()
         self.indexedPeak_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
         self.z_direction1 = pg.ScatterPlotItem()
         self.w1.getView().addItem(self.ring_feature)
+        self.w1.getView().addItem(self.centre_feature)
         self.w1.getView().addItem(self.peak_feature)
         self.w1.getView().addItem(self.indexedPeak_feature)
         self.w1.getView().addItem(self.z_direction)
@@ -993,7 +995,6 @@ class MainFrame(QtGui.QWidget):
                         print "###########################################"
                         print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
                         print "###########################################"
-                        print self.cx, self.cy
 
                     else:
                         selected = self.ret
@@ -1509,6 +1510,9 @@ class MainFrame(QtGui.QWidget):
 
         self.drawLabCoordinates() # FIXME: This does not match the lab coordinates yet!
 
+        # Indicate centre of detector
+        self.geom.drawCentre()
+
         # Try mouse over crosshair
         self.xhair = self.w1.getView()
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
@@ -1570,10 +1574,7 @@ class MainFrame(QtGui.QWidget):
         # Signal proxy
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
-
-
         self.win.show()
-        #self.show()
 
     def initMask(self):
         if self.gapAssemInd is None:
@@ -2145,7 +2146,8 @@ class MainFrame(QtGui.QWidget):
             self.photonEnergy = 0
         self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
         # Update clen
-        self.p1.param(self.geom.geom_grp, self.geom.geom_clen_str).setValue(self.clen)
+        if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
+            self.p1.param(self.geom.geom_grp, self.geom.geom_clen_str).setValue(self.clen)
 
         if calib is not None:
             # assemble image

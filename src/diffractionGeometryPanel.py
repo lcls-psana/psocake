@@ -225,8 +225,13 @@ class DiffractionGeometry(object):
                 self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.parent.cx, self.parent.cy)
         else:
             self.clearRings()
-        if self.parent.args.v >= 1:
-            print "Done updateRings"
+        if self.parent.args.v >= 1: print "Done updateRings"
+
+    def drawCentre(self):
+        # Always indicate centre of detector
+        self.parent.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
+                                           size=5, brush=(255, 255, 255, 0), \
+                                           pen='r', pxMode=False)
 
     def clearRings(self):
         if self.resolutionText:
