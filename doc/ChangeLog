@@ -11,6 +11,11 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-26
+2016-07-18 Chunhong Yoon
+- changed nm to angstrom for unitcell display
+- added detector centre indicator
+
 Tag: V00-01-25
 2016-07-14 Chunhong Yoon
 - Added label panel

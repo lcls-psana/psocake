@@ -69,6 +69,7 @@ parser.add_argument("exprun", help="psana experiment/run string (e.g. exp=xppd71
 parser.add_argument('-d','--detList', help="list of detectors separated with comma (e.g. pnccdFront,pnccdBack)", dest="detList", type=detList, nargs=1)
 parser.add_argument("-n","--noe",help="number of events to process",default=0, type=int)
 parser.add_argument('-o','--outDir', help="output directory where .cxi will be saved (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
+parser.add_argument("-t","--threshold",help="ignore ADUs below threshold",default=None, type=float)
 args = parser.parse_args()
 
 print args.exprun, args.detList, args.noe, args.outDir
@@ -105,24 +106,10 @@ for run in ds.runs():
     ind = getMyUnfairShare(numJobs,size,rank)
     mytimes = times[ind[0]:ind[-1]+1]
 
-    #print "mytimes: ", rank, len(times), len(mytimes), ind[0], ind[-1]
-
     for d in detlist:
-        #print "detname: ", d.detname
-        gain = d.gain(run.event(mytimes[0]))
-        hybridGain = d.gain_mask(run, gain=6.85)
-        if hybridGain is not None:
-            #print "applying hybrid gain"
-            gain *= hybridGain
         for i,time in enumerate(mytimes):
-            #print "i: ", i
             if i%100==0: print 'Rank',rank,'processing event', i,'of',len(mytimes)
             evt = run.event(time)
-            #print "evt: ", evt
-            # very useful for seeing what data is in the event
-            #if evt is None:
-            #    print '*** event fetch failed'
-            #    continue
             try:
                 detarr = d.calib(evt)
             except ValueError:
@@ -134,8 +121,9 @@ for run in ds.runs():
             if detarr is None:
                 print '*** failed to get detarr'
                 continue
-            if gain is not None: detarr *= gain
-            #print "detarr: ", detarr.shape, i
+            if args.threshold is not None:
+                print "Applying threshold: ", args.threshold
+                detarr[detarr < args.threshold] = 0
             if not hasattr(d,'stats'):
                 #print "##### init"
                 d.stats = Stats(detarr,env.experiment(),evt.run(),d.detname)

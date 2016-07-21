@@ -75,17 +75,18 @@ class DiffractionGeometry(object):
             self.updateResolutionUnits(data)
 
     def updateDetectorDistance(self, data):
-        self.parent.detectorDistance = data / 1000. # mm to metres
-        self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-        if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
-        self.writeCrystfelGeom()
-        self.parent.updateClassification()
-        if self.hasGeometryInfo():
+        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            self.parent.detectorDistance = data / 1000. # mm to metres
+            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+            if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+            self.writeCrystfelGeom()
+            self.parent.updateClassification()
+            if self.hasGeometryInfo():
+                if self.parent.args.v >= 1:
+                    print "has geometry info"
+                self.updateGeometry()
             if self.parent.args.v >= 1:
-                print "has geometry info"
-            self.updateGeometry()
-        if self.parent.args.v >= 1:
-            print "Done updateDetectorDistance"
+                print "Done updateDetectorDistance"
 
     def updatePhotonEnergy(self, data):
         self.parent.photonEnergy = data

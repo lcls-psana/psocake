@@ -235,6 +235,7 @@ powder_runs_str = 'Run(s)'
 powder_queue_str = 'Queue'
 powder_cpu_str = 'CPUs'
 powder_noe_str = 'Number of events to process'
+powder_threshold_str = 'Threshold'
 
 # Color scheme
 cardinalRed_hex = str("#8C1515") # Cardinal red
@@ -358,7 +359,6 @@ class MainFrame(QtGui.QWidget):
         self.pixelSize = None
         self.resolutionRingsOn = False
         self.resolution = None
-        #self.resolutionText = []
         self.resolutionUnits = 0
         # Init variables
         self.data = None # assembled detector image
@@ -495,7 +495,8 @@ class MainFrame(QtGui.QWidget):
         self.powder_runs = ''
         self.powder_queue = hitParam_psanaq_str
         self.powder_cpus = 24
-        self.powder_noe = 0
+        self.powder_noe = -1
+        self.powder_threshold = -1
 
         # Threads
         self.stackStart = 0
@@ -661,6 +662,7 @@ class MainFrame(QtGui.QWidget):
                                                                         hitParam_psanaq_str: 'psanaq'},
                  'value': self.powder_queue, 'tip': "Choose queue"},
                 {'name': powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
+                {'name': powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold"},
                 {'name': powder_noe_str, 'type': 'int', 'value': self.powder_noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
@@ -1761,55 +1763,55 @@ class MainFrame(QtGui.QWidget):
                 if args.v >= 1: print "$ updateClassification clen (m): ", self.clen
             self.clearIndexedPeaks()
 
-            maxNumPeaks = 2048
-            myHdf5 = h5py.File(self.hiddenCXI, 'w')
-            grpName = "/entry_1/result_1"
-            dset_nPeaks = "/nPeaks"
-            dset_posX = "/peakXPosRaw"
-            dset_posY = "/peakYPosRaw"
-            dset_atot = "/peakTotalIntensity"
-            if grpName in myHdf5:
-                del myHdf5[grpName]
-            grp = myHdf5.create_group(grpName)
-            myHdf5.create_dataset(grpName+dset_nPeaks, (1,), dtype='int')
-            myHdf5.create_dataset(grpName+dset_posX, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
-            myHdf5.create_dataset(grpName+dset_posY, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
-            myHdf5.create_dataset(grpName+dset_atot, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
-
-            myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
-            myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
-            dim0 = 8*185
-            dim1 = 4*388
-            dset = myHdf5.create_dataset("/entry_1/data_1/data",(1,dim0,dim1),dtype=float)
-
-            # Convert calib image to cheetah image
-            img = np.zeros((dim0, dim1))
-            counter = 0
-            for quad in range(4):
-                for seg in range(8):
-                    img[seg*185:(seg+1)*185,quad*388:(quad+1)*388] = self.calib[counter,:,:]
-                    counter += 1
-
-            peaks = self.peaks.copy()
-            nPeaks = peaks.shape[0]
-
-            if nPeaks > maxNumPeaks:
-                peaks = peaks[:maxNumPeaks]
-                nPeaks = maxNumPeaks
-            for i,peak in enumerate(peaks):
-                seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-                cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                myHdf5[grpName+dset_posX][0,i] = cheetahCol
-                myHdf5[grpName+dset_posY][0,i] = cheetahRow
-                myHdf5[grpName+dset_atot][0,i] = atot
-            myHdf5[grpName+dset_nPeaks][0] = nPeaks
-
             if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
+                maxNumPeaks = 2048
+                myHdf5 = h5py.File(self.hiddenCXI, 'w')
+                grpName = "/entry_1/result_1"
+                dset_nPeaks = "/nPeaks"
+                dset_posX = "/peakXPosRaw"
+                dset_posY = "/peakYPosRaw"
+                dset_atot = "/peakTotalIntensity"
+                if grpName in myHdf5:
+                    del myHdf5[grpName]
+                grp = myHdf5.create_group(grpName)
+                myHdf5.create_dataset(grpName+dset_nPeaks, (1,), dtype='int')
+                myHdf5.create_dataset(grpName+dset_posX, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+                myHdf5.create_dataset(grpName+dset_posY, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+                myHdf5.create_dataset(grpName+dset_atot, (1,maxNumPeaks), dtype='float32', chunks=(1,maxNumPeaks))
+
+                myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
+                myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
+                dim0 = 8*185
+                dim1 = 4*388
+                dset = myHdf5.create_dataset("/entry_1/data_1/data",(1,dim0,dim1),dtype=float)
+
+                # Convert calib image to cheetah image
+                img = np.zeros((dim0, dim1))
+                counter = 0
+                for quad in range(4):
+                    for seg in range(8):
+                        img[seg*185:(seg+1)*185,quad*388:(quad+1)*388] = self.calib[counter,:,:]
+                        counter += 1
+
+                peaks = self.peaks.copy()
+                nPeaks = peaks.shape[0]
+
+                if nPeaks > maxNumPeaks:
+                    peaks = peaks[:maxNumPeaks]
+                    nPeaks = maxNumPeaks
+                for i,peak in enumerate(peaks):
+                    seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
+                    cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                    myHdf5[grpName+dset_posX][0,i] = cheetahCol
+                    myHdf5[grpName+dset_posY][0,i] = cheetahRow
+                    myHdf5[grpName+dset_atot][0,i] = atot
+                myHdf5[grpName+dset_nPeaks][0] = nPeaks
+
                 if args.v >= 1: print "hiddenCXI clen (mm): ", self.clen * 1000.
                 myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.clen * 1000. # mm
-            myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy
-            dset[0,:,:] = img
-            myHdf5.close()
+                myHdf5["/LCLS/photon_energy_eV"][0] = self.photonEnergy
+                dset[0,:,:] = img
+                myHdf5.close()
 
             if self.showIndexedPeaks:
                 self.index.updateIndex()
@@ -2540,6 +2542,8 @@ class MainFrame(QtGui.QWidget):
                     self.powder_cpus = data
                 elif path[1] == powder_noe_str:
                     self.powder_noe = data
+                elif path[1] == powder_threshold_str:
+                    self.powder_threshold = data
 
         ################################################
         # crystal indexing parameters
@@ -2806,7 +2810,7 @@ class MainFrame(QtGui.QWidget):
 
         if self.hasExpRunDetInfo():
             self.det = psana.Detector(str(self.detInfo), self.env)
-            #self.det.do_reshape_2d_to_3d(flag=True)
+            self.det.do_reshape_2d_to_3d(flag=True)
 
             self.epics = self.ds.env().epicsStore()
             # detector distance
@@ -3320,6 +3324,8 @@ class PowderProducer(QtCore.QThread):
                       " -o "+runDir
                 if self.parent.powder_noe > 0:
                     cmd += " -n "+str(self.parent.powder_noe)
+                if self.parent.powder_threshold is not -1:
+                    cmd += " -t " + str(self.parent.powder_threshold)
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
