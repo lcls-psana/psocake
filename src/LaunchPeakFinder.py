@@ -110,6 +110,9 @@ class LaunchPeakFinder(QtCore.QThread):
 
             if self.parent.hitParam_noe > 0:
                 cmd += " --noe "+str(self.parent.hitParam_noe)
+
+            if self.parent.localCalib: cmd += " --localCalib"
+
             cmd += " -r " + str(run)
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

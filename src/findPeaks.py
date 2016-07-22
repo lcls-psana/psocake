@@ -48,6 +48,7 @@ parser.add_argument("--psanaMask_central",help="psana central on",default="False
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default="False", type=str)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
 parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
+parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 args = parser.parse_args()
 
 def getNoe(args):
@@ -64,6 +65,8 @@ def getNoe(args):
         else:
             numJobs = len(times)
     return numJobs
+
+if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 
 if rank == 0:
     runStr = "%04d" % args.run

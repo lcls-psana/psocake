@@ -36,8 +36,7 @@ if rank == 0:
     print("psana,svn versions: ", psana_version, svn_version)
     print("Running litPixels: ", args.exprun)
 
-if args.localCalib:
-    psana.setOption('psana.calib-dir','./calib')
+if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 
 def getAveragePhotonEnergy():
     """
@@ -68,8 +67,7 @@ ds = psana.DataSource(myDatasource)
 env = ds.env()
 run = ds.runs().next()
 
-if rank == 0:
-    photonEnergy = getAveragePhotonEnergy()
+if rank == 0: photonEnergy = getAveragePhotonEnergy()
 
 aliasList = args.detectorName.split(",")
 print("#### aliasList: ", aliasList)
@@ -332,6 +330,7 @@ def master():
             evttime_ds[nevts] = (seconds << 32) | nanoseconds
             fids_ds[nevts] = fiducials
             hitMetric_ds[nevts] = hitMetric
+            f.flush()
             nevts+=1
 
     # Save attributes

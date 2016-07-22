@@ -328,6 +328,7 @@ class MainFrame(QtGui.QWidget):
         self.detInfoList = None
         self.isCspad = False
         self.isCamera = False
+        self.logger = False
         self.crawlerRunning = False
         self.evt = None
         self.eventNumber = int(args.evt)
@@ -666,8 +667,8 @@ class MainFrame(QtGui.QWidget):
                                                                         hitParam_psanaq_str: 'psanaq'},
                  'value': self.powder_queue, 'tip': "Choose queue"},
                 {'name': powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
-                {'name': powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold"},
-                {'name': powder_noe_str, 'type': 'int', 'value': self.powder_noe, 'tip': "number of events to process, default=0 means process all events"},
+                {'name': powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
+                {'name': powder_noe_str, 'type': 'int', 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
             ]},
         ]
         self.paramsCorrection = [
@@ -2046,7 +2047,6 @@ class MainFrame(QtGui.QWidget):
         if calib is None:
             if self.image_property == 1: # gain and hybrid gain corrected
                 calib = self.getCalib(evtNumber)
-                print calib.dtype
                 if calib is None: calib = np.zeros_like(self.detGuaranteed, dtype='float32')
             elif self.image_property == 2: # common mode corrected
                 if args.v >= 1: print "common mode corrected"
@@ -2655,7 +2655,6 @@ class MainFrame(QtGui.QWidget):
 
     def updateEventNumber(self, data):
         self.eventNumber = data
-        print "data: ", data
         if self.eventNumber >= self.eventTotal:
             self.eventNumber = self.eventTotal-1
         # update timestamps and fiducial
@@ -3360,8 +3359,8 @@ class PowderProducer(QtCore.QThread):
         for run in runsToDo:
             runDir = self.parent.powder_outDir+"/r"+str(run).zfill(4)
             try:
-                if os.path.exists(runDir) is False:
-                    os.makedirs(runDir, 0774)
+                if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
+
                 # Command for submitting to batch
                 cmd = "bsub -q "+self.parent.powder_queue+" -n "+str(self.parent.powder_cpus)+\
                       " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
@@ -3371,6 +3370,8 @@ class PowderProducer(QtCore.QThread):
                     cmd += " -n "+str(self.parent.powder_noe)
                 if self.parent.powder_threshold is not -1:
                     cmd += " -t " + str(self.parent.powder_threshold)
+                if self.parent.args.localCalib:
+                    cmd += " --localCalib"
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
@@ -3481,6 +3482,9 @@ class HitFinder(QtCore.QThread):
 
                 if self.parent.spiParam_noe > 0:
                     cmd += " --noe "+str(self.parent.spiParam_noe)
+
+                if self.parent.args.localCalib: cmd += " --localCalib"
+
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
