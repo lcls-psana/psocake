@@ -2006,7 +2006,7 @@ class MainFrame(QtGui.QWidget):
                         commonModeCorrected = pedestalCorrected - commonMode #self.det.common_mode_apply(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1], self.commonMode[2], self.commonMode[3]))
                 else:
                     commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected)
-                    commonModeCorrected = pedestalCorrected - commonMode
+                    commonModeCorrected = pedestalCorrected + commonMode # WHAT! You need to ADD common mode?!!
                 return commonModeCorrected
             except:
                 return None
@@ -2046,25 +2046,22 @@ class MainFrame(QtGui.QWidget):
         if calib is None:
             if self.image_property == 1: # gain and hybrid gain corrected
                 calib = self.getCalib(evtNumber)
-                if calib is None: calib = np.zeros_like(self.detGuaranteed)
-                #else:
-                #    if self.det.gain(self.evt) is not None:
-                #        calib *= self.det.gain(self.evt)
-                #if self.det.gain_mask(self.evt, gain=6.85) is not None: # None if not cspad or cspad2x2
-                #    calib *= self.det.gain_mask(self.evt, gain=6.85)
+                print calib.dtype
+                if calib is None: calib = np.zeros_like(self.detGuaranteed, dtype='float32')
             elif self.image_property == 2: # common mode corrected
+                if args.v >= 1: print "common mode corrected"
                 calib = self.getCommonModeCorrected(evtNumber)
-                if calib is None: calib = np.zeros_like(self.detGuaranteed)
+                if calib is None: calib = np.zeros_like(self.detGuaranteed, dtype='float32')
             elif self.image_property == 3: # pedestal corrected
-                calib = self.det.raw(self.evt)
+                calib = self.det.raw(self.evt).astype('float32')
                 if calib is None:
-                    calib = np.zeros_like(self.detGuaranteed)
+                    calib = np.zeros_like(self.detGuaranteed, dtype='float32')
                 else:
                     calib -= self.det.pedestals(self.evt)
             elif self.image_property == 4: # raw
                 calib = self.det.raw(self.evt)
                 if calib is None:
-                    calib = np.zeros_like(self.detGuaranteed)
+                    calib = np.zeros_like(self.detGuaranteed, dtype='float32')
                 self.firstUpdate = True
             elif self.image_property == 5: # photon counts
                 print "Sorry, this feature is not available"
@@ -2163,7 +2160,7 @@ class MainFrame(QtGui.QWidget):
             if args.v >= 1: print "cx, cy: ", self.cx, self.cy
             return calib, data
         else:
-            calib = np.zeros_like(self.detGuaranteed)
+            calib = np.zeros_like(self.detGuaranteed, dtype='float32')
             data = self.getAssembledImage(calib)
             self.cx, self.cy = self.det.point_indexes(self.evt, pxy_um=(0, 0))
             if self.cx is None:
@@ -2216,33 +2213,29 @@ class MainFrame(QtGui.QWidget):
                 self.updateEventNumber(data)
                 if self.showPeaks:
                     self.updateClassification()
-            elif path[2] == exp_eventID_str:# and len(path) == 2 and change is 'value':
-                if len(data.split(',')) == 3: # sec,nsec,fid
-                    _sec,_nsec,_fid = data.split(',')
-                    self.eventSeconds, self.eventNanoseconds, self.eventFiducial = int(_sec), int(_nsec), int(_fid)
-                elif len(data.split(',')) == 2: # timestamp,fid
-                    _timestamp,_fid = data.split(',')
-                    self.eventSeconds, self.eventNanoseconds = self.convertSecNanosec(int(_timestamp))
-                    self.eventFiducial = int(_fid)
+            # elif path[2] == exp_eventID_str:# and len(path) == 2 and change is 'value':
+            #     if len(data.split(',')) == 3: # sec,nsec,fid
+            #         _sec,_nsec,_fid = data.split(',')
+            #         self.eventSeconds, self.eventNanoseconds, self.eventFiducial = int(_sec), int(_nsec), int(_fid)
+            #     elif len(data.split(',')) == 2: # timestamp,fid
+            #         _timestamp,_fid = data.split(',')
+            #         self.eventSeconds, self.eventNanoseconds = self.convertSecNanosec(int(_timestamp))
+            #         self.eventFiducial = int(_fid)
+            #
+            #     if self.secList is None: # populate secList, nsecList, fidList
+            #         self.secList = np.zeros(self.eventTotal)
+            #         self.nsecList = np.zeros(self.eventTotal)
+            #         self.fidList = np.zeros(self.eventTotal)
+            #         for i in range(self.eventTotal):
+            #             _evt = self.run.event(self.times[i])
+            #             _evtId = _evt.get(psana.EventId)
+            #             self.secList[i] = _evtId.time()[0]
+            #             self.nsecList[i] = _evtId.time()[1]
+            #             self.fidList[i] = _evtId.fiducials()
+            #     self.eventNumber = self.findEventFromTimestamp(self.secList,self.nsecList,self.fidList,
+            #                                 self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+            #     self.p.param(exp_grp, exp_evt_str).setValue(self.eventNumber)
 
-                if self.secList is None: # populate secList, nsecList, fidList
-                    self.secList = np.zeros(self.eventTotal)
-                    self.nsecList = np.zeros(self.eventTotal)
-                    self.fidList = np.zeros(self.eventTotal)
-                    for i in range(self.eventTotal):
-                        _evt = self.run.event(self.times[i])
-                        _evtId = _evt.get(psana.EventId)
-                        self.secList[i] = _evtId.time()[0]
-                        self.nsecList[i] = _evtId.time()[1]
-                        self.fidList[i] = _evtId.fiducials()
-                self.eventNumber = self.findEventFromTimestamp(self.secList,self.nsecList,self.fidList,
-                                            self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
-                self.p.param(exp_grp, exp_evt_str).setValue(self.eventNumber)
-                #if ',' in data:
-                #    _sec, _nsec = update
-                #self.updateEventID(data)
-                #if self.showPeaks:
-                #    self.updateClassification()
         ################################################
         # display parameters
         ################################################
