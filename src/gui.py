@@ -65,6 +65,7 @@ exp_name_str = 'Experiment Name'
 exp_run_str = 'Run Number'
 exp_det_str = 'DetInfo'
 exp_evt_str = 'Event Number'
+exp_eventID_str = 'EventID'
 exp_second_str = 'Seconds'
 exp_nanosecond_str = 'Nanoseconds'
 exp_fiducial_str = 'Fiducial'
@@ -260,44 +261,44 @@ class Window(QtGui.QMainWindow):
 
     def keyPressEvent(self, event):
         super(Window, self).keyPressEvent(event)
-        if type(event) == QtGui.QKeyEvent:# and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
-            path = ["", ""]
-            if event.key() == QtCore.Qt.Key_1 : 
-                path[1] = "Single"
-                data = True
-                if ex.evtLabels.labelA == True : data = False
-                ex.evtLabels.paramUpdate(path, data)
-            elif event.key() == QtCore.Qt.Key_2:
-                path[1] = "Multi"
-                data = True
-                if ex.evtLabels.labelB == True : data = False
-                ex.evtLabels.paramUpdate(path, data)
-            elif event.key() == QtCore.Qt.Key_3:
-                path[1] = "Dunno"
-                data = True
-                if ex.evtLabels.labelC == True : data = False
-                ex.evtLabels.paramUpdate(path, data)
-            elif event.key() == QtCore.Qt.Key_Period:
-                if ex.w9.getPlotItem().listDataItems() != []:
-                    idx = -1
-                    array = np.where(ex.quantifierEvent >= ex.eventNumber)
-                    if array[0].size != 0: 
-                        idx = array[0][0]
-                        if ex.quantifierEvent[idx] == ex.eventNumber: idx += 1
-                        if idx < (ex.quantifierEvent.size): self.previewEvent(ex.quantifierEvent[idx])
-            elif event.key() == QtCore.Qt.Key_N:
-                if ex.eventNumber < (ex.eventTotal - 1): self.previewEvent(ex.eventNumber+1)
-            elif event.key() == QtCore.Qt.Key_Comma:
-                if ex.w9.getPlotItem().listDataItems() != []:
-                    idx = -1
-                    array = np.where(ex.quantifierEvent <= ex.eventNumber)
-                    if array[0].size != 0:
-                        idx = array[0][array[0].size - 1]
-                        if ex.quantifierEvent[idx] == ex.eventNumber: idx -= 1
-                        if ex.quantifierEvent[idx] != 0: self.previewEvent(ex.quantifierEvent[idx])
-            elif event.key() == QtCore.Qt.Key_P:
-                if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
-            if args.mode == "all":
+        if args.mode == "all":
+            if type(event) == QtGui.QKeyEvent:# and (event.key() == QtCore.Qt.Key_1 or event.key() == QtCore.Qt.Key_2 or event.key() == QtCore.Qt.Key_3 or event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P or event.key() == QtCore.Qt.Key_Period or event.key() == QtCore.Qt.Key_Comma):
+                path = ["", ""]
+                if event.key() == QtCore.Qt.Key_1 :
+                    path[1] = "Single"
+                    data = True
+                    if ex.evtLabels.labelA == True : data = False
+                    ex.evtLabels.paramUpdate(path, data)
+                elif event.key() == QtCore.Qt.Key_2:
+                    path[1] = "Multi"
+                    data = True
+                    if ex.evtLabels.labelB == True : data = False
+                    ex.evtLabels.paramUpdate(path, data)
+                elif event.key() == QtCore.Qt.Key_3:
+                    path[1] = "Dunno"
+                    data = True
+                    if ex.evtLabels.labelC == True : data = False
+                    ex.evtLabels.paramUpdate(path, data)
+                elif event.key() == QtCore.Qt.Key_Period:
+                    if ex.w9.getPlotItem().listDataItems() != []:
+                        idx = -1
+                        array = np.where(ex.quantifierEvent >= ex.eventNumber)
+                        if array[0].size != 0:
+                            idx = array[0][0]
+                            if ex.quantifierEvent[idx] == ex.eventNumber: idx += 1
+                            if idx < (ex.quantifierEvent.size): self.previewEvent(ex.quantifierEvent[idx])
+                elif event.key() == QtCore.Qt.Key_N:
+                    if ex.eventNumber < (ex.eventTotal - 1): self.previewEvent(ex.eventNumber+1)
+                elif event.key() == QtCore.Qt.Key_Comma:
+                    if ex.w9.getPlotItem().listDataItems() != []:
+                        idx = -1
+                        array = np.where(ex.quantifierEvent <= ex.eventNumber)
+                        if array[0].size != 0:
+                            idx = array[0][array[0].size - 1]
+                            if ex.quantifierEvent[idx] == ex.eventNumber: idx -= 1
+                            if ex.quantifierEvent[idx] != 0: self.previewEvent(ex.quantifierEvent[idx])
+                elif event.key() == QtCore.Qt.Key_P:
+                    if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
                 ex.evtLabels.refresh()
 
 class MainFrame(QtGui.QWidget):
@@ -330,6 +331,8 @@ class MainFrame(QtGui.QWidget):
         self.crawlerRunning = False
         self.evt = None
         self.eventNumber = int(args.evt)
+        self.eventID = ""
+        self.secList = None
         self.eventSeconds = ""
         self.eventNanoseconds = ""
         self.eventFiducial = ""
@@ -508,6 +511,7 @@ class MainFrame(QtGui.QWidget):
                 {'name': exp_run_str, 'type': 'int', 'value': self.runNumber, 'tip': "Run number, e.g. 15"},
                 {'name': exp_detInfo_str, 'type': 'str', 'value': self.detInfo, 'tip': "Detector ID. Look at the terminal for available area detectors, e.g. DscCsPad"},
                 {'name': exp_evt_str, 'type': 'int', 'value': self.eventNumber, 'tip': "Event number, first event is 0", 'children': [
+                    #{'name': exp_eventID_str, 'type': 'str', 'value': self.eventID},#, 'readonly': False},
                     {'name': exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
                     {'name': exp_nanosecond_str, 'type': 'str', 'value': self.eventNanoseconds, 'readonly': True},
                     {'name': exp_fiducial_str, 'type': 'str', 'value': self.eventFiducial, 'readonly': True},
@@ -772,15 +776,15 @@ class MainFrame(QtGui.QWidget):
         # Set the color scheme
         def updateStylePatched(self):
             r = '3px'
-            if self.dim:
-                fg = cardinalRed_hex
-                bg = sandstone100_rgb
-                border = "white"
-                pass
-            else:
-                fg = cardinalRed_hex
-                bg = sandstone100_rgb
-                border = "white" #sandstone100_rgb
+            #if self.dim:
+            #    fg = cardinalRed_hex
+            #    bg = sandstone100_rgb
+            #    border = "white"
+            #    pass
+            #else:
+            fg = cardinalRed_hex
+            bg = sandstone100_rgb
+            border = "white" #sandstone100_rgb
 
             if self.orientation == 'vertical':
                 self.vStyle = """DockLabel {
@@ -2212,6 +2216,33 @@ class MainFrame(QtGui.QWidget):
                 self.updateEventNumber(data)
                 if self.showPeaks:
                     self.updateClassification()
+            elif path[2] == exp_eventID_str:# and len(path) == 2 and change is 'value':
+                if len(data.split(',')) == 3: # sec,nsec,fid
+                    _sec,_nsec,_fid = data.split(',')
+                    self.eventSeconds, self.eventNanoseconds, self.eventFiducial = int(_sec), int(_nsec), int(_fid)
+                elif len(data.split(',')) == 2: # timestamp,fid
+                    _timestamp,_fid = data.split(',')
+                    self.eventSeconds, self.eventNanoseconds = self.convertSecNanosec(int(_timestamp))
+                    self.eventFiducial = int(_fid)
+
+                if self.secList is None: # populate secList, nsecList, fidList
+                    self.secList = np.zeros(self.eventTotal)
+                    self.nsecList = np.zeros(self.eventTotal)
+                    self.fidList = np.zeros(self.eventTotal)
+                    for i in range(self.eventTotal):
+                        _evt = self.run.event(self.times[i])
+                        _evtId = _evt.get(psana.EventId)
+                        self.secList[i] = _evtId.time()[0]
+                        self.nsecList[i] = _evtId.time()[1]
+                        self.fidList[i] = _evtId.fiducials()
+                self.eventNumber = self.findEventFromTimestamp(self.secList,self.nsecList,self.fidList,
+                                            self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+                self.p.param(exp_grp, exp_evt_str).setValue(self.eventNumber)
+                #if ',' in data:
+                #    _sec, _nsec = update
+                #self.updateEventID(data)
+                #if self.showPeaks:
+                #    self.updateClassification()
         ################################################
         # display parameters
         ################################################
@@ -2569,6 +2600,7 @@ class MainFrame(QtGui.QWidget):
         self.experimentName = data
         self.hasExperimentName = True
         self.detInfoList = None
+        self.resetVariables()
 
         # Setup elog
         self.rt = RunTables(**{'web-service-url': 'https://pswww.slac.stanford.edu/ws-kerb'})
@@ -2593,6 +2625,7 @@ class MainFrame(QtGui.QWidget):
             self.detInfoList = None
             self.setupExperiment()
             self.resetMasks()
+            self.resetVariables()
             self.updateImage()
         if args.v >= 1: print "Done updateRunNumber: ", self.runNumber
 
@@ -2614,8 +2647,22 @@ class MainFrame(QtGui.QWidget):
         self.updateImage()
         if args.v >= 1: print "Done updateDetInfo: ", self.detInfo
 
+    def findEventFromTimestamp(self, secList, nsecList, fidList, sec, nsec, fid):
+        eventNumber = (np.where(secList == sec)[0] & np.where(nsecList == nsec)[0] & np.where(fidList == fid)[0])[0]
+        return eventNumber
+
+    def convertTimestamp64(self, t):
+        _sec = int(t) >> 32
+        _nsec = int(t) & 0xFFFFFFFF
+        return _sec, _nsec
+
+    def convertSecNanosec(self, sec, nsec):
+        _timestamp64 = int(sec>>32|nsec)
+        return _timestamp64
+
     def updateEventNumber(self, data):
         self.eventNumber = data
+        print "data: ", data
         if self.eventNumber >= self.eventTotal:
             self.eventNumber = self.eventTotal-1
         # update timestamps and fiducial
@@ -2632,6 +2679,11 @@ class MainFrame(QtGui.QWidget):
         if args.mode == "all":
             if self.evtLabels is not None: self.evtLabels.refresh()
         if args.v >= 1: print "Done updateEventNumber: ", self.eventNumber
+
+    def resetVariables(self):
+        self.secList = None
+        self.nsecList = None
+        self.fidList = None
 
     def resetMasks(self):
         self.userMask = None
@@ -2818,9 +2870,9 @@ class MainFrame(QtGui.QWidget):
                 self.clenEpics = str(self.detInfo)+'_z'
                 self.clen = self.epics.value(self.clenEpics) / 1000. # metres
                 self.coffset = self.detectorDistance - self.clen
-            if args.v >= 1:
-                print "clenEpics: ", self.clenEpics
-                print "@self.detectorDistance (m), self.clen (m), self.coffset (m): ", self.detectorDistance, self.clen, self.coffset
+                if args.v >= 1:
+                    print "clenEpics: ", self.clenEpics
+                    print "@self.detectorDistance (m), self.clen (m), self.coffset (m): ", self.detectorDistance, self.clen, self.coffset
             if 'cspad' in self.detInfo.lower(): # FIXME: increase pixel size list: epix, rayonix
                 self.pixelSize = 110e-6 # metres
             elif 'pnccd' in self.detInfo.lower():
@@ -3313,7 +3365,7 @@ class PowderProducer(QtCore.QThread):
     def run(self):
         runsToDo = self.digestRunList(self.parent.powder_runs)
         for run in runsToDo:
-            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            runDir = self.parent.powder_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
@@ -3330,7 +3382,7 @@ class PowderProducer(QtCore.QThread):
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
                 jobid = out.split("<")[1].split(">")[0]
-                myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
+                myLog = self.parent.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
                 if args.v >= 1:
                     print "bsub log filename: ", myLog
             except:
