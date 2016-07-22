@@ -70,9 +70,12 @@ parser.add_argument('-d','--detList', help="list of detectors separated with com
 parser.add_argument("-n","--noe",help="number of events to process",default=0, type=int)
 parser.add_argument('-o','--outDir', help="output directory where .cxi will be saved (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
 parser.add_argument("-t","--threshold",help="ignore ADUs below threshold",default=None, type=float)
+parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 args = parser.parse_args()
 
 print args.exprun, args.detList, args.noe, args.outDir
+
+if args.localCalib: setOption('psana.calib-dir', './calib')
 
 ds = DataSource(args.exprun+':idx')
 env = ds.env()

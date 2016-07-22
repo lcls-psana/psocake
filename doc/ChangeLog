@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-28
+2016-07-22 Chunhong Yoon
+- Init logger
+
 Tag: V00-01-27
 2016-07-22 Chunhong Yoon
 - Fix common mode correction
