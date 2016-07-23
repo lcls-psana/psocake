@@ -1069,7 +1069,7 @@ class MainFrame(QtGui.QWidget):
         self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
         self.w3a = pg.LayoutWidget()
-        self.deployGeomBtn = QtGui.QPushButton('Save centred psana geometry')
+        self.deployGeomBtn = QtGui.QPushButton('Deploy centred psana geometry')
         self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
         self.d3.addWidget(self.w3a)
 
@@ -2784,11 +2784,13 @@ class MainFrame(QtGui.QWidget):
         if self.hasExpRunInfo():
             # Set up psocake directory in scratch
             if args.outDir is None:
-                self.elogDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
-                self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/'+self.username+'/psocake'
+                self.rootDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName
+                self.elogDir = self.rootDir+'/scratch/psocake'
+                self.psocakeDir = self.rootDir+'/scratch/'+self.username+'/psocake'
             else:
-                self.elogDir = args.outDir+'/psocake'
-                self.psocakeDir = args.outDir+'/'+self.username+'/psocake'
+                self.rootDir = args.outDir
+                self.elogDir = args.rootDir+'/psocake'
+                self.psocakeDir = args.rootDir+'/'+self.username+'/psocake'
             self.psocakeRunDir = self.psocakeDir+'/r'+str(self.runNumber).zfill(4)
 
             # Update peak finder outdir and run number

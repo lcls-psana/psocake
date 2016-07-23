@@ -246,13 +246,20 @@ class DiffractionGeometry(object):
 
     def deploy(self):
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            from PSCalib.CalibFileFinder import deploy_calib_file
             # Calculate detector translation in x and y
             dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.centreX) # microns
             dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.centreY) # microns
             geo = self.parent.det.geometry(self.parent.evt)
             geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
-            fname = self.parent.psocakeRunDir+"/"+str(self.parent.runNumber)+'-end.data'
+            fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
             geo.save_pars_in_file(fname)
             print "#################################################"
-            print "Saving psana detector geometry: ", fname
+            print "Deploying psana detector geometry: ", fname
             print "#################################################"
+            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
+            deploy_calib_file(cdir=self.parent.rootDir+'/calib', src=str(self.parent.det.name), type='geometry',
+                              run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+            self.parent.setupExperiment()
+            self.parent.getDetImage(self.parent.eventNumber)
+            self.updateRings()#self.parent.updateImage()
