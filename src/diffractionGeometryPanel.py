@@ -262,4 +262,6 @@ class DiffractionGeometry(object):
                               run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
             self.parent.setupExperiment()
             self.parent.getDetImage(self.parent.eventNumber)
-            self.updateRings()#self.parent.updateImage()
+            self.updateRings()
+            self.parent.index.updateIndex()
+            self.drawCentre()
