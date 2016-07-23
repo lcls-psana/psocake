@@ -39,7 +39,7 @@ class LaunchPeakFinder(QtCore.QThread):
         runsToDo = self.digestRunList(self.parent.hitParam_runs)
 
         for run in runsToDo:
-            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            runDir = self.parent.hitParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)

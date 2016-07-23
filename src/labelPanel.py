@@ -1,6 +1,4 @@
 import numpy as np
-import fileinput
-import pyqtgraph as pg
 import h5py
 import os
 

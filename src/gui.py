@@ -35,8 +35,7 @@ import diffractionGeometryPanel
 import crystalIndexingPanel
 import labelPanel
 import LogbookCrawler
-import LaunchPeakFinder
-import LaunchIndexer
+import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
 from LogBook.runtables import RunTables
 import PSCalib.GlobalUtils as gu
 import matplotlib.pyplot as plt
@@ -1443,7 +1442,7 @@ class MainFrame(QtGui.QWidget):
         self.thread = []
         self.threadCounter = 0
         def makePowder():
-            self.thread.append(PowderProducer(self)) # send parent parameters with self
+            self.thread.append(LaunchPowderProducer.PowderProducer(self)) # send parent parameters with self
             self.thread[self.threadCounter].computePowder(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
         self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
@@ -1455,7 +1454,7 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
         # Launch hit finding
         def findHits():
-            self.thread.append(HitFinder(self)) # send parent parameters with self
+            self.thread.append(LaunchHitFinder.HitFinder(self)) # send parent parameters with self
             self.thread[self.threadCounter].findHits(self.experimentName,self.runNumber,self.detInfo)
             self.threadCounter+=1
         self.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), findHits)
@@ -1490,7 +1489,7 @@ class MainFrame(QtGui.QWidget):
             self.startBtn.setEnabled(False)
             self.w7.getView().setTitle("exp="+self.experimentName+":run="+str(self.runNumber)+":evt"+str(self.stackStart)+"-"
                                        +str(self.stackStart+self.stackSize))
-        self.threadpool = stackProducer(self) # send parent parameters
+        self.threadpool = LaunchStackProducer.StackProducer(self) # send parent parameters
         self.connect(self.threadpool, QtCore.SIGNAL("finished()"), displayImageStack)
         self.connect(self.startBtn, QtCore.SIGNAL("clicked()"), loadStack)
 
@@ -3320,182 +3319,6 @@ class MainFrame(QtGui.QWidget):
         self.calib, self.data = self.getDetImage(self.eventNumber)
         self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
         self.p.param(exp_grp,exp_evt_str).setValue(self.eventNumber)
-
-class PowderProducer(QtCore.QThread):
-    def __init__(self, parent = None):
-        QtCore.QThread.__init__(self, parent)
-        self.parent = parent
-        self.experimentName = None
-        self.runNumber = None
-        self.detInfo = None
-
-    def __del__(self):
-        self.exiting = True
-        self.wait()
-
-    def computePowder(self,experimentName,runNumber,detInfo):
-        self.experimentName = experimentName
-        self.runNumber = runNumber
-        self.detInfo = detInfo
-        self.start()
-
-    def digestRunList(self,runList):
-        runsToDo = []
-        if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
-            return runsToDo
-        runLists = str(runList).split(",")
-        for list in runLists:
-            temp = list.split(":")
-            if len(temp) == 2:
-                for i in np.arange(int(temp[0]),int(temp[1])+1):
-                    runsToDo.append(i)
-            elif len(temp) == 1:
-                runsToDo.append(int(temp[0]))
-        return runsToDo
-
-    def run(self):
-        runsToDo = self.digestRunList(self.parent.powder_runs)
-        for run in runsToDo:
-            runDir = self.parent.powder_outDir+"/r"+str(run).zfill(4)
-            try:
-                if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
-
-                # Command for submitting to batch
-                cmd = "bsub -q "+self.parent.powder_queue+" -n "+str(self.parent.powder_cpus)+\
-                      " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
-                      ":run="+str(run)+" -d "+self.detInfo+\
-                      " -o "+runDir
-                if self.parent.powder_noe > 0:
-                    cmd += " -n "+str(self.parent.powder_noe)
-                if self.parent.powder_threshold is not -1:
-                    cmd += " -t " + str(self.parent.powder_threshold)
-                if self.parent.args.localCalib:
-                    cmd += " --localCalib"
-                print "Submitting batch job: ", cmd
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                out, err = process.communicate()
-                jobid = out.split("<")[1].split(">")[0]
-                myLog = self.parent.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-                if args.v >= 1:
-                    print "bsub log filename: ", myLog
-            except:
-                print "No write access to: ", runDir
-
-class stackProducer(QtCore.QThread):
-    def __init__(self, parent = None):
-        QtCore.QThread.__init__(self, parent)
-        self.exiting = False
-        self.parent = parent
-        self.startIndex = 0
-        self.numImages = 0
-        self.evt = None
-        self.data = None
-
-    def __del__(self):
-        self.exiting = True
-        self.wait()
-
-    def load(self, startIndex, numImages):
-        self.startIndex = startIndex
-        self.numImages = numImages
-        self.start()
-
-    def run(self):
-        counter = 0
-        for i in np.arange(self.startIndex,self.startIndex+self.numImages):
-            if counter == 0:
-                calib,data = self.parent.getDetImage(i,calib=None)
-                self.data = np.zeros((self.numImages,data.shape[0],data.shape[1]))
-                if data is not None:
-                    self.data[counter,:,:] = data
-                counter += 1
-            else:
-                calib,data = self.parent.getDetImage(i,calib=None)
-                if data is not None:
-                    self.data[counter,:,:] = data
-                counter += 1
-
-class HitFinder(QtCore.QThread):
-    def __init__(self, parent = None):
-        QtCore.QThread.__init__(self, parent)
-        self.parent = parent
-        self.experimentName = None
-        self.runNumber = None
-        self.detInfo = None
-
-    def __del__(self):
-        self.exiting = True
-        self.wait()
-
-    def findHits(self,experimentName,runNumber,detInfo): # Pass in hit parameters
-        self.experimentName = experimentName
-        self.runNumber = runNumber
-        self.detInfo = detInfo
-        self.start()
-
-    def digestRunList(self,runList):
-        runsToDo = []
-        if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
-            return runsToDo
-        runLists = str(runList).split(",")
-        for list in runLists:
-            temp = list.split(":")
-            if len(temp) == 2:
-                for i in np.arange(int(temp[0]),int(temp[1])+1):
-                    runsToDo.append(i)
-            elif len(temp) == 1:
-                runsToDo.append(int(temp[0]))
-        return runsToDo
-
-    def run(self):
-        # Digest the run list
-        runsToDo = self.digestRunList(self.parent.spiParam_runs)
-
-        for run in runsToDo:
-            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
-            try:
-                if os.path.exists(runDir) is False:
-                    os.makedirs(runDir, 0774)
-                expRun = 'exp='+self.experimentName+':run='+str(run)
-                cmd = "bsub -q "+self.parent.spiParam_queue+\
-                  " -n "+str(self.parent.spiParam_cpus)+\
-                  " -o "+runDir+"/.%J.log mpirun litPixels"+\
-                  " "+expRun+\
-                  " -d "+self.detInfo+\
-                  " --outdir "+runDir
-
-                if self.parent.spiParam_tag:
-                    cmd += " --tag "+str(self.parent.spiParam_tag)
-
-                if self.parent.spiAlgorithm == 1:
-                    cmd += " --pruneInterval "+str(int(self.parent.spiParam_alg1_pruneInterval))
-                elif self.parent.spiAlgorithm == 2:
-                    cmd += " --litPixelThreshold "+str(int(self.parent.spiParam_alg2_threshold))
-
-                # Save user mask to a deterministic path
-                if self.parent.userMaskOn:
-                    tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                    np.save(tempFilename,self.parent.userMask) # TODO: save
-                    cmd += " --mask "+str(tempFilename)
-
-                if self.parent.spiParam_noe > 0:
-                    cmd += " --noe "+str(self.parent.spiParam_noe)
-
-                if self.parent.args.localCalib: cmd += " --localCalib"
-
-                print "Submitting batch job: ", cmd
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                out, err = process.communicate()
-                jobid = out.split("<")[1].split(">")[0]
-                myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-                if args.v >= 1:
-                    print "bsub log filename: ", myLog
-            except:
-                print "No write access to: ", runDir
-
-
 
 def main():
     global ex
