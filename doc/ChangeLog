@@ -11,6 +11,18 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-31
+2016-07-26 Chunhong Yoon
+- Majore refactoring of code
+
+Tag: V00-01-30
+2016-07-22 Chunhong Yoon
+- Deploy geometry based on cirlce ROI
+
+Tag: V00-01-29
+2016-07-22 Chunhong Yoon
+- Launcher for all threads
+
 Tag: V00-01-28
 2016-07-22 Chunhong Yoon
 - Init logger

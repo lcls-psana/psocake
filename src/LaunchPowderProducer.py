@@ -37,28 +37,28 @@ class PowderProducer(QtCore.QThread):
         return runsToDo
 
     def run(self):
-        runsToDo = self.digestRunList(self.parent.powder_runs)
+        runsToDo = self.digestRunList(self.parent.mk.powder_runs)
         for run in runsToDo:
-            runDir = self.parent.powder_outDir+"/r"+str(run).zfill(4)
+            runDir = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
 
                 # Command for submitting to batch
-                cmd = "bsub -q "+self.parent.powder_queue+" -n "+str(self.parent.powder_cpus)+\
+                cmd = "bsub -q "+self.parent.mk.powder_queue+" -n "+str(self.parent.mk.powder_cpus)+\
                       " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
                       ":run="+str(run)+" -d "+self.detInfo+\
                       " -o "+runDir
-                if self.parent.powder_noe > 0:
-                    cmd += " -n "+str(self.parent.powder_noe)
-                if self.parent.powder_threshold is not -1:
-                    cmd += " -t " + str(self.parent.powder_threshold)
+                if self.parent.mk.powder_noe > 0:
+                    cmd += " -n "+str(self.parent.mk.powder_noe)
+                if self.parent.mk.powder_threshold is not -1:
+                    cmd += " -t " + str(self.parent.mk.powder_threshold)
                 if self.parent.args.localCalib:
                     cmd += " --localCalib"
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
                 jobid = out.split("<")[1].split(">")[0]
-                myLog = self.parent.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
+                myLog = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
                 if self.parent.args.v >= 1: print "bsub log filename: ", myLog
             except:
                 print "No write access to: ", runDir

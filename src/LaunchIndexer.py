@@ -1,6 +1,6 @@
 from pyqtgraph.Qt import QtCore
 import subprocess
-import os
+import os, shlex
 import numpy as np
 
 class LaunchIndexer(QtCore.QThread):
@@ -39,7 +39,7 @@ class LaunchIndexer(QtCore.QThread):
         runsToDo = self.digestRunList(self.parent.index.runs)
 
         for run in runsToDo:
-            runDir = self.parent.psocakeDir+"/r"+str(run).zfill(4)
+            runDir = self.parent.index.outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
@@ -48,13 +48,14 @@ class LaunchIndexer(QtCore.QThread):
 
             # Update elog
             try:
-                if self.parent.logger == True:
-                    self.parent.table.setValue(run,"Number of indexed","#IndexingNow")
+                if self.parent.exp.logger == True:
+                    self.parent.exp.table.setValue(run,"Number of indexed","#IndexingNow")
             except AttributeError:
                 print "e-Log table does not exist"
 
-            cmd = "./indexCrystals.py" + \
-                  " -e " + self.parent.experimentName + " -d " + self.parent.detInfo + \
+            cmd = "indexCrystals" + \
+                  " -e " + self.parent.experimentName + \
+                  " -d " + self.parent.detInfo + \
                   " --geom " + self.parent.index.geom + \
                   " --peakMethod " + self.parent.index.peakMethod + \
                   " --integrationRadius " + self.parent.index.intRadius + \
@@ -71,12 +72,12 @@ class LaunchIndexer(QtCore.QThread):
                   " --pixelSize " + str(self.parent.pixelSize) + \
                   " --coffset " + str(self.parent.coffset) + \
                   " --clenEpics " + self.parent.clenEpics + \
-                  " --logger " + str(self.parent.logger) + \
-                  " --hitParam_threshold " + str(self.parent.hitParam_threshold) + \
+                  " --logger " + str(self.parent.exp.logger) + \
+                  " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
                   " --keepData " + str(self.parent.index.keepData) + \
                   " -v " + str(self.parent.args.v)
             if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
             cmd += " --run " + str(run)
-            print "Submitting batch job: ", cmd
-            subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-
+            print "Launch indexing job: ", cmd
+            p = subprocess.Popen(shlex.split(cmd))
+            print p.pid

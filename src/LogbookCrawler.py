@@ -32,13 +32,16 @@ class LogbookCrawler(QtCore.QThread):
                     try:
                         with open(fname) as infile:
                             d = json.load(infile)
-                            numHits = d['numHits']
-                            hitRate = d['hitRate']
-                            fracDone = d['fracDone']
-                            if fracDone == 100:
-                                msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
-                            else:
-                                msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
+                            try:
+                                msg = d['message']
+                            except:
+                                numHits = d['numHits']
+                                hitRate = d['hitRate']
+                                fracDone = d['fracDone']
+                                if fracDone == 100:
+                                    msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
+                                else:
+                                    msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
                             self.table.setValue(run, "Number of hits", msg)
                     except:  # file may not exist yet
                         continue
@@ -47,16 +50,21 @@ class LogbookCrawler(QtCore.QThread):
                     try:
                         with open(fname) as infile:
                             d = json.load(infile)
-                            numIndexed = d['numIndexed']
-                            indexingRate = d['indexRate']
-                            fracDone = d['fracDone']
-                            if fracDone == 100:
-                                msg = '{0:.1f} indexed / {1:.1f}% rate'.format(numIndexed, indexingRate)
+                            if 'message' in d:
+                                msg = d['message']
+                            elif 'convert' in d:
+                                msg = d['fracDone']
                             else:
-                                msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
+                                numIndexed = d['numIndexed']
+                                indexingRate = d['indexRate']
+                                fracDone = d['fracDone']
+                                if fracDone == 100:
+                                    msg = '{0:.1f} indexed / {1:.1f}% rate'.format(numIndexed, indexingRate)
+                                else:
+                                    msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
                             self.table.setValue(run, "Number of indexed", msg)
                     except:  # file may not exist yet
                         continue
-                    time.sleep(30)  # logbook update
+                    time.sleep(10)  # logbook update
             except:
-                time.sleep(60)
+                time.sleep(10)

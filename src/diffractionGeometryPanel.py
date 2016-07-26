@@ -3,6 +3,7 @@ import fileinput
 import pyqtgraph as pg
 import h5py
 import os
+from pyqtgraph.dockarea import *
 
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
@@ -80,13 +81,11 @@ class DiffractionGeometry(object):
             self.parent.coffset = self.parent.detectorDistance - self.parent.clen
             if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
             self.writeCrystfelGeom()
-            self.parent.updateClassification()
+            self.parent.pk.updateClassification()
             if self.hasGeometryInfo():
-                if self.parent.args.v >= 1:
-                    print "has geometry info"
+                if self.parent.args.v >= 1: print "has geometry info"
                 self.updateGeometry()
-            if self.parent.args.v >= 1:
-                print "Done updateDetectorDistance"
+            if self.parent.args.v >= 1: print "Done updateDetectorDistance"
 
     def updatePhotonEnergy(self, data):
         self.parent.photonEnergy = data
@@ -113,13 +112,13 @@ class DiffractionGeometry(object):
             return False
 
     def writeCrystfelGeom(self):
-        if os.path.isfile(self.parent.hiddenCXI):
-            f = h5py.File(self.parent.hiddenCXI,'r')
+        if os.path.isfile(self.parent.index.hiddenCXI):
+            f = h5py.File(self.parent.index.hiddenCXI,'r')
             encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
             f.close()
             coffset = self.parent.detectorDistance - encoderVal
             if self.parent.args.v >= 1:
-                print "& coffset (m),detectorDistance (m) ,encoderVal (m): ",coffset, self.parent.detectorDistance, encoderVal
+                print "& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
             coffsetStr = "coffset = "+str(coffset)+"\n"
 
             # Replace coffset value in geometry file
@@ -153,9 +152,29 @@ class DiffractionGeometry(object):
         if self.parent.args.v >= 1:
             print "Done updateGeometry"
 
+    def updateDock42(self, data):
+        a = ['a','b','c','d','e','k','m','n','r','s']
+        myStr = a[5]+a[8]+a[0]+a[5]+a[4]+a[7]
+        if myStr in data:
+            self.d42 = Dock("Console", size=(100,100))
+            # build an initial namespace for console commands to be executed in (this is optional;
+            # the user can always import these modules manually)
+            namespace = {'pg': pg, 'np': np, 'self': self}
+            # initial text to display in the console
+            text = "You have awoken the "+myStr+"\nWelcome to psocake IPython: dir(self)\n" \
+                                                "Here are some commonly used variables:\n" \
+                                                "unassembled detector: self.parent.calib\n" \
+                                                "assembled detector: self.parent.data\n" \
+                                                "user-defined mask: self.parent.mk.userMask\n" \
+                                                "streak mask: self.parent.mk.streakMask\n" \
+                                                "psana mask: self.parent.mk.psanaMask"
+            self.w42 = pg.console.ConsoleWidget(parent=None,namespace=namespace, text=text)
+            self.d42.addWidget(self.w42)
+            self.parent.area.addDock(self.d42, 'bottom')
+
     def updateResolutionRings(self, data):
         self.parent.resolutionRingsOn = data
-        if self.parent.hasExpRunDetInfo():
+        if self.parent.exp.hasExpRunDetInfo():
             self.updateRings()
         if self.parent.args.v >= 1:
             print "Done updateResolutionRings"
@@ -165,7 +184,7 @@ class DiffractionGeometry(object):
         _resolution = data.split(',')
         self.parent.resolution = np.zeros((len(_resolution,)))
 
-        self.parent.updateDock42(data)
+        self.updateDock42(data)
 
         if data != '':
             for i in range(len(_resolution)):
@@ -180,7 +199,7 @@ class DiffractionGeometry(object):
         self.dMin = np.zeros_like(self.myResolutionRingList)
         if self.hasGeometryInfo():
             self.updateGeometry()
-        if self.parent.hasExpRunDetInfo():
+        if self.parent.exp.hasExpRunDetInfo():
             self.updateRings()
         if self.parent.args.v >= 1:
             print "Done updateResolution"
@@ -190,7 +209,7 @@ class DiffractionGeometry(object):
         self.parent.resolutionUnits = data
         if self.hasGeometryInfo():
             self.updateGeometry()
-        if self.parent.hasExpRunDetInfo():
+        if self.parent.exp.hasExpRunDetInfo():
             self.updateRings()
         if self.parent.args.v >= 1:
             print "Done updateResolutionUnits"
@@ -260,7 +279,7 @@ class DiffractionGeometry(object):
             cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
             deploy_calib_file(cdir=self.parent.rootDir+'/calib', src=str(self.parent.det.name), type='geometry',
                               run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
-            self.parent.setupExperiment()
+            self.parent.exp.setupExperiment()
             self.parent.getDetImage(self.parent.eventNumber)
             self.updateRings()
             self.parent.index.updateIndex()

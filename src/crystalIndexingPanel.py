@@ -3,11 +3,10 @@
 # Batch mode: Creates a CXIDB file containing hits, turbo index the file, save single stream and delete CXIDB
 import numpy as np
 from pyqtgraph.Qt import QtCore
-import time
 import subprocess
-import os
 import pandas as pd
 import h5py
+import pyqtgraph as pg
 
 class CrystalIndexing(object):
     def __init__(self, parent = None):
@@ -41,9 +40,17 @@ class CrystalIndexing(object):
         self.sample = 'crystal'
         self.queue = self.psanaq_str
         self.cpus = 24
-        self.noe = 0
+        self.noe = -1
+
+        # Indexing
+        self.showIndexedPeaks = False
+        self.indexedPeaks = None
+        self.hiddenCXI = '.temp.cxi'
+        self.hiddenCrystfelStream = '.temp.stream'
+        self.hiddenCrystfelList = '.temp.lst'
 
         self.indexingOn = False
+        self.numIndexedPeaksFound = 0
         self.geom = '.temp.geom'
         self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
@@ -86,7 +93,6 @@ class CrystalIndexing(object):
                  'value': self.queue, 'tip': "Choose queue"},
                 {'name': self.cpu_str, 'type': 'int', 'value': self.cpus, 'tip': "number of cpus to use per run"},
                 {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
-                #{'name': self.noe_str, 'type': 'int', 'value': self.noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
 
@@ -94,6 +100,7 @@ class CrystalIndexing(object):
     # Mandatory parameter update #
     ##############################
     def paramUpdate(self, path, change, data):
+        print "*******crystalIndexing: ", path, path[1]
         if path[1] == self.index_on_str:
             self.updateIndexStatus(data)
         elif path[1] == self.index_geom_str:
@@ -130,14 +137,12 @@ class CrystalIndexing(object):
 
     def updateIndexStatus(self, data):
         self.indexingOn = data
-        self.parent.showIndexedPeaks = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.showIndexedPeaks = data
+        self.updateIndex()
 
     def updateGeom(self, data):
         self.geom = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updatePeakMethod(self, data):
         self.peakMethod = data
@@ -146,38 +151,31 @@ class CrystalIndexing(object):
 
     def updateIntegrationRadius(self, data):
         self.intRadius = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updatePDB(self, data):
         self.pdb = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updateIndexingMethod(self, data):
         self.indexingMethod = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updateMinPeaks(self, data):
         self.minPeaks = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updateMaxPeaks(self, data):
         self.maxPeaks = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updateMinRes(self, data):
         self.minRes = data
-        if self.indexingOn:
-            self.updateIndex()
+        self.updateIndex()
 
     def updateIndex(self):
         if self.indexingOn:
             self.indexer = IndexHandler(parent=self.parent)
-            #print "self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe: ", self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes, self.outDir, queue=None)
@@ -201,6 +199,59 @@ class CrystalIndexing(object):
     def updateNoe(self, data):
         self.noe = data
 
+    def clearIndexedPeaks(self):
+        self.parent.w1.getView().removeItem(self.parent.abc_text)
+        self.parent.indexedPeak_feature.setData([], [], pxMode=False)
+        if self.parent.args.v >= 1: print "Done clearIndexedPeaks"
+
+    def drawIndexedPeaks(self,unitCell=None):
+        self.clearIndexedPeaks()
+        if self.showIndexedPeaks:
+            if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
+                cenX = self.indexedPeaks[:,0]+0.5
+                cenY = self.indexedPeaks[:,1]+0.5
+                cenX = np.concatenate((cenX,cenX,cenX))
+                cenY = np.concatenate((cenY,cenY,cenY))
+                diameter = np.ones_like(cenX)
+                diameter[0:self.numIndexedPeaksFound] = float(self.intRadius.split(',')[0])*2
+                diameter[self.numIndexedPeaksFound:2*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[1])*2
+                diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[2])*2
+                self.parent.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
+
+                # Write unit cell parameters
+                xMargin = 5
+                yMargin = 400
+                maxX   = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+                maxY   = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
+                myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">a='+\
+                            str(round(float(unitCell[0])*10,2))+'A <br>b='+str(round(float(unitCell[1])*10,2))+'A <br>c='+\
+                            str(round(float(unitCell[2])*10,2))+'A <br>&alpha;='+str(round(float(unitCell[3]),2))+\
+                            '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
+                            str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
+
+                self.parent.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
+                self.parent.w1.getView().addItem(self.parent.abc_text)
+                self.parent.abc_text.setPos(maxX, maxY)
+            else:
+                xMargin = 5 # pixels
+                maxX   = np.max(self.parent.det.indexes_x(self.parent.evt))+xMargin
+                maxY   = np.max(self.parent.det.indexes_y(self.parent.evt))
+                # Draw a big X
+                cenX = np.array((self.parent.cx,))+0.5
+                cenY = np.array((self.parent.cy,))+0.5
+                diameter = 256 #self.peakRadius*2+1
+                self.parent.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
+                self.parent.abc_text = pg.TextItem(html='', anchor=(0,0))
+                self.parent.w1.getView().addItem(self.parent.abc_text)
+                self.parent.abc_text.setPos(maxX,maxY)
+        else:
+            self.parent.indexedPeak_feature.setData([], [], pxMode=False)
+        if self.parent.args.v >= 1: print "Done updatePeaks"
+
     def launchIndexing(self, requestRun=None):
         self.batchIndexer = IndexHandler(parent=self.parent)
         if requestRun is None:
@@ -214,55 +265,6 @@ class CrystalIndexing(object):
                                        self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
                                            self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
-
-    # Launch indexing
-    def digestRunList(self, runList):
-        runsToDo = []
-        if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
-            return runsToDo
-        runLists = str(runList).split(",")
-        for list in runLists:
-            temp = list.split(":")
-            if len(temp) == 2:
-                for i in np.arange(int(temp[0]), int(temp[1]) + 1):
-                    runsToDo.append(i)
-            elif len(temp) == 1:
-                runsToDo.append(int(temp[0]))
-        return runsToDo
-
-    def indexPeaks(self):
-        runsToDo = self.digestRunList(self.runs)
-        for run in runsToDo:
-            cmd = "bsub -q " + self.parent.hitParam_queue + \
-                  " -o " + self.outDir + "/r" + str(run).zfill(4) + "/.%J.log" + \
-                  " ./indexCrystals.py" + \
-                  " -e " + self.parent.experimentName + " -d " + self.parent.detInfo + \
-                  " --geom " + self.geom + \
-                  " --peakMethod " + self.peakMethod + \
-                  " --integrationRadius " + self.intRadius + \
-                  " --indexingMethod " + self.indexingMethod + \
-                  " --minPeaks " + str(self.minPeaks) + \
-                  " --maxPeaks " + str(self.maxPeaks) + \
-                  " --minRes " + str(self.minRes) + \
-                  " --outDir " + self.outDir + \
-                  " --sample " + self.sample + \
-                  " --queue " + self.queue + \
-                  " --cpus " + str(self.cpus) + \
-                  " --noe " + str(self.noe) + \
-                  " --instrument " + self.parent.det.instrument() + \
-                  " --pixelSize " + str(self.parent.pixelSize) + \
-                  " --coffset " + str(self.parent.coffset) + \
-                  " --clenEpics " + self.parent.clenEpics + \
-                  " --logger " + str(self.parent.logger) + \
-                  " --hitParam_threshold " + str(self.parent.hitParam_threshold) + \
-                  " -v " + str(self.parent.args.v)
-            if self.pdb: cmd += " --pdb " + self.pdb
-            cmd += " --run " + str(run)
-            print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
-            print "out, err: ", out, err
 
 class IndexHandler(QtCore.QThread):
     def __init__(self, parent = None):
@@ -318,7 +320,6 @@ class IndexHandler(QtCore.QThread):
 
         if self.geom is not '':
             self.start()
-
 
     def getMyUnfairShare(self, numJobs, numWorkers, rank):
         """Returns number of events assigned to the slave calling this function."""
@@ -378,25 +379,25 @@ class IndexHandler(QtCore.QThread):
     def run(self):
         if self.queue is None: # interactive indexing
             # Check if requirements are met for indexing
-            if self.parent.numPeaksFound >= self.minPeaks and \
-                self.parent.numPeaksFound <= self.maxPeaks and \
-                self.parent.peaksMaxRes >= self.minRes:
+            if self.parent.pk.numPeaksFound >= self.minPeaks and \
+                self.parent.pk.numPeaksFound <= self.maxPeaks and \
+                self.parent.pk.peaksMaxRes >= self.minRes:
                 print "OK, I'll index this pattern now"
 
                 if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
                 # Running indexing ...
-                self.parent.numIndexedPeaksFound = 0
-                self.parent.indexedPeaks = None
-                self.parent.clearIndexedPeaks()
+                self.parent.index.numIndexedPeaksFound = 0
+                self.parent.index.indexedPeaks = None
+                self.parent.index.clearIndexedPeaks()
 
                 # Write list
-                with open(self.parent.hiddenCrystfelList, "w") as text_file:
-                    text_file.write("{} //0".format(self.parent.hiddenCXI))
+                with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
+                    text_file.write("{} //0".format(self.parent.index.hiddenCXI))
 
                 # FIXME: convert psana geom to crystfel geom
-                cmd = "indexamajig -j 1 -i " + self.parent.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
+                cmd = "indexamajig -j 1 -i " + self.parent.index.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
                       " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
-                      " -o " + self.parent.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
+                      " -o " + self.parent.index.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
                     self.runNumber).zfill(4)
                 if self.pdb:  # is not '': # FIXME: somehow doesn't work
                     cmd += " --pdb=" + self.pdb
@@ -410,7 +411,7 @@ class IndexHandler(QtCore.QThread):
                 if mySuccessString in err:  # success
                     if self.parent.args.v >= 1: print "Indexing successful"
                     # print "Munging geometry file"
-                    f = open(self.parent.hiddenCrystfelStream)
+                    f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     for i, val in enumerate(content):
                         if '----- Begin geometry file -----' in val:
@@ -465,11 +466,11 @@ class IndexHandler(QtCore.QThread):
                     f.close()
                 else:
                     if self.parent.args.v >= 1: print "Indexing failed"
-                    self.parent.drawIndexedPeaks()
+                    self.parent.index.drawIndexedPeaks()
 
                 # Read CrystFEL indexed peaks
                 if mySuccessString in err:  # success
-                    f = open(self.parent.hiddenCrystfelStream)
+                    f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     for i, val in enumerate(content):
                         if 'num_peaks =' in val:
@@ -517,26 +518,15 @@ class IndexHandler(QtCore.QThread):
                         dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
                         dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
 
-                    if self.parent.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                        self.parent.numIndexedPeaksFound = numPeaks
-                        self.parent.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
-                        self.parent.drawIndexedPeaks(self.unitCell)
+                    if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
+                        self.parent.index.numIndexedPeaksFound = numPeaks
+                        self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
+                        self.parent.index.drawIndexedPeaks(self.unitCell)
             else:
                 print "Indexing requirement not met."
-                if self.parent.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
-                if self.parent.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
-                if self.parent.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
-        else:
-            #############################################
-            # batch indexing
-            #############################################
-            print "123"
-
-
-
-            print "Submitting batch job: ", cmd
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            out, err = process.communicate()
+                if self.parent.pk.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
+                if self.parent.pk.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
+                if self.parent.pk.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
 
 
 

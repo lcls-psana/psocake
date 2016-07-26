@@ -36,10 +36,10 @@ class LaunchPeakFinder(QtCore.QThread):
 
     def run(self):
         # Digest the run list
-        runsToDo = self.digestRunList(self.parent.hitParam_runs)
+        runsToDo = self.digestRunList(self.parent.pk.hitParam_runs)
 
         for run in runsToDo:
-            runDir = self.parent.hitParam_outDir+"/r"+str(run).zfill(4)
+            runDir = self.parent.pk.hitParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
@@ -48,70 +48,70 @@ class LaunchPeakFinder(QtCore.QThread):
 
             # Update elog
             try:
-                if self.parent.logger == True:
-                    self.parent.table.setValue(run,"Number of hits","#PeakFindingNow")
+                if self.parent.exp.logger == True:
+                    self.parent.exp.table.setValue(run,"Number of hits","#PeakFindingNow")
             except AttributeError:
                 print "e-Log table does not exist"
 
-            cmd = "bsub -q "+self.parent.hitParam_queue + \
-              " -n "+str(self.parent.hitParam_cpus) + \
+            cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
+              " -n "+str(self.parent.pk.hitParam_cpus) + \
               " -o "+runDir+"/.%J.log mpirun findPeaks -e "+self.experimentName+\
               " -d "+self.detInfo+\
               " --outDir "+runDir+\
-              " --algorithm "+str(self.parent.algorithm)
+              " --algorithm "+str(self.parent.pk.algorithm)
 
-            if self.parent.algorithm == 1:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg1_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg1_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg1_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg1_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg1_son_min)+\
-                       " --alg1_thr_low "+str(self.parent.hitParam_alg1_thr_low)+\
-                       " --alg1_thr_high "+str(self.parent.hitParam_alg1_thr_high)+\
-                       " --alg1_radius "+str(self.parent.hitParam_alg1_radius)+\
-                       " --alg1_dr "+str(self.parent.hitParam_alg1_dr)
-            elif self.parent.algorithm == 3:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg3_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg3_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg3_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg3_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg3_son_min)+\
-                       " --alg3_rank "+str(self.parent.hitParam_alg3_rank)+\
-                       " --alg3_r0 "+str(self.parent.hitParam_alg3_r0)+\
-                       " --alg3_dr "+str(self.parent.hitParam_alg3_dr)
-            elif self.parent.algorithm == 4:
-                cmd += " --alg_npix_min "+str(self.parent.hitParam_alg4_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.hitParam_alg4_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.hitParam_alg4_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.hitParam_alg4_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.hitParam_alg4_son_min)+\
-                       " --alg4_thr_low "+str(self.parent.hitParam_alg4_thr_low)+\
-                       " --alg4_thr_high "+str(self.parent.hitParam_alg4_thr_high)+\
-                       " --alg4_rank "+str(self.parent.hitParam_alg4_rank)+\
-                       " --alg4_r0 "+str(self.parent.hitParam_alg4_r0)+\
-                       " --alg4_dr "+str(self.parent.hitParam_alg4_dr)
+            if self.parent.pk.algorithm == 1:
+                cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg1_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.pk.hitParam_alg1_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.pk.hitParam_alg1_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.pk.hitParam_alg1_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.pk.hitParam_alg1_son_min)+\
+                       " --alg1_thr_low "+str(self.parent.pk.hitParam_alg1_thr_low)+\
+                       " --alg1_thr_high "+str(self.parent.pk.hitParam_alg1_thr_high)+\
+                       " --alg1_radius "+str(self.parent.pk.hitParam_alg1_radius)+\
+                       " --alg1_dr "+str(self.parent.pk.hitParam_alg1_dr)
+            elif self.parent.pk.algorithm == 3:
+                cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg3_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.pk.hitParam_alg3_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.pk.hitParam_alg3_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.pk.hitParam_alg3_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.pk.hitParam_alg3_son_min)+\
+                       " --alg3_rank "+str(self.parent.pk.hitParam_alg3_rank)+\
+                       " --alg3_r0 "+str(self.parent.pk.hitParam_alg3_r0)+\
+                       " --alg3_dr "+str(self.parent.pk.hitParam_alg3_dr)
+            elif self.parent.pk.algorithm == 4:
+                cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg4_npix_min)+\
+                       " --alg_npix_max "+str(self.parent.pk.hitParam_alg4_npix_max)+\
+                       " --alg_amax_thr "+str(self.parent.pk.hitParam_alg4_amax_thr)+\
+                       " --alg_atot_thr "+str(self.parent.pk.hitParam_alg4_atot_thr)+\
+                       " --alg_son_min "+str(self.parent.pk.hitParam_alg4_son_min)+\
+                       " --alg4_thr_low "+str(self.parent.pk.hitParam_alg4_thr_low)+\
+                       " --alg4_thr_high "+str(self.parent.pk.hitParam_alg4_thr_high)+\
+                       " --alg4_rank "+str(self.parent.pk.hitParam_alg4_rank)+\
+                       " --alg4_r0 "+str(self.parent.pk.hitParam_alg4_r0)+\
+                       " --alg4_dr "+str(self.parent.pk.hitParam_alg4_dr)
             # Save user mask to a deterministic path
-            if self.parent.userMaskOn:
+            if self.parent.mk.userMaskOn:
                 tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                np.save(tempFilename,self.parent.userMask) # TODO: save
+                np.save(tempFilename,self.parent.mk.userMask) # TODO: save
                 cmd += " --userMask_path "+str(tempFilename)
-            if self.parent.streakMaskOn:
-                cmd += " --streakMask_on "+str(self.parent.streakMaskOn)+\
-                    " --streakMask_sigma "+str(self.parent.streak_sigma)+\
-                   " --streakMask_width "+str(self.parent.streak_width)
-            if self.parent.psanaMaskOn:
-                cmd += " --psanaMask_on "+str(self.parent.psanaMaskOn)+\
-                   " --psanaMask_calib "+str(self.parent.mask_calibOn)+\
-                   " --psanaMask_status "+str(self.parent.mask_statusOn)+\
-                   " --psanaMask_edges "+str(self.parent.mask_edgesOn)+\
-                   " --psanaMask_central "+str(self.parent.mask_centralOn)+\
-                   " --psanaMask_unbond "+str(self.parent.mask_unbondOn)+\
-                   " --psanaMask_unbondnrs "+str(self.parent.mask_unbondnrsOn)
+            if self.parent.mk.streakMaskOn:
+                cmd += " --streakMask_on "+str(self.parent.mk.streakMaskOn)+\
+                    " --streakMask_sigma "+str(self.parent.mk.streak_sigma)+\
+                   " --streakMask_width "+str(self.parent.mk.streak_width)
+            if self.parent.mk.psanaMaskOn:
+                cmd += " --psanaMask_on "+str(self.parent.mk.psanaMaskOn)+\
+                   " --psanaMask_calib "+str(self.parent.mk.mask_calibOn)+\
+                   " --psanaMask_status "+str(self.parent.mk.mask_statusOn)+\
+                   " --psanaMask_edges "+str(self.parent.mk.mask_edgesOn)+\
+                   " --psanaMask_central "+str(self.parent.mk.mask_centralOn)+\
+                   " --psanaMask_unbond "+str(self.parent.mk.mask_unbondOn)+\
+                   " --psanaMask_unbondnrs "+str(self.parent.mk.mask_unbondnrsOn)
 
-            if self.parent.hitParam_noe > 0:
-                cmd += " --noe "+str(self.parent.hitParam_noe)
+            if self.parent.pk.hitParam_noe > 0:
+                cmd += " --noe "+str(self.parent.pk.hitParam_noe)
 
-            if self.parent.localCalib: cmd += " --localCalib"
+            if self.parent.args.localCalib: cmd += " --localCalib"
 
             cmd += " -r " + str(run)
             print "Submitting batch job: ", cmd

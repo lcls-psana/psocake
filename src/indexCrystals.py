@@ -83,8 +83,8 @@ def getMyUnfairShare(numJobs, numWorkers, rank):
     myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
     return myJobs
 
-def writeStatus(d):
-    json.dump(d, open(runDir+"/status_index.txt", 'w'))
+def writeStatus(fname, d):
+    json.dump(d, open(fname, 'w'))
 
 def getIndexedPeaks():
     # Merge all stream files into one
@@ -126,6 +126,7 @@ def getIndexedPeaks():
 runDir = outDir + "/r" + str(runNumber).zfill(4)
 peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '.cxi'
 indexingFile = runDir + '/.' + experimentName + '_' + str(runNumber).zfill(4) + '.txt'
+fnameIndex = runDir+"/status_index.txt"
 
 try:
     f = h5py.File(peakFile, 'r')
@@ -141,11 +142,16 @@ except:
 
 Done = 0
 if hasData and minPeaks == minPeaksUsed and maxPeaks == maxPeaksUsed and minRes == minResUsed:
-    print "Data already exists"
+    if args.v >= 0: print "Data already exists"
+    # Update elog
+    if logger == True:
+        d = {"message": "cxidb exists"}
+        writeStatus(fnameIndex, d)
     Done = 1
 else:
     print "Converting xtc to cxidb"
-    cmd = "bsub -q " + queue + " -n " + str(cpus) + " -o " + runDir + "/.%J.log mpirun xtc2cxidb" + \
+    cmd = "bsub -q " + queue + " -n " + str(cpus) + \
+          " -o " + runDir + "/.%J.log mpirun xtc2cxidb" + \
           " -e " + experimentName + \
           " -d " + detInfo + \
           " -i " + outDir + '/r' + str(runNumber).zfill(4) + \
@@ -177,9 +183,18 @@ else:
                 p.stdout.close()
                 if mySuccessString in output:  # success
                     print "successfully done converting to cxidb: ", runNumber
+                    # Update elog
+                    if logger == True:
+                        d = {"message": "Done cxidb"}
+                        writeStatus(fnameIndex, d)
+                    Done = 1
                 else:
                     print "failed attempt", runNumber
-                Done = 1
+                    # Update elog
+                    if logger == True:
+                        d = {"message": "Failed cxidb"}
+                        writeStatus(fnameIndex, d)
+                    Done = -1
             else:
                 if args.v >= 0: print "cxidb job hasn't finished yet: ", myLog
                 time.sleep(10)
@@ -188,10 +203,20 @@ else:
             nodeFailed = checkJobExit(jobID)
             if nodeFailed == 1:
                 if args.v >= 0: print "cxidb job node failure: ", myLog
-                Done = -1
+                Done = -2
+                # Update elog
+                if logger == True:
+                    d = {"message": "Failed node"}
+                    writeStatus(fnameIndex, d)
             time.sleep(10)
 
-if Done:
+if Done == 1:
+    # Update elog
+    if logger == True:
+        if args.v >= 1: print "#GettingEvents"
+        d = {"message": "Start indexing"}
+        writeStatus(fnameIndex, d)
+
     # Launch indexing
     try:
         f = h5py.File(peakFile, 'r')
@@ -202,13 +227,6 @@ if Done:
         print "Couldn't read file: ", peakFile
         numEvents = 0
 
-    # Update elog
-    try:
-        if logger == True:
-            if args.v >= 1: print "#GettingEvents"
-            # self.parent.table.setValue(self.runNumber, "Number of indexed", "#GettingEvents: " + str(numEvents))
-    except:
-        print "Couldn't write to e-Log table, possibly does not exist"
     # Split into chunks for faster indexing
     numWorkers = int(cpus / 2.)
     myLogList = []
@@ -285,7 +303,7 @@ if Done:
                         print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
 
                         d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
-                        writeStatus(d)
+                        writeStatus(fnameIndex, d)
                         time.sleep(10)
             else:
                 if args.v >= 0: print "no such file yet: ", runNumber, myLog
@@ -306,7 +324,7 @@ if Done:
         if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
 
         d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
-        writeStatus(d)
+        writeStatus(fnameIndex, d)
 
         print "Merging stream file: ", runNumber
         # Merge all stream files into one
@@ -336,6 +354,8 @@ if Done:
         # Clean up temp files
         for fname in myStreamList:
             os.remove(fname)
+
+        print "Done: ", runNumber
 
 
 

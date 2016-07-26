@@ -4,7 +4,7 @@ import numpy as np
 import psana
 import time
 import argparse
-import os
+import os, json
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -33,6 +33,8 @@ parser.add_argument("--maxPeaks", help="Index only if below maximum number of pe
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
 args = parser.parse_args()
 
+def writeStatus(fname,d):
+    json.dump(d, open(fname, 'w'))
 
 class psanaWhisperer():
     def __init__(self, experimentName, runNumber, detInfo):
@@ -125,8 +127,9 @@ ps.getEvent(firstHit)
 img = ps.getCheetahImg()
 (dim0, dim1) = img.shape
 
-if rank == 0:
-    tic = time.time()
+print "dim0, dim1: ", dim0, dim1
+
+if rank == 0: tic = time.time()
 
 inDir = args.inDir
 assert os.path.isdir(inDir)
@@ -173,11 +176,20 @@ if hasCoffset:
 elif hasDetectorDistance:
     detectorDistance = args.detectorDistance
 
+print "detector distance: ", detectorDistance
+
 # Read list of files
 runStr = "%04d" % runNumber
 filename = inDir+'/'+experimentName+'_'+runStr+'.cxi'
 
+print "filename: ", filename
+
+statusFname = inDir+'/status_convert.txt'
+
 if rank == 0:
+    d = {"message", "Init .cxi"}
+    writeStatus(statusFname, d)
+
     f = h5py.File(filename, "r+")
 
     if "/status/xtc2cxidb" in f:
@@ -340,6 +352,7 @@ if rank == 0:
 
     f.close()
 
+comm.Barrier()
 ###################################################
 # All workers get the to-do list
 ###################################################
@@ -380,6 +393,10 @@ ds_posY = f.require_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dty
 ds_atot = f.require_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
 ds_maxRes = f.require_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
 ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
+
+if rank == 0:
+    d = {"message", "Starting .cxi"}
+    writeStatus(statusFname, d)
 
 for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
@@ -469,9 +486,17 @@ for i,val in enumerate(myHitInd):
     ds_evtNum_1[globalInd] = val
 
     if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+
+    if rank == 0 and i%100 == 0:
+        d = {"convert": "cxidb", "fracDone": i*100./len(myJobs)}
+        writeStatus(statusFname, d)
+
 f.close()
 
 if rank == 0:
+    d = {"convert": "cxidb", "fracDone": 100.}
+    writeStatus(statusFname, d)
+
     f = h5py.File(filename, "r+")
     if "/status/xtc2cxidb" in f:
         del f["/status/xtc2cxidb"]
