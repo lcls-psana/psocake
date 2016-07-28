@@ -32,9 +32,9 @@ class LogbookCrawler(QtCore.QThread):
                     try:
                         with open(fname) as infile:
                             d = json.load(infile)
-                            try:
+                            if 'message' in d:
                                 msg = d['message']
-                            except:
+                            else:
                                 numHits = d['numHits']
                                 hitRate = d['hitRate']
                                 fracDone = d['fracDone']
@@ -53,7 +53,7 @@ class LogbookCrawler(QtCore.QThread):
                             if 'message' in d:
                                 msg = d['message']
                             elif 'convert' in d:
-                                msg = d['fracDone']
+                                msg = "{0:.1f}% CXIDB ".format(d['fracDone'])
                             else:
                                 numIndexed = d['numIndexed']
                                 indexingRate = d['indexRate']

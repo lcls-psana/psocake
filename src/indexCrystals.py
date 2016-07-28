@@ -76,6 +76,7 @@ def checkJobExit(jobID):
 
 def getMyUnfairShare(numJobs, numWorkers, rank):
     """Returns number of events assigned to the slave calling this function."""
+    print "numJobs, numWorkers: ", numJobs, numWorkers
     assert(numJobs >= numWorkers)
     allJobs = np.arange(numJobs)
     jobChunks = np.array_split(allJobs,numWorkers)
@@ -142,14 +143,16 @@ except:
 
 Done = 0
 if hasData and minPeaks == minPeaksUsed and maxPeaks == maxPeaksUsed and minRes == minResUsed:
-    if args.v >= 0: print "Data already exists"
+    if args.v >= 1: print "Data already exists"
     # Update elog
     if logger == True:
-        d = {"message": "cxidb exists"}
-        writeStatus(fnameIndex, d)
+        try:
+            d = {"message": "DoneCXIDB"}
+            writeStatus(fnameIndex, d)
+        except:
+            pass
     Done = 1
 else:
-    print "Converting xtc to cxidb"
     cmd = "bsub -q " + queue + " -n " + str(cpus) + \
           " -o " + runDir + "/.%J.log mpirun xtc2cxidb" + \
           " -e " + experimentName + \
@@ -182,41 +185,52 @@ else:
                 output = p.communicate()[0]
                 p.stdout.close()
                 if mySuccessString in output:  # success
-                    print "successfully done converting to cxidb: ", runNumber
+                    if args.v >= 1: print "successfully done converting to cxidb: ", runNumber
                     # Update elog
                     if logger == True:
-                        d = {"message": "Done cxidb"}
-                        writeStatus(fnameIndex, d)
+                        try:
+                            d = {"message": "#DoneCXIDB"}
+                            writeStatus(fnameIndex, d)
+                        except:
+                            pass
                     Done = 1
                 else:
-                    print "failed attempt", runNumber
+                    if args.v >= 1: print "failed attempt", runNumber
                     # Update elog
                     if logger == True:
-                        d = {"message": "Failed cxidb"}
-                        writeStatus(fnameIndex, d)
+                        try:
+                            d = {"message": "#FailedCXIDB"}
+                            writeStatus(fnameIndex, d)
+                        except:
+                            pass
                     Done = -1
             else:
-                if args.v >= 0: print "cxidb job hasn't finished yet: ", myLog
+                if args.v >= 1: print "cxidb job hasn't finished yet: ", myLog
                 time.sleep(10)
         else:
-            if args.v >= 0: print "no such file yet", myLog
+            if args.v >= 1: print "no such file yet", myLog
             nodeFailed = checkJobExit(jobID)
             if nodeFailed == 1:
-                if args.v >= 0: print "cxidb job node failure: ", myLog
+                if args.v >= 1: print "cxidb job node failure: ", myLog
                 Done = -2
                 # Update elog
                 if logger == True:
-                    d = {"message": "Failed node"}
-                    writeStatus(fnameIndex, d)
+                    try:
+                        d = {"message": "#FailedNode"}
+                        writeStatus(fnameIndex, d)
+                    except:
+                        pass
             time.sleep(10)
 
 if Done == 1:
     # Update elog
     if logger == True:
-        if args.v >= 1: print "#GettingEvents"
-        d = {"message": "Start indexing"}
-        writeStatus(fnameIndex, d)
-
+        if args.v >= 1: print "Start indexing"
+        try:
+            d = {"message": "#StartIndexing"}
+            writeStatus(fnameIndex, d)
+        except:
+            pass
     # Launch indexing
     try:
         f = h5py.File(peakFile, 'r')
@@ -244,7 +258,7 @@ if Done == 1:
                 text_file.write("{} //{}\n".format(peakFile, val))
 
         cmd = "bsub -q " + queue + " -R 'span[hosts=1]' -o " + runDir + \
-              "/.%J.log mpirun indexamajig -j " + str(cpus) + " -i " + myList + \
+              "/.%J.log mpirun indexamajig -j " + str(12) + " -i " + myList + \
               " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
               " --indexing=" + indexingMethod + " -o " + myStream + " --temp-dir=" + runDir
         if pdb: cmd += " --pdb=" + pdb
@@ -291,7 +305,7 @@ if Done == 1:
                                 print "Done indexing"
                                 Done = -1
                     else:  # job is still going, update indexing rate
-                        if args.v >= 0: print "indexing hasn't finished yet: ", runNumber, myJobList, haveFinished
+                        if args.v >= 1: print "indexing hasn't finished yet: ", runNumber, myJobList, haveFinished
                         indexedPeaks, numProcessed = getIndexedPeaks()
 
                         numIndexedNow = len(np.where(indexedPeaks > 0)[0])
@@ -300,13 +314,16 @@ if Done == 1:
                         else:
                             indexRate = numIndexedNow * 100. / numProcessed
                         fracDone = numProcessed * 100. / numHits
-                        print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
 
-                        d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
-                        writeStatus(fnameIndex, d)
+                        if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
+                        try:
+                            d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
+                            writeStatus(fnameIndex, d)
+                        except:
+                            pass
                         time.sleep(10)
             else:
-                if args.v >= 0: print "no such file yet: ", runNumber, myLog
+                if args.v >= 1: print "no such file yet: ", runNumber, myLog
                 nodeFailed = checkJobExit(myJobList[i])
                 if nodeFailed == 1:
                     if args.v >= 0: print "indexing job node failure: ", myLog
@@ -323,10 +340,12 @@ if Done == 1:
         fracDone = numProcessed * 100. / numHits
         if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
 
-        d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
-        writeStatus(fnameIndex, d)
-
-        print "Merging stream file: ", runNumber
+        try:
+            d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
+            writeStatus(fnameIndex, d)
+        except:
+            pass
+        if args.v >= 1: print "Merging stream file: ", runNumber
         # Merge all stream files into one
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber) + ".stream"
         with open(totalStream, 'w') as outfile:
@@ -355,7 +374,7 @@ if Done == 1:
         for fname in myStreamList:
             os.remove(fname)
 
-        print "Done: ", runNumber
+print "Done indexCrystals: ", runNumber
 
 
 

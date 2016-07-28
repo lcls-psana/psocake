@@ -11,6 +11,8 @@ class DiffractionGeometry(object):
 
         self.resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
         self.resolutionText = []
+        self.hasUserDefinedResolution = False
+
         self.geom_grp = 'Diffraction geometry'
         self.geom_detectorDistance_str = 'Detector distance'
         self.geom_clen_str = 'Home to Detector'
@@ -130,7 +132,7 @@ class DiffractionGeometry(object):
                     print line, # comma is required
 
     def updateGeometry(self):
-        if self.parent.hasUserDefinedResolution:
+        if self.hasUserDefinedResolution:
             self.myResolutionRingList = self.parent.resolution
         else:
             self.myResolutionRingList = self.resolutionRingList
@@ -191,9 +193,9 @@ class DiffractionGeometry(object):
                 self.parent.resolution[i] = float(_resolution[i])
 
         if data != '':
-            self.parent.hasUserDefinedResolution = True
+            self.hasUserDefinedResolution = True
         else:
-            self.parent.hasUserDefinedResolution = False
+            self.hasUserDefinedResolution = False
 
         self.myResolutionRingList = self.parent.resolution
         self.dMin = np.zeros_like(self.myResolutionRingList)
@@ -222,7 +224,7 @@ class DiffractionGeometry(object):
             ceny = np.ones_like(self.myResolutionRingList)*self.parent.cy
             diameter = 2*self.myResolutionRingList
 
-            self.parent.ring_feature.setData(cenx, ceny, symbol='o', \
+            self.parent.img.ring_feature.setData(cenx, ceny, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
 
@@ -241,7 +243,7 @@ class DiffractionGeometry(object):
                     self.resolutionText.append(pg.TextItem(text='%s m^-1' % float('%.3g' % (self.qMax_physics[i])), border='w', fill=(0, 0, 255, 100)))
                 elif self.parent.resolutionUnits == self.unitTwoTheta:
                     self.resolutionText.append(pg.TextItem(text='%s degrees' % float('%.3g' % (self.thetaMax[i]*180/np.pi)), border='w', fill=(0, 0, 255, 100)))
-                self.parent.w1.getView().addItem(self.resolutionText[i])
+                self.parent.img.w1.getView().addItem(self.resolutionText[i])
                 self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.parent.cx, self.parent.cy)
         else:
             self.clearRings()
@@ -250,7 +252,7 @@ class DiffractionGeometry(object):
     def drawCentre(self):
         # Always indicate centre of detector
         try:
-            self.parent.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
+            self.parent.img.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
                                                size=5, brush=(255, 255, 255, 0), pen='r', pxMode=False)
         except:
             pass
@@ -258,9 +260,9 @@ class DiffractionGeometry(object):
     def clearRings(self):
         if self.resolutionText:
             cen = [0,]
-            self.parent.ring_feature.setData(cen, cen, size=0)
+            self.parent.img.ring_feature.setData(cen, cen, size=0)
             for i,val in enumerate(self.resolutionText):
-                self.parent.w1.getView().removeItem(self.resolutionText[i])
+                self.parent.img.w1.getView().removeItem(self.resolutionText[i])
             self.resolutionText = []
 
     def deploy(self):

@@ -109,6 +109,15 @@ ps.setupExperiment()
 runStr = "%04d" % args.run
 filename = args.inDir + '/' + args.exp + '_' + runStr + '.cxi'
 print "Reading file: %s" % (filename)
+statusFname = args.inDir+'/status_index.txt'
+
+if rank == 0:
+    try:
+        d = {"message", "#CXIDB"}
+        print statusFname
+        writeStatus(statusFname, d)
+    except:
+        pass
 
 f = h5py.File(filename, "r")
 nPeaks = f["/entry_1/result_1/nPeaksAll"].value
@@ -126,8 +135,6 @@ firstHit = hitInd[0]
 ps.getEvent(firstHit)
 img = ps.getCheetahImg()
 (dim0, dim1) = img.shape
-
-print "dim0, dim1: ", dim0, dim1
 
 if rank == 0: tic = time.time()
 
@@ -176,19 +183,12 @@ if hasCoffset:
 elif hasDetectorDistance:
     detectorDistance = args.detectorDistance
 
-print "detector distance: ", detectorDistance
-
-# Read list of files
-runStr = "%04d" % runNumber
-filename = inDir+'/'+experimentName+'_'+runStr+'.cxi'
-
-print "filename: ", filename
-
-statusFname = inDir+'/status_convert.txt'
-
 if rank == 0:
-    d = {"message", "Init .cxi"}
-    writeStatus(statusFname, d)
+    try:
+        d = {"message", "#InitCXIDB"}
+        writeStatus(statusFname, d)
+    except:
+        pass
 
     f = h5py.File(filename, "r+")
 
@@ -395,8 +395,11 @@ ds_maxRes = f.require_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
 ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
 
 if rank == 0:
-    d = {"message", "Starting .cxi"}
-    writeStatus(statusFname, d)
+    try:
+        d = {"message", "#StartCXIDB"}
+        writeStatus(statusFname, d)
+    except:
+        pass
 
 for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
@@ -485,17 +488,23 @@ for i,val in enumerate(myHitInd):
 
     ds_evtNum_1[globalInd] = val
 
-    if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+    if i%20 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 
-    if rank == 0 and i%100 == 0:
-        d = {"convert": "cxidb", "fracDone": i*100./len(myJobs)}
-        writeStatus(statusFname, d)
+    if rank == 0 and i%20 == 0:
+        try:
+            d = {"convert": "cxidb", "fracDone": i*100./len(myJobs)}
+            writeStatus(statusFname, d)
+        except:
+            pass
 
 f.close()
 
 if rank == 0:
-    d = {"convert": "cxidb", "fracDone": 100.}
-    writeStatus(statusFname, d)
+    try:
+        d = {"convert": "cxidb", "fracDone": 100.}
+        writeStatus(statusFname, d)
+    except:
+        pass
 
     f = h5py.File(filename, "r+")
     if "/status/xtc2cxidb" in f:

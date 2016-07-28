@@ -586,8 +586,8 @@ class PeakFinding(object):
         return maxRes # in pixels
 
     def clearPeakMessage(self):
-        self.parent.w1.getView().removeItem(self.parent.peak_text)
-        self.parent.peak_feature.setData([], [], pxMode=False)
+        self.parent.img.w1.getView().removeItem(self.parent.img.peak_text)
+        self.parent.img.peak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearPeakMessage"
 
     def drawPeaks(self):
@@ -609,7 +609,7 @@ class PeakFinding(object):
                     cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                     self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
                     diameter = self.peakRadius*2+1
-                    self.parent.peak_feature.setData(cenX, cenY, symbol='s', \
+                    self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
                                               size=diameter, brush=(255,255,255,0), \
                                               pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
                     # Write number of peaks found
@@ -619,16 +619,16 @@ class PeakFinding(object):
                     maxY = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
                     myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
                                 str(self.numPeaksFound) + ' <br>Res=' + str(int(self.peaksMaxRes)) + '<br></span></div>'
-                    self.parent.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
-                    self.parent.w1.getView().addItem(self.parent.peak_text)
-                    self.parent.peak_text.setPos(maxX, maxY)
+                    self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+                    self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
+                    self.parent.img.peak_text.setPos(maxX, maxY)
                 except:
                     pass
             else:
-                self.parent.peak_feature.setData([], [], pxMode=False)
-                self.parent.peak_text = pg.TextItem(html='', anchor=(0, 0))
-                self.parent.w1.getView().addItem(self.parent.peak_text)
-                self.parent.peak_text.setPos(0,0)
+                self.parent.img.peak_feature.setData([], [], pxMode=False)
+                self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+                self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
+                self.parent.img.peak_text.setPos(0,0)
         else:
-            self.parent.peak_feature.setData([], [], pxMode=False)
+            self.parent.img.peak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done updatePeaks"

@@ -236,9 +236,9 @@ class MaskMaker(object):
             # do not display user mask
             self.displayMask()
             # remove ROIs
-            self.parent.w1.getView().removeItem(self.mask_rect)
-            self.parent.w1.getView().removeItem(self.mask_circle)
-            # self.parent.w1.getView().removeItem(self.mask_poly)
+            self.parent.img.w1.getView().removeItem(self.mask_rect)
+            self.parent.img.w1.getView().removeItem(self.mask_circle)
+            # self.parent.img.w1.getView().removeItem(self.mask_poly)
         else:
             # display text
             self.parent.label.setText(self.masking_mode_message)
@@ -259,9 +259,9 @@ class MaskMaker(object):
                 # self.mask_poly = pg.PolyLineROI([[-300, 600], [-100, 700], [-300, 800]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 
             # add ROIs
-            self.parent.w1.getView().addItem(self.mask_rect)
-            self.parent.w1.getView().addItem(self.mask_circle)
-            # self.parent.w1.getView().addItem(self.mask_poly)
+            self.parent.img.w1.getView().addItem(self.mask_rect)
+            self.parent.img.w1.getView().addItem(self.mask_circle)
+            # self.parent.img.w1.getView().addItem(self.mask_poly)
         if self.parent.args.v >= 1: print "Done updateMaskingMode: ", self.maskingMode
 
     def updatePsanaMaskFlag(self, flag, data):
@@ -335,14 +335,14 @@ class MaskMaker(object):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 1] = self.parent.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.parent.data[_userMaskInd] + (np.max(self.parent.data) - self.parent.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
         if self.display_data is not None:
-            self.parent.w1.setImage(self.display_data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            self.parent.img.w1.setImage(self.display_data, autoRange=False, autoLevels=False, autoHistogramRange=False)
         if self.parent.args.v >= 1: print "Done drawing"
 
     # mask
     def makeMaskRect(self):
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
-            selected, coord = self.mask_rect.getArrayRegion(self.parent.data, self.parent.w1.getImageItem(), returnMappedCoords=True)
+            selected, coord = self.mask_rect.getArrayRegion(self.parent.data, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
             # Remove mask elements outside data
             coord_row = coord[0, (coord[0] >= 0) & (coord[0] < self.parent.data.shape[0]) & (coord[1] >= 0) & (
             coord[1] < self.parent.data.shape[1])].ravel()
@@ -401,7 +401,7 @@ class MaskMaker(object):
         print "Mask Thresh"
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
-            histLevels = self.parent.w1.getHistogramWidget().item.getLevels()
+            histLevels = self.parent.img.w1.getHistogramWidget().item.getLevels()
             _mask = np.ones_like(self.parent.data)
             _mask[np.where(self.parent.data < histLevels[0])] = 0
             _mask[np.where(self.parent.data > histLevels[1])] = 0
@@ -427,7 +427,7 @@ class MaskMaker(object):
             calib = np.ones_like(self.calib)
             img = self.parent.det.image(self.parent.evt, calib)
             # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
-            self.selected = self.mask_poly.getArrayRegion(img, self.parent.w1.getImageItem(), returnMappedCoords=True)
+            self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
 
             # plt.imshow(self.selected, vmax=1, vmin=0)
             # plt.show()

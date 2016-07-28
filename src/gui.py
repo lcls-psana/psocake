@@ -32,7 +32,7 @@ import os.path
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 # Panel modules
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
-import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel
+import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel
 import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
 import matplotlib.pyplot as plt
 import _colorScheme as color
@@ -51,9 +51,6 @@ parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
 parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
 args = parser.parse_args()
-
-# Set up tolerance
-eps = np.finfo("float64").eps
 
 # PerPixelHistogram parameter tree
 #perPixelHistogram_grp = 'Per Pixel Histogram'
@@ -76,8 +73,8 @@ class Window(QtGui.QMainWindow):
 
     def previewEvent(self, eventNumber):
         ex.eventNumber = eventNumber
-        ex.calib, ex.data = ex.getDetImage(ex.eventNumber)
-        ex.w1.setImage(ex.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
+        ex.calib, ex.data = ex.img.getDetImage(ex.eventNumber)
+        ex.img.w1.setImage(ex.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
         ex.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(ex.eventNumber)
 
     def keyPressEvent(self, event):
@@ -130,6 +127,8 @@ class MainFrame(QtGui.QWidget):
         super(MainFrame, self).__init__()
         self.args = args
 
+        # Set up tolerance
+        self.eps = np.finfo("float64").eps
         self.firstUpdate = True
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
@@ -137,13 +136,9 @@ class MainFrame(QtGui.QWidget):
         if args.expRun is not None and ':run=' in args.expRun:
             self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
             self.runNumber = int(args.expRun.split('run=')[-1])
-            #if self.experimentName is not '':
-            #    self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         else:
             self.experimentName = args.exp
             self.runNumber = int(args.run)
-            #if self.experimentName is not '':
-            #    self.psocakeDir = '/reg/d/psdm/'+self.experimentName[:3]+'/'+self.experimentName+'/scratch/psocake'
         self.detInfo = args.det
         self.eventNumber = int(args.evt)
 
@@ -162,6 +157,7 @@ class MainFrame(QtGui.QWidget):
         self.pk = PeakFindingPanel.PeakFinding(self)
         self.hf = HitFinderPanel.HitFinder(self)
         self.mk = MaskPanel.MaskMaker(self)
+        self.img = ImagePanel.ImageViewer(self)
 
         # Init variables
         self.det = None
@@ -176,14 +172,14 @@ class MainFrame(QtGui.QWidget):
         self.pixelIndAssem = None
 
         # Display params
-        self.maxPercentile = 0
-        self.minPercentile = 0
-        self.displayMaxPercentile = 99.0
-        self.displayMinPercentile = 1.0
+        #self.maxPercentile = 0
+        #self.minPercentile = 0
+        #self.displayMaxPercentile = 99.0
+        #self.displayMinPercentile = 1.0
 
-        self.hasUserDefinedResolution = False
-        self.hasCommonMode = False
-        self.commonMode = np.array([0,0,0,0])
+
+        #self.hasCommonMode = False
+
 
         # Init diffraction geometry parameters
         self.coffset = 0.0
@@ -286,7 +282,7 @@ class MainFrame(QtGui.QWidget):
         ## Create docks, place them into the window one at a time.
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
-        self.d1 = Dock("Image Panel", size=(500, 400))     ## give this dock the minimum possible size
+             ## give this dock the minimum possible size
         self.d2 = Dock("Experiment Parameters", size=(1, 1))
         self.d3 = Dock("Diffraction Geometry", size=(1, 1))
         self.d4 = Dock("ROI Histogram", size=(1, 1))
@@ -345,8 +341,8 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
-            self.area.moveDock(self.d1, 'above', self.d7)
+            self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
             self.area.addDock(self.d9, 'bottom', self.d2)
@@ -367,8 +363,8 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
-            self.area.moveDock(self.d1, 'above', self.d7)
+            self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom',self.d2)
@@ -387,8 +383,8 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
-            self.area.moveDock(self.d1, 'above', self.d7)
+            self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d9, 'bottom', self.d2)
@@ -413,36 +409,12 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
-            self.area.moveDock(self.d1, 'above', self.d7)
+            self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom', self.d2)
             self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
-
-        ## Dock 1: Image Panel
-        self.w1 = pg.ImageView(view=pg.PlotItem())
-        self.w1.getView().invertY(False)
-
-        self.img_feature = pg.ImageItem()
-        self.w1.getView().addItem(self.img_feature)
-
-        self.ring_feature = pg.ScatterPlotItem()
-        self.centre_feature = pg.ScatterPlotItem()
-        self.peak_feature = pg.ScatterPlotItem()
-        self.indexedPeak_feature = pg.ScatterPlotItem()
-        self.z_direction = pg.ScatterPlotItem()
-        self.z_direction1 = pg.ScatterPlotItem()
-        self.w1.getView().addItem(self.ring_feature)
-        self.w1.getView().addItem(self.centre_feature)
-        self.w1.getView().addItem(self.peak_feature)
-        self.w1.getView().addItem(self.indexedPeak_feature)
-        self.w1.getView().addItem(self.z_direction)
-        self.w1.getView().addItem(self.z_direction1)
-        self.abc_text = pg.TextItem(html='', anchor=(0,0))
-        self.w1.getView().addItem(self.abc_text)
-        self.peak_text = pg.TextItem(html='', anchor=(0,0))
-        self.w1.getView().addItem(self.peak_text)
 
         # Custom ROI for selecting an image region
         self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
@@ -452,19 +424,19 @@ class MainFrame(QtGui.QWidget):
         self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
         self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
         self.roi.name = 'rect'
-        self.w1.getView().addItem(self.roi)
+        self.img.w1.getView().addItem(self.roi)
         self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roiPoly.name = 'poly'
-        self.w1.getView().addItem(self.roiPoly)
+        self.img.w1.getView().addItem(self.roiPoly)
         self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=0.1, scaleSnap=False, translateSnap=False,
                                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roiCircle.name = 'circ'
-        self.w1.getView().addItem(self.roiCircle)
+        self.img.w1.getView().addItem(self.roiCircle)
 
         # Callbacks for handling user interaction
         def updateRoiHistogram():
             if self.data is not None:
-                selected, coord = self.roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                selected, coord = self.roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
                 hist,bin = np.histogram(selected.flatten(), bins=1000)
                 self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
 
@@ -473,15 +445,15 @@ class MainFrame(QtGui.QWidget):
                 if self.updateRoiStatus == True:
                     calib = np.ones_like(self.calib)
                     img = self.det.image(self.evt, calib)
-                    pixelsExist = roi.getArrayRegion(img, self.w1.getImageItem())
+                    pixelsExist = roi.getArrayRegion(img, self.img.w1.getImageItem())
                     if roi.name == 'poly':
-                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
                         self.ret = self.ret[np.where(pixelsExist == 1)]
                     elif roi.name == 'circ':
-                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem())
+                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem())
                         self.ret = self.ret[np.where(pixelsExist == 1)]
                     else:
-                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
 
                     if roi.name == 'rect':  # isinstance(self.ret,tuple): # rectangle
                         selected, coord = self.ret
@@ -530,7 +502,7 @@ class MainFrame(QtGui.QWidget):
                     self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
                 else: # update ROI off
                     if roi.name == 'rect':  # isinstance(self.ret,tuple): # rectangle
-                        self.ret = roi.getArrayRegion(self.data, self.w1.getImageItem(), returnMappedCoords=True)
+                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
                         selected, coord = self.ret
                         self.x0 = int(coord[0][0][0])
                         self.x1 = int(coord[0][-1][0]) + 1
@@ -577,7 +549,7 @@ class MainFrame(QtGui.QWidget):
             roi.sigRegionChangeFinished.connect(updateRoi)
 
         # Connect listeners to functions
-        self.d1.addWidget(self.w1)
+        self.img.d1.addWidget(self.img.w1)
 
         ## Dock 2: parameter
         self.w2 = ParameterTree()
@@ -625,16 +597,16 @@ class MainFrame(QtGui.QWidget):
             if self.eventNumber >= self.exp.eventTotal:
                 self.eventNumber = self.exp.eventTotal-1
             else:
-                self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                self.calib, self.data = self.img.getDetImage(self.eventNumber)
+                self.img.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
         def prev():
             self.eventNumber -= 1
             if self.eventNumber < 0:
                 self.eventNumber = 0
             else:
-                self.calib, self.data = self.getDetImage(self.eventNumber)
-                self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                self.calib, self.data = self.img.getDetImage(self.eventNumber)
+                self.img.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
                 self.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
         def save():
             outputName = self.psocakeRunDir+"/psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
@@ -642,7 +614,7 @@ class MainFrame(QtGui.QWidget):
                          +str(self.exp.eventFiducial)+".npy"
             fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', outputName, 'ndarray image (*.npy)')
             if self.exp.logscaleOn:
-                np.save(str(fname),np.log10(abs(self.calib)+eps))
+                np.save(str(fname),np.log10(abs(self.calib) + self.eps))
             else:
                 if self.calib.size==2*185*388: # cspad2x2
                     asData2x2 = two2x1ToData2x2(self.calib)
@@ -658,7 +630,7 @@ class MainFrame(QtGui.QWidget):
                 self.calib = temp['max']
             else:
                 self.calib = np.load(fname)
-            self.updateImage(self.calib)
+            self.img.updateImage(self.calib)
 
         self.nextBtn.clicked.connect(next)
         self.prevBtn.clicked.connect(prev)
@@ -818,7 +790,7 @@ class MainFrame(QtGui.QWidget):
         # Loading image stack
         def displayImageStack():
             if self.exp.logscaleOn:
-                self.w7.setImage(np.log10(abs(self.threadpool.data)+eps), xvals=np.linspace(self.stackStart,
+                self.w7.setImage(np.log10(abs(self.threadpool.data) + self.eps), xvals=np.linspace(self.stackStart,
                                                                      self.stackStart+self.threadpool.data.shape[0]-1,
                                                                      self.threadpool.data.shape[0]))
             else:
@@ -857,13 +829,13 @@ class MainFrame(QtGui.QWidget):
         self.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
         self.exp.updateEventNumber(self.eventNumber)
 
-        self.drawLabCoordinates() # FIXME: This does not match the lab coordinates yet!
+        self.img.drawLabCoordinates() # FIXME: This does not match the lab coordinates yet!
 
         # Indicate centre of detector
         self.geom.drawCentre()
 
         # Try mouse over crosshair
-        self.xhair = self.w1.getView()
+        self.xhair = self.img.w1.getView()
         self.vLine = pg.InfiniteLine(angle=90, movable=False)
         self.hLine = pg.InfiniteLine(angle=0, movable=False)
         self.xhair.addItem(self.vLine, ignoreBounds=True)
@@ -924,269 +896,6 @@ class MainFrame(QtGui.QWidget):
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
         self.proxy_click = pg.SignalProxy(self.xhair.scene().sigMouseClicked, slot=mouseClicked)
         self.win.show()
-
-    def drawLabCoordinates(self):
-        (cenX,cenY) = (0,0) # no offset
-        # Draw xy arrows
-        symbolSize = 40
-        cutoff=symbolSize/2
-        headLen=30
-        tailLen=30-cutoff
-        xArrow = pg.ArrowItem(angle=180, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='b', pxMode=False)
-        xArrow.setPos(2*headLen+cenX,0+cenY)
-        self.w1.getView().addItem(xArrow)
-        yArrow = pg.ArrowItem(angle=-90, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='r', pxMode=False)
-        yArrow.setPos(0+cenX,2*headLen+cenY)
-        self.w1.getView().addItem(yArrow)
-
-        # Lab coordinates: Add z-direction
-        self.z_direction.setData([0+cenX], [0+cenY], symbol='o', \
-                                 size=symbolSize, brush='w', \
-                                 pen={'color': 'k', 'width': 4}, pxMode=False)
-        self.z_direction1.setData([0+cenX], [0+cenY], symbol='o', \
-                                 size=symbolSize/6, brush='k', \
-                                 pen={'color': 'k', 'width': 4}, pxMode=False)
-        # Lab coordinates: Add xyz text
-        self.x_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #0000FF; font-size: 16pt;">x</span></div>', anchor=(0,0))
-        self.w1.getView().addItem(self.x_text)
-        self.x_text.setPos(2*headLen+cenX, 0+cenY)
-        self.y_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FF0000; font-size: 16pt;">y</span></div>', anchor=(1,1))
-        self.w1.getView().addItem(self.y_text)
-        self.y_text.setPos(0+cenX, 2*headLen+cenY)
-        self.z_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFFFFF; font-size: 16pt;">z</span></div>', anchor=(1,0))
-        self.w1.getView().addItem(self.z_text)
-        self.z_text.setPos(-headLen+cenX, 0+cenY)
-
-        # Label xy axes
-        self.x_axis = self.w1.getView().getAxis('bottom')
-        self.x_axis.setLabel('X-axis (pixels)')
-        self.y_axis = self.w1.getView().getAxis('left')
-        self.y_axis.setLabel('Y-axis (pixels)')
-
-    def updateImage(self,calib=None):
-        if self.hasExperimentName and self.hasRunNumber and self.hasDetInfo:
-            if calib is None:
-                self.calib, self.data = self.getDetImage(self.eventNumber)
-            else:
-                _, self.data = self.getDetImage(self.eventNumber,calib=calib)
-
-            if self.firstUpdate:
-                if self.exp.logscaleOn:
-                    self.w1.setImage(np.log10(abs(self.data)+eps))
-                    self.firstUpdate = False
-                else:
-                    self.minPercentile = np.percentile(self.data, self.displayMinPercentile)
-                    self.maxPercentile = np.percentile(self.data,self.displayMaxPercentile)
-                    self.w1.setImage(self.data,levels=(self.minPercentile, self.maxPercentile))
-                    self.firstUpdate = False
-            else:
-                if self.exp.logscaleOn:
-                    self.w1.setImage(np.log10(abs(self.data)+eps),autoRange=False,autoLevels=False,autoHistogramRange=False)
-                else:
-                    if self.minPercentile == 0 and self.maxPercentile == 0:
-                        self.minPercentile = np.percentile(self.data, self.displayMinPercentile)
-                        self.maxPercentile = np.percentile(self.data, self.displayMaxPercentile)
-                        self.w1.setImage(self.data,levels=(self.minPercentile, self.maxPercentile))
-                    else:
-                        self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-        if args.v >= 1: print "Done updateImage"
-
-    def getCalib(self,evtNumber):
-        if self.exp.run is not None:
-            self.evt = self.exp.getEvt(evtNumber)
-            if self.exp.applyCommonMode: # play with different common mode
-                if self.commonMode[0] == 5: # Algorithm 5
-                    calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1]))
-                else: # Algorithms 1 to 4
-                    print "### Overriding common mode: ", self.commonMode
-                    calib = self.det.calib(self.evt, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
-            else:
-                calib = self.det.calib(self.evt) #self.det.raw(self.evt) - self.det.pedestals(self.evt)
-            return calib
-        else:
-            return None
-
-    def getCommonModeCorrected(self,evtNumber):
-        if self.exp.run is not None:
-            try:
-                self.evt = self.exp.getEvt(evtNumber)
-                pedestalCorrected = self.det.raw(self.evt) - self.det.pedestals(self.evt)
-                if self.exp.applyCommonMode:  # play with different common mode
-                    if self.commonMode[0] == 5:  # Algorithm 5
-                        commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1]))
-                        commonModeCorrected = pedestalCorrected - commonMode #self.det.common_mode_apply(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1]))
-                    else:  # Algorithms 1 to 4
-                        print "### Overriding common mode: ", self.commonMode
-                        commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected,
-                                                                     cmpars=(self.commonMode[0], self.commonMode[1],
-                                                                             self.commonMode[2], self.commonMode[3]))
-                        commonModeCorrected = pedestalCorrected - commonMode #self.det.common_mode_apply(self.evt, pedestalCorrected, cmpars=(self.commonMode[0], self.commonMode[1], self.commonMode[2], self.commonMode[3]))
-                else:
-                    commonMode = self.det.common_mode_correction(self.evt, pedestalCorrected)
-                    commonModeCorrected = pedestalCorrected + commonMode # WHAT! You need to ADD common mode?!!
-                return commonModeCorrected
-            except:
-                return None
-        else:
-            return None
-
-    def getCommonMode(self,evtNumber):
-        if self.exp.run is not None:
-            self.evt = self.exp.getEvt(evtNumber)
-            pedestalCorrected = self.det.raw(self.evt)-self.det.pedestals(self.evt)
-            if self.exp.applyCommonMode: # play with different common mode
-                print "### Overriding common mode: ", self.commonMode
-                if self.commonMode[0] == 5: # Algorithm 5
-                    cm = self.det.common_mode_correction(self.evt, pedestalCorrected, cmpars=(self.commonMode[0],self.commonMode[1]))
-                else: # Algorithms 1 to 4
-                    cm = self.det.common_mode_correction(self.evt, pedestalCorrected, cmpars=(self.commonMode[0],self.commonMode[1],self.commonMode[2],self.commonMode[3]))
-            else:
-                cm = self.det.common_mode_correction(self.evt, pedestalCorrected)
-            return cm
-        else:
-            return None
-
-    def getAssembledImage(self,calib):
-        _calib = calib.copy() # this is important
-        # Do not display ADUs below threshold
-        #if self.exp.image_property == 1: # gain and gain_mask corrected
-        #    _calib[np.where(_calib<self.exp.aduThresh)] = 0
-        tic = time.time()
-        data = self.det.image(self.evt, _calib)
-        if data is None:
-            data = _calib
-        toc = time.time()
-        if args.v >= 1: print "time assemble: ", toc-tic
-        return data
-
-    def getDetImage(self,evtNumber,calib=None):
-        if calib is None:
-            if self.exp.image_property == 1: # gain and hybrid gain corrected
-                calib = self.getCalib(evtNumber)
-                if calib is None: calib = np.zeros_like(self.exp.detGuaranteed, dtype='float32')
-            elif self.exp.image_property == 2: # common mode corrected
-                if args.v >= 1: print "common mode corrected"
-                calib = self.getCommonModeCorrected(evtNumber)
-                if calib is None: calib = np.zeros_like(self.detGuaranteed, dtype='float32')
-            elif self.exp.image_property == 3: # pedestal corrected
-                calib = self.det.raw(self.evt).astype('float32')
-                if calib is None:
-                    calib = np.zeros_like(self.exp.detGuaranteed, dtype='float32')
-                else:
-                    calib -= self.det.pedestals(self.evt)
-            elif self.exp.image_property == 4: # raw
-                calib = self.det.raw(self.evt)
-                if calib is None:
-                    calib = np.zeros_like(self.exp.detGuaranteed, dtype='float32')
-                self.firstUpdate = True
-            elif self.exp.image_property == 5: # photon counts
-                print "Sorry, this feature is not available"
-            elif self.exp.image_property == 6: # pedestal
-                calib = self.det.pedestals(self.evt)
-                self.firstUpdate = True
-            elif self.exp.image_property == 7: # status
-                calib = self.det.status(self.evt)
-                self.firstUpdate = True
-            elif self.exp.image_property == 8: # rms
-                calib = self.det.rms(self.evt)
-                self.firstUpdate = True
-            elif self.exp.image_property == 9: # common mode
-                calib = self.getCommonMode(evtNumber)
-                self.firstUpdate = True
-            elif self.exp.image_property == 10: # gain
-                calib = self.det.gain(self.evt)
-                self.firstUpdate = True
-            elif self.exp.image_property == 17: # gain_mask
-                calib = self.det.gain_mask(self.evt)
-                self.firstUpdate = True
-            elif self.exp.image_property == 15: # coords_x
-                calib = self.det.coords_x(self.evt)
-                self.firstUpdate = True
-            elif self.exp.image_property == 16: # coords_y
-                calib = self.det.coords_y(self.evt)
-                self.firstUpdate = True
-
-            shape = self.det.shape(self.evt)
-            if len(shape) == 3:
-                if self.exp.image_property == 11: # quad ind
-                    calib = np.zeros(shape)
-                    for i in range(shape[0]):
-                        # TODO: handle detectors properly
-                        if shape[0] == 32: # cspad
-                            calib[i,:,:] = int(i)%8
-                        elif shape[0] == 2: # cspad2x2
-                            calib[i,:,:] = int(i)%2
-                        elif shape[0] == 4: # pnccd
-                            calib[i,:,:] = int(i)%4
-                    self.firstUpdate = True
-                elif self.exp.image_property == 12: # seg ind
-                    calib = np.zeros(shape)
-                    if shape[0] == 32: # cspad
-                        for i in range(32):
-                            calib[i,:,:] = int(i)/8
-                    elif shape[0] == 2: # cspad2x2
-                        for i in range(2):
-                            calib[i,:,:] = int(i)
-                    elif shape[0] == 4: # pnccd
-                        for i in range(4):
-                            calib[i,:,:] = int(i)
-                    self.firstUpdate = True
-                elif self.exp.image_property == 13: # row ind
-                    calib = np.zeros(shape)
-                    if shape[0] == 32: # cspad
-                        for i in range(185):
-                            calib[:,i,:] = i
-                    elif shape[0] == 2: # cspad2x2
-                        for i in range(185):
-                            calib[:,i,:] = i
-                    elif shape[0] == 4: # pnccd
-                        for i in range(512):
-                            calib[:,i,:] = i
-                    self.firstUpdate = True
-                elif self.exp.image_property == 14: # col ind
-                    calib = np.zeros(shape)
-                    if shape[0] == 32: # cspad
-                        for i in range(388):
-                            calib[:,:,i] = i
-                    elif shape[0] == 2: # cspad2x2
-                        for i in range(388):
-                            calib[:,:,i] = i
-                    elif shape[0] == 4: # pnccd
-                        for i in range(512):
-                            calib[:,:,i] = i
-                    self.firstUpdate = True
-
-        # Update photon energy
-        self.ebeam = self.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-        if self.ebeam:
-            self.photonEnergy = self.ebeam.ebeamPhotonEnergy()
-        else:
-            self.photonEnergy = 0
-        self.p1.param(self.geom.geom_grp,self.geom.geom_photonEnergy_str).setValue(self.photonEnergy)
-        # Update clen
-        if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
-            self.p1.param(self.geom.geom_grp, self.geom.geom_clen_str).setValue(self.clen)
-
-        if calib is not None:
-            # assemble image
-            data = self.getAssembledImage(calib)
-            self.cx, self.cy = self.det.point_indexes(self.evt,pxy_um=(0,0))
-            if self.cx is None:
-                self.cx, self.cy = self.getCentre(data.shape)
-            if args.v >= 1: print "cx, cy: ", self.cx, self.cy
-            return calib, data
-        else:
-            calib = np.zeros_like(self.exp.detGuaranteed, dtype='float32')
-            data = self.getAssembledImage(calib)
-            self.cx, self.cy = self.det.point_indexes(self.evt, pxy_um=(0, 0))
-            if self.cx is None:
-                self.cx, self.cy = self.getCentre(data.shape)
-            return calib, data
-
-    def getCentre(self,shape):
-        cx = shape[1]/2
-        cy = shape[0]/2
-        return cx,cy
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):

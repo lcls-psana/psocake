@@ -124,8 +124,7 @@ class SmallData(object):
 
             # temp
             self.parent.eventNumber = self.quantifierEvent[ind]
-            # self.eventNumber = ind
 
-            self.parent.calib, self.parent.data = self.parent.getDetImage(self.parent.eventNumber)
-            self.parent.w1.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
+            self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
+            self.parent.img.w1.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
             self.parent.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)

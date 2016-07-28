@@ -65,6 +65,7 @@ class ExperimentInfo(object):
         #self.aduThresh = -100.
         self.applyCommonMode = False
         self.commonModeParams = np.array([0,0,0,0])
+        self.commonMode = np.array([0, 0, 0, 0])
 
         # e-log
         self.logger = False
@@ -188,7 +189,7 @@ class ExperimentInfo(object):
     
         self.setupExperiment()
     
-        self.parent.updateImage()
+        self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateExperimentName:", self.parent.experimentName
     
     def updateRunNumber(self, data):
@@ -202,7 +203,7 @@ class ExperimentInfo(object):
             self.setupExperiment()
             self.parent.mk.resetMasks()
             self.resetVariables()
-            self.parent.updateImage()
+            self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
 
     def updateDetInfo(self, data):
@@ -216,12 +217,11 @@ class ExperimentInfo(object):
         if data == 'DscCsPad' or data == 'DsdCsPad' or data == 'DsaCsPad':
             self.parent.isCspad = True
     
-        self.hasDetInfo = True
+        self.parent.hasDetInfo = True
         self.setupExperiment()
-        self.parent.updateImage()
+        self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateDetInfo: ", self.parent.detInfo
-    
-    
+
     def findEventFromTimestamp(self, secList, nsecList, fidList, sec, nsec, fid):
         eventNumber = (np.where(secList == sec)[0] & np.where(nsecList == nsec)[0] & np.where(fidList == fid)[0])[0]
         return eventNumber
@@ -263,7 +263,7 @@ class ExperimentInfo(object):
             self.eventFiducial = str(fid)
             self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
             self.parent.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
-            self.parent.updateImage()
+            self.parent.img.updateImage()
         # update labels
         if self.parent.args.mode == "all":
             if self.evtLabels is not None: self.evtLabels.refresh()
@@ -288,6 +288,7 @@ class ExperimentInfo(object):
         return False
      
     def hasExpRunDetInfo(self):
+        print "123: ", self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
             if self.parent.args.v >= 1: print "hasExpRunDetInfo: True ", self.parent.runNumber
             return True
@@ -360,7 +361,9 @@ class ExperimentInfo(object):
                 self.parent.elogDir = self.parent.rootDir + '/psocake'
                 self.parent.psocakeDir = self.parent.rootDir + '/' + self.username + '/psocake'
             self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
-    
+
+            if self.parent.args.v >= 1: print "psocakeDir: ", self.parent.psocakeDir
+
             # Update peak finder outdir and run number
             self.parent.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_outDir_str).setValue(self.parent.psocakeDir)
             self.parent.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_runs_str).setValue(self.parent.runNumber)
@@ -372,9 +375,6 @@ class ExperimentInfo(object):
             self.parent.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_runs_str).setValue(self.parent.runNumber)
             # Update indexing outdir, run number
             self.parent.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(self.parent.psocakeDir)
-            print "@*#$@#*$@#*$*@$*#@*$*#@$*@#*$@*"
-            print "#$%#$%#$%#%$# outDir: ", self.parent.psocakeDir
-            print "@*#$@#*$@#*$*@$*#@*$*#@$*@#*$@*"
             self.parent.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(self.parent.runNumber)
             # Update quantifier filename
             self.parent.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(self.parent.psocakeRunDir)
@@ -466,7 +466,7 @@ class ExperimentInfo(object):
     
             if self.detGuaranteed is not None:
                 self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
-                self.parent.pixelIndAssem = self.parent.getAssembledImage(self.parent.pixelInd)
+                self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.pixelInd)
                 self.parent.pixelIndAssem -= 1  # First pixel is 0
     
             # Write a temporary geom file
@@ -524,18 +524,18 @@ class ExperimentInfo(object):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
             self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
-            self.parent.updateImage()
+            self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateLogscale: ", self.logscaleOn
     
     def updateImageProperty(self, data):
         self.image_property = data
-        self.parent.updateImage()
+        self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateImageProperty: ", self.image_property
 
     #def updateAduThreshold(self, data):
     #    self.aduThresh = data
     #    if self.hasExpRunDetInfo():
-    #        self.parent.updateImage(self.calib)
+    #        self.parent.img.updateImage(self.calib)
     #    if self.parent.args.v >= 1: print "Done updateAduThreshold: ", self.aduThresh
     
     def updateCommonModeParam(self, data, ind):
@@ -546,12 +546,12 @@ class ExperimentInfo(object):
     def updateCommonMode(self, data):
         self.applyCommonMode = data
         if self.applyCommonMode:
-            self.parent.commonMode = self.checkCommonMode(self.commonModeParams)
+            self.commonMode = self.checkCommonMode(self.commonModeParams)
         if self.hasExpRunDetInfo():
-            if self.parent.args.v >= 1: print "%%% Redraw image with new common mode: ", self.parent.commonMode
+            if self.parent.args.v >= 1: print "%%% Redraw image with new common mode: ", self.commonMode
             self.setupExperiment()
-            self.parent.updateImage()
-        if self.parent.args.v >= 1: print "Done updateCommonMode: ", self.parent.commonMode
+            self.parent.img.updateImage()
+        if self.parent.args.v >= 1: print "Done updateCommonMode: ", self.commonMode
 
     def checkCommonMode(self, _commonMode):
         # TODO: cspad2x2 can only use algorithms 1 and 5

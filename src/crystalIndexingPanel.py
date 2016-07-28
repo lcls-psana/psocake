@@ -100,7 +100,6 @@ class CrystalIndexing(object):
     # Mandatory parameter update #
     ##############################
     def paramUpdate(self, path, change, data):
-        print "*******crystalIndexing: ", path, path[1]
         if path[1] == self.index_on_str:
             self.updateIndexStatus(data)
         elif path[1] == self.index_geom_str:
@@ -200,8 +199,8 @@ class CrystalIndexing(object):
         self.noe = data
 
     def clearIndexedPeaks(self):
-        self.parent.w1.getView().removeItem(self.parent.abc_text)
-        self.parent.indexedPeak_feature.setData([], [], pxMode=False)
+        self.parent.img.w1.getView().removeItem(self.parent.img.abc_text)
+        self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearIndexedPeaks"
 
     def drawIndexedPeaks(self,unitCell=None):
@@ -216,7 +215,7 @@ class CrystalIndexing(object):
                 diameter[0:self.numIndexedPeaksFound] = float(self.intRadius.split(',')[0])*2
                 diameter[self.numIndexedPeaksFound:2*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[1])*2
                 diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[2])*2
-                self.parent.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
+                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
 
@@ -231,9 +230,9 @@ class CrystalIndexing(object):
                             '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
                             str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
 
-                self.parent.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
-                self.parent.w1.getView().addItem(self.parent.abc_text)
-                self.parent.abc_text.setPos(maxX, maxY)
+                self.parent.img.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
+                self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
+                self.parent.img.abc_text.setPos(maxX, maxY)
             else:
                 xMargin = 5 # pixels
                 maxX   = np.max(self.parent.det.indexes_x(self.parent.evt))+xMargin
@@ -242,14 +241,14 @@ class CrystalIndexing(object):
                 cenX = np.array((self.parent.cx,))+0.5
                 cenY = np.array((self.parent.cy,))+0.5
                 diameter = 256 #self.peakRadius*2+1
-                self.parent.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
+                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
-                self.parent.abc_text = pg.TextItem(html='', anchor=(0,0))
-                self.parent.w1.getView().addItem(self.parent.abc_text)
-                self.parent.abc_text.setPos(maxX,maxY)
+                self.parent.img.abc_text = pg.TextItem(html='', anchor=(0,0))
+                self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
+                self.parent.img.abc_text.setPos(maxX,maxY)
         else:
-            self.parent.indexedPeak_feature.setData([], [], pxMode=False)
+            self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done updatePeaks"
 
     def launchIndexing(self, requestRun=None):
