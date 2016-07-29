@@ -484,7 +484,6 @@ class PeakFinding(object):
             if self.algorithm == 1:
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                 #                           around pixel with maximal intensity.
-                #peaks = alg.peak_finder_v1(nda, thr_low=5, thr_high=30, radius=5, dr=0.05)
                 self.peakRadius = int(self.hitParam_alg1_radius)
                 self.peaks = self.alg.peak_finder_v1(self.parent.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                            radius=self.peakRadius, dr=self.hitParam_alg1_dr)
@@ -500,6 +499,9 @@ class PeakFinding(object):
                 self.peakRadius = int(self.hitParam_alg4_r0)
                 self.peaks = self.alg.peak_finder_v4(self.parent.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
                                            rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
+            for peak in self.peaks:
+                seg, row, col, npix, amax, atot = peak[0:6]
+                print (seg, row, col, npix, atot)
             self.numPeaksFound = self.peaks.shape[0]
 
             fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'

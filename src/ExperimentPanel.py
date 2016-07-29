@@ -288,7 +288,7 @@ class ExperimentInfo(object):
         return False
      
     def hasExpRunDetInfo(self):
-        print "123: ", self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
+        if self.parent.args.v >= 1: print "exp,run,det: ", self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
             if self.parent.args.v >= 1: print "hasExpRunDetInfo: True ", self.parent.runNumber
             return True
@@ -313,6 +313,7 @@ class ExperimentInfo(object):
                 process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx ' + self.parent.elogDir, stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
+
                 # create logger
                 with open(self.loggerFile, "w") as myfile:
                     if self.parent.args.outDir is None:
@@ -334,7 +335,14 @@ class ExperimentInfo(object):
         # Make run folder
         try:
             if os.path.exists(self.parent.psocakeRunDir) is False:
-                os.makedirs(self.parent.psocakeRunDir, 0774)
+                if self.parent.args.outDir is None:
+                    os.makedirs(self.parent.psocakeRunDir, 0774)
+                else: # don't let groups and others access to this folder
+                    os.makedirs(self.parent.psocakeRunDir, 0700)
+                    process = subprocess.Popen('chmod -R ' + self.parent.psocakeRunDir,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE, shell=True)
+                    out, err = process.communicate()
         except:
             print "No write access: ", self.parent.psocakeRunDir
     
@@ -381,9 +389,10 @@ class ExperimentInfo(object):
             self.setupPsocake()
     
             # Update hidden CrystFEL files
-            self.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
-            self.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
-            self.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
+                self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
+                self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
     
             if self.parent.args.localCalib:
                 if self.parent.args.v >= 1: print "Using local calib directory"

@@ -9,11 +9,10 @@
 # TODO: Run from ffb
 # TODO: script for histogram of lit pixels, percentile display
 # TODO: hit threshold on hit finding panel
-# TODO: Launch jobs based on image_property
 
-# TODO: Make use outDir works
-# TODO: xtc2cxidb should update elog
+# TODO: Launch jobs based on image_property
 # TODO: Manifold embed for ice events
+# TODO: update ROI on every event, but skip if ROI is outside
 
 import sys, signal
 import numpy as np
