@@ -386,7 +386,7 @@ class IndexHandler(QtCore.QThread):
                 if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
                 # Running indexing ...
                 self.numIndexedPeaksFound = 0
-                self..indexedPeaks = None
+                self.indexedPeaks = None
                 self.clearIndexedPeaks()
 
                 # Write list

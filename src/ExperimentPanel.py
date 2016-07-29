@@ -66,6 +66,7 @@ class ExperimentInfo(object):
         self.applyCommonMode = False
         self.commonModeParams = np.array([0,0,0,0])
         self.commonMode = np.array([0, 0, 0, 0])
+        self.firstSetupExperiment = True
 
         # e-log
         self.logger = False
@@ -294,7 +295,7 @@ class ExperimentInfo(object):
             return True
         else:
             if self.parent.args.v >= 1: print "hasExpRunDetInfo: False ", self.parent.runNumber
-            return False 
+            return False
     
     def getUsername(self):
         process = subprocess.Popen('whoami', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
