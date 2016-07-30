@@ -501,7 +501,7 @@ class PeakFinding(object):
                                            rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
             for peak in self.peaks:
                 seg, row, col, npix, amax, atot = peak[0:6]
-                print (seg, row, col, npix, atot)
+                if self.parent.args.v >= 1: print (seg, row, col, npix, atot)
             self.numPeaksFound = self.peaks.shape[0]
 
             fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'

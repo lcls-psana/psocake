@@ -196,10 +196,10 @@ class ExperimentInfo(object):
     def updateRunNumber(self, data):
         if data == 0:
             self.parent.runNumber = data
-            self.hasRunNumber = False
+            self.parent.hasRunNumber = False
         else:
             self.parent.runNumber = data
-            self.hasRunNumber = True
+            self.parent.hasRunNumber = True
             self.parent.detInfoList = None
             self.setupExperiment()
             self.parent.mk.resetMasks()
@@ -237,7 +237,7 @@ class ExperimentInfo(object):
         return _timestamp64
 
     def getEvt(self, evtNumber):
-        if self.hasRunNumber:
+        if self.parent.hasRunNumber:
             _evt = self.run.event(self.times[evtNumber])
             return _evt
         else:

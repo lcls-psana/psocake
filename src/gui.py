@@ -81,7 +81,7 @@ class Window(QtGui.QMainWindow):
         if args.mode == "all":
             if type(event) == QtGui.QKeyEvent:
                 path = ["", ""]
-                if event.key() == QtCore.Qt.Key_1 :
+                if event.key() == QtCore.Qt.Key_1:
                     path[1] = "Single"
                     data = True
                     if ex.evtLabels.labelA == True : data = False
@@ -416,7 +416,8 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
 
         # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
+        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                          pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
@@ -424,7 +425,9 @@ class MainFrame(QtGui.QWidget):
         self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
         self.roi.name = 'rect'
         self.img.w1.getView().addItem(self.roi)
-        self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
+        self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]],
+                                      closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                      pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
         self.roiPoly.name = 'poly'
         self.img.w1.getView().addItem(self.roiPoly)
         self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=0.1, scaleSnap=False, translateSnap=False,
