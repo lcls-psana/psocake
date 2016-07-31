@@ -119,7 +119,7 @@ class CrystalIndexing(object):
 
     # Launch indexing
     def indexPeaks(self):
-        self.parent.thread.append(LaunchIndexer.LaunchIndexer(self))  # send parent parameters with self
+        self.parent.thread.append(LaunchIndexer.LaunchIndexer(self.parent))  # send parent parameters with self
         self.parent.thread[self.parent.threadCounter].launch(self.parent.experimentName, self.parent.detInfo)
         self.parent.threadCounter += 1
 
@@ -423,18 +423,18 @@ class IndexHandler(QtCore.QThread):
 
                 if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
                 # Running indexing ...
-                self.numIndexedPeaksFound = 0
-                self.indexedPeaks = None
-                self.clearIndexedPeaks()
+                self.parent.index.numIndexedPeaksFound = 0
+                self.parent.index.indexedPeaks = None
+                self.parent.index.clearIndexedPeaks()
 
                 # Write list
-                with open(self.hiddenCrystfelList, "w") as text_file:
-                    text_file.write("{} //0".format(self.hiddenCXI))
+                with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
+                    text_file.write("{} //0".format(self.parent.index.hiddenCXI))
 
                 # FIXME: convert psana geom to crystfel geom
-                cmd = "indexamajig -j 1 -i " + self.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
+                cmd = "indexamajig -j 1 -i " + self.parent.index.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
                       " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
-                      " -o " + self.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
+                      " -o " + self.parent.index.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
                     self.runNumber).zfill(4)
                 if self.pdb:  # is not '': # FIXME: somehow doesn't work
                     cmd += " --pdb=" + self.pdb
@@ -448,7 +448,7 @@ class IndexHandler(QtCore.QThread):
                 if mySuccessString in err:  # success
                     if self.parent.args.v >= 1: print "Indexing successful"
                     # print "Munging geometry file"
-                    f = open(self.hiddenCrystfelStream)
+                    f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     for i, val in enumerate(content):
                         if '----- Begin geometry file -----' in val:
@@ -503,11 +503,11 @@ class IndexHandler(QtCore.QThread):
                     f.close()
                 else:
                     if self.parent.args.v >= 1: print "Indexing failed"
-                    self.drawIndexedPeaks()
+                    self.parent.index.drawIndexedPeaks()
 
                 # Read CrystFEL indexed peaks
                 if mySuccessString in err:  # success
-                    f = open(self.hiddenCrystfelStream)
+                    f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     for i, val in enumerate(content):
                         if 'num_peaks =' in val:
@@ -555,10 +555,10 @@ class IndexHandler(QtCore.QThread):
                         dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
                         dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
 
-                    if self.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                        self.numIndexedPeaksFound = numPeaks
-                        self.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
-                        self.drawIndexedPeaks(self.unitCell)
+                    if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
+                        self.parent.index.numIndexedPeaksFound = numPeaks
+                        self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
+                        self.parent.index.drawIndexedPeaks(self.unitCell)
             else:
                 print "Indexing requirement not met."
                 if self.parent.pk.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"

@@ -423,6 +423,7 @@ class MaskMaker(object):
 
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskRect!!!!!!"
 
     def makeMaskCircle(self):
@@ -454,10 +455,10 @@ class MaskMaker(object):
 
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskCircle!!!!!!"
 
     def makeMaskThresh(self):
-        print "Mask Thresh"
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
             histLevels = self.parent.img.w1.getHistogramWidget().item.getLevels()
@@ -470,7 +471,6 @@ class MaskMaker(object):
                 self.userMaskAssem[np.where(_mask == 0)] = 1
             elif self.maskingMode == 3:  # toggle mode
                 print "You can only mask/unmask based on threshold "
-                # self.userMaskAssem[np.where(_mask==1)] = (1-self.userMaskAssem[np.where(_mask==1)])
 
             # update userMask
             self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
@@ -478,6 +478,7 @@ class MaskMaker(object):
 
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskThresh!!!!!!"
 
     def makeMaskPoly(self):

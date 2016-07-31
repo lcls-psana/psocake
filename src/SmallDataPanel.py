@@ -127,13 +127,13 @@ class SmallData(object):
                 self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
 
     def updateQuantifierPlot(self, ind, metric):
-        self.parent.w9.getPlotItem().clear()
-        self.curve = self.parent.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='w')
-        self.parent.w9.setLabel('left', "Small data")
+        self.w9.getPlotItem().clear()
+        self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='w')
+        self.w9.setLabel('left', "Small data")
         if self.quantifier_sort:
-            self.parent.w9.setLabel('bottom', "Sorted Event Index")
+            self.w9.setLabel('bottom', "Sorted Event Index")
         else:
-            self.parent.w9.setLabel('bottom', "Event Index")
+            self.w9.setLabel('bottom', "Event Index")
         self.curve.curve.setClickable(True)
         self.curve.sigClicked.connect(self.clicked)
 
@@ -158,4 +158,4 @@ class SmallData(object):
 
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
             self.parent.img.w1.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
-            self.parent.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
+            self.parent.exp.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)

@@ -113,7 +113,7 @@ statusFname = args.inDir+'/status_index.txt'
 
 if rank == 0:
     try:
-        d = {"message", "#CXIDB"}
+        d = {"message": "#CXIDB"}
         print statusFname
         writeStatus(statusFname, d)
     except:
@@ -185,7 +185,7 @@ elif hasDetectorDistance:
 
 if rank == 0:
     try:
-        d = {"message", "#InitCXIDB"}
+        d = {"message": "#InitCXIDB"}
         writeStatus(statusFname, d)
     except:
         pass
@@ -396,7 +396,7 @@ ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
 
 if rank == 0:
     try:
-        d = {"message", "#StartCXIDB"}
+        d = {"message": "#StartCXIDB"}
         writeStatus(statusFname, d)
     except:
         pass
@@ -488,9 +488,9 @@ for i,val in enumerate(myHitInd):
 
     ds_evtNum_1[globalInd] = val
 
-    if i%20 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+    if i%10 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 
-    if rank == 0 and i%20 == 0:
+    if rank == 0 and i%10 == 0:
         try:
             d = {"convert": "cxidb", "fracDone": i*100./len(myJobs)}
             writeStatus(statusFname, d)

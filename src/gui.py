@@ -59,7 +59,7 @@ class Window(QtGui.QMainWindow):
         ex.eventNumber = eventNumber
         ex.calib, ex.data = ex.img.getDetImage(ex.eventNumber)
         ex.img.w1.setImage(ex.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
-        ex.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(ex.eventNumber)
+        ex.exp.p.param(ex.exp.exp_grp, ex.exp.exp_evt_str).setValue(ex.eventNumber)
 
     def keyPressEvent(self, event):
         super(Window, self).keyPressEvent(event)
@@ -82,23 +82,23 @@ class Window(QtGui.QMainWindow):
                     if ex.evtLabels.labelC == True : data = False
                     ex.evtLabels.paramUpdate(path, data)
                 elif event.key() == QtCore.Qt.Key_Period:
-                    if ex.w9.getPlotItem().listDataItems() != []:
+                    if ex.small.w9.getPlotItem().listDataItems() != []:
                         idx = -1
-                        array = np.where(ex.quantifierEvent >= ex.eventNumber)
+                        array = np.where(ex.small.quantifierEvent >= ex.eventNumber)
                         if array[0].size != 0:
                             idx = array[0][0]
-                            if ex.quantifierEvent[idx] == ex.eventNumber: idx += 1
-                            if idx < (ex.quantifierEvent.size): self.previewEvent(ex.quantifierEvent[idx])
+                            if ex.small.quantifierEvent[idx] == ex.eventNumber: idx += 1
+                            if idx < (ex.small.quantifierEvent.size): self.previewEvent(ex.small.quantifierEvent[idx])
                 elif event.key() == QtCore.Qt.Key_N:
                     if ex.eventNumber < (ex.exp.eventTotal - 1): self.previewEvent(ex.eventNumber+1)
                 elif event.key() == QtCore.Qt.Key_Comma:
-                    if ex.w9.getPlotItem().listDataItems() != []:
+                    if ex.small.w9.getPlotItem().listDataItems() != []:
                         idx = -1
-                        array = np.where(ex.quantifierEvent <= ex.eventNumber)
+                        array = np.where(ex.small.quantifierEvent <= ex.eventNumber)
                         if array[0].size != 0:
                             idx = array[0][array[0].size - 1]
-                            if ex.quantifierEvent[idx] == ex.eventNumber: idx -= 1
-                            if ex.quantifierEvent[idx] != 0: self.previewEvent(ex.quantifierEvent[idx])
+                            if ex.small.quantifierEvent[idx] == ex.eventNumber: idx -= 1
+                            if ex.small.quantifierEvent[idx] != 0: self.previewEvent(ex.small.quantifierEvent[idx])
                 elif event.key() == QtCore.Qt.Key_P:
                     if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
                 ex.evtLabels.refresh()
