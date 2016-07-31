@@ -1,6 +1,21 @@
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.dockarea import *
+from pyqtgraph.Qt import QtCore, QtGui
+import pyqtgraph as pg
+import LaunchHitFinder
+
 class HitFinder(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        ## Dock 13: Hit finder
+        self.d13 = Dock("Hit Finder", size=(1, 1))
+        self.w19 = ParameterTree()
+        self.d13.addWidget(self.w19)
+        self.w20 = pg.LayoutWidget()
+        self.launchSpiBtn = QtGui.QPushButton('Launch hit finder')
+        self.w20.addWidget(self.launchSpiBtn, row=1, col=0)
+        self.d13.addWidget(self.w20)
 
         # Hit finding
         self.spiParam_grp = 'Hit finder'
@@ -66,6 +81,29 @@ class HitFinder(object):
                 {'name': self.spiParam_noe_str, 'type': 'int', 'value': self.spiParam_noe, 'tip': "number of events to process, default=0 means process all events"},
             ]},
         ]
+        self.p8 = Parameter.create(name='paramsHitFinder', type='group', \
+                                   children=self.params, expanded=True)
+        self.w19.setParameters(self.p8, showTop=False)
+        self.p8.sigTreeStateChanged.connect(self.change)
+
+        self.parent.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), self.findHits)
+
+    # Launch hit finding
+    def findHits(self):
+        self.parent.thread.append(LaunchHitFinder.HitFinder(self))  # send parent parameters with self
+        self.parent.thread[self.parent.threadCounter].findHits(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
+        self.parent.threadCounter += 1
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
 
     ##############################
     # Mandatory parameter update #

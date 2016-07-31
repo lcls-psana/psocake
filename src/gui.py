@@ -33,7 +33,7 @@ import os.path
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
 import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
 import ImageControlPanel, MousePanel, ImageStackPanel
-import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
+import LaunchPeakFinder, LaunchIndexer, LaunchStackProducer
 import matplotlib.pyplot as plt
 import _colorScheme as color
 from _version import __version__
@@ -132,23 +132,6 @@ class MainFrame(QtGui.QWidget):
         self.elogDir = None
         self.rootDir = None
 
-        ########################################
-        # Instantiate panels
-        ########################################
-        self.exp = ExperimentPanel.ExperimentInfo(self)
-        self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
-        self.index = crystalIndexingPanel.CrystalIndexing(self)
-        self.small = SmallDataPanel.SmallData(self)
-        self.evtLabels = LabelPanel.Labels(self)
-        self.pk = PeakFindingPanel.PeakFinding(self)
-        self.hf = HitFinderPanel.HitFinder(self)
-        self.mk = MaskPanel.MaskMaker(self)
-        self.img = ImagePanel.ImageViewer(self)
-        self.roi = RoiPanel.RoiHistogram(self)
-        self.control = ImageControlPanel.ImageControl(self)
-        self.mouse = MousePanel.Mouse(self)
-        self.stack = ImageStackPanel.ImageStack(self)
-
         # Init variables
         self.det = None
         self.detnames = None
@@ -180,6 +163,23 @@ class MainFrame(QtGui.QWidget):
         self.cx = 0 # detector centre x
         self.cy = 0 # detector centre y
 
+        ########################################
+        # Instantiate panels
+        ########################################
+        self.exp = ExperimentPanel.ExperimentInfo(self)
+        self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
+        self.index = crystalIndexingPanel.CrystalIndexing(self)
+        self.small = SmallDataPanel.SmallData(self)
+        self.evtLabels = LabelPanel.Labels(self)
+        self.pk = PeakFindingPanel.PeakFinding(self)
+        self.hf = HitFinderPanel.HitFinder(self)
+        self.mk = MaskPanel.MaskMaker(self)
+        self.img = ImagePanel.ImageViewer(self)
+        self.roi = RoiPanel.RoiHistogram(self)
+        self.control = ImageControlPanel.ImageControl(self)
+        self.mouse = MousePanel.Mouse(self)
+        self.stack = ImageStackPanel.ImageStack(self)
+
         self.initUI()
 
     def initUI(self):
@@ -189,50 +189,6 @@ class MainFrame(QtGui.QWidget):
         self.win.setCentralWidget(self.area)
         self.win.resize(1300,650)
         self.win.setWindowTitle('psocake')
-
-        ## Create tree of Parameter objects
-        self.pSmall = Parameter.create(name='paramsQuantifier', type='group', \
-                                  children=self.small.params, expanded=True)
-        self.p3 = Parameter.create(name='paramsPeakFinder', type='group', \
-                                  children=self.pk.params, expanded=True)
-        #self.p4 = Parameter.create(name='paramsManifold', type='group', \
-        #                          children=self.paramsManifold, expanded=True)
-        #self.p5 = Parameter.create(name='paramsPerPixelHistogram', type='group', \
-        #                          children=self.paramsPerPixelHistogram, expanded=True)
-        self.p6 = Parameter.create(name='paramsMask', type='group', \
-                                  children=self.mk.params, expanded=True)
-        #self.p7 = Parameter.create(name='paramsCorrection', type='group', \
-        #                           children=self.paramsCorrection, expanded=True)
-        self.p8 = Parameter.create(name='paramsHitFinder', type='group', \
-                                   children=self.hf.params, expanded=True)
-        self.p9 = Parameter.create(name='paramsCrystalIndexing', type='group', \
-                                   children=self.index.params, expanded=True)
-        self.pLabels = Parameter.create(name='paramsLabel', type='group', \
-                                   children=self.evtLabels.params, expanded=True)
-
-
-        self.pSmall.sigTreeStateChanged.connect(self.change)
-        self.p3.sigTreeStateChanged.connect(self.change)
-        #self.p4.sigTreeStateChanged.connect(self.change)
-        #self.p5.sigTreeStateChanged.connect(self.change)
-        self.p6.sigTreeStateChanged.connect(self.change)
-        #self.p7.sigTreeStateChanged.connect(self.change)
-        self.p8.sigTreeStateChanged.connect(self.change)
-        self.p9.sigTreeStateChanged.connect(self.change)
-        self.pLabels.sigTreeStateChanged.connect(self.change)
-
-        ## Create docks, place them into the window one at a time.
-        ## Note that size arguments are only a suggestion; docks will still have to
-        ## fill the entire dock area and obey the limits of their internal widgets.
-             ## give this dock the minimum possible size
-
-        self.dSmall = Dock("Small Data", size=(100, 100))
-        self.d9 = Dock("Peak Finder", size=(1, 1))
-        #self.d10 = Dock("Manifold", size=(1, 1))
-        self.d12 = Dock("Mask Panel", size=(1, 1))
-        self.d13 = Dock("Hit Finder", size=(1, 1))
-        self.d14 = Dock("Indexing", size=(1, 1))
-        self.dLabels = Dock("Labels", size=(1, 1))
 
         # Set the color scheme
         def updateStylePatched(self):
@@ -282,18 +238,18 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
-            self.area.addDock(self.d9, 'bottom', self.exp.d2)
-            self.area.addDock(self.d12, 'bottom',self.exp.d2)
-            self.area.addDock(self.d14, 'bottom', self.exp.d2)
-            self.area.moveDock(self.d9, 'above', self.d12)
-            self.area.moveDock(self.d14, 'above', self.d12)
+            self.area.addDock(self.pk.d9, 'bottom', self.exp.d2)
+            self.area.addDock(self.mk.d12, 'bottom',self.exp.d2)
+            self.area.addDock(self.index.d14, 'bottom', self.exp.d2)
+            self.area.moveDock(self.pk.d9, 'above', self.mk.d12)
+            self.area.moveDock(self.index.d14, 'above', self.mk.d12)
 
             self.area.addDock(self.geom.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)    ## place d4 at right edge of dock area
             self.area.moveDock(self.geom.d3, 'above', self.exp.d2)
             self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
-            self.area.addDock(self.dSmall, 'right')#, self.exp.d2)
+            self.area.addDock(self.small.dSmall, 'right')#, self.exp.d2)
             self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
         elif args.mode == 'spi':
             # Dock positions on the main frame
@@ -304,16 +260,16 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
-            self.area.addDock(self.d12, 'bottom',self.exp.d2)
-            self.area.addDock(self.d13, 'bottom', self.exp.d2)
-            self.area.moveDock(self.d13, 'above', self.d12)
+            self.area.addDock(self.mk.d12, 'bottom',self.exp.d2)
+            self.area.addDock(self.hf.d13, 'bottom', self.exp.d2)
+            self.area.moveDock(self.hf.d13, 'above', self.mk.d12)
 
             self.area.addDock(self.geom.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)    ## place d4 at right edge of dock area
             self.area.moveDock(self.geom.d3, 'above', self.exp.d2)
             self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
-            self.area.addDock(self.dSmall, 'right')#, self.exp.d2)
+            self.area.addDock(self.small.dSmall, 'right')#, self.exp.d2)
             self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
         elif args.mode == 'all':
             # Dock positions on the main frame
@@ -324,23 +280,23 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
-            self.area.addDock(self.d9, 'bottom', self.exp.d2)
-            self.area.addDock(self.d12, 'bottom', self.exp.d2)
-            self.area.addDock(self.d13, 'bottom', self.exp.d2)
-            self.area.addDock(self.d14, 'bottom', self.exp.d2)
-            self.area.moveDock(self.d9, 'above', self.d12)
-            self.area.moveDock(self.d13, 'above', self.d12)
-            self.area.moveDock(self.d14, 'above', self.d12)
+            self.area.addDock(self.pk.d9, 'bottom', self.exp.d2)
+            self.area.addDock(self.mk.d12, 'bottom', self.exp.d2)
+            self.area.addDock(self.hf.d13, 'bottom', self.exp.d2)
+            self.area.addDock(self.index.d14, 'bottom', self.exp.d2)
+            self.area.moveDock(self.pk.d9, 'above', self.mk.d12)
+            self.area.moveDock(self.hf.d13, 'above', self.mk.d12)
+            self.area.moveDock(self.index.d14, 'above', self.mk.d12)
 
             self.area.addDock(self.geom.d3, 'bottom', self.exp.d2)  ## place d3 at bottom edge of d1
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
             self.area.moveDock(self.geom.d3, 'above', self.exp.d2)
             self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
-            self.area.addDock(self.dSmall, 'right')  # , self.exp.d2)
+            self.area.addDock(self.small.dSmall, 'right')  # , self.exp.d2)
             self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
 
-            self.area.addDock(self.dLabels, 'bottom', self.dSmall)
+            self.area.addDock(self.evtLabels.dLabels, 'bottom', self.small.dSmall)
         else: # lite
             # Dock positions on the main frame
             self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
@@ -350,89 +306,12 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
-            self.area.addDock(self.d12, 'bottom', self.exp.d2)
+            self.area.addDock(self.mk.d12, 'bottom', self.exp.d2)
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
 
-        ## Dock 8: Quantifier
-        self.w8 = ParameterTree()
-        self.w8.setParameters(self.pSmall, showTop=False)
-        self.dSmall.addWidget(self.w8)
-        self.w11a = pg.LayoutWidget()
-        self.refreshBtn = QtGui.QPushButton('Refresh')
-        self.w11a.addWidget(self.refreshBtn, row=0, col=0)
-        self.dSmall.addWidget(self.w11a)
-        # Add plot
-        self.w9 = pg.PlotWidget(title="Metric")
-        self.dSmall.addWidget(self.w9)
 
-        ## Dock 9: Peak finder
-        self.w10 = ParameterTree()
-        self.w10.setParameters(self.p3, showTop=False)
-        self.d9.addWidget(self.w10)
-        self.w11 = pg.LayoutWidget()
-        #self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
-        self.launchBtn = QtGui.QPushButton('Launch peak finder')
-        self.w11.addWidget(self.launchBtn, row=0,col=0)
-        #self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
-        self.d9.addWidget(self.w11)
 
-        ## Dock 12: Mask Panel
-        self.w17 = ParameterTree()
-        self.w17.setParameters(self.p6, showTop=False)
-        self.d12.addWidget(self.w17)
-        self.w18 = pg.LayoutWidget()
-        self.maskRectBtn = QtGui.QPushButton('Stamp rectangular mask')
-        self.w18.addWidget(self.maskRectBtn, row=0, col=0, colspan=2)
-        self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
-        self.w18.addWidget(self.maskCircleBtn, row=1, col=0, colspan=2)
-        self.maskThreshBtn = QtGui.QPushButton('Mask outside histogram')
-        self.w18.addWidget(self.maskThreshBtn, row=2, col=0, colspan=2)
-        #self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
-        #self.w18.addWidget(self.maskPolyBtn, row=2, col=0, colspan=2)
-        self.deployMaskBtn = QtGui.QPushButton()
-        self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
-        self.deployMaskBtn.setText('Save user-defined mask')
-        self.w18.addWidget(self.deployMaskBtn, row=3, col=0)
-        self.loadMaskBtn = QtGui.QPushButton()
-        self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
-        self.loadMaskBtn.setText('Load user-defined mask')
-        self.w18.addWidget(self.loadMaskBtn, row=3, col=1)
-        self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
-        self.w18.addWidget(self.generatePowderBtn, row=4, col=0, colspan=2)
-        # Connect listeners to functions
-        self.d12.addWidget(self.w18)
 
-        ## Dock 13: Hit finder
-        self.w19 = ParameterTree()
-        self.w19.setParameters(self.p8, showTop=False)
-        self.d13.addWidget(self.w19)
-        self.w20 = pg.LayoutWidget()
-        self.launchSpiBtn = QtGui.QPushButton('Launch hit finder')
-        self.w20.addWidget(self.launchSpiBtn, row=1, col=0)
-        self.d13.addWidget(self.w20)
-
-        ## Dock 14: Indexing
-        self.w21 = ParameterTree()
-        self.w21.setParameters(self.p9, showTop=False)
-        self.w21.setWindowTitle('Indexing')
-        self.d14.addWidget(self.w21)
-        self.w22 = pg.LayoutWidget()
-        self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
-        self.w22.addWidget(self.launchIndexBtn, row=0, col=0)
-        self.d14.addWidget(self.w22)
-
-        ## Dock: Labels
-        self.wLabels = ParameterTree()
-        self.wLabels.setParameters(self.pLabels, showTop=False)
-        self.wLabels.setWindowTitle('Labels')
-        self.dLabels.addWidget(self.wLabels)
-
-        self.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.mk.makeMaskRect)
-        self.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.mk.makeMaskCircle)
-        self.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.mk.makeMaskThresh)
-        #self.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.mk.makeMaskPoly)
-        self.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.mk.deployMask)
-        self.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.mk.loadMask)
 
         ###############
         ### Threads ###
@@ -440,33 +319,12 @@ class MainFrame(QtGui.QWidget):
         # Making powder patterns
         self.thread = []
         self.threadCounter = 0
-        def makePowder():
-            self.thread.append(LaunchPowderProducer.PowderProducer(self)) # send parent parameters with self
-            self.thread[self.threadCounter].computePowder(self.experimentName, self.runNumber, self.detInfo)
-            self.threadCounter+=1
-        self.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), makePowder)
-        # Launch peak finding
-        def findPeaks():
-            self.thread.append(LaunchPeakFinder.LaunchPeakFinder(self)) # send parent parameters with self
-            self.thread[self.threadCounter].launch(self.experimentName, self.detInfo)
-            self.threadCounter+=1
-        self.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), findPeaks)
-        # Launch hit finding
-        def findHits():
-            self.thread.append(LaunchHitFinder.HitFinder(self)) # send parent parameters with self
-            self.thread[self.threadCounter].findHits(self.experimentName,self.runNumber,self.detInfo)
-            self.threadCounter+=1
-        self.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), findHits)
-        # Launch indexing
-        def indexPeaks():
-            self.thread.append(LaunchIndexer.LaunchIndexer(self)) # send parent parameters with self
-            self.thread[self.threadCounter].launch(self.experimentName, self.detInfo)
-            self.threadCounter+=1
-        self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
+
+
         # Deploy psana geometry
         self.connect(self.geom.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.geom.deploy)
 
-        self.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.small.reloadQuantifier)
+
 
         # Setup input parameters
         if self.experimentName is not "":
@@ -483,8 +341,6 @@ class MainFrame(QtGui.QWidget):
             self.exp.updateDetInfo(self.detInfo)
         self.exp.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
         self.exp.updateEventNumber(self.eventNumber)
-
-        self.img.drawLabCoordinates() # FIXME: This does not match the lab coordinates yet!
 
         # Indicate centre of detector
         self.geom.drawCentre()

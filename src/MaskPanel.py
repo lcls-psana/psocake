@@ -4,10 +4,39 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 from PSCalib.GeometryObject import two2x1ToData2x2
 import _colorScheme as color
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.dockarea import *
+import LaunchPowderProducer
 
 class MaskMaker(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        self.d12 = Dock("Mask Panel", size=(1, 1))
+        ## Dock 12: Mask Panel
+        self.w17 = ParameterTree()
+        self.d12.addWidget(self.w17)
+        self.w18 = pg.LayoutWidget()
+        self.maskRectBtn = QtGui.QPushButton('Stamp rectangular mask')
+        self.w18.addWidget(self.maskRectBtn, row=0, col=0, colspan=2)
+        self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
+        self.w18.addWidget(self.maskCircleBtn, row=1, col=0, colspan=2)
+        self.maskThreshBtn = QtGui.QPushButton('Mask outside histogram')
+        self.w18.addWidget(self.maskThreshBtn, row=2, col=0, colspan=2)
+        #self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
+        #self.w18.addWidget(self.maskPolyBtn, row=2, col=0, colspan=2)
+        self.deployMaskBtn = QtGui.QPushButton()
+        self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
+        self.deployMaskBtn.setText('Save user-defined mask')
+        self.w18.addWidget(self.deployMaskBtn, row=3, col=0)
+        self.loadMaskBtn = QtGui.QPushButton()
+        self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
+        self.loadMaskBtn.setText('Load user-defined mask')
+        self.w18.addWidget(self.loadMaskBtn, row=3, col=1)
+        self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
+        self.w18.addWidget(self.generatePowderBtn, row=4, col=0, colspan=2)
+        # Connect listeners to functions
+        self.d12.addWidget(self.w18)
 
         self.mask_grp = 'Mask'
         self.mask_mode_str = 'Masking mode'
@@ -114,6 +143,36 @@ class MaskMaker(object):
             ]},
         ]
 
+        self.p6 = Parameter.create(name='paramsMask', type='group', \
+                                   children=self.params, expanded=True)
+        self.w17.setParameters(self.p6, showTop=False)
+        self.p6.sigTreeStateChanged.connect(self.change)
+
+        self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
+        self.parent.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.makeMaskCircle)
+        self.parent.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.makeMaskThresh)
+        #self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
+        self.parent.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.deployMask)
+        self.parent.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.loadMask)
+
+        self.parent.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePowder)
+
+    def makePowder(self):
+        self.parent.thread.append(LaunchPowderProducer.PowderProducer(self.parent))  # send parent parameters with self
+        self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
+        self.parent.threadCounter += 1
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
+
     ##############################
     # Mandatory parameter update #
     ##############################
@@ -189,10 +248,10 @@ class MaskMaker(object):
         self.psanaMaskOn = False
         self.streakMaskOn = False
         self.maskingMode = 0
-        self.parent.p6.param(self.mask_grp, self.user_mask_str, self.mask_mode_str).setValue(0)
-        self.parent.p6.param(self.mask_grp, self.user_mask_str).setValue(0)
-        self.parent.p6.param(self.mask_grp, self.psana_mask_str).setValue(0)
-        self.parent.p6.param(self.mask_grp, self.streak_mask_str).setValue(0)
+        self.p6.param(self.mask_grp, self.user_mask_str, self.mask_mode_str).setValue(0)
+        self.p6.param(self.mask_grp, self.user_mask_str).setValue(0)
+        self.p6.param(self.mask_grp, self.psana_mask_str).setValue(0)
+        self.p6.param(self.mask_grp, self.streak_mask_str).setValue(0)
 
     def updateUserMask(self, data):
         self.userMaskOn = data
@@ -506,5 +565,5 @@ class MaskMaker(object):
         else:
             self.userMaskAssem = None
         self.userMaskOn = True
-        self.parent.p6.param(self.mask_grp, self.user_mask_str).setValue(self.userMaskOn)
+        self.p6.param(self.mask_grp, self.user_mask_str).setValue(self.userMaskOn)
         self.parent.pk.updateClassification()

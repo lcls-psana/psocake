@@ -291,7 +291,7 @@ class ExperimentInfo(object):
             self.parent.img.updateImage()
         # update labels
         if self.parent.args.mode == "all":
-            if self.evtLabels is not None: self.evtLabels.refresh()
+            if self.parent.evtLabels is not None: self.parent.evtLabels.refresh()
         if self.parent.args.v >= 1: print "Done updateEventNumber: ", self.parent.eventNumber
 
     def hasExpRunInfo(self):
@@ -398,19 +398,19 @@ class ExperimentInfo(object):
             if self.parent.args.v >= 1: print "psocakeDir: ", self.parent.psocakeDir
 
             # Update peak finder outdir and run number
-            self.parent.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_runs_str).setValue(self.parent.runNumber)
+            self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_outDir_str).setValue(self.parent.psocakeDir)
+            self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_runs_str).setValue(self.parent.runNumber)
             # Update powder outdir and run number
-            self.parent.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_runs_str).setValue(self.parent.runNumber)
+            self.parent.mk.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_outDir_str).setValue(self.parent.psocakeDir)
+            self.parent.mk.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_runs_str).setValue(self.parent.runNumber)
             # Update hit finding outdir, run number
-            self.parent.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_runs_str).setValue(self.parent.runNumber)
+            self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_outDir_str).setValue(self.parent.psocakeDir)
+            self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_runs_str).setValue(self.parent.runNumber)
             # Update indexing outdir, run number
-            self.parent.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(self.parent.runNumber)
+            self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(self.parent.psocakeDir)
+            self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(self.parent.runNumber)
             # Update quantifier filename
-            self.parent.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(self.parent.psocakeRunDir)
+            self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(self.parent.psocakeRunDir)
             self.setupPsocake()
     
             # Update hidden CrystFEL files
@@ -542,7 +542,7 @@ class ExperimentInfo(object):
     
                 if calibFile is not None:
                     # Convert psana geometry to crystfel geom
-                    self.parent.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+                    self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
                         self.parent.psocakeRunDir + '/.temp.geom')
                     cmd = ["python", "/reg/neh/home/yoon82/psgeom/psana2crystfel.py", self.calibPath + '/' + calibFile,
                            self.parent.psocakeRunDir + "/.temp.geom"] # TODO: remove my home

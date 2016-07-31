@@ -2,15 +2,29 @@
 # Interactive mode: temporary list, cxi, geom files are written per update
 # Batch mode: Creates a CXIDB file containing hits, turbo index the file, save single stream and delete CXIDB
 import numpy as np
-from pyqtgraph.Qt import QtCore
+from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
 import pandas as pd
 import h5py
 import pyqtgraph as pg
+from pyqtgraph.dockarea import *
+from pyqtgraph.parametertree import Parameter, ParameterTree
+import LaunchIndexer
 
 class CrystalIndexing(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        ## Dock 14: Indexing
+        self.d14 = Dock("Indexing", size=(1, 1))
+        self.w21 = ParameterTree()
+        self.w21.setWindowTitle('Indexing')
+        self.d14.addWidget(self.w21)
+        self.w22 = pg.LayoutWidget()
+        self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
+        self.w22.addWidget(self.launchIndexBtn, row=0, col=0)
+        self.d14.addWidget(self.w22)
+
 
         self.index_grp = 'Crystal indexing'
         self.index_on_str = 'Indexing on'
@@ -95,6 +109,30 @@ class CrystalIndexing(object):
                 {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
             ]},
         ]
+
+        self.p9 = Parameter.create(name='paramsCrystalIndexing', type='group', \
+                                   children=self.params, expanded=True)
+        self.w21.setParameters(self.p9, showTop=False)
+        self.p9.sigTreeStateChanged.connect(self.change)
+
+        self.parent.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), self.indexPeaks)
+
+    # Launch indexing
+    def indexPeaks(self):
+        self.parent.thread.append(LaunchIndexer.LaunchIndexer(self))  # send parent parameters with self
+        self.parent.thread[self.parent.threadCounter].launch(self.parent.experimentName, self.parent.detInfo)
+        self.parent.threadCounter += 1
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
 
     ##############################
     # Mandatory parameter update #

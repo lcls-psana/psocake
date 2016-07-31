@@ -1,5 +1,7 @@
 import numpy as np
-from pyqtgraph.Qt import QtCore
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.dockarea import *
+from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
 import pandas as pd
 import h5py, os
@@ -8,6 +10,18 @@ import pyqtgraph as pg
 class SmallData(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        ## Dock 8: Quantifier
+        self.dSmall = Dock("Small Data", size=(100, 100))
+        self.w8 = ParameterTree()
+        self.dSmall.addWidget(self.w8)
+        self.w11a = pg.LayoutWidget()
+        self.refreshBtn = QtGui.QPushButton('Refresh')
+        self.w11a.addWidget(self.refreshBtn, row=0, col=0)
+        self.dSmall.addWidget(self.w11a)
+        # Add plot
+        self.w9 = pg.PlotWidget(title="Metric")
+        self.dSmall.addWidget(self.w9)
 
         # Quantifier parameter tree
         self.quantifier_grp = 'Small data'
@@ -29,6 +43,23 @@ class SmallData(object):
                 {'name': self.quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
             ]},
         ]
+
+        self.pSmall = Parameter.create(name='paramsQuantifier', type='group', \
+                                       children=self.params, expanded=True)
+        self.w8.setParameters(self.pSmall, showTop=False)
+        self.pSmall.sigTreeStateChanged.connect(self.change)
+        self.parent.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.reloadQuantifier)
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
 
     ##############################
     # Mandatory parameter update #

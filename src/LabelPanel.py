@@ -1,12 +1,20 @@
 import numpy as np
 import h5py
 import os
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.dockarea import *
 
 class Labels(object):
     def __init__(self, parent = None):
         
         #print "init!!!!!"
         self.parent = parent
+
+        ## Dock: Labels
+        self.dLabels = Dock("Labels", size=(1, 1))
+        self.wLabels = ParameterTree()
+        self.wLabels.setWindowTitle('Labels')
+        self.dLabels.addWidget(self.wLabels)
 
         self.labels_grp = 'Labels'
         self.labels_A_str = 'Single'
@@ -26,6 +34,23 @@ class Labels(object):
                 {'name': self.labels_C_str, 'type': 'bool', 'value': self.labelC, 'tip': "Dunno"},
             ]},
         ]
+
+        self.pLabels = Parameter.create(name='paramsLabel', type='group', \
+                                   children=self.params, expanded=True)
+        self.pLabels.sigTreeStateChanged.connect(self.change)
+        self.wLabels.setParameters(self.pLabels, showTop=False)
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, data)
+
     ##############################
     # Mandatory parameter update #
     ##############################
@@ -77,6 +102,6 @@ class Labels(object):
         elif dset[self.parent.eventNumber][2] == 1:
             self.labelC = True
         self.labelC = False
-        self.parent.pLabels.param(self.labels_grp, self.labels_A_str).setValue(self.labelA)
-        self.parent.pLabels.param(self.labels_grp, self.labels_B_str).setValue(self.labelB)
-        self.parent.pLabels.param(self.labels_grp, self.labels_C_str).setValue(self.labelC)
+        self.pLabels.param(self.labels_grp, self.labels_A_str).setValue(self.labelA)
+        self.pLabels.param(self.labels_grp, self.labels_B_str).setValue(self.labelB)
+        self.pLabels.param(self.labels_grp, self.labels_C_str).setValue(self.labelC)

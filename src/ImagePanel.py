@@ -36,6 +36,8 @@ class ImageViewer(object):
         self.w1.getView().addItem(self.peak_text)
         self.d1.addWidget(self.w1)
 
+        self.drawLabCoordinates()  # FIXME: This does not match the lab coordinates yet!
+
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
         # Draw xy arrows

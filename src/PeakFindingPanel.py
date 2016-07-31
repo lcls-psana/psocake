@@ -2,10 +2,25 @@ import numpy as np
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import pyqtgraph as pg
 import h5py
+from pyqtgraph.dockarea import *
+from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.parametertree import Parameter, ParameterTree
+import LaunchPeakFinder
 
 class PeakFinding(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        self.d9 = Dock("Peak Finder", size=(1, 1))
+        ## Dock 9: Peak finder
+        self.w10 = ParameterTree()
+        self.d9.addWidget(self.w10)
+        self.w11 = pg.LayoutWidget()
+        #self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
+        self.launchBtn = QtGui.QPushButton('Launch peak finder')
+        self.w11.addWidget(self.launchBtn, row=0,col=0)
+        #self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
+        self.d9.addWidget(self.w11)
 
         # Peak finding
         self.hitParam_grp = 'Peak finder'
@@ -210,6 +225,30 @@ class PeakFinding(object):
                  'tip': "number of events to process, default=-1 means process all events"},
             ]},
         ]
+
+        self.p3 = Parameter.create(name='paramsPeakFinder', type='group', \
+                                   children=self.params, expanded=True)
+        self.w10.setParameters(self.p3, showTop=False)
+        self.p3.sigTreeStateChanged.connect(self.change)
+
+        self.parent.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), self.findPeaks)
+
+    # Launch peak finding
+    def findPeaks(self):
+        self.parent.thread.append(LaunchPeakFinder.LaunchPeakFinder(self.parent)) # send parent parameters with self
+        self.parent.thread[self.parent.threadCounter].launch(self.parent.experimentName, self.parent.detInfo)
+        self.parent.threadCounter+=1
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
 
     ##############################
     # Mandatory parameter update #
