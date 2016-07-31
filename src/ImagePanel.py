@@ -293,11 +293,11 @@ class ImageViewer(object):
             self.parent.photonEnergy = self.ebeam.ebeamPhotonEnergy()
         else:
             self.parent.photonEnergy = 0
-        self.parent.p1.param(self.parent.geom.geom_grp,
+        self.parent.geom.p1.param(self.parent.geom.geom_grp,
                              self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
         # Update clen
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            self.parent.p1.param(self.parent.geom.geom_grp,
+            self.parent.geom.p1.param(self.parent.geom.geom_grp,
                                  self.parent.geom.geom_clen_str).setValue(self.parent.clen)
 
         if calib is not None:

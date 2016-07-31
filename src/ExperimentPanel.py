@@ -477,14 +477,14 @@ class ExperimentInfo(object):
             elif 'pnccd' in self.parent.detInfo.lower():
                 self.parent.pixelSize = 75e-6  # metres
     
-            self.parent.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize)
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize)
             # photon energy
             self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
             if self.parent.ebeam:
                 self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
             else:
                 self.parent.photonEnergy = 0
-            self.parent.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
     
             if self.parent.evt is None:
                 self.parent.evt = self.run.event(self.times[0])

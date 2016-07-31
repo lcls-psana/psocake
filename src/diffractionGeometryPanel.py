@@ -4,10 +4,24 @@ import pyqtgraph as pg
 import h5py
 import os
 from pyqtgraph.dockarea import *
+from pyqtgraph.parametertree import Parameter, ParameterTree
+from pyqtgraph.Qt import QtCore, QtGui
 
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        #############################
+        ## Dock 3: Diffraction geometry
+        #############################
+        self.d3 = Dock("Diffraction Geometry", size=(1, 1))
+        self.w3 = ParameterTree()
+        self.w3.setWindowTitle('Diffraction geometry')
+        self.d3.addWidget(self.w3)
+        self.w3a = pg.LayoutWidget()
+        self.deployGeomBtn = QtGui.QPushButton('Deploy centred psana geometry')
+        self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
+        self.d3.addWidget(self.w3a)
 
         self.resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
         self.resolutionText = []
@@ -56,6 +70,22 @@ class DiffractionGeometry(object):
             ]},
         ]
 
+        self.p1 = Parameter.create(name='paramsDiffractionGeometry', type='group', \
+                                   children=self.params, expanded=True)
+        self.p1.sigTreeStateChanged.connect(self.change)
+        self.w3.setParameters(self.p1, showTop=False)
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
+
     ##############################
     # Mandatory parameter update #
     ##############################
@@ -96,7 +126,7 @@ class DiffractionGeometry(object):
         c = 2.99792458e8 # m/s
         joulesPerEv = 1.602176621e-19 #J/eV
         self.parent.wavelength = (h/joulesPerEv*c)/self.parent.photonEnergy
-        self.parent.p1.param(self.geom_grp,self.geom_wavelength_str).setValue(self.parent.wavelength)
+        self.p1.param(self.geom_grp,self.geom_wavelength_str).setValue(self.parent.wavelength)
         if self.hasGeometryInfo():
             self.updateGeometry()
 

@@ -28,11 +28,11 @@ import argparse
 import time
 import subprocess
 import os.path
-from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
+
 # Panel modules
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
 import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
-import ParamPanel
+import ImageControlPanel
 import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
 import matplotlib.pyplot as plt
 import _colorScheme as color
@@ -161,6 +161,7 @@ class MainFrame(QtGui.QWidget):
         self.mk = MaskPanel.MaskMaker(self)
         self.img = ImagePanel.ImageViewer(self)
         self.roi = RoiPanel.RoiHistogram(self)
+        self.control = ImageControlPanel.ImageControl(self)
 
         # Init variables
         self.det = None
@@ -209,8 +210,6 @@ class MainFrame(QtGui.QWidget):
         self.win.setWindowTitle('psocake')
 
         ## Create tree of Parameter objects
-        self.p1 = Parameter.create(name='paramsDiffractionGeometry', type='group', \
-                                  children=self.geom.params, expanded=True)
         self.pSmall = Parameter.create(name='paramsQuantifier', type='group', \
                                   children=self.small.params, expanded=True)
         self.p3 = Parameter.create(name='paramsPeakFinder', type='group', \
@@ -230,7 +229,7 @@ class MainFrame(QtGui.QWidget):
         self.pLabels = Parameter.create(name='paramsLabel', type='group', \
                                    children=self.evtLabels.params, expanded=True)
 
-        self.p1.sigTreeStateChanged.connect(self.change)
+
         self.pSmall.sigTreeStateChanged.connect(self.change)
         self.p3.sigTreeStateChanged.connect(self.change)
         #self.p4.sigTreeStateChanged.connect(self.change)
@@ -245,9 +244,7 @@ class MainFrame(QtGui.QWidget):
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
              ## give this dock the minimum possible size
-        self.d3 = Dock("Diffraction Geometry", size=(1, 1))
         self.d5 = Dock("Mouse", size=(500, 75), closable=False)
-        self.d6 = Dock("Image Control", size=(1, 1))
         self.d7 = Dock("Image Scroll", size=(1, 1))
         self.dSmall = Dock("Small Data", size=(100, 100))
         self.d9 = Dock("Peak Finder", size=(1, 1))
@@ -299,7 +296,7 @@ class MainFrame(QtGui.QWidget):
         if args.mode == 'sfx':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.control.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
             self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
@@ -311,17 +308,17 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.d9, 'above', self.d12)
             self.area.moveDock(self.d14, 'above', self.d12)
 
-            self.area.addDock(self.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
+            self.area.addDock(self.geom.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)    ## place d4 at right edge of dock area
-            self.area.moveDock(self.d3, 'above', self.exp.d2)
+            self.area.moveDock(self.geom.d3, 'above', self.exp.d2)
             self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
             self.area.addDock(self.dSmall, 'right')#, self.exp.d2)
-            self.area.moveDock(self.exp.d2, 'above', self.d3)
+            self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
         elif args.mode == 'spi':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.control.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
             self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
@@ -331,17 +328,17 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d13, 'bottom', self.exp.d2)
             self.area.moveDock(self.d13, 'above', self.d12)
 
-            self.area.addDock(self.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
+            self.area.addDock(self.geom.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)    ## place d4 at right edge of dock area
-            self.area.moveDock(self.d3, 'above', self.exp.d2)
+            self.area.moveDock(self.geom.d3, 'above', self.exp.d2)
             self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
             self.area.addDock(self.dSmall, 'right')#, self.exp.d2)
-            self.area.moveDock(self.exp.d2, 'above', self.d3)
+            self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
         elif args.mode == 'all':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.control.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
             self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
@@ -355,19 +352,19 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.d13, 'above', self.d12)
             self.area.moveDock(self.d14, 'above', self.d12)
 
-            self.area.addDock(self.d3, 'bottom', self.exp.d2)  ## place d3 at bottom edge of d1
+            self.area.addDock(self.geom.d3, 'bottom', self.exp.d2)  ## place d3 at bottom edge of d1
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
-            self.area.moveDock(self.d3, 'above', self.exp.d2)
+            self.area.moveDock(self.geom.d3, 'above', self.exp.d2)
             self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
             self.area.addDock(self.dSmall, 'right')  # , self.exp.d2)
-            self.area.moveDock(self.exp.d2, 'above', self.d3)
+            self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
 
             self.area.addDock(self.dLabels, 'bottom', self.dSmall)
         else: # lite
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.control.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.addDock(self.d7, 'bottom', self.d5)
             self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
@@ -376,79 +373,10 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.d12, 'bottom', self.exp.d2)
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
 
-        ## Dock 3: Diffraction geometry
-        self.w3 = ParameterTree()
-        self.w3.setParameters(self.p1, showTop=False)
-        self.w3.setWindowTitle('Diffraction geometry')
-        self.d3.addWidget(self.w3)
-        self.w3a = pg.LayoutWidget()
-        self.deployGeomBtn = QtGui.QPushButton('Deploy centred psana geometry')
-        self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
-        self.d3.addWidget(self.w3a)
-
         ## Dock 5 - mouse intensity display
         #self.d5.hideTitleBar()
         self.w5 = pg.GraphicsView(background=pg.mkColor(color.sandstone100_rgb))
         self.d5.addWidget(self.w5)
-
-        ## Dock 6: Image Control
-        self.nextBtn = QtGui.QPushButton('Next evt')
-        self.prevBtn = QtGui.QPushButton('Prev evt')
-        self.saveBtn = QtGui.QPushButton('Save evt')
-        self.loadBtn = QtGui.QPushButton('Load image')
-
-        def next():
-            self.eventNumber += 1
-            if self.eventNumber >= self.exp.eventTotal:
-                self.eventNumber = self.exp.eventTotal-1
-            else:
-                self.calib, self.data = self.img.getDetImage(self.eventNumber)
-                self.img.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                self.exp.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
-        def prev():
-            self.eventNumber -= 1
-            if self.eventNumber < 0:
-                self.eventNumber = 0
-            else:
-                self.calib, self.data = self.img.getDetImage(self.eventNumber)
-                self.img.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                self.exp.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
-        def save():
-            outputName = self.psocakeRunDir+"/psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
-                         +str(self.eventNumber)+"_"+str(self.exp.eventSeconds)+"_"+str(self.exp.eventNanoseconds)+"_" \
-                         +str(self.exp.eventFiducial)+".npy"
-            fname = QtGui.QFileDialog.getSaveFileName(self, 'Save file', outputName, 'ndarray image (*.npy)')
-            if self.exp.logscaleOn:
-                np.save(str(fname),np.log10(abs(self.calib) + self.eps))
-            else:
-                if self.calib.size==2*185*388: # cspad2x2
-                    asData2x2 = two2x1ToData2x2(self.calib)
-                    np.save(str(fname),asData2x2)
-                    np.savetxt(str(fname).split('.')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
-                else:
-                    np.save(str(fname),self.calib)
-                    np.savetxt(str(fname).split('.')[0]+".txt", self.calib.reshape((-1,self.calib.shape[-1])) )#,fmt='%0.18e')
-        def load():
-            fname = str(QtGui.QFileDialog.getOpenFileName(self, 'Open file', self.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
-            if fname.split('.')[-1] in '.npz':
-                temp = np.load(fname)
-                self.calib = temp['max']
-            else:
-                self.calib = np.load(fname)
-            self.img.updateImage(self.calib)
-
-        self.nextBtn.clicked.connect(next)
-        self.prevBtn.clicked.connect(prev)
-        self.saveBtn.clicked.connect(save)
-        self.loadBtn.clicked.connect(load)
-
-        # Layout
-        self.w6 = pg.LayoutWidget()
-        self.w6.addWidget(self.prevBtn, row=0, col=0)
-        self.w6.addWidget(self.nextBtn, row=0, col=1)
-        self.w6.addWidget(self.saveBtn, row=1, col=0)#colspan=2)
-        self.w6.addWidget(self.loadBtn, row=1, col=1)
-        self.d6.addWidget(self.w6)
 
         ## Dock 7: Image Stack
         self.w7L = pg.LayoutWidget()
@@ -582,7 +510,7 @@ class MainFrame(QtGui.QWidget):
             self.threadCounter+=1
         self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
         # Deploy psana geometry
-        self.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.geom.deploy)
+        self.connect(self.geom.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.geom.deploy)
 
         # Loading image stack
         def displayImageStack():
