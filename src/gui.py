@@ -32,7 +32,7 @@ import os.path
 # Panel modules
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
 import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
-import ImageControlPanel
+import ImageControlPanel, MousePanel
 import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
 import matplotlib.pyplot as plt
 import _colorScheme as color
@@ -51,22 +51,6 @@ parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
 parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
 args = parser.parse_args()
-
-# PerPixelHistogram parameter tree
-#perPixelHistogram_grp = 'Per Pixel Histogram'
-#perPixelHistogram_filename_str = 'filename'
-#perPixelHistogram_adu_str = 'ADU'
-
-# Manifold parameter tree
-#manifold_grp = 'Manifold'
-#manifold_filename_str = 'filename'
-#manifold_dataset_str = 'eigenvector_dataset'
-#manifold_sigma_str = 'sigma'
-
-# Detector correction parameter tree
-#correction_grp = 'Detector correction'
-#correction_radialBackground_str = "Use radial background correction"
-#correction_polarization_str = "Use polarization correction"
 
 class Window(QtGui.QMainWindow):
     global ex
@@ -162,6 +146,7 @@ class MainFrame(QtGui.QWidget):
         self.img = ImagePanel.ImageViewer(self)
         self.roi = RoiPanel.RoiHistogram(self)
         self.control = ImageControlPanel.ImageControl(self)
+        self.mouse = MousePanel.Mouse(self)
 
         # Init variables
         self.det = None
@@ -244,7 +229,6 @@ class MainFrame(QtGui.QWidget):
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
              ## give this dock the minimum possible size
-        self.d5 = Dock("Mouse", size=(500, 75), closable=False)
         self.d7 = Dock("Image Scroll", size=(1, 1))
         self.dSmall = Dock("Small Data", size=(100, 100))
         self.d9 = Dock("Peak Finder", size=(1, 1))
@@ -295,10 +279,10 @@ class MainFrame(QtGui.QWidget):
 
         if args.mode == 'sfx':
             # Dock positions on the main frame
-            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.control.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
@@ -317,10 +301,10 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
         elif args.mode == 'spi':
             # Dock positions on the main frame
-            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.control.d6, 'bottom', self.d5)    ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
@@ -337,10 +321,10 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
         elif args.mode == 'all':
             # Dock positions on the main frame
-            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.control.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
@@ -363,20 +347,17 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.dLabels, 'bottom', self.dSmall)
         else: # lite
             # Dock positions on the main frame
-            self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
-            self.area.addDock(self.control.d6, 'bottom', self.d5)  ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.d5)
-            self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
+            self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
+            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
             self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom', self.exp.d2)
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
 
-        ## Dock 5 - mouse intensity display
-        #self.d5.hideTitleBar()
-        self.w5 = pg.GraphicsView(background=pg.mkColor(color.sandstone100_rgb))
-        self.d5.addWidget(self.w5)
+
 
         ## Dock 7: Image Stack
         self.w7L = pg.LayoutWidget()
@@ -567,7 +548,7 @@ class MainFrame(QtGui.QWidget):
         self.xhair.addItem(self.hLine, ignoreBounds=True)
         self.vb = self.xhair.vb
         self.label = pg.LabelItem()
-        self.w5.addItem(self.label)
+        self.mouse.w5.addItem(self.label)
 
         def mouseMoved(evt):
             pos = evt[0]  ## using signal proxy turns original arguments into a tuple
