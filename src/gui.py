@@ -31,7 +31,8 @@ import os.path
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 # Panel modules
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
-import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel
+import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
+import ParamPanel
 import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
 import matplotlib.pyplot as plt
 import _colorScheme as color
@@ -147,7 +148,9 @@ class MainFrame(QtGui.QWidget):
         self.elogDir = None
         self.rootDir = None
 
+        ########################################
         # Instantiate panels
+        ########################################
         self.exp = ExperimentPanel.ExperimentInfo(self)
         self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
         self.index = crystalIndexingPanel.CrystalIndexing(self)
@@ -157,6 +160,7 @@ class MainFrame(QtGui.QWidget):
         self.hf = HitFinderPanel.HitFinder(self)
         self.mk = MaskPanel.MaskMaker(self)
         self.img = ImagePanel.ImageViewer(self)
+        self.roi = RoiPanel.RoiHistogram(self)
 
         # Init variables
         self.det = None
@@ -169,16 +173,6 @@ class MainFrame(QtGui.QWidget):
         self.hasRunNumber = False
         self.hasDetInfo = False
         self.pixelIndAssem = None
-
-        # Display params
-        #self.maxPercentile = 0
-        #self.minPercentile = 0
-        #self.displayMaxPercentile = 99.0
-        #self.displayMinPercentile = 1.0
-
-
-        #self.hasCommonMode = False
-
 
         # Init diffraction geometry parameters
         self.coffset = 0.0
@@ -198,40 +192,11 @@ class MainFrame(QtGui.QWidget):
         self.data = None # assembled detector image
         self.cx = 0 # detector centre x
         self.cy = 0 # detector centre y
-        self.updateRoiStatus = True
 
         # Threads
         self.stackStart = 0
         self.stackSizeMax = 120
         self.stackSize = 20
-
-        #self.perPixelHistogram_filename = ''
-        #self.perPixelHistogram_adu = 20
-        #self.perPixelHistogramFileOpen = False
-
-        #self.manifold_filename = ''
-        #self.manifold_dataset = ''
-        #self.manifold_sigma = 0
-        #self.manifoldFileOpen = False
-        #self.manifoldHasData = False
-
-        #self.correction_radialBackground = False
-        #self.correction_polarization = False
-
-        #self.paramsManifold = [
-        #    {'name': manifold_grp, 'type': 'group', 'children': [
-        #        {'name': manifold_filename_str, 'type': 'str', 'value': self.manifold_filename, 'tip': "Full path Hdf5 filename"},
-        #        {'name': manifold_dataset_str, 'type': 'str', 'value': self.manifold_dataset, 'tip': "Hdf5 dataset metric"},
-        #        {'name': manifold_sigma_str, 'type': 'float', 'value': self.manifold_sigma, 'tip': "kernel sigma"},
-        #    ]},
-        #]
-
-        #self.paramsCorrection = [
-        #    {'name': correction_grp, 'type': 'group', 'children': [
-        #        {'name': correction_radialBackground_str, 'type': 'str', 'value': self.correction_radialBackground, 'tip': "Use radial background correction"},
-        #        {'name': correction_polarization_str, 'type': 'str', 'value': self.correction_polarization, 'tip': "Use polarization correction"},
-        #    ]},
-        #]
 
         self.initUI()
 
@@ -244,8 +209,6 @@ class MainFrame(QtGui.QWidget):
         self.win.setWindowTitle('psocake')
 
         ## Create tree of Parameter objects
-        self.p = Parameter.create(name='params', type='group', \
-                                  children=self.exp.params, expanded=True)
         self.p1 = Parameter.create(name='paramsDiffractionGeometry', type='group', \
                                   children=self.geom.params, expanded=True)
         self.pSmall = Parameter.create(name='paramsQuantifier', type='group', \
@@ -266,7 +229,7 @@ class MainFrame(QtGui.QWidget):
                                    children=self.index.params, expanded=True)
         self.pLabels = Parameter.create(name='paramsLabel', type='group', \
                                    children=self.evtLabels.params, expanded=True)
-        self.p.sigTreeStateChanged.connect(self.change)
+
         self.p1.sigTreeStateChanged.connect(self.change)
         self.pSmall.sigTreeStateChanged.connect(self.change)
         self.p3.sigTreeStateChanged.connect(self.change)
@@ -282,9 +245,7 @@ class MainFrame(QtGui.QWidget):
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
              ## give this dock the minimum possible size
-        self.d2 = Dock("Experiment Parameters", size=(1, 1))
         self.d3 = Dock("Diffraction Geometry", size=(1, 1))
-        self.d4 = Dock("ROI Histogram", size=(1, 1))
         self.d5 = Dock("Mouse", size=(500, 75), closable=False)
         self.d6 = Dock("Image Control", size=(1, 1))
         self.d7 = Dock("Image Scroll", size=(1, 1))
@@ -343,20 +304,20 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
-            self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
-            self.area.addDock(self.d9, 'bottom', self.d2)
-            self.area.addDock(self.d12, 'bottom',self.d2)
-            self.area.addDock(self.d14, 'bottom', self.d2)
+            self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
+            self.area.addDock(self.d9, 'bottom', self.exp.d2)
+            self.area.addDock(self.d12, 'bottom',self.exp.d2)
+            self.area.addDock(self.d14, 'bottom', self.exp.d2)
             self.area.moveDock(self.d9, 'above', self.d12)
             self.area.moveDock(self.d14, 'above', self.d12)
 
-            self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
-            self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
-            self.area.moveDock(self.d3, 'above', self.d2)
-            self.area.moveDock(self.d4, 'above', self.d2)
+            self.area.addDock(self.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
+            self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)    ## place d4 at right edge of dock area
+            self.area.moveDock(self.d3, 'above', self.exp.d2)
+            self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
-            self.area.addDock(self.dSmall, 'right')#, self.d2)
-            self.area.moveDock(self.d2, 'above', self.d3)
+            self.area.addDock(self.dSmall, 'right')#, self.exp.d2)
+            self.area.moveDock(self.exp.d2, 'above', self.d3)
         elif args.mode == 'spi':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
@@ -365,18 +326,18 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.img.d1, 'bottom', self.d5)    ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
-            self.area.addDock(self.d2, 'right')     ## place d2 at right edge of dock area
-            self.area.addDock(self.d12, 'bottom',self.d2)
-            self.area.addDock(self.d13, 'bottom', self.d2)
+            self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
+            self.area.addDock(self.d12, 'bottom',self.exp.d2)
+            self.area.addDock(self.d13, 'bottom', self.exp.d2)
             self.area.moveDock(self.d13, 'above', self.d12)
 
-            self.area.addDock(self.d3, 'bottom', self.d2)    ## place d3 at bottom edge of d1
-            self.area.addDock(self.d4, 'bottom', self.d2)    ## place d4 at right edge of dock area
-            self.area.moveDock(self.d3, 'above', self.d2)
-            self.area.moveDock(self.d4, 'above', self.d2)
+            self.area.addDock(self.d3, 'bottom', self.exp.d2)    ## place d3 at bottom edge of d1
+            self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)    ## place d4 at right edge of dock area
+            self.area.moveDock(self.d3, 'above', self.exp.d2)
+            self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
-            self.area.addDock(self.dSmall, 'right')#, self.d2)
-            self.area.moveDock(self.d2, 'above', self.d3)
+            self.area.addDock(self.dSmall, 'right')#, self.exp.d2)
+            self.area.moveDock(self.exp.d2, 'above', self.d3)
         elif args.mode == 'all':
             # Dock positions on the main frame
             self.area.addDock(self.d5, 'left')  ## place d5 at left edge of d1
@@ -385,22 +346,22 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
-            self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
-            self.area.addDock(self.d9, 'bottom', self.d2)
-            self.area.addDock(self.d12, 'bottom', self.d2)
-            self.area.addDock(self.d13, 'bottom', self.d2)
-            self.area.addDock(self.d14, 'bottom', self.d2)
+            self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
+            self.area.addDock(self.d9, 'bottom', self.exp.d2)
+            self.area.addDock(self.d12, 'bottom', self.exp.d2)
+            self.area.addDock(self.d13, 'bottom', self.exp.d2)
+            self.area.addDock(self.d14, 'bottom', self.exp.d2)
             self.area.moveDock(self.d9, 'above', self.d12)
             self.area.moveDock(self.d13, 'above', self.d12)
             self.area.moveDock(self.d14, 'above', self.d12)
 
-            self.area.addDock(self.d3, 'bottom', self.d2)  ## place d3 at bottom edge of d1
-            self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
-            self.area.moveDock(self.d3, 'above', self.d2)
-            self.area.moveDock(self.d4, 'above', self.d2)
+            self.area.addDock(self.d3, 'bottom', self.exp.d2)  ## place d3 at bottom edge of d1
+            self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
+            self.area.moveDock(self.d3, 'above', self.exp.d2)
+            self.area.moveDock(self.roi.d4, 'above', self.exp.d2)
 
-            self.area.addDock(self.dSmall, 'right')  # , self.d2)
-            self.area.moveDock(self.d2, 'above', self.d3)
+            self.area.addDock(self.dSmall, 'right')  # , self.exp.d2)
+            self.area.moveDock(self.exp.d2, 'above', self.d3)
 
             self.area.addDock(self.dLabels, 'bottom', self.dSmall)
         else: # lite
@@ -411,153 +372,9 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.img.d1, 'bottom', self.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.d7)
 
-            self.area.addDock(self.d2, 'right')  ## place d2 at right edge of dock area
-            self.area.addDock(self.d12, 'bottom', self.d2)
-            self.area.addDock(self.d4, 'bottom', self.d2)  ## place d4 at right edge of dock area
-
-        # Custom ROI for selecting an image region
-        self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
-                          pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
-        self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-        self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-        self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
-        self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
-        self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
-        self.roi.name = 'rect'
-        self.img.w1.getView().addItem(self.roi)
-        self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]],
-                                      closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                      pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
-        self.roiPoly.name = 'poly'
-        self.img.w1.getView().addItem(self.roiPoly)
-        self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=0.1, scaleSnap=False, translateSnap=False,
-                                        pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
-        self.roiCircle.name = 'circ'
-        self.img.w1.getView().addItem(self.roiCircle)
-
-        # Callbacks for handling user interaction
-        def updateRoiHistogram():
-            if self.data is not None:
-                selected, coord = self.roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
-                hist,bin = np.histogram(selected.flatten(), bins=1000)
-                self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
-
-        def updateRoi(roi):
-            if self.data is not None:
-                if self.updateRoiStatus == True:
-                    calib = np.ones_like(self.calib)
-                    img = self.det.image(self.evt, calib)
-                    pixelsExist = roi.getArrayRegion(img, self.img.w1.getImageItem())
-                    if roi.name == 'poly':
-                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
-                        self.ret = self.ret[np.where(pixelsExist == 1)]
-                    elif roi.name == 'circ':
-                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem())
-                        self.ret = self.ret[np.where(pixelsExist == 1)]
-                    else:
-                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
-
-                    if roi.name == 'rect':  # isinstance(self.ret,tuple): # rectangle
-                        selected, coord = self.ret
-                        self.x0 = int(coord[0][0][0])
-                        self.x1 = int(coord[0][-1][0]) + 1
-                        self.y0 = int(coord[1][0][0])
-                        self.y1 = int(coord[1][0][-1]) + 1
-
-                        # Limit coordinates to inside the assembled image
-                        if self.x0 < 0: self.x0 = 0
-                        if self.y0 < 0: self.y0 = 0
-                        if self.x1 > self.data.shape[0]: self.x1 = self.data.shape[0]
-                        if self.y1 > self.data.shape[1]: self.y1 = self.data.shape[1]
-                        print "######################################################"
-                        print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
-                            self.y1) + "]"  # Note: self.data[x0:x1,y0:y1]
-                        selected = selected[np.where(pixelsExist == 1)]
-
-                        mask_roi = np.zeros_like(self.data)
-                        mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
-                        self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None,
-                                                               xy0_off_pix=None)
-                        for itile, tile in enumerate(self.nda):
-                            if tile.sum() > 0:
-                                ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
-                                ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
-                                print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
-                                    itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
-                                if args.v >= 1:
-                                    fig = plt.figure(figsize=(6, 6))
-                                    plt.imshow(self.calib[itile, ax1.min():ax1.max(), ax0.min():ax0.max()],
-                                               interpolation='none')
-                                    plt.show()
-                        print "######################################################"
-                    elif roi.name == 'circ':
-                        selected = self.ret
-                        self.centreX = roi.x() + roi.size().x() / 2
-                        self.centreY = roi.y() + roi.size().y() / 2
-                        print "###########################################"
-                        print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
-                        print "###########################################"
-
-                    else:
-                        selected = self.ret
-                    hist, bin = np.histogram(selected.flatten(), bins=1000)
-                    self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
-                else: # update ROI off
-                    if roi.name == 'rect':  # isinstance(self.ret,tuple): # rectangle
-                        self.ret = roi.getArrayRegion(self.data, self.img.w1.getImageItem(), returnMappedCoords=True)
-                        selected, coord = self.ret
-                        self.x0 = int(coord[0][0][0])
-                        self.x1 = int(coord[0][-1][0]) + 1
-                        self.y0 = int(coord[1][0][0])
-                        self.y1 = int(coord[1][0][-1]) + 1
-
-                        # Limit coordinates to inside the assembled image
-                        if self.x0 < 0: self.x0 = 0
-                        if self.y0 < 0: self.y0 = 0
-                        if self.x1 > self.data.shape[0]: self.x1 = self.data.shape[0]
-                        if self.y1 > self.data.shape[1]: self.y1 = self.data.shape[1]
-                        print "######################################################"
-                        print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
-                            self.y1) + "]"  # Note: self.data[x0:x1,y0:y1]
-                        mask_roi = np.zeros_like(self.data)
-                        mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
-                        self.nda = self.det.ndarray_from_image(self.evt, mask_roi, pix_scale_size_um=None,
-                                                               xy0_off_pix=None)
-                        for itile, tile in enumerate(self.nda):
-                            if tile.sum() > 0:
-                                ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
-                                ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
-                                print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
-                                    itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
-                        print "######################################################"
-                    elif roi.name == 'circ':
-                        self.centreX = roi.x() + roi.size().x() / 2
-                        self.centreY = roi.y() + roi.size().y() / 2
-                        print "###########################################"
-                        print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
-                        print "###########################################"
-
-        def updateRoiStatus():
-            if self.roiCheckbox.checkState() == 0:
-                self.updateRoiStatus = False
-            else:
-                self.updateRoiStatus = True
-
-        self.rois = []
-        self.rois.append(self.roi)
-        self.rois.append(self.roiPoly)
-        self.rois.append(self.roiCircle)
-        for roi in self.rois:
-            roi.sigRegionChangeFinished.connect(updateRoi)
-
-        # Connect listeners to functions
-        self.img.d1.addWidget(self.img.w1)
-
-        ## Dock 2: parameter
-        self.w2 = ParameterTree()
-        self.w2.setParameters(self.p, showTop=False)
-        self.w2.setWindowTitle('Parameters')
-        self.d2.addWidget(self.w2)
+            self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
+            self.area.addDock(self.d12, 'bottom', self.exp.d2)
+            self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
 
         ## Dock 3: Diffraction geometry
         self.w3 = ParameterTree()
@@ -568,20 +385,6 @@ class MainFrame(QtGui.QWidget):
         self.deployGeomBtn = QtGui.QPushButton('Deploy centred psana geometry')
         self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
         self.d3.addWidget(self.w3a)
-
-        ## Dock 4: ROI histogram
-        self.w4 = pg.PlotWidget(title="ROI histogram")
-        hist,bin = np.histogram(np.random.random(1000), bins=1000)
-        self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
-        self.d4.addWidget(self.w4)
-        self.roiCheckbox = QtGui.QCheckBox('Update ROI')
-        self.roiCheckbox.setCheckState(True)
-        self.roiCheckbox.setTristate(False)
-        self.roiCheckbox.stateChanged.connect(updateRoiStatus)
-        # Layout
-        self.w4a = pg.LayoutWidget()
-        self.w4a.addWidget(self.roiCheckbox, row=0, col=0)
-        self.d4.addWidget(self.w4a)
 
         ## Dock 5 - mouse intensity display
         #self.d5.hideTitleBar()
@@ -601,7 +404,7 @@ class MainFrame(QtGui.QWidget):
             else:
                 self.calib, self.data = self.img.getDetImage(self.eventNumber)
                 self.img.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                self.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
+                self.exp.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
         def prev():
             self.eventNumber -= 1
             if self.eventNumber < 0:
@@ -609,7 +412,7 @@ class MainFrame(QtGui.QWidget):
             else:
                 self.calib, self.data = self.img.getDetImage(self.eventNumber)
                 self.img.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                self.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
+                self.exp.p.param(self.exp.exp_grp,self.exp.exp_evt_str).setValue(self.eventNumber)
         def save():
             outputName = self.psocakeRunDir+"/psocake_"+str(self.experimentName)+"_"+str(self.runNumber)+"_"+str(self.detInfo)+"_" \
                          +str(self.eventNumber)+"_"+str(self.exp.eventSeconds)+"_"+str(self.exp.eventNanoseconds)+"_" \
@@ -690,14 +493,6 @@ class MainFrame(QtGui.QWidget):
         self.w11.addWidget(self.launchBtn, row=0,col=0)
         #self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
         self.d9.addWidget(self.w11)
-
-        ## Dock 10: Manifold
-        #self.w12 = ParameterTree()
-        #self.w12.setParameters(self.p4, showTop=False)
-        #self.d10.addWidget(self.w12)
-        # Add plot
-        #self.w13 = pg.PlotWidget(title="Manifold!!!!")
-        #self.d10.addWidget(self.w13)
 
         ## Dock 12: Mask Panel
         self.w17 = ParameterTree()
@@ -818,17 +613,17 @@ class MainFrame(QtGui.QWidget):
         # Setup input parameters
         if self.experimentName is not "":
             self.hasExperimentName = True
-            self.p.param(self.exp.exp_grp, self.exp.exp_name_str).setValue(self.experimentName)
+            self.exp.p.param(self.exp.exp_grp, self.exp.exp_name_str).setValue(self.experimentName)
             self.exp.updateExpName(self.experimentName)
         if self.runNumber is not 0:
             self.hasRunNumber = True
-            self.p.param(self.exp.exp_grp, self.exp.exp_run_str).setValue(self.runNumber)
+            self.exp.p.param(self.exp.exp_grp, self.exp.exp_run_str).setValue(self.runNumber)
             self.exp.updateRunNumber(self.runNumber)
         if self.detInfo is not "":
             self.hasDetInfo = True
-            self.p.param(self.exp.exp_grp, self.exp.exp_detInfo_str).setValue(self.detInfo)
+            self.exp.p.param(self.exp.exp_grp, self.exp.exp_detInfo_str).setValue(self.detInfo)
             self.exp.updateDetInfo(self.detInfo)
-        self.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
+        self.exp.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
         self.exp.updateEventNumber(self.eventNumber)
 
         self.img.drawLabCoordinates() # FIXME: This does not match the lab coordinates yet!
@@ -962,118 +757,6 @@ class MainFrame(QtGui.QWidget):
         ################################################
         if path[0] == self.evtLabels.labels_grp:
             self.evtLabels.paramUpdate(path, change, data)
-
-    ##################################
-    ###### Per Pixel Histogram #######
-    ##################################
-
-    # def updatePerPixelHistogramFilename(self, data):
-    #     # close previously open file
-    #     if self.perPixelHistogram_filename is not data and self.perPixelHistogramFileOpen:
-    #         self.perPixelHistogramFile.close()
-    #     self.perPixelHistogram_filename = data
-    #     self.perPixelHistogramFile = h5py.File(self.perPixelHistogram_filename,'r')
-    #
-    #     self.valid_min = self.perPixelHistogramFile['/dataHist/histogram'].attrs['valid_min'] # ADU
-    #     self.valid_max = self.perPixelHistogramFile['/dataHist/histogram'].attrs['valid_max'] # ADU
-    #     self.bin_size = self.perPixelHistogramFile['/dataHist/histogram'].attrs['bin_size'] # ADU
-    #     units = np.linspace(self.valid_min,self.valid_max,self.valid_max-self.valid_min+1) # ADU
-    #     start = np.mean(units[0:self.bin_size]) # ADU
-    #     finish = np.mean(units[len(units)-self.bin_size:len(units)]) # ADU
-    #     numBins = (self.valid_max-self.valid_min+1)/self.bin_size # ADU
-    #     self.histogram_adu = np.linspace(start,finish,numBins) # ADU
-    #
-    #     self.perPixelHistograms = self.perPixelHistogramFile['/dataHist/histogram'].value
-    #     self.histogram1D = self.perPixelHistograms.reshape((-1,self.perPixelHistograms.shape[-1]))
-    #
-    #     self.perPixelHistogramFileOpen = True
-    #     if args.v >= 1: print "Done opening perPixelHistogram file"
-    #
-    # # FIXME: I don't think pixelIndex is correct
-    # def updatePerPixelHistogramAdu(self, data):
-    #     self.perPixelHistogram_adu = data
-    #     if self.perPixelHistogramFileOpen:
-    #         self.updatePerPixelHistogramSlice(self.perPixelHistogram_adu)
-    #     if args.v >= 1: print "Done perPixelHistogram adu", self.perPixelHistogram_adu
-    #
-    # def updatePerPixelHistogramSlice(self,adu):
-    #     self.histogramAduIndex = self.getHistogramIndex(adu)
-    #     self.calib = np.squeeze(self.perPixelHistogramFile['/dataHist/histogram'][:,:,:,self.histogramAduIndex])
-    #     self.updateImage(calib=self.calib)
-    #
-    # def getHistogramIndex(self,adu):
-    #     histogramIndex = np.argmin(abs(self.histogram_adu - adu))
-    #     return histogramIndex
-    #
-    # def updatePerPixelHistogram(self, pixelIndex):
-    #     self.w16.getPlotItem().clear()
-    #     if pixelIndex >= 0:
-    #         self.perPixelHistogram = self.histogram1D[pixelIndex,1:-1]
-    #         self.w16.plot(self.histogram_adu, self.perPixelHistogram, pen=(200,200,200), symbolBrush=(255,0,0), symbolPen='w')
-    #     self.w16.setLabel('left', "Counts")
-    #     self.w16.setLabel('bottom', "ADU")
-
-    ##################################
-    ########### Manifold #############
-    ##################################
-    # # FIXME: manifold is incomplete
-    # def updateManifoldFilename(self, data):
-    #     # close previously open file
-    #     if self.manifold_filename is not data and self.manifoldFileOpen:
-    #         self.manifoldFile.close()
-    #     self.manifold_filename = data
-    #     self.manifoldFile = h5py.File(self.manifold_filename,'r')
-    #     self.manifoldFileOpen = True
-    #     if args.v >= 1: print "Done opening manifold"
-    #
-    # def updateManifoldDataset(self, data):
-    #     self.manifold_dataset = data
-    #     if self.manifoldFileOpen:
-    #         self.manifoldEigs = self.manifoldFile[self.manifold_dataset].value
-    #         (self.manifoldNumHits,self.manifoldNumEigs) = self.manifoldEigs.shape
-    #         self.manifoldHasData = True
-    #         self.updateManifoldPlot(self.manifoldEigs)
-    #         self.manifoldInd = np.arange(self.manifoldNumHits)
-    #         try:
-    #             eventDataset = "/" + self.manifold_dataset.split("/")[1] + "/event"
-    #             self.manifoldEvent = self.manifoldFile[eventDataset].value
-    #         except:
-    #             self.manifoldEvent = np.arange(self.manifoldNumHits)
-    #         if args.v >= 1: print "Done reading manifold"
-    #
-    # def updateManifoldSigma(self, data):
-    #     self.manifold_sigma = data
-    #     if self.manifoldHasData:
-    #         self.updateManifoldPlot(self.manifoldInd,self.manifoldEigs)
-    #
-    # def updateManifoldPlot(self,ind,eigenvectors):
-    #     self.lastClicked = []
-    #     self.w13.getPlotItem().clear()
-    #     pos = np.random.normal(size=(2,10000), scale=1e-9)
-    #     self.curve = self.w13.plot(pos[0],pos[1], pen=None, symbol='o',symbolPen=None,symbolSize=10,symbolBrush=(100,100,255,50))
-    #     self.curve.curve.setClickable(True)
-    #     self.curve.sigClicked.connect(self.clicked1)
-    #
-    # def clicked1(self,points): # manifold click
-    #     print("curve clicked",points)
-    #     from pprint import pprint
-    #     pprint(vars(points.scatter))
-    #     for i in range(len(points.scatter.data)):
-    #         if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
-    #             ind = i
-    #             break
-    #     indX = points.scatter.data[i][0]
-    #     indY = points.scatter.data[i][1]
-    #     if args.v >= 1: print "x,y: ", indX, indY
-    #
-    #     ind = self.manifoldInd[ind]
-    #
-    #     # temp
-    #     self.eventNumber = self.manifoldEvent[ind]
-    #
-    #     self.calib, self.data = self.getDetImage(self.eventNumber)
-    #     self.w1.setImage(self.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-    #     self.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
 
 def main():
     global ex

@@ -8,3 +8,4 @@ gray90_hex = str("#565347") # gray 90%
 gray60_hex = str("#8a887d") # gray 60%
 sandstone100_rgb = (221,207,153) # Sandstone
 beige_hex = ("#9d9573") # beige
+

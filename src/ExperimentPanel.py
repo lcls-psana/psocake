@@ -8,10 +8,20 @@ import PSCalib.GlobalUtils as gu
 from LogBook.runtables import RunTables
 import LogbookCrawler
 import Detector.PyDetector
+from pyqtgraph.dockarea import *
+from pyqtgraph.parametertree import Parameter, ParameterTree
 
 class ExperimentInfo(object):
     def __init__(self, parent = None):
         self.parent = parent
+
+        #############################
+        ## Dock 2: parameter
+        #############################
+        self.d2 = Dock("Experiment Parameters", size=(1, 1))
+        self.w2 = ParameterTree()
+        self.w2.setWindowTitle('Parameters')
+        self.d2.addWidget(self.w2)
 
         self.exp_grp = 'Experiment information'
         self.exp_name_str = 'Experiment Name'
@@ -126,6 +136,21 @@ class ExperimentInfo(object):
             ]},
         ]
 
+        self.p = Parameter.create(name='params', type='group', children=self.params, expanded=True)
+        self.w2.setParameters(self.p, showTop=False)
+        self.p.sigTreeStateChanged.connect(self.change)
+
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
+
     ##############################
     # Mandatory parameter update #
     ##############################
@@ -168,15 +193,14 @@ class ExperimentInfo(object):
     ###################################
     ###### Experiment Parameters ######
     ###################################
-    
     def resetVariables(self):
         self.secList = None
         self.nsecList = None
         self.fidList = None
         
     def updateExpName(self, data):
-        self.experimentName = data
-        self.hasExperimentName = True
+        self.parent.experimentName = data
+        self.parent.hasExperimentName = True
         self.parent.detInfoList = None
         self.resetVariables()
     
@@ -263,7 +287,7 @@ class ExperimentInfo(object):
             self.eventNanoseconds = str(nanosec)
             self.eventFiducial = str(fid)
             self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
-            self.parent.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
+            self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
             self.parent.img.updateImage()
         # update labels
         if self.parent.args.mode == "all":
@@ -284,7 +308,7 @@ class ExperimentInfo(object):
                     print "No such run exists in: ", self.parent.experimentName
                     self.parent.runNumber = 0
                     self.updateRunNumber(self.parent.runNumber)
-                    self.parent.p.param(self.exp_grp, self.exp_run_str).setValue(self.parent.runNumber)
+                    self.p.param(self.exp_grp, self.exp_run_str).setValue(self.parent.runNumber)
                     return False
         return False
      
@@ -408,8 +432,8 @@ class ExperimentInfo(object):
             self.times = self.run.times()
             self.eventTotal = len(self.times)
             self.parent.spinBox.setMaximum(self.eventTotal - self.parent.stackSize)
-            self.parent.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
-            self.parent.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
+            self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
+            self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
     
             if self.parent.detInfoList is None:
@@ -580,6 +604,6 @@ class ExperimentInfo(object):
 
     def updateEventID(self, sec, nanosec, fid):
         if self.parent.args.v >= 1: print "eventID: ", sec, nanosec, fid
-        self.parent.p.param(self.exp_grp, self.exp_evt_str, self.exp_second_str).setValue(self.eventSeconds)
-        self.parent.p.param(self.exp_grp, self.exp_evt_str, self.exp_nanosecond_str).setValue(self.eventNanoseconds)
-        self.parent.p.param(self.exp_grp, self.exp_evt_str, self.exp_fiducial_str).setValue(self.eventFiducial)
+        self.p.param(self.exp_grp, self.exp_evt_str, self.exp_second_str).setValue(self.eventSeconds)
+        self.p.param(self.exp_grp, self.exp_evt_str, self.exp_nanosecond_str).setValue(self.eventNanoseconds)
+        self.p.param(self.exp_grp, self.exp_evt_str, self.exp_fiducial_str).setValue(self.eventFiducial)

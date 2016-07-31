@@ -14,7 +14,6 @@ class ImageViewer(object):
 
         ## Dock 1: Image Panel
         self.d1 = Dock("Image Panel", size=(500, 400))
-
         self.w1 = pg.ImageView(view=pg.PlotItem())
         self.w1.getView().invertY(False)
         self.img_feature = pg.ImageItem()
@@ -35,6 +34,7 @@ class ImageViewer(object):
         self.w1.getView().addItem(self.abc_text)
         self.peak_text = pg.TextItem(html='', anchor=(0,0))
         self.w1.getView().addItem(self.peak_text)
+        self.d1.addWidget(self.w1)
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
