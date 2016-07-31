@@ -431,7 +431,7 @@ class ExperimentInfo(object):
             self.run = self.ds.runs().next()
             self.times = self.run.times()
             self.eventTotal = len(self.times)
-            self.parent.spinBox.setMaximum(self.eventTotal - self.parent.stackSize)
+            self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
             self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
             self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()

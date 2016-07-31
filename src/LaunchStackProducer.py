@@ -24,15 +24,15 @@ class StackProducer(QtCore.QThread):
 
     def run(self):
         counter = 0
-        for i in np.arange(self.startIndex,self.startIndex+self.numImages):
+        for i in np.arange(self.startIndex, self.startIndex+self.numImages):
             if counter == 0:
-                calib,data = self.parent.getDetImage(i,calib=None)
-                self.data = np.zeros((self.numImages,data.shape[0],data.shape[1]))
+                calib, data = self.parent.img.getDetImage(i, calib=None)
+                self.data = np.zeros((self.numImages, data.shape[0], data.shape[1]))
                 if data is not None:
                     self.data[counter,:,:] = data
                 counter += 1
             else:
-                calib,data = self.parent.getDetImage(i,calib=None)
+                calib, data = self.parent.img.getDetImage(i, calib=None)
                 if data is not None:
                     self.data[counter,:,:] = data
                 counter += 1

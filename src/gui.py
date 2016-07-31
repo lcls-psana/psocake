@@ -32,7 +32,7 @@ import os.path
 # Panel modules
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
 import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
-import ImageControlPanel, MousePanel
+import ImageControlPanel, MousePanel, ImageStackPanel
 import LaunchPeakFinder, LaunchPowderProducer, LaunchIndexer, LaunchHitFinder, LaunchStackProducer
 import matplotlib.pyplot as plt
 import _colorScheme as color
@@ -147,6 +147,7 @@ class MainFrame(QtGui.QWidget):
         self.roi = RoiPanel.RoiHistogram(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.mouse = MousePanel.Mouse(self)
+        self.stack = ImageStackPanel.ImageStack(self)
 
         # Init variables
         self.det = None
@@ -178,11 +179,6 @@ class MainFrame(QtGui.QWidget):
         self.data = None # assembled detector image
         self.cx = 0 # detector centre x
         self.cy = 0 # detector centre y
-
-        # Threads
-        self.stackStart = 0
-        self.stackSizeMax = 120
-        self.stackSize = 20
 
         self.initUI()
 
@@ -229,7 +225,7 @@ class MainFrame(QtGui.QWidget):
         ## Note that size arguments are only a suggestion; docks will still have to
         ## fill the entire dock area and obey the limits of their internal widgets.
              ## give this dock the minimum possible size
-        self.d7 = Dock("Image Scroll", size=(1, 1))
+
         self.dSmall = Dock("Small Data", size=(100, 100))
         self.d9 = Dock("Peak Finder", size=(1, 1))
         #self.d10 = Dock("Manifold", size=(1, 1))
@@ -281,9 +277,9 @@ class MainFrame(QtGui.QWidget):
             # Dock positions on the main frame
             self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.stack.d7, 'bottom', self.mouse.d5)
             self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
-            self.area.moveDock(self.img.d1, 'above', self.d7)
+            self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
             self.area.addDock(self.d9, 'bottom', self.exp.d2)
@@ -303,9 +299,9 @@ class MainFrame(QtGui.QWidget):
             # Dock positions on the main frame
             self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.stack.d7, 'bottom', self.mouse.d5)
             self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)    ## place d1 at left edge of dock area
-            self.area.moveDock(self.img.d1, 'above', self.d7)
+            self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')     ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom',self.exp.d2)
@@ -323,9 +319,9 @@ class MainFrame(QtGui.QWidget):
             # Dock positions on the main frame
             self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.stack.d7, 'bottom', self.mouse.d5)
             self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
-            self.area.moveDock(self.img.d1, 'above', self.d7)
+            self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d9, 'bottom', self.exp.d2)
@@ -349,36 +345,13 @@ class MainFrame(QtGui.QWidget):
             # Dock positions on the main frame
             self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
             self.area.addDock(self.control.d6, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
-            self.area.addDock(self.d7, 'bottom', self.mouse.d5)
+            self.area.addDock(self.stack.d7, 'bottom', self.mouse.d5)
             self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
-            self.area.moveDock(self.img.d1, 'above', self.d7)
+            self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
             self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
             self.area.addDock(self.d12, 'bottom', self.exp.d2)
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
-
-
-
-        ## Dock 7: Image Stack
-        self.w7L = pg.LayoutWidget()
-        self.w7 = pg.ImageView(view=pg.PlotItem())
-        self.w7.getView().invertY(False)
-        self.scroll = np.random.random((5,10,10))
-        self.w7.setImage(self.scroll, xvals=np.linspace(0., self.scroll.shape[0]-1, self.scroll.shape[0]))
-        self.spinBox = QtGui.QSpinBox()
-        self.spinBox.setValue(0)
-        self.label = QtGui.QLabel("Event Number:")
-        self.stackSizeBox = QtGui.QSpinBox()
-        self.stackSizeBox.setMaximum(self.stackSizeMax)
-        self.stackSizeBox.setValue(self.stackSize)
-        self.startBtn = QtGui.QPushButton("&Load image stack")
-        # Connect listeners to functions
-        self.w7L.addWidget(self.w7, row=0, colspan=4)
-        self.w7L.addWidget(self.label, 1, 0)
-        self.w7L.addWidget(self.spinBox, 1, 1)
-        self.w7L.addWidget(self.stackSizeBox, 1, 2)
-        self.w7L.addWidget(self.startBtn, 1, 3)
-        self.d7.addWidget(self.w7L)
 
         ## Dock 8: Quantifier
         self.w8 = ParameterTree()
@@ -492,30 +465,6 @@ class MainFrame(QtGui.QWidget):
         self.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), indexPeaks)
         # Deploy psana geometry
         self.connect(self.geom.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.geom.deploy)
-
-        # Loading image stack
-        def displayImageStack():
-            if self.exp.logscaleOn:
-                self.w7.setImage(np.log10(abs(self.threadpool.data) + self.eps), xvals=np.linspace(self.stackStart,
-                                                                     self.stackStart+self.threadpool.data.shape[0]-1,
-                                                                     self.threadpool.data.shape[0]))
-            else:
-                self.w7.setImage(self.threadpool.data, xvals=np.linspace(self.stackStart,
-                                                                     self.stackStart+self.threadpool.data.shape[0]-1,
-                                                                     self.threadpool.data.shape[0]))
-            self.startBtn.setEnabled(True)
-            if args.v >= 1:
-                print "Done display image stack!!!!!"
-        def loadStack():
-            self.stackStart = self.spinBox.value()
-            self.stackSize = self.stackSizeBox.value()
-            self.threadpool.load(self.stackStart,self.stackSize)
-            self.startBtn.setEnabled(False)
-            self.w7.getView().setTitle("exp="+self.experimentName+":run="+str(self.runNumber)+":evt"+str(self.stackStart)+"-"
-                                       +str(self.stackStart+self.stackSize))
-        self.threadpool = LaunchStackProducer.StackProducer(self) # send parent parameters
-        self.connect(self.threadpool, QtCore.SIGNAL("finished()"), displayImageStack)
-        self.connect(self.startBtn, QtCore.SIGNAL("clicked()"), loadStack)
 
         self.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.small.reloadQuantifier)
 
