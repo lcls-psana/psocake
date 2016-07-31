@@ -239,7 +239,11 @@ if Done == 1:
         f.close()
     except:
         print "Couldn't read file: ", peakFile
-        numEvents = 0
+        fname = runDir + '/status_hits.txt'
+        print "Try reading file: ", fname
+        with open(fname) as infile:
+            d = json.load(infile)
+            numEvents = d['numHits']
 
     # Split into chunks for faster indexing
     numWorkers = int(cpus / 2.)
