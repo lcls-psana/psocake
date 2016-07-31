@@ -81,7 +81,6 @@ class Labels(object):
         if os.path.exists('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber)):
            labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'r+', dtype = 'i8')
            dataSetFound = True
-           #print "exists in " + self.parent.psocakeRunDir
         else:
            labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'x', dtype = 'i8')
         if not dataSetFound:

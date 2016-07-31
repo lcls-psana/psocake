@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-34
+2016-07-31 Chunhong Yoon
+- refactor all panels
+
 Tag: V00-01-33
 2016-07-29 Chunhong Yoon
 - added image panel
