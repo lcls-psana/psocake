@@ -469,7 +469,9 @@ class ExperimentInfo(object):
                 self.parent.clenEpics = str(self.parent.detInfo) + '_z'
                 self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
                 if self.parent.args.v >= 1:
+                    print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                     print "clenEpics: ", self.parent.clenEpics
                     print "@detectorDistance (m), self.clen (m), self.coffset (m): ", self.parent.detectorDistance, self.parent.clen, self.parent.coffset
             if 'cspad' in self.parent.detInfo.lower():  # FIXME: increase pixel size list: epix, rayonix
@@ -505,52 +507,7 @@ class ExperimentInfo(object):
     
             # Write a temporary geom file
             if 'cspad' in self.parent.detInfo.lower():
-                self.source = Detector.PyDetector.map_alias_to_source(self.parent.detInfo,
-                                                                      self.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
-                self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
-                self.detectorType = gu.det_type_from_source(self.source)  # 1
-                self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
-                self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
-                self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \
-                                 "/" + self.parent.experimentName + "/calib/" + \
-                                 self.calibGroup + "/" + self.calibSource + "/geometry"
-                if self.parent.args.v >= 1: print "### calibPath: ", self.calibPath
-    
-                # Determine which calib file to use
-                geometryFiles = os.listdir(self.calibPath)
-                if self.parent.args.v >= 1: print "geom: ", geometryFiles
-                calibFile = None
-                minDiff = -1e6
-                for fname in geometryFiles:
-                    if fname.endswith('.data'):
-                        endValid = False
-                        startNum = int(fname.split('-')[0])
-                        endNum = fname.split('-')[-1].split('.data')[0]
-                        diff = startNum - self.parent.runNumber
-                        # Make sure it's end number is valid too
-                        if 'end' in endNum:
-                            endValid = True
-                        else:
-                            try:
-                                if self.parent.runNumber <= int(endNum):
-                                    endValid = True
-                            except:
-                                continue
-                        if diff <= 0 and diff > minDiff and endValid is True:
-                            minDiff = diff
-                            calibFile = fname
-    
-                if calibFile is not None:
-                    # Convert psana geometry to crystfel geom
-                    self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
-                        self.parent.psocakeRunDir + '/.temp.geom')
-                    cmd = ["python", "/reg/neh/home/yoon82/psgeom/psana2crystfel.py", self.calibPath + '/' + calibFile,
-                           self.parent.psocakeRunDir + "/.temp.geom"] # TODO: remove my home
-                    if self.parent.args.v >= 1: print "cmd: ", cmd
-                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                    output = p.communicate()[0]
-                    p.stdout.close()
-                    if self.parent.args.v >= 1: print "output: ", output
+                self.parent.geom.deployCrystfelGeometry()
     
         if self.parent.args.v >= 1: print "Done setupExperiment"
     

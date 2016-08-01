@@ -13,6 +13,7 @@
 # TODO: Launch jobs based on image_property
 # TODO: Manifold embed for ice events
 # TODO: update ROI on every event, but skip if ROI is outside
+# TODO: update clen
 
 import sys, signal
 import numpy as np

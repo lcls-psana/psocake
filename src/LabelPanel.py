@@ -84,12 +84,12 @@ class Labels(object):
         else:
            labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'x', dtype = 'i8')
         if not dataSetFound:
-           dset = labels.create_dataset("labelsDataSet", (self.parent.eventTotal, 3))
+           dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
         else:
             try:
                 dset = labels["labelsDataSet"]
             except: # corrupt dataset, so create a new one
-                dset = labels.create_dataset("labelsDataSet", (self.parent.eventTotal, 3))
+                dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
         #print dset.shape
         self.labelA = dset[self.parent.eventNumber][0]
         self.labelB = dset[self.parent.eventNumber][1]

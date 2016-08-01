@@ -299,24 +299,28 @@ class ImageViewer(object):
                              self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
         # Update clen
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            self.parent.geom.p1.param(self.parent.geom.geom_grp,
-                                 self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+            self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
 
+        # Write a temporary geom file
+        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            self.parent.geom.deployCrystfelGeometry()
+
+        # Get assembled image
         if calib is not None:
-            # assemble image
             data = self.getAssembledImage(calib)
-            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0,0))
-            if self.parent.cx is None:
-                self.parent.cx, self.parent.cy = self.getCentre(data.shape)
-            if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
-            return calib, data
         else:
             calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
             data = self.getAssembledImage(calib)
-            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-            if self.parent.cx is None:
-                self.parent.cx, self.parent.cy = self.getCentre(data.shape)
-            return calib, data
+
+        # Update detector centre
+        self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+        if self.parent.cx is None:
+            self.parent.cx, self.parent.cy = self.getCentre(data.shape)
+        if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+
+        return calib, data
 
     def getCentre(self,shape):
         cx = shape[1]/2

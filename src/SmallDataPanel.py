@@ -82,40 +82,35 @@ class SmallData(object):
         self.updateQuantifierDataset(self.quantifier_dataset)
 
     def updateQuantifierFilename(self, data):
-        # close previously open file
-        if self.quantifier_filename is not data and self.quantifierFileOpen:
-            # try:
-            self.quantifierFile.close()
-            self.quantifierFileOpen = False
-        # except:
-        #    print "couldn't close file"
         self.quantifier_filename = data
-        if os.path.isfile(self.quantifier_filename):
-            self.quantifierFile = h5py.File(self.quantifier_filename, 'r')  # ,swmr=True)
-            self.quantifierFileOpen = True
         if self.parent.args.v >= 1: print "Done opening metric"
 
     def updateQuantifierDataset(self, data):
         self.quantifier_dataset = data
-        if self.quantifierFileOpen:
-            self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
-            self.quantifierInd = np.arange(len(self.quantifierMetric))
-            self.quantifierHasData = True
-            self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
+        if self.quantifier_dataset and self.quantifier_dataset:
             try:
-                if self.quantifier_dataset[0] == '/':  # dataset starts with "/"
-                    self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
-                else:  # dataset does not start with "/"
-                    self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
-                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+                self.quantifierFile = h5py.File(self.quantifier_filename, 'r')
+                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
+                self.quantifierFile.close()
+                self.quantifierInd = np.arange(len(self.quantifierMetric))
+                #self.quantifierHasData = True
+                self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
+                try:
+                    if self.quantifier_dataset[0] == '/':  # dataset starts with "/"
+                        self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
+                    else:  # dataset does not start with "/"
+                        self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
+                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+                except:
+                    if self.parent.args.v >= 1: print "Couldn't find /event dataset"
+                    self.quantifierEvent = np.arange(len(self.quantifierMetric))
             except:
-                if self.parent.args.v >= 1: print "Couldn't find /event dataset"
-                self.quantifierEvent = np.arange(len(self.quantifierMetric))
+                print "Couldn't read data"
             if self.parent.args.v >= 1: print "Done reading metric"
 
     def updateQuantifierSort(self, data):
         self.quantifier_sort = data
-        if self.quantifierHasData:
+        try:
             if self.quantifier_sort is True:
                 self.quantifierInd = np.argsort(self.quantifierFile[self.quantifier_dataset].value)
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value[self.quantifierInd]
@@ -125,6 +120,9 @@ class SmallData(object):
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
                 self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
                 self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
+        except:
+            print "Couldn't sort data"
+            pass
 
     def updateQuantifierPlot(self, ind, metric):
         self.w9.getPlotItem().clear()

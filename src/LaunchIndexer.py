@@ -80,4 +80,3 @@ class LaunchIndexer(QtCore.QThread):
             cmd += " --run " + str(run)
             print "Launch indexing job: ", cmd
             p = subprocess.Popen(shlex.split(cmd))
-            print p.pid

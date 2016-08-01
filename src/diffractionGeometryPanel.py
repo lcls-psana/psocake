@@ -6,6 +6,9 @@ import os
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.Qt import QtCore, QtGui
+import Detector.PyDetector
+import PSCalib.GlobalUtils as gu
+import subprocess
 
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
@@ -107,9 +110,61 @@ class DiffractionGeometry(object):
         elif path[2] == self.geom_resolutionUnits_str:
             self.updateResolutionUnits(data)
 
+    def deployCrystfelGeometry(self):
+        self.source = Detector.PyDetector.map_alias_to_source(self.parent.detInfo,
+                                                              self.parent.exp.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
+        self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
+        self.detectorType = gu.det_type_from_source(self.source)  # 1
+        self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
+        self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
+        self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \
+                         "/" + self.parent.experimentName + "/calib/" + \
+                         self.calibGroup + "/" + self.calibSource + "/geometry"
+        if self.parent.args.v >= 1: print "### calibPath: ", self.calibPath
+
+        # Determine which calib file to use
+        geometryFiles = os.listdir(self.calibPath)
+        if self.parent.args.v >= 1: print "geom: ", geometryFiles
+        calibFile = None
+        minDiff = -1e6
+        for fname in geometryFiles:
+            if fname.endswith('.data'):
+                endValid = False
+                startNum = int(fname.split('-')[0])
+                endNum = fname.split('-')[-1].split('.data')[0]
+                diff = startNum - self.parent.runNumber
+                # Make sure it's end number is valid too
+                if 'end' in endNum:
+                    endValid = True
+                else:
+                    try:
+                        if self.parent.runNumber <= int(endNum):
+                            endValid = True
+                    except:
+                        continue
+                if diff <= 0 and diff > minDiff and endValid is True:
+                    minDiff = diff
+                    calibFile = fname
+
+        if calibFile is not None:
+            # Convert psana geometry to crystfel geom
+            self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+                self.parent.psocakeRunDir + '/.temp.geom')
+            cmd = ["python", "/reg/neh/home/yoon82/psgeom/psana2crystfel.py", self.calibPath + '/' + calibFile,
+                   self.parent.psocakeRunDir + "/.temp.geom"]  # TODO: remove my home
+            if self.parent.args.v >= 1: print "cmd: ", cmd
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+            output = p.communicate()[0]
+            p.stdout.close()
+
+    def updateClen(self):
+        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+        self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
+
     def updateDetectorDistance(self, data):
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
             self.parent.detectorDistance = data / 1000. # mm to metres
+            self.updateClen()
             self.parent.coffset = self.parent.detectorDistance - self.parent.clen
             if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
             self.writeCrystfelGeom()
@@ -181,8 +236,7 @@ class DiffractionGeometry(object):
                 print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
             if self.parent.resolutionRingsOn:
                 self.updateRings()
-        if self.parent.args.v >= 1:
-            print "Done updateGeometry"
+        if self.parent.args.v >= 1: print "Done updateGeometry"
 
     def updateDock42(self, data):
         a = ['a','b','c','d','e','k','m','n','r','s']

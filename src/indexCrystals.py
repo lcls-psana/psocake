@@ -243,7 +243,7 @@ if Done == 1:
         print "Try reading file: ", fname
         with open(fname) as infile:
             d = json.load(infile)
-            numEvents = d['numHits']
+            numEvents = int(d['numHits'])
 
     # Split into chunks for faster indexing
     numWorkers = int(cpus / 2.)
