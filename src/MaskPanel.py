@@ -27,11 +27,11 @@ class MaskMaker(object):
         #self.w18.addWidget(self.maskPolyBtn, row=2, col=0, colspan=2)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
-        self.deployMaskBtn.setText('Save user-defined mask')
+        self.deployMaskBtn.setText('Save static mask')
         self.w18.addWidget(self.deployMaskBtn, row=3, col=0)
         self.loadMaskBtn = QtGui.QPushButton()
         self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
-        self.loadMaskBtn.setText('Load user-defined mask')
+        self.loadMaskBtn.setText('Load mask')
         self.w18.addWidget(self.loadMaskBtn, row=3, col=1)
         self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
         self.w18.addWidget(self.generatePowderBtn, row=4, col=0, colspan=2)
@@ -535,24 +535,35 @@ class MaskMaker(object):
             self.parent.pk.algInitDone = False
         if self.parent.args.v >= 1: print "done makeMaskPoly!!!!!!"
 
+    def getCombinedStaticMask(self):
+        # update combined mask
+        combinedStaticMask = np.ones_like(self.parent.calib)
+        if self.userMask is not None and self.userMaskOn is True:
+            combinedStaticMask *= self.userMask
+        if self.psanaMask is not None and self.psanaMaskOn is True:
+            combinedStaticMask *= self.psanaMask
+        return combinedStaticMask
+
     def deployMask(self):
         print "*** deploy user-defined mask as mask.txt and mask.npy as DAQ shape ***"
         print "*** deploy user-defined mask as mask_natural_shape.npy as natural shape ***"
-        if self.parent.args.v >= 1: print "natural userMask: ", self.userMask.shape
-        if self.userMask is not None:
-            if self.userMask.size == 2 * 185 * 388:  # cspad2x2
-                # DAQ shape
-                asData2x2 = two2x1ToData2x2(self.userMask)
-                np.save(self.parent.psocakeRunDir + "/mask.npy", asData2x2)
-                np.savetxt(self.parent.psocakeRunDir + "/mask.txt", asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
-                # Natural shape
-                np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", self.userMask)
-            else:
-                np.save(self.parent.psocakeRunDir + "/mask.npy", self.userMask)
-                np.savetxt(self.parent.psocakeRunDir + "/mask.txt", self.userMask.reshape((-1, self.userMask.shape[-1])),
-                           fmt='%0.18e')
+
+        combinedStaticMask = self.getCombinedStaticMask()
+
+        if self.parent.args.v >= 1: print "natural static mask: ", combinedStaticMask.shape
+
+        if combinedStaticMask.size == 2 * 185 * 388:  # cspad2x2
+            # DAQ shape
+            asData2x2 = two2x1ToData2x2(combinedStaticMask)
+            np.save(self.parent.psocakeRunDir + "/mask.npy", asData2x2)
+            np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
+                       asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
+            # Natural shape
+            np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", combinedStaticMask)
         else:
-            print "user mask is not defined"
+            np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask)
+            np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
+                       combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
 
     def loadMask(self):
         fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
