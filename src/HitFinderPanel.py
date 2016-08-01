@@ -90,7 +90,7 @@ class HitFinder(object):
 
     # Launch hit finding
     def findHits(self):
-        self.parent.thread.append(LaunchHitFinder.HitFinder(self))  # send parent parameters with self
+        self.parent.thread.append(LaunchHitFinder.HitFinder(self.parent))  # send parent parameters with self
         self.parent.thread[self.parent.threadCounter].findHits(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
         self.parent.threadCounter += 1
 

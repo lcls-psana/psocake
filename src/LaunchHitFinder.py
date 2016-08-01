@@ -38,37 +38,38 @@ class HitFinder(QtCore.QThread):
 
     def run(self):
         # Digest the run list
-        runsToDo = self.digestRunList(self.parent.spiParam_runs)
+        runsToDo = self.digestRunList(self.parent.hf.spiParam_runs)
 
         for run in runsToDo:
-            runDir = self.parent.spiParam_outDir+"/r"+str(run).zfill(4)
+            print "run: ", run
+            runDir = self.parent.hf.spiParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
                     os.makedirs(runDir, 0774)
                 expRun = 'exp='+self.experimentName+':run='+str(run)
-                cmd = "bsub -q "+self.parent.spiParam_queue+\
-                  " -n "+str(self.parent.spiParam_cpus)+\
+                cmd = "bsub -q "+self.parent.hf.spiParam_queue+\
+                  " -n "+str(self.parent.hf.spiParam_cpus)+\
                   " -o "+runDir+"/.%J.log mpirun litPixels"+\
                   " "+expRun+\
                   " -d "+self.detInfo+\
                   " --outdir "+runDir
 
-                if self.parent.spiParam_tag:
-                    cmd += " --tag "+str(self.parent.spiParam_tag)
+                if self.parent.hf.spiParam_tag:
+                    cmd += " --tag "+str(self.parent.hf.spiParam_tag)
 
-                if self.parent.spiAlgorithm == 1:
-                    cmd += " --pruneInterval "+str(int(self.parent.spiParam_alg1_pruneInterval))
-                elif self.parent.spiAlgorithm == 2:
-                    cmd += " --litPixelThreshold "+str(int(self.parent.spiParam_alg2_threshold))
+                if self.parent.hf.spiAlgorithm == 1:
+                    cmd += " --pruneInterval "+str(int(self.parent.hf.spiParam_alg1_pruneInterval))
+                elif self.parent.hf.spiAlgorithm == 2:
+                    cmd += " --litPixelThreshold "+str(int(self.parent.hf.spiParam_alg2_threshold))
 
                 # Save user mask to a deterministic path
-                if self.parent.userMaskOn:
+                if self.parent.mk.userMaskOn:
                     tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
-                    np.save(tempFilename,self.parent.userMask) # TODO: save
+                    np.save(tempFilename,self.parent.mk.userMask) # TODO: save
                     cmd += " --mask "+str(tempFilename)
 
-                if self.parent.spiParam_noe > 0:
-                    cmd += " --noe "+str(self.parent.spiParam_noe)
+                if self.parent.hf.spiParam_noe > 0:
+                    cmd += " --noe "+str(self.parent.hf.spiParam_noe)
 
                 if self.parent.args.localCalib: cmd += " --localCalib"
 

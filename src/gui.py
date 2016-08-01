@@ -391,16 +391,16 @@ class MainFrame(QtGui.QWidget):
                         self.initMask()
                         if self.mk.maskingMode == 1:
                             # masking mode
-                            self.userMaskAssem[indexX,indexY] = 0
+                            self.mk.userMaskAssem[indexX,indexY] = 0
                         elif self.mk.maskingMode == 2:
                             # unmasking mode
-                            self.userMaskAssem[indexX,indexY] = 1
+                            self.mk.userMaskAssem[indexX,indexY] = 1
                         elif self.mk.maskingMode == 3:
                             # toggle mode
-                            self.userMaskAssem[indexX,indexY] = (1-self.userMaskAssem[indexX,indexY])
+                            self.mk.userMaskAssem[indexX,indexY] = (1-self.mk.userMaskAssem[indexX,indexY])
                         self.displayMask()
 
-                        self.userMask = self.det.ndarray_from_image(self.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+                        self.mk.userMask = self.det.ndarray_from_image(self.evt,self.mk.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
                         self.algInitDone = False
                         self.parent.pk.updateClassification()
 

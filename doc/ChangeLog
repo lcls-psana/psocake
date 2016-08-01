@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-36
+2016-08-01 Chunhong Yoon
+- fix hitfinder bug with mask names
+
 Tag: V00-01-35
 2016-08-01 Chunhong Yoon
 - fix bugs during refactoring
