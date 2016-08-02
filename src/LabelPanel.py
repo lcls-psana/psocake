@@ -78,29 +78,30 @@ class Labels(object):
     def refresh(self):
         global dset
         dataSetFound = False
-        if os.path.exists('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber)):
-           labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'r+', dtype = 'i8')
-           dataSetFound = True
-        else:
-           labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'x', dtype = 'i8')
-        if not dataSetFound:
-           dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
-        else:
-            try:
-                dset = labels["labelsDataSet"]
-            except: # corrupt dataset, so create a new one
-                dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
-        #print dset.shape
-        self.labelA = dset[self.parent.eventNumber][0]
-        self.labelB = dset[self.parent.eventNumber][1]
-        self.labelC = dset[self.parent.eventNumber][2]
-        if dset[self.parent.eventNumber][0] == 1:
-            self.labelA = True
-        elif dset[self.parent.eventNumber][1] == 1:
-            self.labelB = True
-        elif dset[self.parent.eventNumber][2] == 1:
-            self.labelC = True
-        self.labelC = False
-        self.pLabels.param(self.labels_grp, self.labels_A_str).setValue(self.labelA)
-        self.pLabels.param(self.labels_grp, self.labels_B_str).setValue(self.labelB)
-        self.pLabels.param(self.labels_grp, self.labels_C_str).setValue(self.labelC)
+        if self.parent.runNumber > 0:
+            if os.path.exists('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber)):
+               labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'r+', dtype = 'i8')
+               dataSetFound = True
+            else:
+               labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'x', dtype = 'i8')
+            if not dataSetFound:
+               dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
+            else:
+                try:
+                    dset = labels["labelsDataSet"]
+                except: # corrupt dataset, so create a new one
+                    dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
+            #print dset.shape
+            self.labelA = dset[self.parent.eventNumber][0]
+            self.labelB = dset[self.parent.eventNumber][1]
+            self.labelC = dset[self.parent.eventNumber][2]
+            if dset[self.parent.eventNumber][0] == 1:
+                self.labelA = True
+            elif dset[self.parent.eventNumber][1] == 1:
+                self.labelB = True
+            elif dset[self.parent.eventNumber][2] == 1:
+                self.labelC = True
+            self.labelC = False
+            self.pLabels.param(self.labels_grp, self.labels_A_str).setValue(self.labelA)
+            self.pLabels.param(self.labels_grp, self.labels_B_str).setValue(self.labelB)
+            self.pLabels.param(self.labels_grp, self.labels_C_str).setValue(self.labelC)
