@@ -54,12 +54,9 @@ class HitFinder(QtCore.QThread):
                   " -d "+self.detInfo+\
                   " --outdir "+runDir
 
-                if self.parent.hf.spiParam_tag:
-                    cmd += " --tag "+str(self.parent.hf.spiParam_tag)
+                if self.parent.hf.spiParam_tag: cmd += " --tag "+str(self.parent.hf.spiParam_tag)
 
-                if self.parent.hf.spiAlgorithm == 1:
-                    cmd += " --pruneInterval "+str(int(self.parent.hf.spiParam_alg1_pruneInterval))
-                elif self.parent.hf.spiAlgorithm == 2:
+                if self.parent.hf.spiAlgorithm == 2:
                     cmd += " --litPixelThreshold "+str(int(self.parent.hf.spiParam_alg2_threshold))
 
                 # Save user mask to a deterministic path
@@ -68,8 +65,7 @@ class HitFinder(QtCore.QThread):
                     np.save(tempFilename,self.parent.mk.userMask) # TODO: save
                     cmd += " --mask "+str(tempFilename)
 
-                if self.parent.hf.spiParam_noe > 0:
-                    cmd += " --noe "+str(self.parent.hf.spiParam_noe)
+                if self.parent.hf.spiParam_noe > 0: cmd += " --noe "+str(self.parent.hf.spiParam_noe)
 
                 if self.parent.args.localCalib: cmd += " --localCalib"
 

@@ -55,7 +55,7 @@ class HitFinder(object):
         self.spiParam_runs = ''
         self.spiParam_queue = self.spiParam_psanaq_str
         self.spiParam_cpus = 24
-        self.spiParam_noe = 0
+        self.spiParam_noe = -1
 
         self.params = [
             {'name': self.spiParam_grp, 'type': 'group', 'children': [
