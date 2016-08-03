@@ -7,6 +7,7 @@ import h5py, json
 from mpidata import mpidata
 import psana
 import numpy as np
+from PSCalib.GeometryObject import two2x1ToData2x2
 
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
@@ -99,8 +100,31 @@ def runmaster(args,nClients):
 
     fnameHits = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.npy"
     fnameMisses = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses.npy"
-    np.save(fnameHits,powderHits)
-    np.save(fnameMisses, powderMisses)
+    fnameHitsTxt = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.txt"
+    fnameMissesTxt = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses.txt"
+    fnameHitsNatural = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits_natural_shape.npy"
+    fnameMissesNatural = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses_natural_shape.npy"
+    #np.save(fnameHits,powderHits)
+    #np.save(fnameMisses, powderMisses)
+
+    if powderHits.size == 2 * 185 * 388:  # cspad2x2
+        # DAQ shape
+        asData2x2 = two2x1ToData2x2(powderHits)
+        np.save(fnameHits, asData2x2)
+        np.savetxt(fnameHitsTxt, asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
+        # Natural shape
+        np.save(fnameHitsNatural, powderHits)
+        # DAQ shape
+        asData2x2 = two2x1ToData2x2(powderMisses)
+        np.save(fnameMisses, asData2x2)
+        np.savetxt(fnameMissesTxt, asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
+        # Natural shape
+        np.save(fnameMissesNatural, powderMisses)
+    else:
+        np.save(fnameHits, powderHits)
+        np.savetxt(fnameHitsTxt, powderHits.reshape((-1, powderHits.shape[-1])), fmt='%0.18e')
+        np.save(fnameMisses, powderMisses)
+        np.savetxt(fnameMissesTxt, powderMisses.reshape((-1, powderMisses.shape[-1])), fmt='%0.18e')
 
 def convert_peaks_to_cheetah(s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
