@@ -37,7 +37,7 @@ def runmaster(args,nClients):
     dset_posY = "/peakYPosRawAll"
     dset_atot = "/peakTotalIntensityAll"
     dset_maxRes = "/maxResAll"
-    statusFname = args.outDir + "/status_hits.txt"
+    statusFname = args.outDir + "/status_peaks.txt"
 
     powderHits = None
     powderMisses = None

@@ -436,8 +436,7 @@ class IndexHandler(QtCore.QThread):
                       " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
                       " -o " + self.parent.index.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
                     self.runNumber).zfill(4)
-                if self.pdb:  # is not '': # FIXME: somehow doesn't work
-                    cmd += " --pdb=" + self.pdb
+                if self.pdb: cmd += " --pdb=" + self.pdb
 
                 print "cmd: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

@@ -310,22 +310,12 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.mk.d12, 'bottom', self.exp.d2)
             self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
 
-
-
-
-
         ###############
         ### Threads ###
         ###############
         # Making powder patterns
         self.thread = []
         self.threadCounter = 0
-
-
-        # Deploy psana geometry
-        self.connect(self.geom.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.geom.deploy)
-
-
 
         # Setup input parameters
         if self.experimentName is not "":

@@ -164,6 +164,7 @@ else:
           " --minPeaks " + str(minPeaks) + \
           " --maxPeaks " + str(maxPeaks) + \
           " --minRes " + str(minRes) + \
+          " --mode sfx" + \
           " --run " + str(runNumber)
     print "Submitting batch job: ", cmd
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -239,7 +240,7 @@ if Done == 1:
         f.close()
     except:
         print "Couldn't read file: ", peakFile
-        fname = runDir + '/status_hits.txt'
+        fname = runDir + '/status_peaks.txt'
         print "Try reading file: ", fname
         with open(fname) as infile:
             d = json.load(infile)

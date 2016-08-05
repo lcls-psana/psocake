@@ -506,7 +506,7 @@ class ExperimentInfo(object):
                 self.parent.pixelIndAssem -= 1  # First pixel is 0
     
             # Write a temporary geom file
-            if 'cspad' in self.parent.detInfo.lower():
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 self.parent.geom.deployCrystfelGeometry()
     
         if self.parent.args.v >= 1: print "Done setupExperiment"

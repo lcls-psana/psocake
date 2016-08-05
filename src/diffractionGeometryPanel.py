@@ -78,6 +78,8 @@ class DiffractionGeometry(object):
         self.p1.sigTreeStateChanged.connect(self.change)
         self.w3.setParameters(self.p1, showTop=False)
 
+        self.parent.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.deploy)
+
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
         for param, change, data in changes:
@@ -180,7 +182,10 @@ class DiffractionGeometry(object):
         h = 6.626070e-34 # J.m
         c = 2.99792458e8 # m/s
         joulesPerEv = 1.602176621e-19 #J/eV
-        self.parent.wavelength = (h/joulesPerEv*c)/self.parent.photonEnergy
+        if self.parent.photonEnergy > 0:
+            self.parent.wavelength = (h/joulesPerEv*c)/self.parent.photonEnergy
+        else:
+            self.parent.wavelength = 0
         self.p1.param(self.geom_grp,self.geom_wavelength_str).setValue(self.parent.wavelength)
         if self.hasGeometryInfo():
             self.updateGeometry()
@@ -227,11 +232,12 @@ class DiffractionGeometry(object):
         self.dMin_physics = np.zeros_like(self.myResolutionRingList)
         self.qMax_physics = np.zeros_like(self.myResolutionRingList)
         for i, pix in enumerate(self.myResolutionRingList):
-            self.thetaMax[i] = np.arctan(pix*self.parent.pixelSize/self.parent.detectorDistance)
-            self.qMax_crystal[i] = 2/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
-            self.dMin_crystal[i] = 1/self.qMax_crystal[i]
-            self.qMax_physics[i] = 4*np.pi/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
-            self.dMin_physics[i] = np.pi/self.qMax_physics[i]
+            if self.parent.detectorDistance > 0:
+                self.thetaMax[i] = np.arctan(pix*self.parent.pixelSize/self.parent.detectorDistance)
+                self.qMax_crystal[i] = 2/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
+                self.dMin_crystal[i] = 1/self.qMax_crystal[i]
+                self.qMax_physics[i] = 4*np.pi/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
+                self.dMin_physics[i] = np.pi/self.qMax_physics[i]
             if self.parent.args.v >= 1:
                 print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
             if self.parent.resolutionRingsOn:

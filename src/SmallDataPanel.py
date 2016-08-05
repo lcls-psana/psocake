@@ -91,10 +91,6 @@ class SmallData(object):
             try:
                 self.quantifierFile = h5py.File(self.quantifier_filename, 'r')
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
-                self.quantifierFile.close()
-                self.quantifierInd = np.arange(len(self.quantifierMetric))
-                #self.quantifierHasData = True
-                self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
                 try:
                     if self.quantifier_dataset[0] == '/':  # dataset starts with "/"
                         self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
@@ -104,27 +100,28 @@ class SmallData(object):
                 except:
                     if self.parent.args.v >= 1: print "Couldn't find /event dataset"
                     self.quantifierEvent = np.arange(len(self.quantifierMetric))
+                self.quantifierFile.close()
             except:
                 print "Couldn't read data"
+            self.quantifierInd = np.arange(len(self.quantifierMetric))
+            self.updateQuantifierSort(self.quantifier_sort) #self.updateQuantifierPlot(self.quantifierMetric)
             if self.parent.args.v >= 1: print "Done reading metric"
 
     def updateQuantifierSort(self, data):
         self.quantifier_sort = data
         try:
             if self.quantifier_sort is True:
-                self.quantifierInd = np.argsort(self.quantifierFile[self.quantifier_dataset].value)
-                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value[self.quantifierInd]
-                self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
+                self.quantifierIndSorted = np.argsort(self.quantifierMetric)
+                self.quantifierMetricSorted = self.quantifierMetric[self.quantifierIndSorted]
+                #self.quantifierEventSorted = self.quantifierMetric[self.quantifierInd]
+                self.updateQuantifierPlot(self.quantifierMetricSorted)
             else:
-                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
-                self.quantifierInd = np.arange(len(self.quantifierMetric))
-                self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
-                self.updateQuantifierPlot(self.quantifierInd, self.quantifierMetric)
+                self.updateQuantifierPlot(self.quantifierMetric)
         except:
             print "Couldn't sort data"
             pass
 
-    def updateQuantifierPlot(self, ind, metric):
+    def updateQuantifierPlot(self, metric):
         self.w9.getPlotItem().clear()
         self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='w')
         self.w9.setLabel('left', "Small data")
@@ -149,7 +146,7 @@ class SmallData(object):
             indY = points.scatter.data[i][1]
             if self.parent.args.v >= 1: print "x,y: ", indX, indY
             if self.quantifier_sort:
-                ind = self.quantifierInd[ind]
+                ind = self.quantifierIndSorted[ind]
 
             # temp
             self.parent.eventNumber = self.quantifierEvent[ind]

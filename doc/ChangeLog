@@ -11,6 +11,11 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-37
+2016-08-05 Chunhong Yoon
+- fix divide by zero when photon energy is zero
+- change hit finder
+
 Tag: V00-01-36
 2016-08-01 Chunhong Yoon
 - fix hitfinder bug with mask names

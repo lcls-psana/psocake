@@ -34,6 +34,28 @@ class LogbookCrawler(QtCore.QThread):
                             d = json.load(infile)
                             if 'message' in d:
                                 msg = d['message']
+                            elif 'numHits' in d:
+                                numHits = d['numHits']
+                                hitRate = d['hitRate']
+                                fracDone = d['fracDone']
+                                if fracDone == 100:
+                                    msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
+                                else:
+                                    msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate,
+                                                                                                fracDone)
+                            else:
+                                fracDone = d['fracDone']
+                                msg = '{0:.1f}% done'.format(fracDone)
+                            self.table.setValue(run, "Number of hits", msg)
+                    except:  # file may not exist yet
+                        continue
+                    # peak finder
+                    fname = self.outDir + '/r' + str(run).zfill(4) + '/status_peaks.txt'
+                    try:
+                        with open(fname) as infile:
+                            d = json.load(infile)
+                            if 'message' in d:
+                                msg = d['message']
                             else:
                                 numHits = d['numHits']
                                 hitRate = d['hitRate']
