@@ -188,6 +188,7 @@ class HitFinder(object):
 
     def indicatePhotons(self):
         self.parent.img.clearPeakMessage()
+        self.parent.mk.displayMask()
         # Write number of pixels found containing photons
         xMargin = 5  # pixels
         yMargin = 0  # pixels

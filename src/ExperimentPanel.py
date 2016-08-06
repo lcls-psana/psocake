@@ -74,7 +74,7 @@ class ExperimentInfo(object):
         self.logscaleOn = False
         self.aduPerPhoton = 1.
         self.image_property = 1
-        
+
         # image properties
         self.disp_gainMask = 17
         self.disp_coordy= 16

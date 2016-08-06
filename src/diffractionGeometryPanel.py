@@ -372,7 +372,7 @@ class DiffractionGeometry(object):
             deploy_calib_file(cdir=self.parent.rootDir+'/calib', src=str(self.parent.det.name), type='geometry',
                               run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
             self.parent.exp.setupExperiment()
-            self.parent.getDetImage(self.parent.eventNumber)
+            self.parent.img.getDetImage(self.parent.eventNumber)
             self.updateRings()
             self.parent.index.updateIndex()
             self.drawCentre()
