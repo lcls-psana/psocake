@@ -44,6 +44,7 @@ class ExperimentInfo(object):
 
         self.disp_grp = 'Display'
         self.disp_log_str = 'Logscale'
+        self.disp_aduPerPhoton_str = 'ADUs per Photon'
         self.disp_image_str = 'Image properties'
         self.disp_adu_str = 'gain corrected ADU'
         self.disp_gain_str = 'gain'
@@ -71,8 +72,28 @@ class ExperimentInfo(object):
         self.disp_commonModeParam3_str = 'parameters 3'
 
         self.logscaleOn = False
+        self.aduPerPhoton = 1.
         self.image_property = 1
-        #self.aduThresh = -100.
+        
+        # image properties
+        self.disp_gainMask = 17
+        self.disp_coordy= 16
+        self.disp_coordx= 15
+        self.disp_col= 14
+        self.disp_row= 13
+        self.disp_seg= 12
+        self.disp_quad= 11
+        self.disp_gain= 10
+        self.disp_commonMode= 9
+        self.disp_rms= 8
+        self.disp_status= 7
+        self.disp_pedestal= 6
+        self.disp_photons= 5
+        self.disp_raw= 4
+        self.disp_pedestalCorrected= 3
+        self.disp_commonModeCorrected= 2
+        self.disp_adu= 1
+
         self.applyCommonMode = False
         self.commonModeParams = np.array([0,0,0,0])
         self.commonMode = np.array([0, 0, 0, 0])
@@ -104,26 +125,25 @@ class ExperimentInfo(object):
             ]},
             {'name': self.disp_grp, 'type': 'group', 'children': [
                 {'name': self.disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
-                {'name': self.disp_image_str, 'type': 'list', 'values': {self.disp_gainMask_str: 17,
-                                                                         self.disp_coordy_str: 16,
-                                                                         self.disp_coordx_str: 15,
-                                                                         self.disp_col_str: 14,
-                                                                         self.disp_row_str: 13,
-                                                                         self.disp_seg_str: 12,
-                                                                         self.disp_quad_str: 11,
-                                                                         self.disp_gain_str: 10,
-                                                                         self.disp_commonMode_str: 9,
-                                                                         self.disp_rms_str: 8,
-                                                                         self.disp_status_str: 7,
-                                                                         self.disp_pedestal_str: 6,
-                                                                         self.disp_photons_str: 5,
-                                                                         self.disp_raw_str: 4,
-                                                                         self.disp_pedestalCorrected_str: 3,
-                                                                         self.disp_commonModeCorrected_str: 2,
-                                                                         self.disp_adu_str: 1},
+                {'name': self.disp_aduPerPhoton_str, 'type': 'float', 'value': self.aduPerPhoton, 'tip': "ADUs per photon is used for photon conversion"},
+                {'name': self.disp_image_str, 'type': 'list', 'values': {self.disp_gainMask_str: self.disp_gainMask,
+                                                                         self.disp_coordy_str: self.disp_coordy,
+                                                                         self.disp_coordx_str: self.disp_coordx,
+                                                                         self.disp_col_str: self.disp_col,
+                                                                         self.disp_row_str: self.disp_row,
+                                                                         self.disp_seg_str: self.disp_seg,
+                                                                         self.disp_quad_str: self.disp_quad,
+                                                                         self.disp_gain_str: self.disp_gain,
+                                                                         self.disp_commonMode_str: self.disp_commonMode,
+                                                                         self.disp_rms_str: self.disp_rms,
+                                                                         self.disp_status_str: self.disp_status,
+                                                                         self.disp_pedestal_str: self.disp_pedestal,
+                                                                         self.disp_photons_str: self.disp_photons,
+                                                                         self.disp_raw_str: self.disp_raw,
+                                                                         self.disp_pedestalCorrected_str: self.disp_pedestalCorrected,
+                                                                         self.disp_commonModeCorrected_str: self.disp_commonModeCorrected,
+                                                                         self.disp_adu_str: self.disp_adu},
                  'value': self.image_property, 'tip': "Choose image property to display"},
-                #{'name': self.disp_aduThresh_str, 'type': 'float', 'value': self.aduThresh,
-                # 'tip': "Only display ADUs above this threshold"},
                 {'name': self.disp_commonModeOverride_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
                  'readonly': True, 'children': [
                     {'name': self.disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode,
@@ -175,6 +195,8 @@ class ExperimentInfo(object):
         elif path[0] == self.disp_grp:
             if path[1] == self.disp_log_str:
                 self.updateLogscale(data)
+            elif path[1] == self.disp_aduPerPhoton_str:
+                self.updateAduPerPhoton(data)
             elif path[1] == self.disp_image_str:
                 self.updateImageProperty(data)
             #elif path[1] == self.disp_aduThresh_str:
@@ -517,7 +539,14 @@ class ExperimentInfo(object):
             self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
             self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateLogscale: ", self.logscaleOn
-    
+
+    def updateAduPerPhoton(self, data):
+        self.aduPerPhoton = data
+        if self.hasExpRunDetInfo() is True and self.image_property == self.disp_photons:
+            #self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
+            self.parent.img.updateImage()
+        if self.parent.args.v >= 1: print "Done updateAduPerPhoton: ", self.aduPerPhoton
+
     def updateImageProperty(self, data):
         self.image_property = data
         self.parent.img.updateImage()

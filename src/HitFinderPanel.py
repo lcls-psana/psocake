@@ -8,6 +8,7 @@ import h5py
 import operator
 import subprocess, time, os, json
 import LaunchHitConverter
+import HitFinder as alg
 
 def writeStatus(fname, d):
     json.dump(d, open(fname, 'w'))
@@ -21,8 +22,6 @@ class HitFinder(object):
         self.w19 = ParameterTree()
         self.d13.addWidget(self.w19)
         self.w20 = pg.LayoutWidget()
-        #self.launchSpiBtn = QtGui.QPushButton('Launch hit finder')
-        #self.w20.addWidget(self.launchSpiBtn, row=1, col=0)
         self.d13.addWidget(self.w20)
 
         # Hit finding
@@ -39,7 +38,6 @@ class HitFinder(object):
         self.spiParam_alg2_hitThreshold_str = 'Number of pixels for a hit'
 
         self.spiParam_outDir_str = 'Output directory'
-        #self.spiParam_tag_str = 'Filename tag'
         self.spiParam_runs_str = 'Run(s)'
         self.spiParam_queue_str = 'queue'
         self.spiParam_cpu_str = 'CPUs'
@@ -59,36 +57,28 @@ class HitFinder(object):
         self.hitParam_save_str = 'Save hits'
 
         # Init hit finding
+        self.nPixels = 0
         self.spiAlgorithm = 2
-
         self.spiParam_alg1_pruneInterval = 0
         self.spiParam_alg2_threshold = 30
-        #self.spiParam_alg2_hitThreshold = 15000
-
         self.spiParam_outDir = self.parent.psocakeDir
         self.spiParam_outDir_overridden = False
-        #self.spiParam_tag = None
         self.spiParam_runs = ''
         self.spiParam_queue = self.spiParam_psanaq_str
         self.spiParam_cpus = 24
         self.spiParam_noe = -1
-
         self.hitParam_threshMin = 0
         self.hitParam_sample = "sample"
 
         self.params = [
             {'name': self.spiParam_grp, 'type': 'group', 'children': [
                 {'name': self.spiParam_algorithm_str, 'type': 'list', 'values': {self.spiParam_algorithm2_str: 2,
-                                                                            #self.spiParam_algorithm1_str: 1,
                                                                                  self.spiParam_algorithm0_str: 0},
                                                                             'value': self.spiAlgorithm},
                 {'name': self.spiParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': self.spiParam_alg2_threshold_str, 'type': 'float', 'value': self.spiParam_alg2_threshold, 'tip': "search for pixels above ADU per photon"},
-                    #{'name': self.spiParam_alg2_hitThreshold_str, 'type': 'float', 'value': self.spiParam_alg2_hitThreshold,
-                    # 'tip': "Number of pixels with photons considered to be a hit"},
                 ]},
                 {'name': self.spiParam_outDir_str, 'type': 'str', 'value': self.spiParam_outDir},
-                #{'name': self.spiParam_tag_str, 'type': 'str', 'value': self.spiParam_tag, 'tip': "(Optional) identifying string to attach to filename"},
                 {'name': self.spiParam_runs_str, 'type': 'str', 'value': self.spiParam_runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
                 {'name': self.spiParam_queue_str, 'type': 'list', 'values': {self.spiParam_psfehhiprioq_str: 'psfehhiprioq',
                                                                              self.spiParam_psnehhiprioq_str: 'psnehhiprioq',
@@ -112,8 +102,6 @@ class HitFinder(object):
                                    children=self.params, expanded=True)
         self.w19.setParameters(self.p8, showTop=False)
         self.p8.sigTreeStateChanged.connect(self.change)
-        #self.parent.connect(self.launchSpiBtn, QtCore.SIGNAL("clicked()"), self.findHits)
-
 
     # Launch hit finding
     def findHits(self):
@@ -147,8 +135,6 @@ class HitFinder(object):
             elif path[1] == self.spiParam_outDir_str:
                 self.spiParam_outDir = data
                 self.spiParam_outDir_overridden = True
-            #elif path[1] == self.spiParam_tag_str:
-            #    self.spiParam_tag = data
             elif path[1] == self.spiParam_runs_str:
                 self.spiParam_runs = data
             elif path[1] == self.spiParam_queue_str:
@@ -159,12 +145,9 @@ class HitFinder(object):
                 self.spiParam_noe = data
             elif path[1] == self.spiParam_launch_str:
                 self.findHits()
-            #elif path[2] == self.spiParam_alg1_pruneInterval_str and path[1] == self.spiParam_algorithm1_str:
-            #    self.spiParam_alg1_pruneInterval = data
             elif path[2] == self.spiParam_alg2_threshold_str and path[1] == self.spiParam_algorithm2_str:
                 self.spiParam_alg2_threshold = data
-            #elif path[2] == self.spiParam_alg2_hitThreshold_str and path[1] == self.spiParam_algorithm2_str:
-            #    self.spiParam_alg2_hitThreshold = data
+                self.updateHit()
         elif path[0] == self.hitParam_grp:
             if path[1] == self.hitParam_threshMin_str:
                 self.hitParam_threshMin = data
@@ -172,3 +155,46 @@ class HitFinder(object):
                 self.hitParam_sample = data
             elif path[1] == self.hitParam_save_str:
                 self.setThreshold()
+
+    def updateHit(self):
+        # Save a temporary mask
+        if self.parent.mk.userMask is None:
+            userMask = None
+        else:
+            userMask = self.parent.psocakeDir + "/r" + str(self.parent.runNumber).zfill(4) + "/tempUserMask.npy"
+            np.save(userMask, self.parent.mk.userMask)
+
+        worker = alg.HitFinder(self.parent.experimentName,
+                               self.parent.runNumber,
+                               self.parent.detInfo,
+                               self.parent.evt,
+                               self.parent.det,
+                               self.spiParam_alg2_threshold,
+                               streakMask_on=str(self.parent.mk.streakMaskOn),
+                               streakMask_sigma=self.parent.mk.streak_sigma,
+                               streakMask_width=self.parent.mk.streak_width,
+                               userMask_path=userMask,
+                               psanaMask_on=str(self.parent.mk.psanaMaskOn),
+                               psanaMask_calib=str(self.parent.mk.mask_calibOn),
+                               psanaMask_status=str(self.parent.mk.mask_statusOn),
+                               psanaMask_edges=str(self.parent.mk.mask_edgesOn),
+                               psanaMask_central=str(self.parent.mk.mask_centralOn),
+                               psanaMask_unbond=str(self.parent.mk.mask_unbondOn),
+                               psanaMask_unbondnrs=str(self.parent.mk.mask_unbondnrsOn))
+        worker.findHits(self.parent.calib, self.parent.evt)
+        self.nPixels = worker.nPixels
+        self.indicatePhotons()
+        if self.parent.args.v >= 1: print "self.nPixels: ", self.nPixels
+
+    def indicatePhotons(self):
+        self.parent.img.clearPeakMessage()
+        # Write number of pixels found containing photons
+        xMargin = 5  # pixels
+        yMargin = 0  # pixels
+        maxX = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+        maxY = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
+        myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Pixels=' + \
+                    str(self.nPixels) + ' <br></span></div>'
+        self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+        self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
+        self.parent.img.peak_text.setPos(maxX, maxY)

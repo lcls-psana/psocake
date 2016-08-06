@@ -30,13 +30,34 @@ class ImageViewer(object):
         self.w1.getView().addItem(self.indexedPeak_feature)
         self.w1.getView().addItem(self.z_direction)
         self.w1.getView().addItem(self.z_direction1)
-        self.abc_text = pg.TextItem(html='', anchor=(0,0))
+        self.abc_text = pg.TextItem(html='', anchor=(0,0)) # unit cell display
         self.w1.getView().addItem(self.abc_text)
-        self.peak_text = pg.TextItem(html='', anchor=(0,0))
+        self.peak_text = pg.TextItem(html='', anchor=(0,0)) # peak display
         self.w1.getView().addItem(self.peak_text)
+
+        # # Isocurve drawing
+        # self.iso = pg.IsocurveItem(level=0.8, pen='r')
+        # self.iso.setParentItem(self.img_feature)
+        # self.iso.setZValue(2)
+        # # Contrast/color control
+        # self.hist = pg.HistogramLUTItem()
+        # self.hist.setImageItem(self.img_feature)
+        # self.w1.getView().addItem(self.hist)
+        # # Draggable line for setting isocurve level
+        # self.isoLine = pg.InfiniteLine(angle=0, movable=True, pen='g')
+        # self.hist.vb.addItem(self.isoLine)
+        # self.hist.vb.setMouseEnabled(y=False)  # makes user interaction a little easier
+        # self.isoLine.setValue(1.8)
+        # self.isoLine.setZValue(1000)  # bring iso line above contrast controls
+
         self.d1.addWidget(self.w1)
 
         self.drawLabCoordinates()  # FIXME: This does not match the lab coordinates yet!
+
+    def clearPeakMessage(self):
+        self.w1.getView().removeItem(self.peak_text)
+        self.peak_feature.setData([], [], pxMode=False)
+        if self.parent.args.v >= 1: print "Done clearPeakMessage"
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (0,0) # no offset
@@ -46,10 +67,10 @@ class ImageViewer(object):
         headLen=30
         tailLen=30-cutoff
         xArrow = pg.ArrowItem(angle=180, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='b', pxMode=False)
-        xArrow.setPos(2*headLen+cenX,0+cenY)
+        xArrow.setPos(2*headLen+cenX, 0+cenY)
         self.w1.getView().addItem(xArrow)
         yArrow = pg.ArrowItem(angle=-90, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='r', pxMode=False)
-        yArrow.setPos(0+cenX,2*headLen+cenY)
+        yArrow.setPos(0+cenX, 2*headLen+cenY)
         self.w1.getView().addItem(yArrow)
 
         # Lab coordinates: Add z-direction
@@ -213,7 +234,10 @@ class ImageViewer(object):
                     calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
                 self.parent.firstUpdate = True
             elif self.parent.exp.image_property == 5: # photon counts
-                print "Sorry, this feature is not available"
+                calib = self.parent.det.photons(self.parent.evt, mask=self.parent.mk.userMask, adu_per_photon=self.parent.exp.aduPerPhoton)
+                if calib is None:
+                    calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='int32')
+                self.parent.firstUpdate = True
             elif self.parent.exp.image_property == 6: # pedestal
                 calib = self.parent.det.pedestals(self.parent.evt)
                 self.parent.firstUpdate = True

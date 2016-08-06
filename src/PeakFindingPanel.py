@@ -626,13 +626,8 @@ class PeakFinding(object):
         if self.parent.args.v >= 1: print "maxRes: ", maxRes
         return maxRes # in pixels
 
-    def clearPeakMessage(self):
-        self.parent.img.w1.getView().removeItem(self.parent.img.peak_text)
-        self.parent.img.peak_feature.setData([], [], pxMode=False)
-        if self.parent.args.v >= 1: print "Done clearPeakMessage"
-
     def drawPeaks(self):
-        self.clearPeakMessage()
+        self.parent.img.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
                 try:

@@ -289,6 +289,7 @@ class CrystalIndexing(object):
             self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done updatePeaks"
 
+    # This function probably doesn't get called
     def launchIndexing(self, requestRun=None):
         self.batchIndexer = IndexHandler(parent=self.parent)
         if requestRun is None:

@@ -438,16 +438,6 @@ class MainFrame(QtGui.QWidget):
         if path[0] == self.small.quantifier_grp:
             self.small.paramUpdate(path, change, data)
         ################################################
-        # manifold parameters
-        ################################################
-        #if path[0] == manifold_grp:
-        #    if path[1] == manifold_filename_str:
-        #        self.updateManifoldFilename(data)
-        #    elif path[1] == manifold_dataset_str:
-        #        self.updateManifoldDataset(data)
-        #    elif path[1] == manifold_sigma_str:
-        #        self.updateManifoldSigma(data)
-        ################################################
         # masking parameters
         ################################################
         if path[0] == self.mk.mask_grp or path[0] == self.mk.powder_grp:
