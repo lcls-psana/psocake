@@ -50,20 +50,21 @@ class ImageControl(object):
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
 
     def save(self):
-        outputName = self.parent.psocakeRunDir+"/psocake_"+str(self.parent.experimentName)+"_"+str(self.parent.runNumber)+"_"+str(self.parent.detInfo)+"_" \
+        output = self.parent.psocakeRunDir+"/psocake_"+str(self.parent.experimentName)+"_"+str(self.parent.runNumber)+"_"+str(self.parent.detInfo)+"_" \
                      +str(self.parent.eventNumber)+"_"+str(self.parent.exp.eventSeconds)+"_"+str(self.parent.exp.eventNanoseconds)+"_" \
-                     +str(self.parent.exp.eventFiducial)+".npy"
-        fname = QtGui.QFileDialog.getSaveFileName(self.parent, 'Save file', outputName, 'ndarray image (*.npy)')
-        if self.parent.exp.logscaleOn:
-            np.save(str(fname),np.log10(abs(self.parent.calib) + self.parent.eps))
+                     +str(self.parent.exp.eventFiducial)
+        outputUnassem = output + "_unassembled.npy"
+        outputAssem = output + "_assembled.npy"
+        #fname = QtGui.QFileDialog.getSaveFileName(self.parent, 'Save file', outputUnassem, 'ndarray image (*.npy)')
+        if self.parent.calib.size==2*185*388: # cspad2x2
+            asData2x2 = two2x1ToData2x2(self.parent.calib)
+            np.save(str(outputUnassem),asData2x2)
+            np.savetxt(str(outputUnassem).split('.')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
         else:
-            if self.parent.calib.size==2*185*388: # cspad2x2
-                asData2x2 = two2x1ToData2x2(self.parent.calib)
-                np.save(str(fname),asData2x2)
-                np.savetxt(str(fname).split('.')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
-            else:
-                np.save(str(fname),self.parent.calib)
-                np.savetxt(str(fname).split('.')[0]+".txt", self.parent.calib.reshape((-1,self.parent.calib.shape[-1])) )#,fmt='%0.18e')
+            np.save(str(outputUnassem),self.parent.calib)
+            np.savetxt(str(outputUnassem).split('.')[0]+".txt", self.parent.calib.reshape((-1,self.parent.calib.shape[-1])) )#,fmt='%0.18e')
+        # Save assembled
+        np.save(str(outputAssem), self.parent.det.image(self.parent.evt, self.parent.calib))
 
     def load(self):
         fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
