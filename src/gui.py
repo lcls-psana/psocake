@@ -34,8 +34,6 @@ import os.path
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
 import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
 import ImageControlPanel, MousePanel, ImageStackPanel
-import LaunchPeakFinder, LaunchIndexer, LaunchStackProducer
-import matplotlib.pyplot as plt
 import _colorScheme as color
 from _version import __version__
 

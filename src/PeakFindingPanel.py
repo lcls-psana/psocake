@@ -540,7 +540,7 @@ class PeakFinding(object):
                                            rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
             for peak in self.peaks:
                 seg, row, col, npix, amax, atot = peak[0:6]
-                if self.parent.args.v >= 1: print (seg, row, col, npix, atot)
+                #if self.parent.args.v >= 1: print (seg, row, col, npix, atot)
             self.numPeaksFound = self.peaks.shape[0]
 
             fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'
@@ -550,13 +550,14 @@ class PeakFinding(object):
                     #    print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
                     #                 rmin, rmax, cmin, cmax, bkgd, rms, son)
                     if self.parent.isCspad:
-                        cheetahRow,cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
+                        cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
             if self.parent.args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000. # metres
                 if self.parent.args.v >= 1: print "$ updateClassification clen (m): ", self.parent.clen
             self.parent.index.clearIndexedPeaks()
 
+            # Save image and peaks in cheetah cxi file
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 maxNumPeaks = 2048
                 myHdf5 = h5py.File(self.parent.index.hiddenCXI, 'w')
@@ -607,8 +608,7 @@ class PeakFinding(object):
                 dset[0,:,:] = img
                 myHdf5.close()
 
-            if self.parent.index.showIndexedPeaks:
-                self.parent.index.updateIndex()
+            if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 
             self.drawPeaks()
 
@@ -630,19 +630,24 @@ class PeakFinding(object):
         self.parent.img.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
-                try:
-                    ix = self.parent.det.indexes_x(self.parent.evt)
-                    iy = self.parent.det.indexes_y(self.parent.evt)
-                    if ix is None:
-                        iy = np.tile(np.arange(self.parent.calib.shape[0]),[self.parent.calib.shape[1], 1])
-                        ix = np.transpose(iy)
-                    iX = np.array(ix, dtype=np.int64)
-                    iY = np.array(iy, dtype=np.int64)
-                    if len(iX.shape)==2:
-                        iX = np.expand_dims(iX,axis=0)
-                        iY = np.expand_dims(iY,axis=0)
-                    cenX = iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-                    cenY = iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                if 1:#try:
+                    self.ix = self.parent.det.indexes_x(self.parent.evt)
+                    self.iy = self.parent.det.indexes_y(self.parent.evt)
+                    print "*** ix: ", self.ix.shape
+                    if self.ix is None:
+                        self.iy = np.tile(np.arange(self.parent.calib.shape[0]),[self.parent.calib.shape[1], 1])
+                        self.ix = np.transpose(self.iy)
+                    self.iX = np.array(self.ix, dtype=np.int64)
+                    self.iY = np.array(self.iy, dtype=np.int64)
+                    print "@@ iX: ", self.iX.shape
+                    if len(self.iX.shape)==2:
+                        print "@@@ iX: ", self.iX, self.iX.shape
+                        self.iX = np.expand_dims(self.iX,axis=0)
+                        self.iY = np.expand_dims(self.iY,axis=0)
+                    print "##### iX: ", self.iX, self.iX.shape
+                    print "%%% peaks: ", self.peaks, self.peaks.shape
+                    cenX = self.iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                    cenY = self.iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                     self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
                     diameter = self.peakRadius*2+1
                     self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
@@ -658,8 +663,8 @@ class PeakFinding(object):
                     self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
                     self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
                     self.parent.img.peak_text.setPos(maxX, maxY)
-                except:
-                    pass
+                #except:
+                #    pass
             else:
                 self.parent.img.peak_feature.setData([], [], pxMode=False)
                 self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))

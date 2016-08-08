@@ -55,6 +55,8 @@ class ImageControl(object):
                      +str(self.parent.exp.eventFiducial)
         outputUnassem = output + "_unassembled.npy"
         outputAssem = output + "_assembled.npy"
+        print "##########################################"
+        print "Saving unassembled image: ", outputUnassem
         #fname = QtGui.QFileDialog.getSaveFileName(self.parent, 'Save file', outputUnassem, 'ndarray image (*.npy)')
         if self.parent.calib.size==2*185*388: # cspad2x2
             asData2x2 = two2x1ToData2x2(self.parent.calib)
@@ -64,6 +66,9 @@ class ImageControl(object):
             np.save(str(outputUnassem),self.parent.calib)
             np.savetxt(str(outputUnassem).split('.')[0]+".txt", self.parent.calib.reshape((-1,self.parent.calib.shape[-1])) )#,fmt='%0.18e')
         # Save assembled
+        print "##########################################"
+        print "Saving assembled image: ", outputAssem
+        print "##########################################"
         np.save(str(outputAssem), self.parent.det.image(self.parent.evt, self.parent.calib))
 
     def load(self):

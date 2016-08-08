@@ -18,23 +18,23 @@ class MaskMaker(object):
         self.d12.addWidget(self.w17)
         self.w18 = pg.LayoutWidget()
         self.maskRectBtn = QtGui.QPushButton('Stamp rectangular mask')
-        self.w18.addWidget(self.maskRectBtn, row=0, col=0, colspan=2)
+        self.w18.addWidget(self.maskRectBtn, row=0, col=0)#, colspan=2)
         self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
-        self.w18.addWidget(self.maskCircleBtn, row=1, col=0, colspan=2)
+        self.w18.addWidget(self.maskCircleBtn, row=0, col=1)#, colspan=2)
         self.maskThreshBtn = QtGui.QPushButton('Mask outside histogram')
-        self.w18.addWidget(self.maskThreshBtn, row=2, col=0, colspan=2)
-        #self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
-        #self.w18.addWidget(self.maskPolyBtn, row=2, col=0, colspan=2)
+        self.w18.addWidget(self.maskThreshBtn, row=1, col=1)#, colspan=2)
+        self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
+        self.w18.addWidget(self.maskPolyBtn, row=1, col=0)#, colspan=2)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.deployMaskBtn.setText('Save static mask')
-        self.w18.addWidget(self.deployMaskBtn, row=3, col=0)
+        self.w18.addWidget(self.deployMaskBtn, row=2, col=0)
         self.loadMaskBtn = QtGui.QPushButton()
         self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.loadMaskBtn.setText('Load mask')
-        self.w18.addWidget(self.loadMaskBtn, row=3, col=1)
+        self.w18.addWidget(self.loadMaskBtn, row=2, col=1)
         self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
-        self.w18.addWidget(self.generatePowderBtn, row=4, col=0, colspan=2)
+        self.w18.addWidget(self.generatePowderBtn, row=3, col=0, colspan=2)
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
@@ -82,7 +82,7 @@ class MaskMaker(object):
         self.display_data = None
         self.mask_rect = None
         self.mask_circle = None
-        #self.mask_poly = None
+        self.mask_poly = None
         self.powder_outDir = self.parent.psocakeDir
         self.powder_runs = ''
         self.powder_queue = self.parent.pk.hitParam_psanaq_str
@@ -151,7 +151,7 @@ class MaskMaker(object):
         self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
         self.parent.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.makeMaskCircle)
         self.parent.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.makeMaskThresh)
-        #self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
+        self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
         self.parent.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.deployMask)
         self.parent.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.loadMask)
 
@@ -297,7 +297,7 @@ class MaskMaker(object):
             # remove ROIs
             self.parent.img.w1.getView().removeItem(self.mask_rect)
             self.parent.img.w1.getView().removeItem(self.mask_circle)
-            # self.parent.img.w1.getView().removeItem(self.mask_poly)
+            self.parent.img.w1.getView().removeItem(self.mask_poly)
         else:
             # display text
             self.parent.label.setText(self.masking_mode_message)
@@ -312,15 +312,15 @@ class MaskMaker(object):
                 self.mask_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
                 self.mask_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
-                self.mask_circle = pg.CircleROI([-300, 300], size=[200, 200], snapSize=1.0, scaleSnap=True,
+                self.mask_circle = pg.CircleROI([-300, 600], size=[200, 200], snapSize=1.0, scaleSnap=True,
                                                 translateSnap=True, pen={'color': 'c', 'width': 4})
                 # Polygon mask
-                # self.mask_poly = pg.PolyLineROI([[-300, 600], [-100, 700], [-300, 800]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
+                self.mask_poly = pg.PolyLineROI([[-300, 300], [-300,500], [-100,500], [-100,400], [-225,400], [-225,300]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 
             # add ROIs
             self.parent.img.w1.getView().addItem(self.mask_rect)
             self.parent.img.w1.getView().addItem(self.mask_circle)
-            # self.parent.img.w1.getView().addItem(self.mask_poly)
+            self.parent.img.w1.getView().addItem(self.mask_poly)
         if self.parent.args.v >= 1: print "Done updateMaskingMode: ", self.maskingMode
 
     def updatePsanaMaskFlag(self, flag, data):
@@ -395,7 +395,7 @@ class MaskMaker(object):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.parent.data[_userMaskInd] + (np.max(self.parent.data) - self.parent.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
         if self.display_data is not None:
             self.parent.img.w1.setImage(self.display_data, autoRange=False, autoLevels=False, autoHistogramRange=False)
-        if self.parent.args.v >= 1: print "Done drawing"
+        if self.parent.args.v >= 1: print "Done displayMask"
 
     # mask
     def makeMaskRect(self):
@@ -484,45 +484,26 @@ class MaskMaker(object):
     def makeMaskPoly(self):
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
-            calib = np.ones_like(self.calib)
+            calib = np.ones_like(self.parent.calib)
             img = self.parent.det.image(self.parent.evt, calib)
             # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
             self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
 
-            # plt.imshow(self.selected, vmax=1, vmin=0)
-            # plt.show()
+            #import matplotlib.pyplot as plt
+            #plt.imshow(self.selected, vmax=1, vmin=0)
+            #plt.show()
 
             self.selected = 1 - self.selected
 
             x = self.mask_poly.parentBounds().x()
             y = self.mask_poly.parentBounds().y()
-            sx = self.mask_poly.parentBounds().size().height()
-            sy = self.mask_poly.parentBounds().size().width()
-            # print "x,y: ", x, y, sx, sy, self.parent.data.shape[0], self.parent.data.shape[1]
-            localx = 0
-            localy = 0
-            newx = x
-            newy = y
-            newsx = sx
-            newsy = sy
-            if x < 0:  # if mask is outside detector
-                localx = -x
-                newx = 0
-                newsx += x
-            if y < 0:
-                localy = -y
-                newy = 0
-                newsy += y
-            if x + sx >= self.parent.data.shape[0]:
-                newsx = self.parent.data.shape[0] - x
-            if y + sy >= self.parent.data.shape[1]:
-                newsy = self.parent.data.shape[1] - y
+            #sx = self.mask_poly.parentBounds().size().height()
+            #sy = self.mask_poly.parentBounds().size().width()
+            #print "x,y: ", x, y, sx, sy#, self.parent.data.shape[0], self.parent.data.shape[1]
 
             _mask = np.ones_like(img)
-            a = _mask[newx:(newx + newsx), newy:(newy + newsy)]
-            b = self.selected[localx:(localx + newsx), localy:(localy + newsy)]
-            _mask[newx:(newx + newsx), newy:(newy + newsy)] = self.selected[1:,
-                                                              1:]  # [localx:(localx+newsx),localy:(localy+newsy)]
+            if x >= 0 and y >= 0:
+                _mask[x:x+self.selected.shape[0],y:y+self.selected.shape[1]] = self.selected
 
             if self.maskingMode == 1:  # masking mode
                 self.userMaskAssem *= _mask
