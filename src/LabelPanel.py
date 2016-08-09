@@ -59,49 +59,49 @@ class Labels(object):
         if path[1] == self.labels_A_str:
             self.labelA = data
             if data:
-                dset[self.parent.eventNumber] = np.array([1,dset[self.parent.eventNumber][1], dset[self.parent.eventNumber][2]])
+                dset[self.parent.eventNumber] = 1
             else:
-                dset[self.parent.eventNumber] = np.array([0,dset[self.parent.eventNumber][1], dset[self.parent.eventNumber][2]])
+                dset[self.parent.eventNumber] = 0
         elif path[1] == self.labels_B_str:
             self.labelB = data
             if data:
-                dset[self.parent.eventNumber] = np.array([dset[self.parent.eventNumber][0],1, dset[self.parent.eventNumber][2]])
+                dset[self.parent.eventNumber] = 2
             else:
-                dset[self.parent.eventNumber] = np.array([dset[self.parent.eventNumber][0],0, dset[self.parent.eventNumber][2]])
+                dset[self.parent.eventNumber] = 0
         elif path[1] == self.labels_C_str:
             self.labelC = data
             if data:
-                dset[self.parent.eventNumber] = np.array([dset[self.parent.eventNumber][0],dset[self.parent.eventNumber][1], 1])
+                dset[self.parent.eventNumber] = 3
             else:
-                dset[self.parent.eventNumber] = np.array([dset[self.parent.eventNumber][0],dset[self.parent.eventNumber][1], 0])
+                dset[self.parent.eventNumber] = 0
 
     def refresh(self):
+        fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_labels.h5'
         global dset
         dataSetFound = False
         if self.parent.runNumber > 0:
-            if os.path.exists('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber)):
-               labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'r+', dtype = 'i8')
+            if os.path.exists(fname):
+               labels = h5py.File(fname, 'r+', dtype = 'i8')
                dataSetFound = True
             else:
-               labels = h5py.File('%s/Exp%sRun%d.hdf5' %(self.parent.psocakeRunDir,self.parent.experimentName,self.parent.runNumber), 'x', dtype = 'i8')
+               labels = h5py.File(fname, 'x', dtype = 'i8')
             if not dataSetFound:
-               dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
+               dset = labels.create_dataset("labels", (self.parent.exp.eventTotal, 1))
             else:
                 try:
-                    dset = labels["labelsDataSet"]
+                    dset = labels["labels"]
                 except: # corrupt dataset, so create a new one
-                    dset = labels.create_dataset("labelsDataSet", (self.parent.exp.eventTotal, 3))
+                    dset = labels.create_dataset("labels", (self.parent.exp.eventTotal, 1))
             #print dset.shape
-            self.labelA = dset[self.parent.eventNumber][0]
-            self.labelB = dset[self.parent.eventNumber][1]
-            self.labelC = dset[self.parent.eventNumber][2]
-            if dset[self.parent.eventNumber][0] == 1:
-                self.labelA = True
-            elif dset[self.parent.eventNumber][1] == 1:
-                self.labelB = True
-            elif dset[self.parent.eventNumber][2] == 1:
-                self.labelC = True
+            self.labelA = False
+            self.labelB = False
             self.labelC = False
+            if dset[self.parent.eventNumber] == 1:
+                self.labelA = True
+            elif dset[self.parent.eventNumber] == 2:
+                self.labelB = True
+            elif dset[self.parent.eventNumber] == 3:
+                self.labelC = True
             self.pLabels.param(self.labels_grp, self.labels_A_str).setValue(self.labelA)
             self.pLabels.param(self.labels_grp, self.labels_B_str).setValue(self.labelB)
             self.pLabels.param(self.labels_grp, self.labels_C_str).setValue(self.labelC)

@@ -450,6 +450,7 @@ class MainFrame(QtGui.QWidget):
         ################################################
         if path[0] == self.evtLabels.labels_grp:
             self.evtLabels.paramUpdate(path, change, data)
+            self.evtLabels.refresh()
 
 def main():
     global ex
