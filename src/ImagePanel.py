@@ -3,7 +3,8 @@ import pyqtgraph as pg
 import numpy as np
 import time, psana, datetime
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
-from PSCalib.GeometryAccess import GeometryAccess
+from pyimgalgos.MedianFilter import median_filter_ndarr
+#from PSCalib.GeometryAccess import GeometryAccess
 
 class ImageViewer(object):
     def __init__(self, parent = None):
@@ -219,7 +220,7 @@ class ImageViewer(object):
         self.parent.geom.findPsanaGeometry()
         if self.parent.geom.calibFile is not None:
             if self.parent.args.v >= 1: print "calibFile: ", self.parent.geom.calibPath+'/'+self.parent.geom.calibFile
-            self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
+            self.geo = self.parent.det.geometry(self.parent.runNumber) #self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
             self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
             self.iX, self.iY = self.geo.get_pixel_coord_indexes()
             self.mask = self.geo.get_pixel_mask(mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
@@ -236,12 +237,15 @@ class ImageViewer(object):
     def getDetImage(self, evtNumber, calib=None):
         if calib is None:
             if self.parent.exp.image_property == self.parent.exp.disp_medianCorrection:  # median subtraction
-                print "Sorry, this feature isn't available yet"
+                calib = self.getCalib(evtNumber)
+                if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                calib -= median_filter_ndarr(calib, self.parent.exp.medianFilterRank)
             elif self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:  # radial subtraction + polarization corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-                self.pf.shape = self.parent.calib.shape
+                self.pf.shape = calib.shape # FIXME: shape is 1d
                 calib = self.rb.subtract_bkgd(calib * self.pf)
+                calib.shape = self.parent.calib.shape # FIXME: shape is 1d
             elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')

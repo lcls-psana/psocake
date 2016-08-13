@@ -72,9 +72,11 @@ class ExperimentInfo(object):
         self.disp_commonModeParam3_str = 'parameters 3'
         self.disp_medianCorrection_str = 'median background corrected ADU'
         self.disp_radialCorrection_str = 'radial background corrected ADU'
+        self.disp_medianFilterRank_str = 'median filter rank'
 
         self.logscaleOn = False
         self.aduPerPhoton = 1.
+        self.medianFilterRank = 5
 
         # image properties
         self.disp_medianCorrection = 19
@@ -131,6 +133,7 @@ class ExperimentInfo(object):
             {'name': self.disp_grp, 'type': 'group', 'children': [
                 {'name': self.disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
                 {'name': self.disp_aduPerPhoton_str, 'type': 'float', 'value': self.aduPerPhoton, 'tip': "ADUs per photon is used for photon conversion"},
+                {'name': self.disp_medianFilterRank_str, 'type': 'int', 'value': self.medianFilterRank, 'tip': "Window size for median filter"},
                 {'name': self.disp_image_str, 'type': 'list', 'values': {self.disp_medianCorrection_str: self.disp_medianCorrection,
                                                                          self.disp_radialCorrection_str: self.disp_radialCorrection,
                                                                          self.disp_gainMask_str: self.disp_gainMask,
@@ -204,6 +207,8 @@ class ExperimentInfo(object):
                 self.updateLogscale(data)
             elif path[1] == self.disp_aduPerPhoton_str:
                 self.updateAduPerPhoton(data)
+            elif path[1] == self.disp_medianFilterRank_str:
+                self.updateMedianFilter(data)
             elif path[1] == self.disp_image_str:
                 self.updateImageProperty(data)
             elif path[2] == self.disp_commonModeParam0_str:
@@ -555,6 +560,13 @@ class ExperimentInfo(object):
             #self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
             self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateAduPerPhoton: ", self.aduPerPhoton
+
+    def updateMedianFilter(self, data):
+        self.medianFilterRank = data
+        if self.hasExpRunDetInfo() is True and self.image_property == self.disp_medianCorrection:
+            # self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
+            self.parent.img.updateImage()
+        if self.parent.args.v >= 1: print "Done updateMedianFilter: ", self.medianFilterRank
 
     def updateImageProperty(self, data):
         self.image_property = data

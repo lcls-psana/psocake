@@ -49,6 +49,8 @@ parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
 parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
 parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
+parser.add_argument("--medianBackground",help="subtract median background",default=0, type=int)
+parser.add_argument("--radialBackground",help="subtract radial background",default=0, type=int)
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 
 args = parser.parse_args()

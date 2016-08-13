@@ -78,52 +78,76 @@ class psanaWhisperer():
     # TODO: Functions below are not being used yet
     #####################################################################
     def findPsanaGeometry(self):
-        self.source = psana.Detector.PyDetector.map_alias_to_source(self.detInfo,
-                                                              self.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
-        self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
-        self.detectorType = gu.det_type_from_source(self.source)  # 1
-        self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
-        self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
-        if self.args.localCalib:
-            self.calibPath = "./calib/" + self.calibGroup + "/" + self.calibSource + "/geometry"
-        else:
-            self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \
-                             "/" + self.parent.experimentName + "/calib/" + \
-                             self.calibGroup + "/" + self.calibSource + "/geometry"
+        try:
+            self.source = psana.Detector.PyDetector.map_alias_to_source(self.detInfo,
+                                                                  self.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
+            self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
+            self.detectorType = gu.det_type_from_source(self.source)  # 1
+            self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
+            self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
+            if self.args.localCalib:
+                self.calibPath = "./calib/" + self.calibGroup + "/" + self.calibSource + "/geometry"
+            else:
+                self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \
+                                 "/" + self.parent.experimentName + "/calib/" + \
+                                 self.calibGroup + "/" + self.calibSource + "/geometry"
 
-        # Determine which calib file to use
-        geometryFiles = os.listdir(self.calibPath)
-        self.calibFile = None
-        minDiff = -1e6
-        for fname in geometryFiles:
-            if fname.endswith('.data'):
-                endValid = False
-                startNum = int(fname.split('-')[0])
-                endNum = fname.split('-')[-1].split('.data')[0]
-                diff = startNum - self.parent.runNumber
-                # Make sure it's end number is valid too
-                if 'end' in endNum:
-                    endValid = True
-                else:
-                    try:
-                        if self.parent.runNumber <= int(endNum):
-                            endValid = True
-                    except:
-                        continue
-                if diff <= 0 and diff > minDiff and endValid is True:
-                    minDiff = diff
-                    self.calibFile = fname
+            # Determine which calib file to use
+            geometryFiles = os.listdir(self.calibPath)
+            self.calibFile = None
+            minDiff = -1e6
+            for fname in geometryFiles:
+                if fname.endswith('.data'):
+                    endValid = False
+                    startNum = int(fname.split('-')[0])
+                    endNum = fname.split('-')[-1].split('.data')[0]
+                    diff = startNum - self.parent.runNumber
+                    # Make sure it's end number is valid too
+                    if 'end' in endNum:
+                        endValid = True
+                    else:
+                        try:
+                            if self.parent.runNumber <= int(endNum):
+                                endValid = True
+                        except:
+                            continue
+                    if diff <= 0 and diff > minDiff and endValid is True:
+                        minDiff = diff
+                        self.calibFile = fname
+        except:
+            print "Couldn't find psana geometry"
+            self.calibFile = None
 
     def setupRadialBackground(self):
         self.findPsanaGeometry()
-        self.geo = GeometryAccess(self.calibPath+'/'+self.calibFile)
-        self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
-        self.iX, self.iY = self.geo.get_pixel_coord_indexes()
-        self.mask = self.geo.get_pixel_mask(mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
-        self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100, phiedges=(0, 360), nphibins=1)
+        if self.calibFile is not None:
+            self.geo = GeometryAccess(self.calibPath+'/'+self.calibFile)
+            self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
+            self.iX, self.iY = self.geo.get_pixel_coord_indexes()
+            self.mask = self.geo.get_pixel_mask(mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
+            self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100, phiedges=(0, 360), nphibins=1)
+        else:
+            self.rb = None
 
     def updatePolarizationFactor(self, detectorDistance_in_m):
-        self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), detectorDistance_in_m*1e6) # convert to um
+        if self.rb is not None:
+            self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), detectorDistance_in_m*1e6) # convert to um
+
+    def getCalib(self, evtNumber):
+        if self.run is not None:
+            self.evt = self.getEvent(evtNumber)
+            if self.applyCommonMode: # play with different common mode
+                if self.commonMode[0] == 5: # Algorithm 5
+                    calib = self.det.calib(self.evt,cmpars=(self.commonMode[0], self.commonMode[1]))
+                else: # Algorithms 1 to 4
+                    print "### Overriding common mode: ", self.commonMode
+                    calib = self.det.calib(self.evt,cmpars=(self.commonMode[0], self.commonMode[1],
+                                                          self.commonMode[2], self.commonMode[3]))
+            else:
+                calib = self.det.calib(self.evt)
+            return calib
+        else:
+            return None
 
     def getPreprocessedImage(self, evtNumber, image_property):
         disp_medianCorrection = 19
@@ -150,29 +174,21 @@ class psanaWhisperer():
             print "Sorry, this feature isn't available yet"
         elif image_property == disp_radialCorrection:  # radial subtraction + polarization corrected
             self.getEvent(evtNumber)
-            calib = self.det.calib(self.evt, self.det.calib(self.evt))
             calib = self.getCalib(evtNumber)
-            if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            self.pf.shape = self.parent.calib.shape
-            calib = self.rb.subtract_bkgd(calib * self.pf)
+            if calib:
+                self.pf.shape = self.parent.calib.shape
+                calib = self.rb.subtract_bkgd(calib * self.pf)
         elif image_property == disp_adu:  # gain and hybrid gain corrected
             calib = self.getCalib(evtNumber)
-            if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
         elif image_property == disp_commonModeCorrected:  # common mode corrected
             calib = self.getCommonModeCorrected(evtNumber)
-            if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
         elif image_property == disp_pedestalCorrected:  # pedestal corrected
-            calib = self.parent.det.raw(self.parent.evt).astype('float32')
-            if calib is None:
-                calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            else:
-                calib -= self.parent.det.pedestals(self.parent.evt)
+            calib = self.det.raw(self.evt).astype('float32')
+            if calib: calib -= self.det.pedestals(self.evt)
         elif image_property == disp_raw:  # raw
-            calib = self.parent.det.raw(self.parent.evt)
-            if calib is None:
-                calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+            calib = self.det.raw(self.evt)
         elif image_property == disp_photons:  # photon counts
-            calib = self.parent.det.photons(self.parent.evt, mask=self.parent.mk.userMask,
+            calib = self.det.photons(self.evt, mask=self.parent.mk.userMask,
                                             adu_per_photon=self.parent.exp.aduPerPhoton)
             if calib is None:
                 calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='int32')

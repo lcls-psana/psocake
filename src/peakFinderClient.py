@@ -18,16 +18,14 @@ def runclient(args):
     for nevent in np.arange(len(times)):
         if nevent == args.noe : break
         if nevent%(size-1) != rank-1: continue # different ranks look at different events
-        try:
-            evt = run.event(times[nevent])
-            #detarr = getPreprocessedImage(nevent, args.imageProperty)
-            detarr = d.calib(evt)
-        except:
-            print '*** failed to get img: ', rank, nevent
-            continue
+        evt = run.event(times[nevent])
+        detarr = d.calib(evt)
+        if detarr is None: continue
 
-        if detarr is None:
-            continue
+        if args.medianBackground: print "Median background is not implemented"
+
+        if args.radialBackground:
+            print "Radial background correction"
 
         # Initialize hit finding
         if not hasattr(d,'peakFinder'):
