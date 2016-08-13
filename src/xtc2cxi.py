@@ -28,6 +28,7 @@ parser.add_argument("--minPeaks", help="Index only if above minimum number of pe
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=300, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
 parser.add_argument("--minPixels", help="hit only if above minimum number of pixels (SPI)",default=12000, type=float)
+parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 args = parser.parse_args()
 
@@ -35,10 +36,11 @@ def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
 
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo):
+    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
+        self.aduPerPhoton = aduPerPhoton
 
     def setupExperiment(self):
         self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
@@ -68,6 +70,19 @@ class psanaWhisperer():
                 img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
                 counter += 1
         return img
+
+    def getAssembledImg(self):
+        """Returns psana assembled image
+        """
+        img = self.det.image(self.evt)
+        return img
+
+    def getAssembledPhotons(self):
+        """Returns psana assembled image in photon counts
+        """
+        img = self.det.photons(self.evt, adu_per_photon=self.aduPerPhoton)
+        phot = self.det.image(self.evt, img)
+        return phot
 
     def getPsanaEvent(self, cheetahFilename):
         # Gets psana event given cheetahFilename, e.g. LCLS_2015_Jul26_r0014_035035_e820.h5
@@ -99,9 +114,10 @@ instrumentName = args.instrument.lower()
 coffset = args.coffset
 (x_pixel_size,y_pixel_size) = (args.pixelSize, args.pixelSize)
 mode = args.mode
+aduPerPhoton = args.aduPerPhoton
 
 # Set up psana
-ps = psanaWhisperer(experimentName,runNumber,detInfo)
+ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton)
 ps.setupExperiment()
 
 # Read list of files
@@ -142,6 +158,12 @@ if mode == 'sfx' and instrumentName == 'cxi':
     firstHit = hitInd[0]
     ps.getEvent(firstHit)
     img = ps.getCheetahImg()
+    (dim0, dim1) = img.shape
+elif mode == 'spi':
+    # Get image shape
+    firstHit = hitInd[0]
+    ps.getEvent(firstHit)
+    img = ps.getAssembledImg()
     (dim0, dim1) = img.shape
 
 if rank == 0: tic = time.time()
@@ -365,6 +387,22 @@ if rank == 0:
         data_1 = entry_1.create_group("data_1")
         data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
         source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
+    elif mode == 'spi':
+        dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
+        # chunks=(1,dim0,dim1),dtype=float)#,
+        # compression='gzip',
+        # compression_opts=9)
+        dset_1.attrs["axes"] = "experiment_identifier:y:x"
+        dset_1.attrs["numEvents"] = numHits
+        dset_2 = detector_1.create_dataset("photons", (numHits, dim0, dim1), dtype=int)
+        dset_2.attrs["axes"] = "experiment_identifier:y:x"
+        dset_2.attrs["numEvents"] = numHits
+        # Soft links
+        if "data_1" in entry_1:
+            del entry_1["data_1"]
+        data_1 = entry_1.create_group("data_1")
+        data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
+        source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
 
     f.close()
 
@@ -412,6 +450,10 @@ if mode == 'sfx':
     ds_atot = f.require_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
     ds_maxRes = f.require_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
 elif mode == 'spi':
+    dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
+                               dtype=float)  # ,chunks=(1,dim0,dim1))
+    dset_2 = f.require_dataset("entry_1/instrument_1/detector_1/photons", (numHits, dim0, dim1),
+                               dtype=int)
     ds_nHits = f.require_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
 
 if rank == 0:
@@ -422,6 +464,7 @@ if rank == 0:
         pass
 
 for i,val in enumerate(myHitInd):
+    print "val: ", val
     globalInd = myJobs[0]+i
     ds_expId[globalInd] = val
     ps.getEvent(val)
@@ -430,6 +473,12 @@ for i,val in enumerate(myHitInd):
         img = ps.getCheetahImg()
         assert(img is not None)
         dset_1[globalInd,:,:] = img
+    elif mode == 'spi':
+        img = ps.getAssembledImg()
+        assert (img is not None)
+        phot = ps.getAssembledPhotons()
+        dset_1[globalInd, :, :] = img
+        dset_2[globalInd, :, :] = phot
 
     es = ps.ds.env().epicsStore()
     pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
@@ -555,6 +604,9 @@ if rank == 0:
     if "/status/xtc2cxidb" in f:
         del f["/status/xtc2cxidb"]
     f["/status/xtc2cxidb"] = 'success'
+    # Add attributes
+    if mode == 'spi':
+        f.attrs["/entry_1/result_1/nHits"] = numHits
     f.close()
     toc = time.time()
     print "time taken: ", toc-tic

@@ -17,7 +17,7 @@ parser.add_argument('-e','--exp', help="experiment name (e.g. cxic0415)", type=s
 parser.add_argument('-r','--run', help="run number (e.g. 24)", type=int)
 parser.add_argument('-d','--det', help="detector name (e.g. pnccdFront)", type=str)
 parser.add_argument('-o','--outDir', help="output directory where .cxi will be saved (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
-parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
+parser.add_argument("-p","--imageProperty",help="determines what preprocessing is done on the image",default=1, type=int)
 parser.add_argument("--algorithm",help="number of events to process",default=1, type=int)
 parser.add_argument("--alg_npix_min",help="number of events to process",default=1., type=float)
 parser.add_argument("--alg_npix_max",help="number of events to process",default=45., type=float)
@@ -48,7 +48,9 @@ parser.add_argument("--psanaMask_central",help="psana central on",default="False
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default="False", type=str)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
 parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
+parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
+
 args = parser.parse_args()
 
 def getNoe(args):

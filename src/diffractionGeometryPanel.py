@@ -112,52 +112,62 @@ class DiffractionGeometry(object):
         elif path[2] == self.geom_resolutionUnits_str:
             self.updateResolutionUnits(data)
 
+    def findPsanaGeometry(self):
+        try:
+            self.source = Detector.PyDetector.map_alias_to_source(self.parent.detInfo,
+                                                                  self.parent.exp.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
+            self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
+            self.detectorType = gu.det_type_from_source(self.source)  # 1
+            self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
+            self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
+            if self.parent.args.localCalib:
+                self.calibPath = "./calib/" + self.calibGroup + "/" + self.calibSource + "/geometry"
+            else:
+                self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \
+                                 "/" + self.parent.experimentName + "/calib/" + \
+                                 self.calibGroup + "/" + self.calibSource + "/geometry"
+            if self.parent.args.v >= 1: print "### calibPath: ", self.calibPath
+
+            # Determine which calib file to use
+            geometryFiles = os.listdir(self.calibPath)
+            if self.parent.args.v >= 1: print "geom: ", geometryFiles
+            self.calibFile = None
+            minDiff = -1e6
+            for fname in geometryFiles:
+                if fname.endswith('.data'):
+                    endValid = False
+                    startNum = int(fname.split('-')[0])
+                    endNum = fname.split('-')[-1].split('.data')[0]
+                    diff = startNum - self.parent.runNumber
+                    # Make sure it's end number is valid too
+                    if 'end' in endNum:
+                        endValid = True
+                    else:
+                        try:
+                            if self.parent.runNumber <= int(endNum):
+                                endValid = True
+                        except:
+                            continue
+                    if diff <= 0 and diff > minDiff and endValid is True:
+                        minDiff = diff
+                        self.calibFile = fname
+        except:
+            print "Couldn't find psana geometry"
+            self.calibFile = None
+
     def deployCrystfelGeometry(self):
-        self.source = Detector.PyDetector.map_alias_to_source(self.parent.detInfo,
-                                                              self.parent.exp.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
-        self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
-        self.detectorType = gu.det_type_from_source(self.source)  # 1
-        self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
-        self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
-        self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \
-                         "/" + self.parent.experimentName + "/calib/" + \
-                         self.calibGroup + "/" + self.calibSource + "/geometry"
-        if self.parent.args.v >= 1: print "### calibPath: ", self.calibPath
-
-        # Determine which calib file to use
-        geometryFiles = os.listdir(self.calibPath)
-        if self.parent.args.v >= 1: print "geom: ", geometryFiles
-        calibFile = None
-        minDiff = -1e6
-        for fname in geometryFiles:
-            if fname.endswith('.data'):
-                endValid = False
-                startNum = int(fname.split('-')[0])
-                endNum = fname.split('-')[-1].split('.data')[0]
-                diff = startNum - self.parent.runNumber
-                # Make sure it's end number is valid too
-                if 'end' in endNum:
-                    endValid = True
-                else:
-                    try:
-                        if self.parent.runNumber <= int(endNum):
-                            endValid = True
-                    except:
-                        continue
-                if diff <= 0 and diff > minDiff and endValid is True:
-                    minDiff = diff
-                    calibFile = fname
-
-        if calibFile is not None:
+        self.findPsanaGeometry()
+        if self.calibFile is not None:
             # Convert psana geometry to crystfel geom
-            self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
-                self.parent.psocakeRunDir + '/.temp.geom')
-            cmd = ["python", "/reg/neh/home/yoon82/psgeom/psana2crystfel.py", self.calibPath + '/' + calibFile,
-                   self.parent.psocakeRunDir + "/.temp.geom"]  # TODO: remove my home
-            if self.parent.args.v >= 1: print "cmd: ", cmd
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-            output = p.communicate()[0]
-            p.stdout.close()
+            if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+                    self.parent.psocakeRunDir + '/.temp.geom')
+                cmd = ["python", "/reg/neh/home/yoon82/psgeom/psana2crystfel.py", self.calibPath + '/' + self.calibFile,
+                       self.parent.psocakeRunDir + "/.temp.geom"]  # TODO: remove my home
+                if self.parent.args.v >= 1: print "cmd: ", cmd
+                p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                output = p.communicate()[0]
+                p.stdout.close()
 
     def updateClen(self):
         self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
@@ -170,11 +180,13 @@ class DiffractionGeometry(object):
             self.parent.coffset = self.parent.detectorDistance - self.parent.clen
             if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
             self.writeCrystfelGeom()
-            self.parent.pk.updateClassification()
             if self.hasGeometryInfo():
                 if self.parent.args.v >= 1: print "has geometry info"
                 self.updateGeometry()
-            if self.parent.args.v >= 1: print "Done updateDetectorDistance"
+        self.parent.img.updatePolarizationFactor()
+        self.parent.img.updateImage()
+        if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
+        if self.parent.args.v >= 1: print "Done updateDetectorDistance"
 
     def updatePhotonEnergy(self, data):
         self.parent.photonEnergy = data
@@ -214,12 +226,13 @@ class DiffractionGeometry(object):
             coffsetStr = "coffset = "+str(coffset)+"\n"
 
             # Replace coffset value in geometry file
-            for line in fileinput.input(self.parent.index.geom, inplace=True):
-                if 'coffset' in line and line.strip()[0] is not ';':
-                    coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
-                    print coffsetStr, # comma is required
-                else:
-                    print line, # comma is required
+            if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                for line in fileinput.input(self.parent.index.geom, inplace=True):
+                    if 'coffset' in line and line.strip()[0] is not ';':
+                        coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
+                        print coffsetStr, # comma is required
+                    else:
+                        print line, # comma is required
 
     def updateGeometry(self):
         if self.hasUserDefinedResolution:

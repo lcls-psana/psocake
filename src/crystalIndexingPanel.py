@@ -45,8 +45,8 @@ class CrystalIndexing(object):
         self.cpu_str = 'CPUs'
         self.keepData_str = 'Keep CXI images'
         self.noe_str = 'Number of events to process'
-        (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str) = \
-            ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq')
+        (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str,self.psdebugq_str) = \
+            ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq','psdebugq')
 
         self.outDir = self.parent.psocakeDir
         self.outDir_overridden = False
@@ -103,7 +103,8 @@ class CrystalIndexing(object):
                                                                self.psnehprioq_str: self.psnehprioq_str,
                                                                self.psfehq_str: self.psfehq_str,
                                                                self.psnehq_str: self.psnehq_str,
-                                                               self.psanaq_str: self.psanaq_str},
+                                                               self.psanaq_str: self.psanaq_str,
+                                                               self.psdebugq_str: self.psdebugq_str},
                  'value': self.queue, 'tip': "Choose queue"},
                 {'name': self.cpu_str, 'type': 'int', 'value': self.cpus, 'tip': "number of cpus to use per run"},
                 {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},

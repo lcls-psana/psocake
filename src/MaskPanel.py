@@ -135,7 +135,8 @@ class MaskMaker(object):
                                                                            self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
                                                                            self.parent.pk.hitParam_psfehq_str: 'psfehq',
                                                                            self.parent.pk.hitParam_psnehq_str: 'psnehq',
-                                                                           self.parent.pk.hitParam_psanaq_str: 'psanaq'},
+                                                                           self.parent.pk.hitParam_psanaq_str: 'psanaq',
+                                                                           self.parent.pk.hitParam_psdebugq_str: 'psdebugq'},
                  'value': self.powder_queue, 'tip': "Choose queue"},
                 {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
                 {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
@@ -310,7 +311,7 @@ class MaskMaker(object):
                                         pen={'color': 'c', 'width': 4})
                 self.mask_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
                 self.mask_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
-                self.mask_rect.addRotateHandle([0.5, 0.5], [1, 1])
+                #self.mask_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
                 self.mask_circle = pg.CircleROI([-300, 600], size=[200, 200], snapSize=1.0, scaleSnap=True,
                                                 translateSnap=True, pen={'color': 'c', 'width': 4})
@@ -504,6 +505,10 @@ class MaskMaker(object):
             _mask = np.ones_like(img)
             if x >= 0 and y >= 0:
                 _mask[x:x+self.selected.shape[0],y:y+self.selected.shape[1]] = self.selected
+            else:
+                print "##################################"
+                print "Polygon mask has negative indices."
+                print "##################################"
 
             if self.maskingMode == 1:  # masking mode
                 self.userMaskAssem *= _mask

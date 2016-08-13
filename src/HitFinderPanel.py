@@ -48,6 +48,7 @@ class HitFinder(object):
         self.spiParam_psfehprioq_str = 'psfehprioq'
         self.spiParam_psnehhiprioq_str = 'psnehhiprioq'
         self.spiParam_psfehhiprioq_str = 'psfehhiprioq'
+        self.spiParam_psdebugq_str = 'psdebugq'
         self.spiParam_noe_str = 'Number of events to process'
         self.spiParam_launch_str = 'Launch hit finder'
 
@@ -86,7 +87,8 @@ class HitFinder(object):
                                                                              self.spiParam_psnehprioq_str: 'psnehprioq',
                                                                              self.spiParam_psfehq_str: 'psfehq',
                                                                              self.spiParam_psnehq_str: 'psnehq',
-                                                                             self.spiParam_psanaq_str: 'psanaq'},
+                                                                             self.spiParam_psanaq_str: 'psanaq',
+                                                                             self.spiParam_psdebugq_str: 'psdebugq'},
                  'value': self.spiParam_queue, 'tip': "Choose queue"},
                 {'name': self.spiParam_cpu_str, 'type': 'int', 'value': self.spiParam_cpus},
                 {'name': self.spiParam_noe_str, 'type': 'int', 'value': self.spiParam_noe, 'tip': "number of events to process, default=0 means process all events"},

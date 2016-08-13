@@ -79,12 +79,12 @@ class Labels(object):
         fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_labels.h5'
         global dset
         dataSetFound = False
+        print "##### fname: ", fname
         if self.parent.runNumber > 0:
             if os.path.exists(fname):
                labels = h5py.File(fname, 'r+', dtype = 'i8')
-               dataSetFound = True
             else:
-               labels = h5py.File(fname, 'x', dtype = 'i8')
+               labels = h5py.File(fname, 'w', dtype = 'i8')
             if not dataSetFound:
                dset = labels.create_dataset("labels", (self.parent.exp.eventTotal, 1))
             else:

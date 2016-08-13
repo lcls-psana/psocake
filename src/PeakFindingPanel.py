@@ -83,6 +83,7 @@ class PeakFinding(object):
         self.hitParam_psfehprioq_str = 'psfehprioq'
         self.hitParam_psnehhiprioq_str = 'psnehhiprioq'
         self.hitParam_psfehhiprioq_str = 'psfehhiprioq'
+        self.hitParam_psdebugq_str = 'psdebugq'
         self.hitParam_noe_str = 'Number of events to process'
         self.hitParam_threshold_str = 'Indexable number of peaks'
 
@@ -218,7 +219,8 @@ class PeakFinding(object):
                                                                              self.hitParam_psnehprioq_str: 'psnehprioq',
                                                                              self.hitParam_psfehq_str: 'psfehq',
                                                                              self.hitParam_psnehq_str: 'psnehq',
-                                                                             self.hitParam_psanaq_str: 'psanaq'},
+                                                                             self.hitParam_psanaq_str: 'psanaq',
+                                                                             self.hitParam_psdebugq_str: 'psdebugq'},
                  'value': self.hitParam_queue, 'tip': "Choose queue"},
                 {'name': self.hitParam_cpu_str, 'type': 'int', 'value': self.hitParam_cpus},
                 {'name': self.hitParam_noe_str, 'type': 'int', 'value': self.hitParam_noe,
@@ -538,17 +540,10 @@ class PeakFinding(object):
                 self.peakRadius = int(self.hitParam_alg4_r0)
                 self.peaks = self.alg.peak_finder_v4(self.parent.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
                                            rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
-            for peak in self.peaks:
-                seg, row, col, npix, amax, atot = peak[0:6]
-                #if self.parent.args.v >= 1: print (seg, row, col, npix, atot)
             self.numPeaksFound = self.peaks.shape[0]
 
-            fmt = '%3d %4d %4d  %4d %8.1f %6.1f %6.1f %6.2f %6.2f %6.2f %4d %4d %4d %4d %6.2f %6.2f %6.2f'
             for peak in self.peaks :
                     seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-                    #if self.parent.args.v >= 1:
-                    #    print fmt % (seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma,\
-                    #                 rmin, rmax, cmin, cmax, bkgd, rms, son)
                     if self.parent.isCspad:
                         cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
             if self.parent.args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape

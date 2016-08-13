@@ -58,6 +58,7 @@ class LaunchPeakFinder(QtCore.QThread):
               " -o "+runDir+"/.%J.log mpirun findPeaks -e "+self.experimentName+\
               " -d "+self.detInfo+\
               " --outDir "+runDir+\
+              " --imageProperty "+str(self.parent.exp.image_property)+\
               " --algorithm "+str(self.parent.pk.algorithm)
 
             if self.parent.pk.algorithm == 1:

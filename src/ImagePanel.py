@@ -2,6 +2,8 @@ from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
 import time, psana, datetime
+from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
+from PSCalib.GeometryAccess import GeometryAccess
 
 class ImageViewer(object):
     def __init__(self, parent = None):
@@ -213,59 +215,83 @@ class ImageViewer(object):
         if self.parent.args.v >= 1: print "time assemble: ", toc-tic
         return data
 
+    def setupRadialBackground(self):
+        self.parent.geom.findPsanaGeometry()
+        if self.parent.geom.calibFile is not None:
+            if self.parent.args.v >= 1: print "calibFile: ", self.parent.geom.calibPath+'/'+self.parent.geom.calibFile
+            self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
+            self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
+            self.iX, self.iY = self.geo.get_pixel_coord_indexes()
+            self.mask = self.geo.get_pixel_mask(mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
+            self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100, phiedges=(0, 360), nphibins=1)
+            if self.parent.args.v >= 1: print "Done setupRadialBackground"
+        else:
+            self.rb = None
+
+    def updatePolarizationFactor(self):
+        if self.rb is not None:
+            self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.parent.detectorDistance*1e6) # convert to um
+            if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
+
     def getDetImage(self, evtNumber, calib=None):
         if calib is None:
-            if self.parent.exp.image_property == 1: # gain and hybrid gain corrected
+            if self.parent.exp.image_property == self.parent.exp.disp_medianCorrection:  # median subtraction
+                print "Sorry, this feature isn't available yet"
+            elif self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:  # radial subtraction + polarization corrected
                 calib = self.getCalib(evtNumber)
                 if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            elif self.parent.exp.image_property == 2: # common mode corrected
-                if self.parent.args.v >= 1: print "common mode corrected"
+                self.pf.shape = self.parent.calib.shape
+                calib = self.rb.subtract_bkgd(calib * self.pf)
+            elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
+                calib = self.getCalib(evtNumber)
+                if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+            elif self.parent.exp.image_property == self.parent.exp.disp_commonModeCorrected: # common mode corrected
                 calib = self.getCommonModeCorrected(evtNumber)
                 if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            elif self.parent.exp.image_property == 3: # pedestal corrected
+            elif self.parent.exp.image_property == self.parent.exp.disp_pedestalCorrected: # pedestal corrected
                 calib = self.parent.det.raw(self.parent.evt).astype('float32')
                 if calib is None:
                     calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
                 else:
                     calib -= self.parent.det.pedestals(self.parent.evt)
-            elif self.parent.exp.image_property == 4: # raw
+            elif self.parent.exp.image_property == self.parent.exp.disp_raw: # raw
                 calib = self.parent.det.raw(self.parent.evt)
                 if calib is None:
                     calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 5: # photon counts
+            elif self.parent.exp.image_property == self.parent.exp.disp_photons: # photon counts
                 calib = self.parent.det.photons(self.parent.evt, mask=self.parent.mk.userMask, adu_per_photon=self.parent.exp.aduPerPhoton)
                 if calib is None:
                     calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='int32')
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 6: # pedestal
+            elif self.parent.exp.image_property == self.parent.exp.disp_pedestal: # pedestal
                 calib = self.parent.det.pedestals(self.parent.evt)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 7: # status
+            elif self.parent.exp.image_property == self.parent.exp.disp_status: # status
                 calib = self.parent.det.status(self.parent.evt)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 8: # rms
+            elif self.parent.exp.image_property == self.parent.exp.disp_rms: # rms
                 calib = self.parent.det.rms(self.parent.evt)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 9: # common mode
+            elif self.parent.exp.image_property == self.parent.exp.disp_commonMode: # common mode
                 calib = self.getCommonMode(evtNumber)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 10: # gain
+            elif self.parent.exp.image_property == self.parent.exp.disp_gain: # gain
                 calib = self.parent.det.gain(self.parent.evt)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 17: # gain_mask
+            elif self.parent.exp.image_property == self.parent.exp.disp_gainMask: # gain_mask
                 calib = self.parent.det.gain_mask(self.parent.evt)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 15: # coords_x
+            elif self.parent.exp.image_property == self.parent.exp.disp_coordx: # coords_x
                 calib = self.parent.det.coords_x(self.parent.evt)
                 self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == 16: # coords_y
+            elif self.parent.exp.image_property == self.parent.exp.disp_coordy: # coords_y
                 calib = self.parent.det.coords_y(self.parent.evt)
                 self.parent.firstUpdate = True
 
             shape = self.parent.det.shape(self.parent.evt)
             if len(shape) == 3:
-                if self.parent.exp.image_property == 11: # quad ind
+                if self.parent.exp.image_property == self.parent.exp.disp_quad: # quad ind
                     calib = np.zeros(shape)
                     for i in range(shape[0]):
                         # TODO: handle detectors properly
@@ -276,7 +302,7 @@ class ImageViewer(object):
                         elif shape[0] == 4: # pnccd
                             calib[i,:,:] = int(i)%4
                     self.parent.firstUpdate = True
-                elif self.parent.exp.image_property == 12: # seg ind
+                elif self.parent.exp.image_property == self.parent.exp.disp_seg: # seg ind
                     calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
                         for i in range(32):
@@ -288,7 +314,7 @@ class ImageViewer(object):
                         for i in range(4):
                             calib[i,:,:] = int(i)
                     self.parent.firstUpdate = True
-                elif self.parent.exp.image_property == 13: # row ind
+                elif self.parent.exp.image_property == self.parent.exp.disp_row: # row ind
                     calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
                         for i in range(185):
@@ -300,7 +326,7 @@ class ImageViewer(object):
                         for i in range(512):
                             calib[:,i,:] = i
                     self.parent.firstUpdate = True
-                elif self.parent.exp.image_property == 14: # col ind
+                elif self.parent.exp.image_property == self.parent.exp.disp_col: # col ind
                     calib = np.zeros(shape)
                     if shape[0] == 32: # cspad
                         for i in range(388):

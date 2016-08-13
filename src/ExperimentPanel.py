@@ -70,12 +70,15 @@ class ExperimentInfo(object):
         self.disp_commonModeParam1_str = 'parameters 1'
         self.disp_commonModeParam2_str = 'parameters 2'
         self.disp_commonModeParam3_str = 'parameters 3'
+        self.disp_medianCorrection_str = 'median background corrected ADU'
+        self.disp_radialCorrection_str = 'radial background corrected ADU'
 
         self.logscaleOn = False
         self.aduPerPhoton = 1.
-        self.image_property = 1
 
         # image properties
+        self.disp_medianCorrection = 19
+        self.disp_radialCorrection = 18
         self.disp_gainMask = 17
         self.disp_coordy= 16
         self.disp_coordx= 15
@@ -93,6 +96,8 @@ class ExperimentInfo(object):
         self.disp_pedestalCorrected= 3
         self.disp_commonModeCorrected= 2
         self.disp_adu= 1
+
+        self.image_property = self.disp_adu
 
         self.applyCommonMode = False
         self.commonModeParams = np.array([0,0,0,0])
@@ -126,7 +131,9 @@ class ExperimentInfo(object):
             {'name': self.disp_grp, 'type': 'group', 'children': [
                 {'name': self.disp_log_str, 'type': 'bool', 'value': self.logscaleOn, 'tip': "Display in log10"},
                 {'name': self.disp_aduPerPhoton_str, 'type': 'float', 'value': self.aduPerPhoton, 'tip': "ADUs per photon is used for photon conversion"},
-                {'name': self.disp_image_str, 'type': 'list', 'values': {self.disp_gainMask_str: self.disp_gainMask,
+                {'name': self.disp_image_str, 'type': 'list', 'values': {self.disp_medianCorrection_str: self.disp_medianCorrection,
+                                                                         self.disp_radialCorrection_str: self.disp_radialCorrection,
+                                                                         self.disp_gainMask_str: self.disp_gainMask,
                                                                          self.disp_coordy_str: self.disp_coordy,
                                                                          self.disp_coordx_str: self.disp_coordx,
                                                                          self.disp_col_str: self.disp_col,
@@ -199,8 +206,6 @@ class ExperimentInfo(object):
                 self.updateAduPerPhoton(data)
             elif path[1] == self.disp_image_str:
                 self.updateImageProperty(data)
-            #elif path[1] == self.disp_aduThresh_str:
-            #    self.updateAduThreshold(data)
             elif path[2] == self.disp_commonModeParam0_str:
                 self.updateCommonModeParam(data, 0)
             elif path[2] == self.disp_commonModeParam1_str:
@@ -231,7 +236,8 @@ class ExperimentInfo(object):
         try:
             self.table = self.rt.findUserTable(exper_name=self.parent.experimentName, table_name='Run summary')
         except:
-            print "Ooops. You need a kerberos ticket. Type: kinit"
+            print "Your experiment may not exist"
+            print "Or you need a kerberos ticket. Type: kinit"
             exit()
     
         self.setupExperiment()
@@ -530,7 +536,10 @@ class ExperimentInfo(object):
             # Write a temporary geom file
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 self.parent.geom.deployCrystfelGeometry()
-    
+
+            self.parent.img.setupRadialBackground()
+            self.parent.img.updatePolarizationFactor()
+
         if self.parent.args.v >= 1: print "Done setupExperiment"
     
     def updateLogscale(self, data):
