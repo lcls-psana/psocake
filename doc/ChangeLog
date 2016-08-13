@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-38
+2016-08-13 Chunhong Yoon
+- allow interactive median and radial background subtraction
+
 Tag: V00-01-37
 2016-08-05 Chunhong Yoon
 - fix divide by zero when photon energy is zero
