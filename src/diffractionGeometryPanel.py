@@ -174,15 +174,15 @@ class DiffractionGeometry(object):
         self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
 
     def updateDetectorDistance(self, data):
+        self.parent.detectorDistance = data / 1000.  # mm to metres
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            self.parent.detectorDistance = data / 1000. # mm to metres
             self.updateClen()
             self.parent.coffset = self.parent.detectorDistance - self.parent.clen
             if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
             self.writeCrystfelGeom()
-            if self.hasGeometryInfo():
-                if self.parent.args.v >= 1: print "has geometry info"
-                self.updateGeometry()
+        if self.hasGeometryInfo():
+            if self.parent.args.v >= 1: print "has geometry info"
+            self.updateGeometry()
         self.parent.img.updatePolarizationFactor()
         self.parent.img.updateImage()
         if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
