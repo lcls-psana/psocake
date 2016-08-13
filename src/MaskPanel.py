@@ -340,27 +340,29 @@ class MaskMaker(object):
         self.updatePsanaMaskOn()
 
     def updatePsanaMaskOn(self):
-        self.initMask()
-        self.psanaMask = self.parent.det.mask(self.parent.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
-                                       edges=self.mask_edgesOn, central=self.mask_centralOn,
-                                       unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
-        if self.psanaMask is not None:
-            self.psanaMaskAssem = self.parent.det.image(self.parent.evt, self.psanaMask)
-        else:
-            self.psanaMaskAssem = None
-        self.parent.pk.updateClassification()
+        if self.parent.det is not None:
+            self.initMask()
+            self.psanaMask = self.parent.det.mask(self.parent.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
+                                           edges=self.mask_edgesOn, central=self.mask_centralOn,
+                                           unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
+            if self.psanaMask is not None:
+                self.psanaMaskAssem = self.parent.det.image(self.parent.evt, self.psanaMask)
+            else:
+                self.psanaMaskAssem = None
+            self.parent.pk.updateClassification()
 
     def initMask(self):
-        if self.gapAssemInd is None:
-            self.gapAssem = self.parent.det.image(self.parent.evt, np.ones_like(self.parent.exp.detGuaranteed,dtype='int'))
-            self.gapAssemInd = np.where(self.gapAssem==0)
-        if self.userMask is None and self.parent.data is not None:
-            # initialize
-            self.userMaskAssem = np.ones_like(self.parent.data,dtype='int')
-            self.userMask = self.parent.det.ndarray_from_image(self.parent.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
-        if self.streakMask is None:
-            self.StreakMask = myskbeam.StreakMask(self.parent.det, self.parent.evt, width=self.streak_width, sigma=self.streak_sigma)
-        if self.parent.args.v >= 1: print "Done initMask"
+        if self.parent.det is not None:
+            if self.gapAssemInd is None:
+                self.gapAssem = self.parent.det.image(self.parent.evt, np.ones_like(self.parent.exp.detGuaranteed,dtype='int'))
+                self.gapAssemInd = np.where(self.gapAssem==0)
+            if self.userMask is None and self.parent.data is not None:
+                # initialize
+                self.userMaskAssem = np.ones_like(self.parent.data,dtype='int')
+                self.userMask = self.parent.det.ndarray_from_image(self.parent.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+            if self.streakMask is None:
+                self.StreakMask = myskbeam.StreakMask(self.parent.det, self.parent.evt, width=self.streak_width, sigma=self.streak_sigma)
+            if self.parent.args.v >= 1: print "Done initMask"
 
     def displayMask(self):
         # convert to RGB
