@@ -443,7 +443,8 @@ class ExperimentInfo(object):
             self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(self.parent.psocakeDir)
             self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(self.parent.runNumber)
             # Update quantifier filename
-            self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(self.parent.psocakeRunDir)
+            fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
+            self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(fname)
             self.setupPsocake()
     
             # Update hidden CrystFEL files

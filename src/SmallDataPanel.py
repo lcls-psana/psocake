@@ -31,7 +31,7 @@ class SmallData(object):
 
         # Quantifier
         self.quantifier_filename = ''
-        self.quantifier_dataset = ''
+        self.quantifier_dataset = '/entry_1/result_1/'
         self.quantifier_sort = False
         self.quantifierFileOpen = False
         self.quantifierHasData = False
