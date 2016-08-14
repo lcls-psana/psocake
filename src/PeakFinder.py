@@ -2,6 +2,9 @@ import numpy as np
 from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import myskbeam
 import time
+import psana
+from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
+from pyimgalgos.MedianFilter import median_filter_ndarr
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -11,7 +14,7 @@ class PeakFinder:
                  hitParam_alg_amax_thr,hitParam_alg_atot_thr,hitParam_alg_son_min,
                  streakMask_on,streakMask_sigma,streakMask_width,userMask_path,psanaMask_on,psanaMask_calib,
                  psanaMask_status,psanaMask_edges,psanaMask_central,psanaMask_unbond,psanaMask_unbondnrs,
-                 windows=None,**kwargs):
+                 medianFilterOn=0, medianRank=5, radialFilterOn=0, distance=0.0, windows=None, **kwargs):
         self.exp = exp
         self.run = run
         self.detname = detname
@@ -36,6 +39,11 @@ class PeakFinder:
         self.psanaMask_central = str2bool(psanaMask_central)
         self.psanaMask_unbond = str2bool(psanaMask_unbond)
         self.psanaMask_unbondnrs = str2bool(psanaMask_unbondnrs)
+
+        self.medianFilterOn = medianFilterOn
+        self.medianRank = medianRank
+        self.radialFilterOn = radialFilterOn
+        self.distance = distance
 
         self.windows = windows
 
@@ -91,14 +99,57 @@ class PeakFinder:
         self.maxNumPeaks = 2048
         self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
         self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
-        #print "### cx, cy: ", self.cx, self.cy
         self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
         self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
         if len(self.iX.shape) == 2:
             self.iX = np.expand_dims(self.iX, axis=0)
             self.iY = np.expand_dims(self.iY, axis=0)
 
-    def findPeaks(self,calib, evt):
+        # Initialize radial background subtraction
+        self.setupExperiment()
+        if self.radialFilterOn:
+            self.setupRadialBackground()
+            self.updatePolarizationFactor()
+
+    def setupExperiment(self):
+        self.ds = psana.DataSource('exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx')
+        self.run = self.ds.runs().next()
+        self.times = self.run.times()
+        self.eventTotal = len(self.times)
+        self.env = self.ds.env()
+        self.evt = self.run.event(self.times[0])
+        self.det = psana.Detector(str(self.detname), self.env)
+
+    def setupRadialBackground(self):
+        self.geo = self.det.geometry(self.run)  # self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
+        self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
+        self.ix = self.det.indexes_x(self.evt)
+        self.iy = self.det.indexes_y(self.evt)
+        if self.ix is None:
+            self.iy = np.tile(np.arange(self.userMask.shape[0]), [self.userMask.shape[1], 1])
+            self.ix = np.transpose(self.iy)
+        self.iX = np.array(self.ix, dtype=np.int64)
+        self.iY = np.array(self.iy, dtype=np.int64)
+        if len(self.iX.shape) == 2:
+            self.iX = np.expand_dims(self.iX, axis=0)
+            self.iY = np.expand_dims(self.iY, axis=0)
+        self.mask = self.geo.get_pixel_mask( mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
+        self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100,
+                             phiedges=(0, 360), nphibins=1)
+
+    def updatePolarizationFactor(self):
+        self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.distance * 1e6)  # convert to um
+
+    def findPeaks(self, calib, evt):
+        # Apply background correction
+        if self.medianFilterOn:
+            calib -= median_filter_ndarr(calib, self.medianRank)
+
+        if self.radialFilterOn:
+            self.pf.shape = calib.shape  # FIXME: shape is 1d
+            calib = self.rb.subtract_bkgd(calib * self.pf)
+            calib.shape = self.userPsanaMask.shape  # FIXME: shape is 1d
+
         if self.streakMask_on: # make new streak mask
             #tic = time.time()
             self.streakMask = self.StreakMask.getStreakMaskCalib(evt) #myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streakMask_width,sigma=self.streakMask_sigma)
@@ -127,6 +178,8 @@ class PeakFinder:
             #tic4 = time.time()
             #print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
         self.numPeaksFound = self.peaks.shape[0]
+        print "numPeaksFound: ", self.peaks.shape, self.numPeaksFound
+        print "iX: ", self.iX.shape
 
         if self.numPeaksFound > 0:
             cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(

@@ -122,11 +122,11 @@ class PeakFinding(object):
         self.hitParam_alg3_dr = 0.05
         self.hitParam_alg4_npix_min = 1.
         self.hitParam_alg4_npix_max = 45.
-        self.hitParam_alg4_amax_thr = 250.
-        self.hitParam_alg4_atot_thr = 330.
-        self.hitParam_alg4_son_min = 4.
-        self.hitParam_alg4_thr_low = 80.
-        self.hitParam_alg4_thr_high = 250.
+        self.hitParam_alg4_amax_thr = 800.
+        self.hitParam_alg4_atot_thr = self.hitParam_alg1_amax_thr
+        self.hitParam_alg4_son_min = 7.
+        self.hitParam_alg4_thr_low = 200.
+        self.hitParam_alg4_thr_high = self.hitParam_alg1_amax_thr
         self.hitParam_alg4_rank = 3
         self.hitParam_alg4_r0 = 2
         self.hitParam_alg4_dr = 1
@@ -167,27 +167,27 @@ class PeakFinding(object):
                     {'name': self.hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr,
                      'tip': "background region outside the region of interest"},
                 ]},
-                {'name': self.hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                    {'name': self.hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
-                    {'name': self.hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
-                    {'name': self.hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
-                    {'name': self.hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
-                    {'name': self.hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
-                    {'name': self.hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
-                    {'name': self.hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                    {'name': self.hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
-                ]},
-                {'name': self.hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
-                 'readonly': True, 'children': [
-                    {'name': self.hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
-                    {'name': self.hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
-                    {'name': self.hitParam_alg3_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg3_amax_thr},
-                    {'name': self.hitParam_alg3_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg3_atot_thr},
-                    {'name': self.hitParam_alg3_son_min_str, 'type': 'float', 'value': self.hitParam_alg3_son_min},
-                    {'name': self.hitParam_alg3_rank_str, 'type': 'int', 'value': self.hitParam_alg3_rank},
-                    {'name': self.hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
-                    {'name': self.hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
-                ]},
+                # {'name': self.hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
+                #     {'name': self.hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
+                #     {'name': self.hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
+                #     {'name': self.hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
+                #     {'name': self.hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
+                #     {'name': self.hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
+                #     {'name': self.hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
+                #     {'name': self.hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                #     {'name': self.hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
+                # ]},
+                # {'name': self.hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
+                #  'readonly': True, 'children': [
+                #     {'name': self.hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
+                #     {'name': self.hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
+                #     {'name': self.hitParam_alg3_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg3_amax_thr},
+                #     {'name': self.hitParam_alg3_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg3_atot_thr},
+                #     {'name': self.hitParam_alg3_son_min_str, 'type': 'float', 'value': self.hitParam_alg3_son_min},
+                #     {'name': self.hitParam_alg3_rank_str, 'type': 'int', 'value': self.hitParam_alg3_rank},
+                #     {'name': self.hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
+                #     {'name': self.hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
+                # ]},
                 {'name': self.hitParam_algorithm4_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
                  'readonly': True, 'children': [
                     {'name': self.hitParam_alg4_npix_min_str, 'type': 'float', 'value': self.hitParam_alg4_npix_min,
@@ -232,7 +232,6 @@ class PeakFinding(object):
                                    children=self.params, expanded=True)
         self.w10.setParameters(self.p3, showTop=False)
         self.p3.sigTreeStateChanged.connect(self.change)
-
         self.parent.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), self.findPeaks)
 
     # Launch peak finding
@@ -628,19 +627,14 @@ class PeakFinding(object):
                 if 1:#try:
                     self.ix = self.parent.det.indexes_x(self.parent.evt)
                     self.iy = self.parent.det.indexes_y(self.parent.evt)
-                    print "*** ix: ", self.ix.shape
                     if self.ix is None:
                         self.iy = np.tile(np.arange(self.parent.calib.shape[0]),[self.parent.calib.shape[1], 1])
                         self.ix = np.transpose(self.iy)
                     self.iX = np.array(self.ix, dtype=np.int64)
                     self.iY = np.array(self.iy, dtype=np.int64)
-                    print "@@ iX: ", self.iX.shape
                     if len(self.iX.shape)==2:
-                        print "@@@ iX: ", self.iX, self.iX.shape
                         self.iX = np.expand_dims(self.iX,axis=0)
                         self.iY = np.expand_dims(self.iY,axis=0)
-                    print "##### iX: ", self.iX, self.iX.shape
-                    print "%%% peaks: ", self.peaks, self.peaks.shape
                     cenX = self.iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                     cenY = self.iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
                     self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)

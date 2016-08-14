@@ -130,6 +130,7 @@ class MainFrame(QtGui.QWidget):
         self.psocakeRunDir = None
         self.elogDir = None
         self.rootDir = None
+        self.writeAccess = True
 
         # Init variables
         self.det = None

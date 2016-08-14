@@ -200,17 +200,19 @@ class ExperimentInfo(object):
                     self.parent.pk.updateClassification()
             elif path[1] == self.exp_evt_str and len(path) == 2 and change is 'value':
                 self.updateEventNumber(data)
-                if self.parent.pk.showPeaks:
-                    self.parent.pk.updateClassification()
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
         elif path[0] == self.disp_grp:
             if path[1] == self.disp_log_str:
                 self.updateLogscale(data)
             elif path[1] == self.disp_aduPerPhoton_str:
                 self.updateAduPerPhoton(data)
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
             elif path[1] == self.disp_medianFilterRank_str:
                 self.updateMedianFilter(data)
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
             elif path[1] == self.disp_image_str:
                 self.updateImageProperty(data)
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
             elif path[2] == self.disp_commonModeParam0_str:
                 self.updateCommonModeParam(data, 0)
             elif path[2] == self.disp_commonModeParam1_str:
@@ -221,6 +223,7 @@ class ExperimentInfo(object):
                 self.updateCommonModeParam(data, 3)
             elif path[2] == self.disp_overrideCommonMode_str:
                 self.updateCommonMode(data)
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
 
     ###################################
     ###### Experiment Parameters ######
@@ -401,9 +404,11 @@ class ExperimentInfo(object):
                                                stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, shell=True)
                     out, err = process.communicate()
+            self.parent.writeAccess = True
         except:
             print "No write access: ", self.parent.psocakeRunDir
-    
+            self.parent.writeAccess = False
+
     # Launch crawler
     crawlerThread = []
     crawlerThreadCounter = 0
@@ -444,7 +449,14 @@ class ExperimentInfo(object):
             self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(self.parent.runNumber)
             # Update quantifier filename
             fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
+            if self.parent.args.mode == 'sfx':
+                dsetname = '/entry_1/result_1/nPeaksAll'
+            elif self.parent.args.mode == 'spi':
+                dsetname = '/entry_1/result_1/nHitsAll'
+            else:
+                dsetname = '/entry_1/result_1/'
             self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(fname)
+            self.parent.small.pSmall.param(self.parent.small.quantifier_grp,  self.parent.small.quantifier_dataset_str).setValue(dsetname)
             self.setupPsocake()
     
             # Update hidden CrystFEL files

@@ -58,7 +58,6 @@ class LaunchPeakFinder(QtCore.QThread):
               " -o "+runDir+"/.%J.log mpirun findPeaks -e "+self.experimentName+\
               " -d "+self.detInfo+\
               " --outDir "+runDir+\
-              " --imageProperty "+str(self.parent.exp.image_property)+\
               " --algorithm "+str(self.parent.pk.algorithm)
 
             if self.parent.pk.algorithm == 1:
@@ -71,15 +70,15 @@ class LaunchPeakFinder(QtCore.QThread):
                        " --alg1_thr_high "+str(self.parent.pk.hitParam_alg1_thr_high)+\
                        " --alg1_radius "+str(self.parent.pk.hitParam_alg1_radius)+\
                        " --alg1_dr "+str(self.parent.pk.hitParam_alg1_dr)
-            elif self.parent.pk.algorithm == 3:
-                cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg3_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.pk.hitParam_alg3_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.pk.hitParam_alg3_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.pk.hitParam_alg3_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.pk.hitParam_alg3_son_min)+\
-                       " --alg3_rank "+str(self.parent.pk.hitParam_alg3_rank)+\
-                       " --alg3_r0 "+str(self.parent.pk.hitParam_alg3_r0)+\
-                       " --alg3_dr "+str(self.parent.pk.hitParam_alg3_dr)
+            # elif self.parent.pk.algorithm == 3:
+            #     cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg3_npix_min)+\
+            #            " --alg_npix_max "+str(self.parent.pk.hitParam_alg3_npix_max)+\
+            #            " --alg_amax_thr "+str(self.parent.pk.hitParam_alg3_amax_thr)+\
+            #            " --alg_atot_thr "+str(self.parent.pk.hitParam_alg3_atot_thr)+\
+            #            " --alg_son_min "+str(self.parent.pk.hitParam_alg3_son_min)+\
+            #            " --alg3_rank "+str(self.parent.pk.hitParam_alg3_rank)+\
+            #            " --alg3_r0 "+str(self.parent.pk.hitParam_alg3_r0)+\
+            #            " --alg3_dr "+str(self.parent.pk.hitParam_alg3_dr)
             elif self.parent.pk.algorithm == 4:
                 cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg4_npix_min)+\
                        " --alg_npix_max "+str(self.parent.pk.hitParam_alg4_npix_max)+\
@@ -113,6 +112,13 @@ class LaunchPeakFinder(QtCore.QThread):
                 cmd += " --noe "+str(self.parent.pk.hitParam_noe)
 
             if self.parent.args.localCalib: cmd += " --localCalib"
+
+            if self.parent.exp.image_property == self.parent.exp.disp_medianCorrection:
+                cmd += " --medianBackground " + str(1) + \
+                       " --medianRank " + str(self.parent.exp.medianFilterRank)
+            elif self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:
+                cmd += " --radialBackground " + str(1) + \
+                       " --distance " + str(self.parent.detectorDistance)
 
             cmd += " -r " + str(run)
             print "Submitting batch job: ", cmd

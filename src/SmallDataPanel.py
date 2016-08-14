@@ -39,7 +39,7 @@ class SmallData(object):
         self.params = [
             {'name': self.quantifier_grp, 'type': 'group', 'children': [
                 {'name': self.quantifier_filename_str, 'type': 'str', 'value': self.quantifier_filename, 'tip': "Full path Hdf5 filename"},
-                {'name': self.quantifier_dataset_str, 'type': 'str', 'value': self.quantifier_dataset, 'tip': "Hdf5 dataset metric"},
+                {'name': self.quantifier_dataset_str, 'type': 'str', 'value': self.quantifier_dataset, 'tip': "Hdf5 dataset metric, nPeaksAll or nHitsAll"},
                 {'name': self.quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
             ]},
         ]
@@ -87,7 +87,7 @@ class SmallData(object):
 
     def updateQuantifierDataset(self, data):
         self.quantifier_dataset = data
-        if self.quantifier_dataset and self.quantifier_dataset:
+        if os.path.isfile(self.quantifier_filename):
             try:
                 self.quantifierFile = h5py.File(self.quantifier_filename, 'r')
                 self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value

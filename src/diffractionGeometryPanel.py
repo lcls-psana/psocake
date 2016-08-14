@@ -157,7 +157,7 @@ class DiffractionGeometry(object):
 
     def deployCrystfelGeometry(self):
         self.findPsanaGeometry()
-        if self.calibFile is not None:
+        if self.calibFile is not None and self.parent.writeAccess:
             # Convert psana geometry to crystfel geom
             if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
                 self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(

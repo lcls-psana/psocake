@@ -22,11 +22,6 @@ def runclient(args):
         detarr = d.calib(evt)
         if detarr is None: continue
 
-        if args.medianBackground: print "Median background is not implemented"
-
-        if args.radialBackground:
-            print "Radial background correction"
-
         # Initialize hit finding
         if not hasattr(d,'peakFinder'):
             if args.algorithm == 1:
@@ -46,25 +41,29 @@ def runclient(args):
                                           psanaMask_edges=args.psanaMask_edges,
                                           psanaMask_central=args.psanaMask_central,
                                           psanaMask_unbond=args.psanaMask_unbond,
-                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs)
-            elif args.algorithm == 3:
-                d.peakFinder = pf.PeakFinder(env.experiment(),evt.run(),args.det,evt,d,
-                                          args.algorithm, args.alg_npix_min,
-                                          args.alg_npix_max, args.alg_amax_thr,
-                                          args.alg_atot_thr, args.alg_son_min,
-                                          alg3_rank=args.alg3_rank, alg3_r0=args.alg3_r0,
-                                          alg3_dr=args.alg3_dr,
-                                          streakMask_on=args.streakMask_on,
-                                          streakMask_sigma=args.streakMask_sigma,
-                                          streakMask_width=args.streakMask_width,
-                                          userMask_path=args.userMask_path,
-                                          psanaMask_on=args.psanaMask_on,
-                                          psanaMask_calib=args.psanaMask_calib,
-                                          psanaMask_status=args.psanaMask_status,
-                                          psanaMask_edges=args.psanaMask_edges,
-                                          psanaMask_central=args.psanaMask_central,
-                                          psanaMask_unbond=args.psanaMask_unbond,
-                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs)
+                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                          medianFilterOn=args.medianBackground,
+                                          medianRank=args.medianRank,
+                                          radialFilterOn=args.radialBackground,
+                                          distance=args.distance)
+            # elif args.algorithm == 3:
+            #     d.peakFinder = pf.PeakFinder(env.experiment(),evt.run(),args.det,evt,d,
+            #                               args.algorithm, args.alg_npix_min,
+            #                               args.alg_npix_max, args.alg_amax_thr,
+            #                               args.alg_atot_thr, args.alg_son_min,
+            #                               alg3_rank=args.alg3_rank, alg3_r0=args.alg3_r0,
+            #                               alg3_dr=args.alg3_dr,
+            #                               streakMask_on=args.streakMask_on,
+            #                               streakMask_sigma=args.streakMask_sigma,
+            #                               streakMask_width=args.streakMask_width,
+            #                               userMask_path=args.userMask_path,
+            #                               psanaMask_on=args.psanaMask_on,
+            #                               psanaMask_calib=args.psanaMask_calib,
+            #                               psanaMask_status=args.psanaMask_status,
+            #                               psanaMask_edges=args.psanaMask_edges,
+            #                               psanaMask_central=args.psanaMask_central,
+            #                               psanaMask_unbond=args.psanaMask_unbond,
+            #                               psanaMask_unbondnrs=args.psanaMask_unbondnrs)
             elif args.algorithm == 4:
                 d.peakFinder = pf.PeakFinder(env.experiment(),evt.run(),args.det,evt,d,
                                           args.algorithm, args.alg_npix_min,
@@ -83,7 +82,11 @@ def runclient(args):
                                           psanaMask_edges=args.psanaMask_edges,
                                           psanaMask_central=args.psanaMask_central,
                                           psanaMask_unbond=args.psanaMask_unbond,
-                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs)
+                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                          medianFilterOn=args.medianBackground,
+                                          medianRank=args.medianRank,
+                                          radialFilterOn=args.radialBackground,
+                                          distance=args.distance)
         d.peakFinder.findPeaks(detarr,evt)
         md=mpidata()
         md.addarray('peaks',d.peakFinder.peaks)
