@@ -11,6 +11,16 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-40
+2016-08-14 Chunhong Yoon
+- Remove hardlink for psgeom
+
+Tag: V00-01-39
+2016-08-13 Chunhong Yoon
+- Fix detector distance update
+- Auto update small data name
+- Peak finding batch job with median or radial background subtraction
+
 Tag: V00-01-38
 2016-08-13 Chunhong Yoon
 - allow interactive median and radial background subtraction
