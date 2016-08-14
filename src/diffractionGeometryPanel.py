@@ -162,7 +162,7 @@ class DiffractionGeometry(object):
             if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
                 self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
                     self.parent.psocakeRunDir + '/.temp.geom')
-                cmd = ["python", "/reg/neh/home/yoon82/psgeom/psana2crystfel.py", self.calibPath + '/' + self.calibFile,
+                cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                        self.parent.psocakeRunDir + "/.temp.geom"]  # TODO: remove my home
                 if self.parent.args.v >= 1: print "cmd: ", cmd
                 p = subprocess.Popen(cmd, stdout=subprocess.PIPE)

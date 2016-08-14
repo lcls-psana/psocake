@@ -100,12 +100,12 @@ class LaunchPeakFinder(QtCore.QThread):
                     " --streakMask_sigma "+str(self.parent.mk.streak_sigma)+\
                    " --streakMask_width "+str(self.parent.mk.streak_width)
             if self.parent.mk.psanaMaskOn:
-                cmd += " --psanaMask_on "+str(self.parent.mk.psanaMaskOn)+\
-                   " --psanaMask_calib "+str(self.parent.mk.mask_calibOn)+\
-                   " --psanaMask_status "+str(self.parent.mk.mask_statusOn)+\
-                   " --psanaMask_edges "+str(self.parent.mk.mask_edgesOn)+\
-                   " --psanaMask_central "+str(self.parent.mk.mask_centralOn)+\
-                   " --psanaMask_unbond "+str(self.parent.mk.mask_unbondOn)+\
+                cmd += " --psanaMask_on "+str(self.parent.mk.psanaMaskOn) + \
+                   " --psanaMask_calib "+str(self.parent.mk.mask_calibOn) + \
+                   " --psanaMask_status "+str(self.parent.mk.mask_statusOn) + \
+                   " --psanaMask_edges "+str(self.parent.mk.mask_edgesOn) + \
+                   " --psanaMask_central "+str(self.parent.mk.mask_centralOn) + \
+                   " --psanaMask_unbond "+str(self.parent.mk.mask_unbondOn) + \
                    " --psanaMask_unbondnrs "+str(self.parent.mk.mask_unbondnrsOn)
 
             if self.parent.pk.hitParam_noe > 0:
