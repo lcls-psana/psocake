@@ -30,6 +30,7 @@ class RoiHistogram(object):
         #############################
         self.updateRoiStatus = True
 
+        self.roiCurrent = None
         # Custom ROI for selecting an image region
         self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
                           pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
@@ -64,7 +65,8 @@ class RoiHistogram(object):
             hist,bin = np.histogram(selected.flatten(), bins=1000)
             self.w4.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0,0,255,150), clear=True)
 
-    def updateRoi(self,roi):
+    def updateRoi(self, roi):
+        self.roiCurrent = roi.name
         if self.parent.data is not None:
             if self.updateRoiStatus == True:
                 calib = np.ones_like(self.parent.calib)

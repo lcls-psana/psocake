@@ -374,6 +374,14 @@ class ImageViewer(object):
             self.parent.cx, self.parent.cy = self.getCentre(data.shape)
         if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
 
+        # Update ROI histogram
+        if self.parent.roi.roiCurrent == 'rect':
+            self.parent.roi.updateRoi(self.parent.roi.roi)
+        elif self.parent.roi.roiCurrent == 'poly':
+            self.parent.roi.updateRoi(self.parent.roi.roiPoly)
+        elif self.parent.roi.roiCurrent == 'circ':
+            self.parent.roi.updateRoi(self.parent.roi.roiCircle)
+
         return calib, data
 
     def getCentre(self,shape):
