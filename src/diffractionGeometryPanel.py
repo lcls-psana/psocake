@@ -22,8 +22,10 @@ class DiffractionGeometry(object):
         self.w3.setWindowTitle('Diffraction geometry')
         self.d3.addWidget(self.w3)
         self.w3a = pg.LayoutWidget()
-        self.deployGeomBtn = QtGui.QPushButton('Deploy centred psana geometry')
+        self.deployGeomBtn = QtGui.QPushButton('Deploy manually centred geometry')
         self.w3a.addWidget(self.deployGeomBtn, row=0, col=0)
+        self.deployAutoGeomBtn = QtGui.QPushButton('Deploy automatically centred geometry')
+        self.w3a.addWidget(self.deployAutoGeomBtn, row=1, col=0)
         self.d3.addWidget(self.w3a)
 
         self.resolutionRingList = np.array([100.,300.,500.,700.,900.,1100.])
@@ -79,6 +81,7 @@ class DiffractionGeometry(object):
         self.w3.setParameters(self.p1, showTop=False)
 
         self.parent.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.deploy)
+        self.parent.connect(self.deployAutoGeomBtn, QtCore.SIGNAL("clicked()"), self.autoDeploy)
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
@@ -391,3 +394,6 @@ class DiffractionGeometry(object):
             self.updateRings()
             self.parent.index.updateIndex()
             self.drawCentre()
+
+    def autoDeploy(self):
+        print "Not implemented yet"

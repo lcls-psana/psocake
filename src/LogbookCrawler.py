@@ -1,6 +1,6 @@
 from pyqtgraph.Qt import QtCore
 from LogBook.runtables import RunTables
-import time, json
+import time, json, os
 
 class LogbookCrawler(QtCore.QThread):
     def __init__(self, parent = None):
@@ -29,7 +29,7 @@ class LogbookCrawler(QtCore.QThread):
                 for run in range(lastRun):
                     # hit finder
                     fname = self.outDir + '/r' + str(run).zfill(4) + '/status_hits.txt'
-                    try:
+                    if os.path.exists(fname):
                         with open(fname) as infile:
                             d = json.load(infile)
                             if 'message' in d:
@@ -47,11 +47,10 @@ class LogbookCrawler(QtCore.QThread):
                                 fracDone = d['fracDone']
                                 msg = '{0:.1f}% done'.format(fracDone)
                             self.table.setValue(run, "Number of hits", msg)
-                    except:  # file may not exist yet
-                        continue
+
                     # peak finder
                     fname = self.outDir + '/r' + str(run).zfill(4) + '/status_peaks.txt'
-                    try:
+                    if os.path.exists(fname):
                         with open(fname) as infile:
                             d = json.load(infile)
                             if 'message' in d:
@@ -65,11 +64,10 @@ class LogbookCrawler(QtCore.QThread):
                                 else:
                                     msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
                             self.table.setValue(run, "Number of hits", msg)
-                    except:  # file may not exist yet
-                        continue
+
                     # indexing
                     fname = self.outDir + '/r' + str(run).zfill(4) + '/status_index.txt'
-                    try:
+                    if os.path.exists(fname):
                         with open(fname) as infile:
                             d = json.load(infile)
                             if 'message' in d:
@@ -85,8 +83,6 @@ class LogbookCrawler(QtCore.QThread):
                                 else:
                                     msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
                             self.table.setValue(run, "Number of indexed", msg)
-                    except:  # file may not exist yet
-                        continue
-                    time.sleep(10)  # logbook update
+                time.sleep(10)  # logbook update
             except:
                 time.sleep(10)

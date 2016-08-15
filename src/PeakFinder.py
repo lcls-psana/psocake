@@ -151,17 +151,13 @@ class PeakFinder:
             calib.shape = self.userPsanaMask.shape  # FIXME: shape is 1d
 
         if self.streakMask_on: # make new streak mask
-            #tic = time.time()
-            self.streakMask = self.StreakMask.getStreakMaskCalib(evt) #myskbeam.getStreakMaskCalib(self.det,self.evt,width=self.streakMask_width,sigma=self.streakMask_sigma)
-            #tic1 = time.time()
+            self.streakMask = self.StreakMask.getStreakMaskCalib(evt)
         if self.streakMask is not None:
             self.combinedMask = self.userPsanaMask * self.streakMask
         else:
             self.combinedMask = self.userPsanaMask
-        #tic2 = time.time()
         # set new mask
         self.alg.set_mask(self.combinedMask)
-        #tic3 = time.time()
         # set algorithm specific parameters
         if self.algorithm == 1:
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
@@ -175,11 +171,7 @@ class PeakFinder:
             #                            around pixel with maximal intensity.
             self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
                                    rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
-            #tic4 = time.time()
-            #print "makeStreak, combineMask, setMask, peakFind: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3
         self.numPeaksFound = self.peaks.shape[0]
-        print "numPeaksFound: ", self.peaks.shape, self.numPeaksFound
-        print "iX: ", self.iX.shape
 
         if self.numPeaksFound > 0:
             cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
