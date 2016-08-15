@@ -23,6 +23,8 @@ class CrystalIndexing(object):
         self.w22 = pg.LayoutWidget()
         self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
         self.w22.addWidget(self.launchIndexBtn, row=0, col=0)
+        self.synchBtn = QtGui.QPushButton('Deploy CrystFEL geometry')
+        self.w22.addWidget(self.synchBtn, row=1, col=0)
         self.d14.addWidget(self.w22)
 
 
@@ -117,12 +119,37 @@ class CrystalIndexing(object):
         self.p9.sigTreeStateChanged.connect(self.change)
 
         self.parent.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), self.indexPeaks)
+        self.parent.connect(self.synchBtn, QtCore.SIGNAL("clicked()"), self.syncGeom)
 
     # Launch indexing
     def indexPeaks(self):
         self.parent.thread.append(LaunchIndexer.LaunchIndexer(self.parent))  # send parent parameters with self
         self.parent.thread[self.parent.threadCounter].launch(self.parent.experimentName, self.parent.detInfo)
         self.parent.threadCounter += 1
+
+    # Update psana geometry
+    def syncGeom(self):
+        print "#################################################"
+        print "Updating psana geometry with CrystFEL geometry"
+        print "#################################################"
+        self.parent.geom.findPsanaGeometry()
+        cmd = ["crystfel2psana",
+               "-e", self.parent.experimentName,
+               "-r", str(self.parent.runNumber),
+               "-d", str(self.parent.det.name),
+               "--rootDir", self.parent.rootDir,
+               "-c", self.geom,
+               "-p", self.parent.psocakeRunDir+"/.temp.data"]  # TODO: remove my home
+        if self.parent.args.v >= 1: print "cmd: ", cmd
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        output = p.communicate()[0]
+        p.stdout.close()
+        # Reload new psana geometry
+        self.parent.exp.setupExperiment()
+        self.parent.img.getDetImage(self.parent.eventNumber)
+        self.parent.geom.updateRings()
+        self.parent.index.updateIndex()
+        self.parent.geom.drawCentre()
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):

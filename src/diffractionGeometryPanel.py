@@ -163,7 +163,7 @@ class DiffractionGeometry(object):
                 self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
                     self.parent.psocakeRunDir + '/.temp.geom')
                 cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                       self.parent.psocakeRunDir + "/.temp.geom"]  # TODO: remove my home
+                       self.parent.psocakeRunDir + "/.temp.geom"]
                 if self.parent.args.v >= 1: print "cmd: ", cmd
                 p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                 output = p.communicate()[0]
@@ -372,8 +372,8 @@ class DiffractionGeometry(object):
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
             from PSCalib.CalibFileFinder import deploy_calib_file
             # Calculate detector translation in x and y
-            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.centreX) # microns
-            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.centreY) # microns
+            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreX) # microns
+            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreY) # microns
             geo = self.parent.det.geometry(self.parent.evt)
             geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
             fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
@@ -384,6 +384,7 @@ class DiffractionGeometry(object):
             cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
             deploy_calib_file(cdir=self.parent.rootDir+'/calib', src=str(self.parent.det.name), type='geometry',
                               run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+            # Reload new psana geometry
             self.parent.exp.setupExperiment()
             self.parent.img.getDetImage(self.parent.eventNumber)
             self.updateRings()
