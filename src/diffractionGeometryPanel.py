@@ -184,7 +184,8 @@ class DiffractionGeometry(object):
             if self.parent.args.v >= 1: print "has geometry info"
             self.updateGeometry()
         self.parent.img.updatePolarizationFactor()
-        self.parent.img.updateImage()
+        if self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:
+            self.parent.img.updateImage()
         if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "Done updateDetectorDistance"
 
