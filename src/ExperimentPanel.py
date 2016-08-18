@@ -418,6 +418,12 @@ class ExperimentInfo(object):
         self.crawlerThread[self.crawlerThreadCounter].updateLogbook(self.parent.experimentName, self.parent.psocakeDir)
         self.crawlerThreadCounter += 1
 
+    def getDetectorAlias(self, srcOrAlias):
+        for i in self.parent.detInfoList:
+            src, alias, _ = i
+            if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
+                return alias
+
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
         if self.hasExpRunInfo():
@@ -508,11 +514,11 @@ class ExperimentInfo(object):
         if self.hasExpRunDetInfo():
             self.parent.det = psana.Detector(str(self.parent.detInfo), self.env)
             self.parent.det.do_reshape_2d_to_3d(flag=True)
-    
+            self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
             self.parent.epics = self.ds.env().epicsStore()
             # detector distance
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                self.parent.clenEpics = str(self.parent.detInfo) + '_z'
+                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
                 print "self.parent.clenEpics: ",self.parent.clenEpics
                 self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen

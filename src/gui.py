@@ -123,6 +123,7 @@ class MainFrame(QtGui.QWidget):
             self.experimentName = args.exp
             self.runNumber = int(args.run)
         self.detInfo = args.det
+        self.detAlias = None
         self.eventNumber = int(args.evt)
 
         # Directories
