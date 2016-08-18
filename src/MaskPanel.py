@@ -492,9 +492,9 @@ class MaskMaker(object):
             # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
             self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
 
-            #import matplotlib.pyplot as plt
-            #plt.imshow(self.selected, vmax=1, vmin=0)
-            #plt.show()
+            import matplotlib.pyplot as plt
+            plt.imshow(self.selected, vmax=1, vmin=0)
+            plt.show()
 
             self.selected = 1 - self.selected
 
@@ -502,7 +502,7 @@ class MaskMaker(object):
             y = self.mask_poly.parentBounds().y()
             #sx = self.mask_poly.parentBounds().size().height()
             #sy = self.mask_poly.parentBounds().size().width()
-            #print "x,y: ", x, y, sx, sy#, self.parent.data.shape[0], self.parent.data.shape[1]
+            #print "x,y: ", x, y, self.selected.shape#, sx, sy#, self.parent.data.shape[0], self.parent.data.shape[1]
 
             _mask = np.ones_like(img)
             if x >= 0 and y >= 0:
@@ -512,7 +512,7 @@ class MaskMaker(object):
                 print "Polygon mask has negative indices."
                 print "##################################"
 
-            if self.maskingMode == 1:  # masking mode
+            if self.maskingMode >= 1:  # masking mode
                 self.userMaskAssem *= _mask
 
             # update userMask

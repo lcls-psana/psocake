@@ -1,3 +1,4 @@
+# Logbook crawler only update while the GUI is open
 from pyqtgraph.Qt import QtCore
 from LogBook.runtables import RunTables
 import time, json, os

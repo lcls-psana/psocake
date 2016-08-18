@@ -513,6 +513,7 @@ class ExperimentInfo(object):
             # detector distance
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 self.parent.clenEpics = str(self.parent.detInfo) + '_z'
+                print "self.parent.clenEpics: ",self.parent.clenEpics
                 self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)

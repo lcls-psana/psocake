@@ -14,6 +14,7 @@ reverse time order.
 Tag: V00-01-40
 2016-08-14 Chunhong Yoon
 - Remove hardlink for psgeom
+- Fix polygon mask in toggle mode
 
 Tag: V00-01-39
 2016-08-13 Chunhong Yoon
