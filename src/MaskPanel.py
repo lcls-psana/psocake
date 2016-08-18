@@ -492,9 +492,9 @@ class MaskMaker(object):
             # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
             self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
 
-            import matplotlib.pyplot as plt
-            plt.imshow(self.selected, vmax=1, vmin=0)
-            plt.show()
+            #import matplotlib.pyplot as plt
+            #plt.imshow(self.selected, vmax=1, vmin=0)
+            #plt.show()
 
             self.selected = 1 - self.selected
 
