@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-42
+2016-08-18 Chunhong Yoon
+- Remove plot of polygon mask
+
 Tag: V00-01-41
 2016-08-18 Chunhong Yoon
 - Fix clenEpics name generated from source
