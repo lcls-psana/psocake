@@ -160,6 +160,10 @@ class MainFrame(QtGui.QWidget):
         self.cx = 0 # detector centre x
         self.cy = 0 # detector centre y
 
+        ## Switch to using white background and black foreground
+        pg.setConfigOption('background', color.grayLite_hex)
+        pg.setConfigOption('foreground', color.darkRed_hex)
+
         ########################################
         # Instantiate panels
         ########################################
@@ -192,7 +196,7 @@ class MainFrame(QtGui.QWidget):
             r = '3px'
             fg = color.cardinalRed_hex
             bg = color.sandstone100_rgb
-            border = "white"
+            border = "k"
 
             if self.orientation == 'vertical':
                 self.vStyle = """DockLabel {
@@ -202,12 +206,15 @@ class MainFrame(QtGui.QWidget):
                     border-top-left-radius: %s;
                     border-bottom-right-radius: 0px;
                     border-bottom-left-radius: %s;
-                    border-width: 0px;
+                    border-top: 1px solid %s;
+                    border-left: 1px solid %s;
+                    border-right: 1px solid %s;
+                    border-width: 0x;
                     border-right: 2px solid %s;
                     padding-top: 3px;
                     padding-bottom: 3px;
                     font-size: 18px;
-                }""" % (bg, fg, r, r, border)
+                }""" % (bg, fg, r, r, border, fg, fg, fg)
                 self.setStyleSheet(self.vStyle)
             else:
                 self.hStyle = """DockLabel {
@@ -219,10 +226,13 @@ class MainFrame(QtGui.QWidget):
                     border-bottom-left-radius: 0px;
                     border-width: 0px;
                     border-bottom: 2px solid %s;
+                    border-top: 1px solid %s;
+                    border-left: 1px solid %s;
+                    border-right: 1px solid %s;
                     padding-left: 13px;
                     padding-right: 13px;
                     font-size: 18px
-                }""" % (bg, fg, r, r, border)
+                }""" % (bg, fg, r, r, border, fg, fg, fg)
                 self.setStyleSheet(self.hStyle)
         DockLabel.updateStyle = updateStylePatched
 

@@ -14,6 +14,7 @@ def runclient(args):
     env = ds.env()
     times = run.times()
     d = psana.Detector(args.det)
+    d.do_reshape_2d_to_3d(flag=True)
 
     for nevent in np.arange(len(times)):
         if nevent == args.noe : break

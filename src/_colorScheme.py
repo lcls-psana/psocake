@@ -6,6 +6,7 @@ black80_hex = str("#585754") # black 80%
 gray_hex = str("#3f3c30") # gray
 gray90_hex = str("#565347") # gray 90%
 gray60_hex = str("#8a887d") # gray 60%
+grayLite_hex = str("#ececec") # light grey
 sandstone100_rgb = (221,207,153) # Sandstone
 beige_hex = ("#9d9573") # beige
 

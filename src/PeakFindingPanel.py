@@ -101,7 +101,7 @@ class PeakFinding(object):
         self.hitParam_alg1_atot_thr = 800.
         self.hitParam_alg1_son_min = 7.
         self.hitParam_alg1_thr_low = 200.
-        self.hitParam_alg1_thr_high = self.hitParam_alg1_amax_thr
+        self.hitParam_alg1_thr_high = 800.
         self.hitParam_alg1_radius = 2
         self.hitParam_alg1_dr = 1
         self.hitParam_alg2_npix_min = 1.
@@ -123,10 +123,10 @@ class PeakFinding(object):
         self.hitParam_alg4_npix_min = 1.
         self.hitParam_alg4_npix_max = 45.
         self.hitParam_alg4_amax_thr = 800.
-        self.hitParam_alg4_atot_thr = self.hitParam_alg1_amax_thr
+        self.hitParam_alg4_atot_thr = 0
         self.hitParam_alg4_son_min = 7.
         self.hitParam_alg4_thr_low = 200.
-        self.hitParam_alg4_thr_high = self.hitParam_alg1_amax_thr
+        self.hitParam_alg4_thr_high = self.hitParam_alg1_thr_high
         self.hitParam_alg4_rank = 3
         self.hitParam_alg4_r0 = 2
         self.hitParam_alg4_dr = 1
