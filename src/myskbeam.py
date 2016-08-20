@@ -59,6 +59,7 @@ class StreakMask:
         self.calibSize = calib.size
         # Edge pixels
         edgePixels = np.zeros_like(calib)
+        print "calib: ", calib.shape, edgePixels.shape
         for i in range(edgePixels.shape[0]):
             edgePixels[i,0,:] = 1
             edgePixels[i,-1,:] = 1

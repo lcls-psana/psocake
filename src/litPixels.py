@@ -72,6 +72,8 @@ if rank == 0: photonEnergy = getAveragePhotonEnergy()
 aliasList = args.detectorName.split(",")
 print("#### aliasList: ", aliasList)
 myDetList = [psana.Detector(src) for src in aliasList]
+for det in myDetList:
+    det.do_reshape_2d_to_3d(flag=True)
 numDet = len(aliasList)
 
 # def getGains(evt):

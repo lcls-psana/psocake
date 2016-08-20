@@ -119,6 +119,7 @@ class PeakFinder:
         self.env = self.ds.env()
         self.evt = self.run.event(self.times[0])
         self.det = psana.Detector(str(self.detname), self.env)
+        self.det.do_reshape_2d_to_3d(flag=True)
 
     def setupRadialBackground(self):
         self.geo = self.det.geometry(self.run)  # self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)

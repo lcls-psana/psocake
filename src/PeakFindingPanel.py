@@ -97,7 +97,7 @@ class PeakFinding(object):
 
         self.hitParam_alg1_npix_min = 1.
         self.hitParam_alg1_npix_max = 45.
-        self.hitParam_alg1_amax_thr = 800.
+        self.hitParam_alg1_amax_thr = 0.
         self.hitParam_alg1_atot_thr = 800.
         self.hitParam_alg1_son_min = 7.
         self.hitParam_alg1_thr_low = 200.

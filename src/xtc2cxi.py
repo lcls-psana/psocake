@@ -50,6 +50,7 @@ class psanaWhisperer():
         self.env = self.ds.env()
         self.evt = self.run.event(self.times[0])
         self.det = psana.Detector(str(self.detInfo), self.env)
+        self.det.do_reshape_2d_to_3d(flag=True)
         # Get epics variable, clen
         if "cxi" in self.experimentName:
             self.epics = self.ds.env().epicsStore()
