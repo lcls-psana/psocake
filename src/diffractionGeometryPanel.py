@@ -158,31 +158,46 @@ class DiffractionGeometry(object):
             print "Couldn't find psana geometry"
             self.calibFile = None
 
-    def deployCrystfelGeometry(self):
-        self.findPsanaGeometry()
-        if self.calibFile is not None and self.parent.writeAccess:
-            # Convert psana geometry to crystfel geom
-            if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
-                self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
-                    self.parent.psocakeRunDir + '/.temp.geom')
-                cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                       self.parent.psocakeRunDir + "/.temp.geom"]
-                if self.parent.args.v >= 1: print "cmd: ", cmd
-                p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
+    def deployCrystfelGeometry(self, arg):
+        if arg == 'lcls':
+            self.findPsanaGeometry()
+            if self.calibFile is not None and self.parent.writeAccess:
+                # Convert psana geometry to crystfel geom
+                if 'cspad' in self.parent.detAlias.lower() and 'cxi' in self.parent.experimentName:
+                    if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                        self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+                            self.parent.psocakeRunDir + '/.temp.geom')
+                        cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
+                               self.parent.psocakeRunDir + "/.temp.geom"]
+                        if self.parent.args.v >= 1: print "cmd: ", cmd
+                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                        output = p.communicate()[0]
+                        p.stdout.close()
+                elif 'rayonix' in self.parent.detAlias.lower() and 'mfx' in self.parent.experimentName:
+                    print "Not implemented yet"
+                    if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                        self.parent.index.p9.param(self.parent.index.index_grp,
+                                                   self.parent.index.index_geom_str).setValue(
+                            self.parent.psocakeRunDir + '/.temp.geom')
+                    # TODO: Run psana2crystfel for Rayonix
 
-    def updateClen(self):
-        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-        self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
+    def updateClen(self, arg):
+        if arg == 'lcls':
+            if ('cspad' in self.parent.detAlias.lower() and 'cxi' in self.parent.experimentName) or \
+               ('rayonix' in self.parent.detAlias.lower() and 'mfx' in self.parent.experimentName):
+                try:
+                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                except:
+                    print "epics PV for clen is not available"
+                    self.parent.clen = 0
+                self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000.  # mm to metres
-        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            self.updateClen()
-            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-            if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
-            self.writeCrystfelGeom()
+        self.updateClen('lcls')
+        if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+        self.writeCrystfelGeom('lcls')
         if self.hasGeometryInfo():
             if self.parent.args.v >= 1: print "has geometry info"
             self.updateGeometry()
@@ -219,24 +234,27 @@ class DiffractionGeometry(object):
         else:
             return False
 
-    def writeCrystfelGeom(self):
-        if os.path.isfile(self.parent.index.hiddenCXI):
-            f = h5py.File(self.parent.index.hiddenCXI,'r')
-            encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
-            f.close()
-            coffset = self.parent.detectorDistance - encoderVal
-            if self.parent.args.v >= 1:
-                print "& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
-            coffsetStr = "coffset = "+str(coffset)+"\n"
+    def writeCrystfelGeom(self, arg):
+        if arg == 'lcls':
+            if ('cspad' in self.parent.detAlias.lower() and 'cxi' in self.parent.experimentName) or \
+               ('rayonix' in self.parent.detAlias.lower() and 'mfx' in self.parent.experimentName):
+                if os.path.isfile(self.parent.index.hiddenCXI):
+                    f = h5py.File(self.parent.index.hiddenCXI,'r')
+                    encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
+                    f.close()
+                    coffset = self.parent.detectorDistance - encoderVal
+                    if self.parent.args.v >= 1:
+                        print "& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
+                    coffsetStr = "coffset = "+str(coffset)+"\n"
 
-            # Replace coffset value in geometry file
-            if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
-                for line in fileinput.input(self.parent.index.geom, inplace=True):
-                    if 'coffset' in line and line.strip()[0] is not ';':
-                        coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
-                        print coffsetStr, # comma is required
-                    else:
-                        print line, # comma is required
+                    # Replace coffset value in geometry file
+                    if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                        for line in fileinput.input(self.parent.index.geom, inplace=True):
+                            if 'coffset' in line and line.strip()[0] is not ';':
+                                coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
+                                print coffsetStr, # comma is required
+                            else:
+                                print line, # comma is required
 
     def updateGeometry(self):
         if self.hasUserDefinedResolution:
@@ -373,27 +391,33 @@ class DiffractionGeometry(object):
             self.resolutionText = []
 
     def deploy(self):
+        from PSCalib.CalibFileFinder import deploy_calib_file
+        # Calculate detector translation in x and y
+        dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreX)  # microns
+        dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreY)  # microns
+        geo = self.parent.det.geometry(self.parent.evt)
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            from PSCalib.CalibFileFinder import deploy_calib_file
-            # Calculate detector translation in x and y
-            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreX) # microns
-            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreY) # microns
-            geo = self.parent.det.geometry(self.parent.evt)
             geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
-            fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
-            geo.save_pars_in_file(fname)
-            print "#################################################"
-            print "Deploying psana detector geometry: ", fname
-            print "#################################################"
-            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
-            deploy_calib_file(cdir=self.parent.rootDir+'/calib', src=str(self.parent.det.name), type='geometry',
-                              run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
-            # Reload new psana geometry
-            self.parent.exp.setupExperiment()
-            self.parent.img.getDetImage(self.parent.eventNumber)
-            self.updateRings()
-            self.parent.index.updateIndex()
-            self.drawCentre()
+        elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+            geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+        fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
+        geo.save_pars_in_file(fname)
+        print "#################################################"
+        print "Deploying psana detector geometry: ", fname
+        print "#################################################"
+        cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
+        if self.parent.args.outDir is None:
+            calibDir = self.parent.rootDir + '/calib'
+        else:
+            calibDir = '/reg/d/psdm/'+self.parent.experimentName[:3]+'/'+self.parent.experimentName+'/calib'
+        deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
+                          run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+        # Reload new psana geometry
+        self.parent.exp.setupExperiment()
+        self.parent.img.getDetImage(self.parent.eventNumber)
+        self.updateRings()
+        self.parent.index.updateIndex()
+        self.drawCentre()
 
     def autoDeploy(self):
         print "Not implemented yet"

@@ -424,6 +424,50 @@ class ExperimentInfo(object):
             if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
                 return alias
 
+    def updateHiddenCrystfelFiles(self, arg):
+        if arg == 'lcls':
+            if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
+                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
+                self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
+                self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
+                self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
+
+    def updateDetectorDistance(self, arg):
+        if arg == 'lcls':
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
+                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
+                    self.parent.clen)
+            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                self.parent.clenEpics = 'detector_z'
+                self.parent.clen = -0.582 #self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
+                    self.parent.clen)
+            if self.parent.args.v >= 1:
+                print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                print "clenEpics: ", self.parent.clenEpics
+                print "detectorDistance (m), self.clen (m), self.coffset (m): ", self.parent.detectorDistance, self.parent.clen, self.parent.coffset
+
+    def updatePixelSize(self, arg):
+        if arg == 'lcls':
+            if 'cspad' in self.parent.detInfo.lower():  # FIXME: increase pixel size list: epix, rayonix
+                self.parent.pixelSize = 110e-6  # metres
+            elif 'pnccd' in self.parent.detInfo.lower():
+                self.parent.pixelSize = 75e-6  # metres
+            elif 'rayonix' in self.parent.detInfo.lower():
+                self.parent.pixelSize = 89e-6  # metres
+
+    def updatePhotonEnergy(self, arg):
+        if arg == 'lcls':
+            self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+            if self.parent.ebeam:
+                self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
+            else:
+                self.parent.photonEnergy = 0.0
+
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
         if self.hasExpRunInfo():
@@ -466,10 +510,7 @@ class ExperimentInfo(object):
             self.setupPsocake()
     
             # Update hidden CrystFEL files
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
-                self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
-                self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
+            self.updateHiddenCrystfelFiles('lcls')
     
             if self.parent.args.localCalib:
                 if self.parent.args.v >= 1: print "Using local calib directory"
@@ -517,28 +558,13 @@ class ExperimentInfo(object):
             self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
             self.parent.epics = self.ds.env().epicsStore()
             # detector distance
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
-                if self.parent.args.v >= 1: print "self.parent.clenEpics: ",self.parent.clenEpics
-                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
-                if self.parent.args.v >= 1:
-                    print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-                    print "clenEpics: ", self.parent.clenEpics
-                    print "@detectorDistance (m), self.clen (m), self.coffset (m): ", self.parent.detectorDistance, self.parent.clen, self.parent.coffset
-            if 'cspad' in self.parent.detInfo.lower():  # FIXME: increase pixel size list: epix, rayonix
-                self.parent.pixelSize = 110e-6  # metres
-            elif 'pnccd' in self.parent.detInfo.lower():
-                self.parent.pixelSize = 75e-6  # metres
-    
+            self.updateDetectorDistance('lcls')
+            # pixel size
+            self.updatePixelSize('lcls')
+            # Update geometry panel
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize)
             # photon energy
-            self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-            if self.parent.ebeam:
-                self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
-            else:
-                self.parent.photonEnergy = 0
+            self.updatePhotonEnergy('lcls')
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
     
             if self.parent.evt is None:
@@ -555,12 +581,11 @@ class ExperimentInfo(object):
     
             if self.detGuaranteed is not None:
                 self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
-                self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.pixelInd)
+                self.parent.pixelIndAssem = self.parent.img.getAssembledImage('lcls', self.parent.pixelInd)
                 self.parent.pixelIndAssem -= 1  # First pixel is 0
     
             # Write a temporary geom file
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                self.parent.geom.deployCrystfelGeometry()
+            self.parent.geom.deployCrystfelGeometry('lcls')
 
             self.parent.img.setupRadialBackground()
             self.parent.img.updatePolarizationFactor()

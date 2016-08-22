@@ -14,6 +14,8 @@ parser.add_argument("--peakMethod", help="",default="", type=str)
 parser.add_argument("--integrationRadius", help="",default="", type=str)
 parser.add_argument("--pdb", help="",default="", type=str)
 parser.add_argument("--indexingMethod", help="",default="", type=str)
+parser.add_argument("--tolerance", help="",default="5,5,5,1.5", type=str)
+parser.add_argument("--extra", help="",default="", type=str)
 parser.add_argument("--minPeaks", help="",default=0, type=int)
 parser.add_argument("--maxPeaks", help="",default=0, type=int)
 parser.add_argument("--minRes", help="",default=0, type=int)
@@ -51,6 +53,8 @@ indexingMethod = args.indexingMethod
 minPeaks = args.minPeaks
 maxPeaks = args.maxPeaks
 minRes = args.minRes
+tolerance = args.tolerance
+extra = args.extra
 outDir = args.outDir
 sample = args.sample
 queue = args.queue
@@ -99,28 +103,32 @@ def getIndexedPeaks():
                 continue
 
     # Add indexed peaks and remove images in hdf5
-    f = h5py.File(peakFile, 'r')
-    totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
-    hitEvents = f['/LCLS/eventNumber'].value
-    f.close()
-    # Add indexed peaks
-    fstream = open(totalStream, 'r')
-    content = fstream.readlines()
-    fstream.close()
-    indexedPeaks = np.zeros((totalEvents,), dtype=int)
-    numProcessed = 0
-    for i, val in enumerate(content):
-        if "Event: //" in val:
-            _evt = int(val.split("Event: //")[-1].strip())
-        if "indexed_by =" in val:
-            _ind = val.split("indexed_by =")[-1].strip()
-        if "num_peaks =" in val:
-            _num = val.split("num_peaks =")[-1].strip()
-            numProcessed += 1
-            if 'none' in _ind:
-                continue
-            else:
-                indexedPeaks[hitEvents[_evt]] = _num
+    try:
+        f = h5py.File(peakFile, 'r')
+        totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
+        hitEvents = f['/LCLS/eventNumber'].value
+        f.close()
+        # Add indexed peaks
+        fstream = open(totalStream, 'r')
+        content = fstream.readlines()
+        fstream.close()
+        indexedPeaks = np.zeros((totalEvents,), dtype=int)
+        numProcessed = 0
+        for i, val in enumerate(content):
+            if "Event: //" in val:
+                _evt = int(val.split("Event: //")[-1].strip())
+            if "indexed_by =" in val:
+                _ind = val.split("indexed_by =")[-1].strip()
+            if "num_peaks =" in val:
+                _num = val.split("num_peaks =")[-1].strip()
+                numProcessed += 1
+                if 'none' in _ind:
+                    continue
+                else:
+                    indexedPeaks[hitEvents[_evt]] = _num
+    except:
+        indexedPeaks = None
+        numProcessed = None
     return indexedPeaks, numProcessed
 
 ##############################################################################
@@ -247,7 +255,7 @@ if Done == 1:
             numEvents = int(d['numHits'])
 
     # Split into chunks for faster indexing
-    numWorkers = int(cpus / 2.)
+    numWorkers = int(cpus / 6.) + 1
     myLogList = []
     myJobList = []
     myStreamList = []
@@ -263,10 +271,12 @@ if Done == 1:
                 text_file.write("{} //{}\n".format(peakFile, val))
 
         cmd = "bsub -q " + queue + " -R 'span[hosts=1]' -o " + runDir + \
-              "/.%J.log mpirun indexamajig -j " + str(12) + " -i " + myList + \
+              "/.%J.log indexamajig -j " + str(6) + " -i " + myList + \
               " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
-              " --indexing=" + indexingMethod + " -o " + myStream + " --temp-dir=" + runDir
+              " --indexing=" + indexingMethod + " -o " + myStream + " --temp-dir=" + runDir + \
+              " --tolerance=" + tolerance
         if pdb: cmd += " --pdb=" + pdb
+        if extra: cmd += " " + extra
         print "Submitting batch job: ", cmd
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
@@ -313,19 +323,20 @@ if Done == 1:
                         if args.v >= 1: print "indexing hasn't finished yet: ", runNumber, myJobList, haveFinished
                         indexedPeaks, numProcessed = getIndexedPeaks()
 
-                        numIndexedNow = len(np.where(indexedPeaks > 0)[0])
-                        if numProcessed == 0:
-                            indexRate = 0
-                        else:
-                            indexRate = numIndexedNow * 100. / numProcessed
-                        fracDone = numProcessed * 100. / numHits
+                        if indexedPeaks is not None:
+                            numIndexedNow = len(np.where(indexedPeaks > 0)[0])
+                            if numProcessed == 0:
+                                indexRate = 0
+                            else:
+                                indexRate = numIndexedNow * 100. / numProcessed
+                            fracDone = numProcessed * 100. / numHits
 
-                        if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
-                        try:
-                            d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
-                            writeStatus(fnameIndex, d)
-                        except:
-                            pass
+                            if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
+                            try:
+                                d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
+                                writeStatus(fnameIndex, d)
+                            except:
+                                pass
                         time.sleep(10)
             else:
                 if args.v >= 1: print "no such file yet: ", runNumber, myLog
@@ -337,19 +348,21 @@ if Done == 1:
 
     if abs(Done) == 1:
         indexedPeaks, numProcessed = getIndexedPeaks()
-        numIndexedNow = len(np.where(indexedPeaks > 0)[0])
-        if numProcessed == 0:
-            indexRate = 0
-        else:
-            indexRate = numIndexedNow * 100. / numProcessed
-        fracDone = numProcessed * 100. / numHits
-        if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
+        if indexedPeaks is not None:
+            numIndexedNow = len(np.where(indexedPeaks > 0)[0])
+            if numProcessed == 0:
+                indexRate = 0
+            else:
+                indexRate = numIndexedNow * 100. / numProcessed
+            fracDone = numProcessed * 100. / numHits
+            if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
 
-        try:
-            d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
-            writeStatus(fnameIndex, d)
-        except:
-            pass
+            try:
+                d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
+                writeStatus(fnameIndex, d)
+            except:
+                pass
+
         if args.v >= 1: print "Merging stream file: ", runNumber
         # Merge all stream files into one
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber) + ".stream"

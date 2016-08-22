@@ -7,6 +7,8 @@ import argparse
 import os, json
 
 from mpi4py import MPI
+import Detector.PyDetector
+
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
@@ -42,6 +44,31 @@ class psanaWhisperer():
         self.detInfo = detInfo
         self.aduPerPhoton = aduPerPhoton
 
+    def getDetectorAlias(self, srcOrAlias):
+        for i in self.detInfoList:
+            src, alias, _ = i
+            if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
+                return alias
+
+    def getDetInfoList(self):
+        myAreaDetectors = []
+        self.detnames = psana.DetNames()
+        for k in self.detnames:
+            try:
+                if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
+                    myAreaDetectors.append(k)
+            except ValueError:
+                continue
+        self.detInfoList = list(set(myAreaDetectors))
+        print "detInfoList: ", self.detInfoList
+
+    def updateClen(self):
+        if 'cspad' in self.detAlias.lower() and 'cxi' in self.experimentName:
+            self.epics = self.ds.env().epicsStore()
+            self.clen = self.epics.value(args.clen)
+        elif 'rayonix' in self.detAlias.lower() and 'mfx' in self.experimentName:
+            self.clen = 0
+
     def setupExperiment(self):
         self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
         self.run = self.ds.runs().next()
@@ -51,10 +78,10 @@ class psanaWhisperer():
         self.evt = self.run.event(self.times[0])
         self.det = psana.Detector(str(self.detInfo), self.env)
         self.det.do_reshape_2d_to_3d(flag=True)
+        self.getDetInfoList()
+        self.detAlias = self.getDetectorAlias(str(self.detInfo))
         # Get epics variable, clen
-        if "cxi" in self.experimentName:
-            self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(args.clen)
+        self.updateClen()
 
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
@@ -76,6 +103,12 @@ class psanaWhisperer():
         """Returns psana assembled image
         """
         img = self.det.image(self.evt)
+        return img
+
+    def getCalibImg(self):
+        """Returns psana assembled image
+        """
+        img = self.det.calib(self.evt)
         return img
 
     def getAssembledPhotons(self):
@@ -160,6 +193,12 @@ if mode == 'sfx' and instrumentName == 'cxi':
     ps.getEvent(firstHit)
     img = ps.getCheetahImg()
     (dim0, dim1) = img.shape
+elif mode == 'sfx' and instrumentName == 'mfx':
+    # Get image shape
+    firstHit = hitInd[0]
+    ps.getEvent(firstHit)
+    img = ps.getCalibImg()
+    (_, dim0, dim1) = img.shape
 elif mode == 'spi':
     # Get image shape
     firstHit = hitInd[0]
@@ -465,15 +504,18 @@ if rank == 0:
         pass
 
 for i,val in enumerate(myHitInd):
-    print "val: ", val
     globalInd = myJobs[0]+i
     ds_expId[globalInd] = val
     ps.getEvent(val)
     # Write image in cheetah format
-    if mode == 'sfx':
+    if mode == 'sfx' and 'cspad' in ps.detInfo.lower():
         img = ps.getCheetahImg()
         assert(img is not None)
         dset_1[globalInd,:,:] = img
+    elif mode == 'sfx' and 'rayonix' in ps.detInfo.lower():
+        img = ps.getCalibImg()
+        assert(img is not None)
+        dset_1[globalInd,:,:] = img[0,:,:]
     elif mode == 'spi':
         img = ps.getAssembledImg()
         assert (img is not None)
@@ -499,6 +541,8 @@ for i,val in enumerate(myHitInd):
     # LCLS
     if "cxi" in args.exp:
         ds_lclsDet_1[globalInd] = es.value(args.clen) # mm
+    elif "mfx" in args.exp:
+        ds_lclsDet_1[globalInd] = 0 #es.value(args.clen)  # mm # FIXME
 
     try:
         ds_ebeamCharge_1[globalInd] = es.value('BEND:DMP1:400:BDES')

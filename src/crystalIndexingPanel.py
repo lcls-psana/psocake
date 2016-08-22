@@ -38,6 +38,8 @@ class CrystalIndexing(object):
         self.index_minPeaks_str = 'Minimum number of peaks'
         self.index_maxPeaks_str = 'Maximum number of peaks'
         self.index_minRes_str = 'Minimum resolution (pixels)'
+        self.index_tolerance_str = 'Tolerance'
+        self.index_extra_str = 'Extra CrystFEL parameters'
 
         self.launch_grp = 'Batch'
         self.outDir_str = 'Output directory'
@@ -75,6 +77,8 @@ class CrystalIndexing(object):
         self.minPeaks = 15
         self.maxPeaks = 2048
         self.minRes = 0
+        self.tolerance = '5,5,5,1.5'
+        self.extra = ''
         self.keepData = False
 
         #######################
@@ -88,6 +92,10 @@ class CrystalIndexing(object):
                 {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Integration radii"},
                 {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "(Optional) CrystFEL unitcell file"},
                 {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "comma separated indexing methods"},
+                {'name': self.index_tolerance_str, 'type': 'str', 'value': self.tolerance,
+                 'tip': "Indexing tolerance, default: 5,5,5,1.5"},
+                {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
+                 'tip': "Other indexing parameters"},
                 {'name': self.index_minPeaks_str, 'type': 'int', 'value': self.minPeaks,
                  'tip': "Index only if there are more Bragg peaks found"},
                 {'name': self.index_maxPeaks_str, 'type': 'int', 'value': self.maxPeaks,
@@ -184,6 +192,10 @@ class CrystalIndexing(object):
             self.updateMaxPeaks(data)
         elif path[1] == self.index_minRes_str:
             self.updateMinRes(data)
+        elif path[1] == self.index_tolerance_str:
+            self.updateTolerance(data)
+        elif path[1] == self.index_extra_str:
+            self.updateExtra(data)
         # launch grp
         elif path[1] == self.outDir_str:
             self.updateOutputDir(data)
@@ -238,12 +250,21 @@ class CrystalIndexing(object):
         self.minRes = data
         self.updateIndex()
 
+    def updateTolerance(self, data):
+        self.tolerance = data
+        self.updateIndex()
+
+    def updateExtra(self, data):
+        self.extra = data
+        self.updateIndex()
+
     def updateIndex(self):
         if self.indexingOn:
             self.indexer = IndexHandler(parent=self.parent)
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                      self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes, self.outDir, queue=None)
+                                      self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
+                                      self.tolerance, self.extra, self.outDir, queue=None)
 
     def updateOutputDir(self, data):
         self.outDir = data
@@ -324,12 +345,12 @@ class CrystalIndexing(object):
             self.batchIndexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                        self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
-                                           self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
+                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         else:
             self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                        self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
-                                           self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
+                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -363,7 +384,7 @@ class IndexHandler(QtCore.QThread):
         self.wait()
 
     def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod,
-                     minPeaks, maxPeaks, minRes, outDir=None, runs=None, sample=None, queue=None, cpus=None, noe=None):
+                     minPeaks, maxPeaks, minRes, tolerance, extra, outDir=None, runs=None, sample=None, queue=None, cpus=None, noe=None):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
@@ -376,6 +397,8 @@ class IndexHandler(QtCore.QThread):
         self.minPeaks = minPeaks
         self.maxPeaks = maxPeaks
         self.minRes = minRes
+        self.tolerance = tolerance
+        self.extra = extra
         # batch
         self.outDir = outDir
         self.runs = runs
@@ -464,8 +487,9 @@ class IndexHandler(QtCore.QThread):
                 cmd = "indexamajig -j 1 -i " + self.parent.index.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
                       " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
                       " -o " + self.parent.index.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
-                    self.runNumber).zfill(4)
+                      self.runNumber).zfill(4) + " --tolerance=" + str(self.tolerance)
                 if self.pdb: cmd += " --pdb=" + self.pdb
+                if self.extra: cmd += " " + self.extra
 
                 print "cmd: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

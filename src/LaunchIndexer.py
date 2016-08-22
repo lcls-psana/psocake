@@ -63,6 +63,7 @@ class LaunchIndexer(QtCore.QThread):
                   " --minPeaks " + str(self.parent.index.minPeaks) + \
                   " --maxPeaks " + str(self.parent.index.maxPeaks) + \
                   " --minRes " + str(self.parent.index.minRes) + \
+                  " --tolerance " + str(self.parent.index.tolerance) + \
                   " --outDir " + self.parent.index.outDir + \
                   " --sample " + self.parent.index.sample + \
                   " --queue " + self.parent.index.queue + \
@@ -77,6 +78,7 @@ class LaunchIndexer(QtCore.QThread):
                   " --keepData " + str(self.parent.index.keepData) + \
                   " -v " + str(self.parent.args.v)
             if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
+            if self.parent.index.extra: cmd += " " + self.parent.index.extra
             cmd += " --run " + str(run)
             print "Launch indexing job: ", cmd
             p = subprocess.Popen(shlex.split(cmd))

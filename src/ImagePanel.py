@@ -207,14 +207,15 @@ class ImageViewer(object):
         else:
             return None
 
-    def getAssembledImage(self, calib):
-        _calib = calib.copy() # this is important
-        tic = time.time()
-        data = self.parent.det.image(self.parent.evt, _calib)
-        if data is None: data = _calib
-        toc = time.time()
-        if self.parent.args.v >= 1: print "time assemble: ", toc-tic
-        return data
+    def getAssembledImage(self, arg, calib):
+        if arg == 'lcls':
+            _calib = calib.copy() # this is important
+            tic = time.time()
+            data = self.parent.det.image(self.parent.evt, _calib)
+            if data is None: data = _calib
+            toc = time.time()
+            if self.parent.args.v >= 1: print "time assemble: ", toc-tic
+            return data
 
     def setupRadialBackground(self):
         self.parent.geom.findPsanaGeometry()
@@ -233,6 +234,26 @@ class ImageViewer(object):
         if self.rb is not None:
             self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.parent.detectorDistance*1e6) # convert to um
             if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
+
+    def updateClen(self, arg):
+        if arg == 'lcls':
+            if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
+               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
+                try:
+                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                except:
+                    print "epics PV for clen is not available"
+                    self.parent.clen = 0
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+
+    def updateDetectorCentre(self, arg):
+        if arg == 'lcls':
+            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+            if self.parent.cx is None:
+                data = self.parent.det.image(self.parent.evt, self.parent.exp.detGuaranteed)
+                self.parent.cx, self.parent.cy = self.getCentre(data.shape)
+            if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
 
     def getDetImage(self, evtNumber, calib=None):
         if calib is None:
@@ -352,27 +373,20 @@ class ImageViewer(object):
         self.parent.geom.p1.param(self.parent.geom.geom_grp,
                              self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
         # Update clen
-        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+        self.updateClen('lcls')
 
         # Write a temporary geom file
-        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            self.parent.geom.deployCrystfelGeometry()
+        self.parent.geom.deployCrystfelGeometry('lcls')
 
         # Get assembled image
         if calib is not None:
-            data = self.getAssembledImage(calib)
+            data = self.getAssembledImage('lcls', calib)
         else:
             calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            data = self.getAssembledImage(calib)
+            data = self.getAssembledImage('lcls', calib)
 
         # Update detector centre
-        self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-        if self.parent.cx is None:
-            self.parent.cx, self.parent.cy = self.getCentre(data.shape)
-        if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+        self.updateDetectorCentre('lcls')
 
         # Update ROI histogram
         if self.parent.roi.roiCurrent == 'rect':
