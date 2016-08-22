@@ -290,10 +290,18 @@ if Done == 1:
     mySuccessString = "Successfully completed."
     Done = 0
     haveFinished = np.zeros((numWorkers,))
-    f = h5py.File(peakFile, 'r')
-    hitEvents = f['/entry_1/result_1/nPeaksAll'].value
-    numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
-    f.close()
+    try:
+        f = h5py.File(peakFile, 'r')
+        hitEvents = f['/entry_1/result_1/nPeaksAll'].value
+        numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
+        f.close()
+    except:
+        print "Couldn't read file: ", peakFile
+        fname = runDir + '/status_peaks.txt'
+        print "Try reading file: ", fname
+        with open(fname) as infile:
+            d = json.load(infile)
+            numEvents = int(d['numHits'])
 
     while Done == 0:
         for i, myLog in enumerate(myLogList):
