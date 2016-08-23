@@ -37,6 +37,18 @@ args = parser.parse_args()
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
 
+def getMyUnfairShare(numJobs, numWorkers, rank):
+    """Returns number of events assigned to the slave calling this function."""
+    assert(numJobs >= numWorkers)
+    try:
+        allJobs = np.arange(numJobs)
+        jobChunks = np.array_split(allJobs, numWorkers)
+        myChunk = jobChunks[rank]
+        myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
+        return myJobs
+    except:
+        return None
+
 class psanaWhisperer():
     def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1):
         self.experimentName = experimentName
@@ -139,6 +151,8 @@ class psanaWhisperer():
         fid = evtId.fiducials()
         return time.strftime('%FT%H:%M:%S-0800', time.localtime(sec))  # Hard-coded pacific time
 
+#################################################################################
+
 # Set up variable
 experimentName = args.exp
 runNumber = args.run
@@ -171,21 +185,31 @@ if rank == 0:
     except:
         pass
 
-f = h5py.File(filename, "r")
-if mode == 'sfx':
-    nPeaks = f["/entry_1/result_1/nPeaksAll"].value
-    maxRes = f["/entry_1/result_1/maxResAll"].value
-    posX = f["/entry_1/result_1/peakXPosRawAll"].value
-    posY = f["/entry_1/result_1/peakYPosRawAll"].value
-    atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
-    maxRes = f["/entry_1/result_1/maxResAll"].value
-    hitInd = ((nPeaks >= args.minPeaks) & (nPeaks <= args.maxPeaks) & (maxRes >= args.minRes)).nonzero()[0]
-    numHits = len(hitInd)
-elif mode == 'spi':
-    nHits = f["/entry_1/result_1/nHitsAll"].value
-    hitInd = (nHits >= args.minPixels).nonzero()[0]
-    numHits = len(hitInd)
-f.close()
+notDone = 1
+while notDone:
+    try:
+        f = h5py.File(filename, "r")
+        if mode == 'sfx':
+            nPeaks = f["/entry_1/result_1/nPeaksAll"].value
+            maxRes = f["/entry_1/result_1/maxResAll"].value
+            posX = f["/entry_1/result_1/peakXPosRawAll"].value
+            posY = f["/entry_1/result_1/peakYPosRawAll"].value
+            atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
+            maxRes = f["/entry_1/result_1/maxResAll"].value
+            hitInd = ((nPeaks >= args.minPeaks) & (nPeaks <= args.maxPeaks) & (maxRes >= args.minRes)).nonzero()[0]
+            numHits = len(hitInd)
+        elif mode == 'spi':
+            nHits = f["/entry_1/result_1/nHitsAll"].value
+            hitInd = (nHits >= args.minPixels).nonzero()[0]
+            numHits = len(hitInd)
+        f.close()
+        notDone = 0
+    except:
+        print "Couldn't read h5 file: ", filename
+        print "Number of tries: ", notDone
+        notDone += 1
+        if notDone >= 10: exit()
+        time.sleep(10)
 
 if mode == 'sfx' and instrumentName == 'cxi':
     # Get image shape
@@ -222,21 +246,6 @@ if args.detectorDistance is not 0:
     hasDetectorDistance = True
 if args.coffset is not 0:
     hasCoffset = True
-#if hasDetectorDistance is False and hasCoffset is False:
-#    print "Need at least hasDetectorDistance or coffset input"
-#    exit(0)
-
-def getMyUnfairShare(numJobs,numWorkers,rank):
-    """Returns number of events assigned to the slave calling this function."""
-    assert(numJobs >= numWorkers)
-    try:
-        allJobs = np.arange(numJobs)
-        jobChunks = np.array_split(allJobs,numWorkers)
-        myChunk = jobChunks[rank]
-        myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
-        return myJobs
-    except:
-        return None
 
 ps = psanaWhisperer(experimentName,runNumber,detInfo)
 ps.setupExperiment()
@@ -270,6 +279,7 @@ if rank == 0:
     if "cxi_version" in f:
         del f["cxi_version"]
     f.create_dataset("cxi_version",data=args.cxiVersion)
+    f.flush()
 
     ###################
     # LCLS
@@ -333,6 +343,7 @@ if rank == 0:
     ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(numHits,),dtype=int)
     ds_evtNum_1.attrs["axes"] = "experiment_identifier"
     ds_evtNum_1.attrs["numEvents"] = numHits
+    f.flush()
     ###################
     # entry_1
     ###################
@@ -344,6 +355,7 @@ if rank == 0:
     ds_expId = entry_1.create_dataset("experimental_identifier",(numHits,),dtype=int)#dt)
     ds_expId.attrs["axes"] = "experiment_identifier"
     ds_expId.attrs["numEvents"] = numHits
+    f.flush()
 
     if mode == 'sfx':
         if "entry_1/result_1/nPeaks" in f:
@@ -377,6 +389,7 @@ if rank == 0:
         ds_nHits.attrs["axes"] = "experiment_identifier"
         ds_nHits.attrs["numEvents"] = numHits
         ds_nHits.attrs["minPixels"] = args.minPixels
+    f.flush()
 
     if "start_time" in entry_1:
         del entry_1["start_time"]
@@ -414,6 +427,8 @@ if rank == 0:
     ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
     ds_y_pixel_size_1.attrs["numEvents"] = numHits
     detector_1.create_dataset("description",data=detInfo)
+    f.flush()
+
     if mode == 'sfx':
         dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)#,
                                            #chunks=(1,dim0,dim1),dtype=float)#,
@@ -443,7 +458,7 @@ if rank == 0:
         data_1 = entry_1.create_group("data_1")
         data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
         source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
-
+    f.flush()
     f.close()
 
 comm.Barrier()

@@ -145,6 +145,7 @@ try:
     minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
     f.close()
 except:
+    hasData = 0
     minPeaksUsed = 0
     maxPeaksUsed = 0
     minResUsed = 0

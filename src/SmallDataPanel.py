@@ -101,10 +101,10 @@ class SmallData(object):
                     if self.parent.args.v >= 1: print "Couldn't find /event dataset"
                     self.quantifierEvent = np.arange(len(self.quantifierMetric))
                 self.quantifierFile.close()
+                self.quantifierInd = np.arange(len(self.quantifierMetric))
+                self.updateQuantifierSort(self.quantifier_sort)
             except:
-                print "Couldn't read data"
-            self.quantifierInd = np.arange(len(self.quantifierMetric))
-            self.updateQuantifierSort(self.quantifier_sort) #self.updateQuantifierPlot(self.quantifierMetric)
+                print "Couldn't read metric"
             if self.parent.args.v >= 1: print "Done reading metric"
 
     def updateQuantifierSort(self, data):
