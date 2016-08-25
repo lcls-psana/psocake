@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-45
+2016-08-25 Chunhong Yoon
+- Add label propagation
+
 Tag: V00-01-44
 2016-08-21 Chunhong Yoon
 - Rayonix indexing
