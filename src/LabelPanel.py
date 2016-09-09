@@ -78,20 +78,17 @@ class Labels(object):
     def refresh(self):
         fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_labels.h5'
         global dset
-        dataSetFound = False
         print "##### fname: ", fname
         if self.parent.runNumber > 0:
             if os.path.exists(fname):
                labels = h5py.File(fname, 'r+', dtype = 'i8')
             else:
                labels = h5py.File(fname, 'w', dtype = 'i8')
-            if not dataSetFound:
-               dset = labels.create_dataset("labels", (self.parent.exp.eventTotal, 1))
-            else:
-                try:
-                    dset = labels["labels"]
-                except: # corrupt dataset, so create a new one
-                    dset = labels.create_dataset("labels", (self.parent.exp.eventTotal, 1))
+            try:
+                dset = labels["labels"]
+            except: # corrupt dataset, so create a new one
+                print labels
+                dset = labels.create_dataset("labels", (self.parent.exp.eventTotal, 1))
             #print dset.shape
             self.labelA = False
             self.labelB = False

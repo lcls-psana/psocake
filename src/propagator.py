@@ -39,7 +39,9 @@ detInfo = args.detector #User entered
 p = subprocess.Popen(['whoami'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 out, err = p.communicate()
 user = out[:len(out)-1]
-print "Hi"
+
+global dialogVisible
+dialogVisible = True
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
 except AttributeError:
@@ -61,9 +63,9 @@ class Scroll(QtGui.QScrollArea):
         self.window = w
     def resizeEvent(self,resizeEvent):
         #self.setGeometry(self.x(), self.y(), self.width(), self.height())
-        self.window.gridLayoutWidget.setGeometry(self.window.gridLayoutWidget.x(), self.window.gridLayoutWidget.y(), self.width()-20, (self.width()/4.0)*self.window.gridLayout.rowCount())
+        self.window.gridLayoutWidget.setGeometry(self.window.gridLayoutWidget.x(), self.window.gridLayoutWidget.y(), self.width()-30, (self.width()/self.window.gridLayout.columnCount())*self.window.gridLayout.rowCount())
         #self.window.gridLayout.setGeometry(self.window.gridLayoutWidget.geometry())
-        self.window.setGeometry(self.window.x(), self.window.y(), self.width(), self.window.gridLayoutWidget.height()+20*self.window.gridLayout.rowCount())
+        self.window.setGeometry(self.window.x(), self.window.y(), self.width(), self.window.gridLayoutWidget.height()+30*self.window.gridLayout.rowCount())
         self.window.centralwidget.setGeometry(self.window.geometry())
         #QtGui.QMessageBox.information(self,"Information!","Window has been resized...")
 class Window(QtGui.QWidget):
@@ -103,26 +105,54 @@ class Window(QtGui.QWidget):
         self.refresh()
     def defaultBackground(self, idx):
         global propLabels
-        color = "000"
+        global userLabels
+        userColor = "#FFFFFF"
+        propColor = "#FFFFFF"
         if propLabels[idx] == 1:
-            color = "F00"
+            propColor = "#DC143C"
         elif propLabels[idx] == 2:
-            color = "0F0"
+            propColor = "#7FFF00"
         elif propLabels[idx] == 3:
-            color = "00F"
-        return color
+            propColor = "#00BBFF"
+        if userLabels[idx] == 1:
+            userColor = "#DC143C"
+        elif userLabels[idx] == 2:
+            userColor = "#7FFF00"
+        elif userLabels[idx] == 3:
+            userColor = "#00BBFF"
+        return userColor, propColor
+    def textLabels(self, idx):
+        global propLabels
+        global userLabels
+        userLabel = "None"
+        propLabel = "None"
+        if userLabels[idx] == 1:
+            userLabel = "Single"
+        elif userLabels[idx] == 2:
+            userLabel = "Multi"
+        elif userLabels[idx] == 3:
+            userLabel = "Dunno"
+        if propLabels[idx] == 1:
+            propLabel = "Single"
+        elif propLabels[idx] == 2:
+            propLabel = "Multi"
+        elif propLabels[idx] == 3:
+            propLabel = "Dunno"
+        return userLabel, propLabel
     def refresh(self):
         global ax
         global X
         for idx, val in enumerate(self.ind):
             if val in self.selected: self.selected.remove(val)
-            self.gridLayout.itemAt(idx).widget().getItem(0,0).setBackgroundColor(self.defaultBackground(val))
+            self.gridLayout.itemAt(idx).widget().getItem(0,0).setBackgroundColor("000")
+            userLabel, propLabel = self.textLabels(val)
+            userColor, propColor = self.defaultBackground(val)
+            self.textBoxes[idx][0].setHtml('<font size="4" color="' + userColor + '"><b>User Label: ' + userLabel + '</b></font>')
+            self.textBoxes[idx][1].setHtml('<font size="4" color="' + propColor + '"><b>Propagated Label: ' + propLabel + '</b></font>')
         ax.clear()
         colors = ['red' if propLabels[idx] == 1 else 'green' if propLabels[idx] == 2 else 'blue' if propLabels[idx] == 3 else 'black' for idx, val in enumerate(X[:,1])]
         ax.scatter(X[:,0],X[:,1],X[:,2], color = colors, picker=5)
     def adjust(self):
-        print self.selected
-        print self.ind
         for val in self.selected:
             idx = self.ind.index(val)
             img = self.gridLayout.itemAt(idx).widget().getItem(0,0).allChildren()[1]
@@ -165,6 +195,7 @@ class Window(QtGui.QWidget):
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.ind = ind
         self.selected = []
+        self.textBoxes = []
         self.images = arr
         num = float(len(arr))/4.0
         if int(num) != num: num = int(num + 1)
@@ -180,21 +211,25 @@ class Window(QtGui.QWidget):
                     vb = imageWidget.addViewBox()
                     #text.setText()
                     idx = self.ind[row*4+column]
-                    color = self.defaultBackground(idx)
+                    userLabel, propLabel = self.textLabels(idx)
+                    userColor, propColor = self.defaultBackground(idx)
                     img = pg.ImageItem()
                     img.setImage(arr[row*4+column])
-                    img.setLevels([0,3.5])
+                    img.setLevels([0,55])
                     vb.addItem(img)
-                    text = pg.TextItem(anchor=(1,1))
-                    text.setHtml('<font size="4"><b>Hi</b></font>')
+                    text = pg.TextItem()
+                    text.setHtml('<font size="4" color="' + userColor + '"><b>User Label: ' + userLabel + '</b></font>')
                     vb.addItem(text)
+                    text.setPos(img.image.shape[0]/10.0,img.image.shape[1]-img.image.shape[1]/10.0)
                     text1 = pg.TextItem()
-                    text1.setHtml('<font size="4"><b>Hello</b></font>')
+                    text1.setHtml('<font size="4" color="' + propColor + '"><b>Propagated Label: ' + propLabel + '</b></font>')
                     vb.addItem(text1)
+                    text1.setPos(img.image.shape[0]/10.0,img.image.shape[1]-img.image.shape[1]/7.0)
                     vb.setAspectLocked(True)
-                    vb.setBackgroundColor(color)
                     imageWidget.scene().sigMouseClicked.connect(self.buttonClicked)
                     self.gridLayout.addWidget(imageWidget, row, column)
+                    texts = [text, text1]
+                    self.textBoxes.append(texts)
     def buttonClicked(self, event):
         button = self.sender().items()
         vb = button[len(button)-2]
@@ -207,7 +242,7 @@ class Window(QtGui.QWidget):
                 idx = i
                 break
         if self.ind[idx] in self.selected:
-            vb.setBackgroundColor(self.defaultBackground(self.ind[idx]))
+            vb.setBackgroundColor("000")
             self.selected.remove(self.ind[idx])
         else:
             vb.setBackgroundColor('w')
@@ -223,10 +258,11 @@ class Window(QtGui.QWidget):
         self.pushButton_3.setText(_translate("MainWindow", "Save", None))
 class Dialog(QtGui.QDialog):
     def __init__(self, num, col, images, ind, parent=None):
+        global dialogVisible
         QtGui.QDialog.__init__(self,parent)
         self.w = Window(self)
         self.w.retranslateUi(self.w)
-        self.w.setGeometry(0, 0, col, num*400)
+        self.w.setGeometry(0, 300, col, num*400)
         self.w.pop(images, col, num*400, ind)
         self.setGeometry(0,0,col,num*400)
         self.s = Scroll(self.w, self)
@@ -234,6 +270,7 @@ class Dialog(QtGui.QDialog):
         self.s = Scroll(self.w, self)
         self.s.show()
         self.w.show()
+        dialogVisible = True
     def resizeEvent(self, resizeEvent):
         self.s.resize(self.width(), self.height())
     def refresh(self, num, col, images, ind):
@@ -241,7 +278,7 @@ class Dialog(QtGui.QDialog):
         self.w.hide()
         self.w = Window(self)
         self.w.retranslateUi(self.w)
-        self.w.setGeometry(0, 0, col, num*400)
+        self.w.setGeometry(0, 300, col, num*400)
         self.w.pop(images, col, num*400, ind)
         self.setGeometry(0,0,col,num*400)
         self.s.resize(self.width(), self.height())
@@ -250,15 +287,20 @@ class Dialog(QtGui.QDialog):
         self.w.show()
         self.s.resize(self.width(), self.height())
     def closeEvent(self, closeEvent):
-        refresh()
+        global dialogVisible
+        dialogVisible = False
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         self.d = Dialog(2, 1600, [],[])
         self.d.show()
     def test(self, num, col, images,ind):
-        self.d.refresh(num, col, images, ind)
-
+        global dialogVisible
+        if dialogVisible: self.d.refresh(num, col, images, ind)
+        else: 
+            self.d = Dialog(2, 1600, [],[])
+            self.d.show()
+            self.d.refresh(num, col, images, ind)
 class imageRetriever:
     def __init__(self,filepath,expName,startRun,endRun,detInfo):
         self.runs = []
@@ -418,28 +460,35 @@ def refresh():
     print "Done"
 
 ## Reset Button ##
-#def reset(event):
-#    propLabels = copy.copy(userLabels)
-#    ax.clear()
-#    colors = ['red' if propLabels[idx] == 1 else 'green' if propLabels[idx] == 2 else 'blue' if propLabels[idx] == 3 else 'black' for idx, val in enumerate(X[:,1])]
-#    ax.scatter(X[:,0],X[:,1],X[:,2], color = colors, picker=5)
-#    print "Done"
+def reset(event):
+    #propLabels = copy.copy(userLabels)
+    ax.clear()
+    colors = ['red' if userLabels[idx] == 1 else 'green' if userLabels[idx] == 2 else 'blue' if userLabels[idx] == 3 else 'black' for idx, val in enumerate(X[:,1])]
+    ax.scatter(X[:,0],X[:,1],X[:,2], color = colors, picker=5)
+    print "Done"
 
 ## Showing Images ##
 def getAssemImage(globalIndex):
-    evt = run.event(times[int(ir.eventInd[globalIndex])])
+    #print int(ir.eventInd[globalIndex])
+    #print len(times)
+    #print times[int(ir.eventInd[globalIndex])]
+    #print run.event(times[int(ir.eventInd[globalIndex])])
+    runNumber = ir.runs.index(ir.runList[globalIndex])
+    evt = run[runNumber].event(times[runNumber][int(ir.eventInd[globalIndex])])
     print "Run, Index: ", ir.eventInd[globalIndex], ir.runList[globalIndex]
-    img = det.calib(evt) * det.gain(evt)
-    assemImageOrig = det.image(evt,img)
+    img = det[runNumber].calib(evt) * det[runNumber].gain(evt)
+    assemImageOrig = det[runNumber].image(evt,img)
     assemImage = assemImageOrig
     return assemImage
 
 ## Assembeles images with the specified events and shows them ## 
 def eventsToShow(events):
+    global run, times, det, evt
     if len(events) == 0: return
     images = []
     for dataind in events:
-        arr = np.log10(abs(getAssemImage(dataind))+1e-7)
+        print dataind
+        arr = abs(getAssemImage(dataind))+1e-7
         images.append(arr)
     num = float(len(images))/4.0
     if int(num) != num: num = int(num + 1)
@@ -476,7 +525,6 @@ def mostConfusing(event):
             idx = list[np.where(probs == sorted[counter - 1])[0][0]]
             counter -= 1
         if propLabels[idx] != labelTemp:
-            print "propLabels, labelTemp", propLabels[idx], labelTemp
             conf[i] = probs[-1] - probs[counter]
             num += 1
         else: conf[i] = probs[-1]
@@ -561,6 +609,9 @@ def labelsAndConflicts(totalEvts, data, users, labels, conflicts, run):
 ## Does the merging after setting up the info ##
 def merge(runs, labels, conflicts, runsToUsers):
     for run in runs:
+        if run not in runsToUsers: 
+            labels.append([0]*np.where(ir.runList == run)[0].size)
+            continue
         users = runsToUsers[run]
         runDsets = []
         totalEvts = 0
@@ -623,7 +674,6 @@ global propLabels
 global ax
 global X
 
-run, times, det, evt = setup(expName,startRun,detInfo)
 f = h5py.File(path + expName + '_' + str(startRun) + '_' + str(endRun) + '_class_v' + str(version) + '.h5', 'r+')
 grpNameDM = '/diffusionMap'
 dset_indices = '/D_indices'
@@ -634,14 +684,31 @@ X = f[grpNameDM + '/eigvec']
 ir = imageRetriever(filepath=path,expName=expName,startRun=startRun,
                     endRun=endRun,detInfo=detInfo)
 
+run = []
+times = []
+det = []
+evt = []
+for runNumber in ir.runs:
+    print runNumber
+    r, t, d, e = setup(expName,runNumber,detInfo)
+    run.append(r)
+    times.append(t)
+    det.append(d)
+    evt.append(e)
 
+print ir.runs
 userLabels = []
 propLabels = []
 conflicts = {}
 userLabels, conflicts = backgroundCollecting(userLabels, conflicts)
 #print userLabels
+counter = 0
+for val in userLabels:
+    if val != 0:
+       counter += 1
+print "Provided Labels: ", float(float(counter)/len(userLabels))
 propLabels = np.copy(userLabels)
-P,_ = diffusionKernel(X,eps=1e5,knn=70)
+P,_ = diffusionKernel(X,eps=1e6,knn=len(propLabels))
 app = QtGui.QApplication(sys.argv)
 win = MainWindow()
 fig = plt.figure()
@@ -655,13 +722,16 @@ ax = fig.add_subplot(111, projection='3d')
 colors = ['red' if propLabels[idx] == 1 else 'green' if propLabels[idx] == 2 else 'blue' if propLabels[idx] == 3 else 'black' for idx, val in enumerate(X[:,1])]
 ax.scatter(X[:,0],X[:,1],X[:,2], color = colors, picker=5)
 fig.canvas.mpl_connect('pick_event', onpick)
-propPosition = plt.axes([0.2, 0.03, 0.2, 0.055])
+userPosition = plt.axes([0.1, 0.03, 0.2, 0.055])
+userBtn = Button(userPosition, 'User Labels')
+userBtn.on_clicked(reset)
+propPosition = plt.axes([0.3, 0.03, 0.2, 0.055])
 prop = Button(propPosition, 'Propagate')
 prop.on_clicked(onClick)
-unlabeledPosition = plt.axes([0.4, 0.03, 0.2, 0.055])
+unlabeledPosition = plt.axes([0.5, 0.03, 0.2, 0.055])
 unlabeledBtn = Button(unlabeledPosition, 'Unlabeled')
 unlabeledBtn.on_clicked(unlabeled)
-confPosition = plt.axes([0.6, 0.03, 0.2, 0.055])
+confPosition = plt.axes([0.7, 0.03, 0.2, 0.055])
 confBtn = Button(confPosition, 'Confusion')
 confBtn.on_clicked(mostConfusing)
 win.setGeometry(win.x(), win.y(),fig.get_size_inches()[0]*fig.dpi, fig.get_size_inches()[1]*fig.dpi)
