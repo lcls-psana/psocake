@@ -100,7 +100,7 @@ def getIndexedPeaks():
                 with open(fname) as infile:
                     outfile.write(infile.read())
             except:  # file may not exist yet
-                continue
+                pass
 
     # Add indexed peaks and remove images in hdf5
     try:
@@ -345,7 +345,10 @@ if Done == 1:
                                 d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
                                 writeStatus(fnameIndex, d)
                             except:
+                                print "Couldn't update status"
                                 pass
+                        else:
+                            print "getIndexedPeaks returned None"
                         time.sleep(10)
             else:
                 if args.v >= 1: print "no such file yet: ", runNumber, myLog

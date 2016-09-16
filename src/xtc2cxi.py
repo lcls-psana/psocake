@@ -255,8 +255,13 @@ es = ps.ds.env().epicsStore()
 pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
 numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
 ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
-pulseEnergy = ebeam.ebeamL3Energy() # MeV
+try:
+    photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
+    pulseEnergy = ebeam.ebeamL3Energy() # MeV
+except:
+    photonEnergy = 0
+    pulseEnergy = 0
+
 if hasCoffset:
     detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
 elif hasDetectorDistance:
@@ -542,16 +547,21 @@ for i,val in enumerate(myHitInd):
     pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
     numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
     ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-    photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
-    pulseEnergy = ebeam.ebeamL3Energy() # MeV
+    try:
+        photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
+        pulseEnergy = ebeam.ebeamL3Energy() # MeV
+    except:
+        photonEnergy = 0
+        pulseEnergy = 0
 
-    ds_photonEnergy_1[globalInd] = ebeam.ebeamPhotonEnergy()
+    ds_photonEnergy_1[globalInd] = photonEnergy
     ds_photonEnergy[globalInd] = photonEnergy
     ds_pulseEnergy[globalInd] = pulseEnergy
     ds_pulseWidth[globalInd] = pulseLength
     ds_dist_1[globalInd] = detectorDistance
     ds_x_pixel_size_1[globalInd] = x_pixel_size
     ds_y_pixel_size_1[globalInd] = y_pixel_size
+    f.flush()
 
     # LCLS
     if "cxi" in args.exp:
@@ -618,6 +628,7 @@ for i,val in enumerate(myHitInd):
         ds_wavelengthA_1[globalInd] = ds_wavelength_1[globalInd] * 10.
     except:
         ds_wavelengthA_1[globalInd] = 0
+    f.flush()
 
     evtId = ps.evt.get(psana.EventId)
     sec = evtId.time()[0]
@@ -637,6 +648,7 @@ for i,val in enumerate(myHitInd):
         ds_maxRes[globalInd] = maxRes[val]
     elif mode == 'spi':
         ds_nHits[globalInd] = nHits[val]
+    f.flush()
 
     if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 

@@ -5,7 +5,7 @@ size = comm.Get_size()
 
 import h5py, json
 from mpidata import mpidata
-import psana
+import psana, time
 import numpy as np
 from PSCalib.GeometryObject import two2x1ToData2x2
 
@@ -48,7 +48,11 @@ def runmaster(args,nClients):
     fracDone = 0.0
     numEvents = getNoe(args)
     d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
-    writeStatus(statusFname, d)
+    try:
+        writeStatus(statusFname, d)
+    except:
+        print "Couldn't update status"
+        pass
 
     myHdf5 = h5py.File(fname, 'r+')
     while nClients > 0:
@@ -87,10 +91,14 @@ def runmaster(args,nClients):
             if nPeaks >= 15: numHits += 1
             numProcessed += 1
             # Update status
-            hitRate = numHits * 100. / numProcessed
-            fracDone = numProcessed * 100. / numEvents
-            d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
-            writeStatus(statusFname, d)
+            try:
+                hitRate = numHits * 100. / numProcessed
+                fracDone = numProcessed * 100. / numEvents
+                d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+                writeStatus(statusFname, d)
+            except:
+                print "Couldn't update status"
+                pass
 
     if '/status/findPeaks' in myHdf5:
         del myHdf5['/status/findPeaks']
