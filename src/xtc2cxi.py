@@ -30,6 +30,7 @@ parser.add_argument("--minPeaks", help="Index only if above minimum number of pe
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=300, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
 parser.add_argument("--minPixels", help="hit only if above minimum number of pixels (SPI)",default=12000, type=float)
+parser.add_argument("--maxBackground", help="use as miss if below maximum number of pixels (SPI)",default=-1, type=float)
 parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 args = parser.parse_args()
@@ -39,6 +40,7 @@ def writeStatus(fname,d):
 
 def getMyUnfairShare(numJobs, numWorkers, rank):
     """Returns number of events assigned to the slave calling this function."""
+    print "numJobs >= numWorkers: ", numJobs, numWorkers
     assert(numJobs >= numWorkers)
     try:
         allJobs = np.arange(numJobs)
@@ -50,11 +52,12 @@ def getMyUnfairShare(numJobs, numWorkers, rank):
         return None
 
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1):
+    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1, backgroundThresh=-1):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.aduPerPhoton = aduPerPhoton
+        self.backgroundThresh = backgroundThresh
 
     def getDetectorAlias(self, srcOrAlias):
         for i in self.detInfoList:
@@ -111,6 +114,16 @@ class psanaWhisperer():
                 counter += 1
         return img
 
+    def getCleanAssembledImg(self, backgroundEvent):
+        """Returns psana assembled image
+        """
+        backgroundEvt = self.run.event(self.times[backgroundEvent])
+        backgroundCalib = self.det.calib(backgroundEvt)
+        calib = self.det.calib(self.evt)
+        cleanCalib = calib - backgroundCalib
+        img = self.det.image(self.evt, cleanCalib)
+        return img
+
     def getAssembledImg(self):
         """Returns psana assembled image
         """
@@ -122,6 +135,17 @@ class psanaWhisperer():
         """
         img = self.det.calib(self.evt)
         return img
+
+    def getCleanAssembledPhotons(self, backgroundEvent):
+        """Returns psana assembled image in photon counts
+        """
+        backgroundEvt = self.run.event(self.times[backgroundEvent])
+        backgroundCalib = self.det.calib(backgroundEvt)
+        calib = self.det.calib(self.evt)
+        cleanCalib = calib - backgroundCalib
+        img = self.det.photons(self.evt, nda_calib=cleanCalib, adu_per_photon=self.aduPerPhoton)
+        phot = self.det.image(self.evt, img)
+        return phot
 
     def getAssembledPhotons(self):
         """Returns psana assembled image in photon counts
@@ -163,9 +187,10 @@ coffset = args.coffset
 (x_pixel_size,y_pixel_size) = (args.pixelSize, args.pixelSize)
 mode = args.mode
 aduPerPhoton = args.aduPerPhoton
+maxBackground = args.maxBackground
 
 # Set up psana
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton)
+ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton, maxBackground)
 ps.setupExperiment()
 
 # Read list of files
@@ -201,6 +226,9 @@ while notDone:
         elif mode == 'spi':
             nHits = f["/entry_1/result_1/nHitsAll"].value
             hitInd = (nHits >= args.minPixels).nonzero()[0]
+            if args.maxBackground > -1:
+                missInd = (nHits < args.maxBackground).nonzero()[0]
+                print "missInd: ", missInd
             numHits = len(hitInd)
         f.close()
         notDone = 0
@@ -247,7 +275,7 @@ if args.detectorDistance is not 0:
 if args.coffset is not 0:
     hasCoffset = True
 
-ps = psanaWhisperer(experimentName,runNumber,detInfo)
+ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton, maxBackground)
 ps.setupExperiment()
 startTime = ps.getStartTime()
 numEvents = ps.eventTotal
@@ -255,12 +283,15 @@ es = ps.ds.env().epicsStore()
 pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
 numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
 ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+#print "ebeam.ebeamPhotonEnergy(): ", ebeam, ebeam.ebeamPhotonEnergy(), ebeam.ebeamL3Energy()
 try:
+    #print "ABC!!!"
     photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
     pulseEnergy = ebeam.ebeamL3Energy() # MeV
 except:
     photonEnergy = 0
     pulseEnergy = 0
+#print "photon energy!@#: ", photonEnergy
 
 if hasCoffset:
     detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
@@ -537,9 +568,16 @@ for i,val in enumerate(myHitInd):
         assert(img is not None)
         dset_1[globalInd,:,:] = img[0,:,:]
     elif mode == 'spi':
-        img = ps.getAssembledImg()
-        assert (img is not None)
-        phot = ps.getAssembledPhotons()
+        if maxBackground > -1:
+            ind = abs(missInd - val)
+            backgroundEvent = missInd[np.argmin(ind)]
+            print "background: ", val, backgroundEvent
+            img = ps.getCleanAssembledImg(backgroundEvent)
+            phot = ps.getCleanAssembledPhotons(backgroundEvent)
+        else:
+            img = ps.getAssembledImg()
+            assert (img is not None)
+            phot = ps.getAssembledPhotons()
         dset_1[globalInd, :, :] = img
         dset_2[globalInd, :, :] = phot
 
@@ -548,13 +586,18 @@ for i,val in enumerate(myHitInd):
     numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
     ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
     try:
+        #print "photons!!!"
         photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
         pulseEnergy = ebeam.ebeamL3Energy() # MeV
     except:
         photonEnergy = 0
         pulseEnergy = 0
+    #print "photonEnergy: ", photonEnergy
 
-    ds_photonEnergy_1[globalInd] = photonEnergy
+    try:
+        ds_photonEnergy_1[globalInd] = ebeam.ebeamPhotonEnergy()
+    except:
+        ds_photonEnergy_1[globalInd] = 0
     ds_photonEnergy[globalInd] = photonEnergy
     ds_pulseEnergy[globalInd] = pulseEnergy
     ds_pulseWidth[globalInd] = pulseLength
