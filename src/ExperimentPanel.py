@@ -63,7 +63,7 @@ class ExperimentInfo(object):
         self.disp_status_str = 'pixel status'
         self.disp_pedestal_str = 'pedestal'
         self.disp_commonMode_str = 'common mode'
-        #self.disp_aduThresh_str = 'ADU threshold'
+        self.disp_friedel_str = 'Apply Friedel symmetry'
         self.disp_commonModeOverride_str = 'Common mode (override)'
         self.disp_overrideCommonMode_str = 'Apply common mode (override)'
         self.disp_commonModeParam0_str = 'parameters 0'
@@ -100,6 +100,8 @@ class ExperimentInfo(object):
         self.disp_adu= 1
 
         self.image_property = self.disp_adu
+
+        self.applyFriedel = False
 
         self.applyCommonMode = False
         self.commonModeParams = np.array([0,0,0,0])
@@ -154,6 +156,8 @@ class ExperimentInfo(object):
                                                                          self.disp_commonModeCorrected_str: self.disp_commonModeCorrected,
                                                                          self.disp_adu_str: self.disp_adu},
                  'value': self.image_property, 'tip': "Choose image property to display"},
+                {'name': self.disp_friedel_str, 'type': 'bool', 'value': self.applyFriedel,
+                 'tip': "Click to apply Friedel symmetry to the detector image."},
                 {'name': self.disp_commonModeOverride_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
                  'readonly': True, 'children': [
                     {'name': self.disp_overrideCommonMode_str, 'type': 'bool', 'value': self.applyCommonMode,
@@ -213,6 +217,8 @@ class ExperimentInfo(object):
             elif path[1] == self.disp_image_str:
                 self.updateImageProperty(data)
                 if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
+            elif path[1] == self.disp_friedel_str:
+                self.updateFriedel(data)
             elif path[2] == self.disp_commonModeParam0_str:
                 self.updateCommonModeParam(data, 0)
             elif path[2] == self.disp_commonModeParam1_str:
@@ -578,12 +584,15 @@ class ExperimentInfo(object):
                     if self.detGuaranteed is not None:
                         print "Found an event"
                         break
-    
+
+            # Setup pixel indices
             if self.detGuaranteed is not None:
                 self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
                 self.parent.pixelIndAssem = self.parent.img.getAssembledImage('lcls', self.parent.pixelInd)
                 self.parent.pixelIndAssem -= 1  # First pixel is 0
-    
+                # Get detector shape
+                self.detGuaranteedData = self.parent.det.image(self.parent.evt, self.detGuaranteed)
+
             # Write a temporary geom file
             self.parent.geom.deployCrystfelGeometry('lcls')
 
@@ -618,11 +627,10 @@ class ExperimentInfo(object):
         self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateImageProperty: ", self.image_property
 
-    #def updateAduThreshold(self, data):
-    #    self.aduThresh = data
-    #    if self.hasExpRunDetInfo():
-    #        self.parent.img.updateImage(self.calib)
-    #    if self.parent.args.v >= 1: print "Done updateAduThreshold: ", self.aduThresh
+    def updateFriedel(self, data):
+        self.applyFriedel = data
+        self.parent.img.updateImage()
+        if self.parent.args.v >= 1: print "Done updateFriedel: ", self.applyFriedel
     
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data

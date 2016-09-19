@@ -54,6 +54,7 @@ class HitFinder(object):
 
         self.hitParam_grp = 'Find hits'
         self.hitParam_threshMin_str = 'Minimum threshold'
+        self.hitParam_backgroundThreshMax_str = 'Background threshold'
         self.hitParam_sample_str = 'Sample name'
         self.hitParam_save_str = 'Save hits'
 
@@ -69,6 +70,7 @@ class HitFinder(object):
         self.spiParam_cpus = 24
         self.spiParam_noe = -1
         self.hitParam_threshMin = 0
+        self.hitParam_backgroundMax = -1
         self.hitParam_sample = "sample"
 
         self.params = [
@@ -96,6 +98,8 @@ class HitFinder(object):
             ]},
             {'name': self.hitParam_grp, 'type': 'group', 'children': [
                 {'name': self.hitParam_threshMin_str, 'type': 'float', 'value': self.hitParam_threshMin, 'tip': "Set as hit if number of pixels with photons above this value"},
+                {'name': self.hitParam_backgroundThreshMax_str, 'type': 'float', 'value': self.hitParam_backgroundMax,
+                 'tip': "Use as background if number of pixels with photons below this value"},
                 {'name': self.hitParam_sample_str, 'type': 'str', 'value': self.hitParam_sample},
                 {'name': self.hitParam_save_str, 'type': 'action'},
             ]},
@@ -153,6 +157,8 @@ class HitFinder(object):
         elif path[0] == self.hitParam_grp:
             if path[1] == self.hitParam_threshMin_str:
                 self.hitParam_threshMin = data
+            elif path[1] == self.hitParam_backgroundThreshMax_str:
+                self.hitParam_backgroundMax = data
             elif path[1] == self.hitParam_sample_str:
                 self.hitParam_sample = data
             elif path[1] == self.hitParam_save_str:

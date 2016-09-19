@@ -53,19 +53,19 @@ class ImageControl(object):
         output = self.parent.psocakeRunDir+"/psocake_"+str(self.parent.experimentName)+"_"+str(self.parent.runNumber)+"_"+str(self.parent.detInfo)+"_" \
                      +str(self.parent.eventNumber)+"_"+str(self.parent.exp.eventSeconds)+"_"+str(self.parent.exp.eventNanoseconds)+"_" \
                      +str(self.parent.exp.eventFiducial)
-        outputUnassem = output + "_unassembled.npy"
-        outputAssem = output + "_assembled.npy"
         print "##########################################"
-        print "Saving unassembled image: ", outputUnassem
-        #fname = QtGui.QFileDialog.getSaveFileName(self.parent, 'Save file', outputUnassem, 'ndarray image (*.npy)')
+        print "Saving unassembled image: ", output + "_unassembled.npy"
+        print "Saving unassembled image: ", output + "_unassembled.txt"
+        outputUnassem = output + "_unassembled.npy"
         if self.parent.calib.size==2*185*388: # cspad2x2
             asData2x2 = two2x1ToData2x2(self.parent.calib)
             np.save(str(outputUnassem),asData2x2)
-            np.savetxt(str(outputUnassem).split('.')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
+            np.savetxt(str(outputUnassem).split('.npy')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
         else:
             np.save(str(outputUnassem),self.parent.calib)
-            np.savetxt(str(outputUnassem).split('.')[0]+".txt", self.parent.calib.reshape((-1,self.parent.calib.shape[-1])) )#,fmt='%0.18e')
+            np.savetxt(str(outputUnassem).split('.npy')[0]+".txt", self.parent.calib.reshape((-1,self.parent.calib.shape[-1])) )#,fmt='%0.18e')
         # Save assembled
+        outputAssem = output + "_assembled.npy"
         print "##########################################"
         print "Saving assembled image: ", outputAssem
         print "##########################################"
