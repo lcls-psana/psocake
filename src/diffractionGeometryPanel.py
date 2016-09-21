@@ -406,7 +406,9 @@ class DiffractionGeometry(object):
         print "Deploying psana detector geometry: ", fname
         print "#################################################"
         cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
-        if self.parent.args.outDir is None:
+        if self.parent.args.localCalib:
+            calibDir = './calib'
+        elif self.parent.args.outDir is None:
             calibDir = self.parent.rootDir + '/calib'
         else:
             calibDir = '/reg/d/psdm/'+self.parent.experimentName[:3]+'/'+self.parent.experimentName+'/calib'

@@ -280,18 +280,20 @@ ps.setupExperiment()
 startTime = ps.getStartTime()
 numEvents = ps.eventTotal
 es = ps.ds.env().epicsStore()
-pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
-numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
-ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-#print "ebeam.ebeamPhotonEnergy(): ", ebeam, ebeam.ebeamPhotonEnergy(), ebeam.ebeamL3Energy()
 try:
-    #print "ABC!!!"
+    pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
+    numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
+except:
+    pulseLength = 0
+    numPhotons = 0
+
+ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+try:
     photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
     pulseEnergy = ebeam.ebeamL3Energy() # MeV
 except:
     photonEnergy = 0
     pulseEnergy = 0
-#print "photon energy!@#: ", photonEnergy
 
 if hasCoffset:
     detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
@@ -582,8 +584,13 @@ for i,val in enumerate(myHitInd):
         dset_2[globalInd, :, :] = phot
 
     es = ps.ds.env().epicsStore()
-    pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
-    numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
+    try:
+        pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
+        numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
+    except:
+        pulseLength = 0
+        numPhotons = 0
+
     ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
     try:
         #print "photons!!!"
@@ -610,7 +617,7 @@ for i,val in enumerate(myHitInd):
     if "cxi" in args.exp:
         ds_lclsDet_1[globalInd] = es.value(args.clen) # mm
     elif "mfx" in args.exp:
-        ds_lclsDet_1[globalInd] = 0 #es.value(args.clen)  # mm # FIXME
+        ds_lclsDet_1[globalInd] = 0 # FIXME
 
     try:
         ds_ebeamCharge_1[globalInd] = es.value('BEND:DMP1:400:BDES')

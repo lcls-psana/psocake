@@ -141,13 +141,22 @@ class CrystalIndexing(object):
         print "Updating psana geometry with CrystFEL geometry"
         print "#################################################"
         self.parent.geom.findPsanaGeometry()
-        cmd = ["crystfel2psana",
-               "-e", self.parent.experimentName,
-               "-r", str(self.parent.runNumber),
-               "-d", str(self.parent.det.name),
-               "--rootDir", self.parent.rootDir,
-               "-c", self.geom,
-               "-p", self.parent.psocakeRunDir+"/.temp.data"]  # TODO: remove my home
+        if self.parent.args.localCalib:
+            cmd = ["crystfel2psana",
+                   "-e", self.parent.experimentName,
+                   "-r", str(self.parent.runNumber),
+                   "-d", str(self.parent.det.name),
+                   "--rootDir", '.',
+                   "-c", self.geom,
+                   "-p", self.parent.psocakeRunDir + "/.temp.data"]  # TODO: remove my home
+        else:
+            cmd = ["crystfel2psana",
+                   "-e", self.parent.experimentName,
+                   "-r", str(self.parent.runNumber),
+                   "-d", str(self.parent.det.name),
+                   "--rootDir", self.parent.rootDir,
+                   "-c", self.geom,
+                   "-p", self.parent.psocakeRunDir+"/.temp.data"]  # TODO: remove my home
         if self.parent.args.v >= 1: print "cmd: ", cmd
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         output = p.communicate()[0]
