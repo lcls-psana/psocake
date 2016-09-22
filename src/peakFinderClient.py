@@ -90,6 +90,7 @@ def runclient(args):
                                           distance=args.distance)
         d.peakFinder.findPeaks(detarr,evt)
         md=mpidata()
+
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes

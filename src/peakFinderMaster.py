@@ -87,6 +87,10 @@ def runmaster(args,nClients):
                 myHdf5.flush()
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
+            # Save image
+
+            # Save mask
+
             myHdf5.flush()
             if nPeaks >= 15: numHits += 1
             numProcessed += 1
