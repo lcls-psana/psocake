@@ -27,7 +27,6 @@ class CrystalIndexing(object):
         self.w22.addWidget(self.synchBtn, row=1, col=0)
         self.d14.addWidget(self.w22)
 
-
         self.index_grp = 'Crystal indexing'
         self.index_on_str = 'Indexing on'
         self.index_geom_str = 'CrystFEL geometry'
@@ -73,7 +72,7 @@ class CrystalIndexing(object):
         self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
         self.pdb = ''
-        self.indexingMethod = 'mosflm,dirax'
+        self.indexingMethod = 'mosflm'
         self.minPeaks = 15
         self.maxPeaks = 2048
         self.minRes = 0
@@ -270,11 +269,12 @@ class CrystalIndexing(object):
     def updateIndex(self):
         if self.indexingOn:
             self.indexer = IndexHandler(parent=self.parent)
+            print "Got here"
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
                                       self.tolerance, self.extra, self.outDir, queue=None)
-
+            print "Arrived here"
     def updateOutputDir(self, data):
         self.outDir = data
         self.outDir_overridden = True
@@ -299,10 +299,28 @@ class CrystalIndexing(object):
         self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearIndexedPeaks"
 
+    def displayWaiting(self):
+        if self.showIndexedPeaks:
+            if self.numIndexedPeaksFound == 0:  # indexing proceeding
+                xMargin = 5  # pixels
+                maxX = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+                maxY = np.max(self.parent.det.indexes_y(self.parent.evt))
+                # Draw a big X
+                cenX = np.array((self.parent.cx,)) + 0.5
+                cenY = np.array((self.parent.cy,)) + 0.5
+                diameter = 256  # self.peakRadius*2+1
+                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='t', \
+                                                            size=diameter, brush=(255, 255, 255, 0), \
+                                                            pen=pg.mkPen({'color': "#FF00FF", 'width': 3}),
+                                                            pxMode=False)
+                self.parent.img.abc_text = pg.TextItem(html='', anchor=(0, 0))
+                self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
+                self.parent.img.abc_text.setPos(maxX, maxY)
+
     def drawIndexedPeaks(self, latticeType=None, centering=None, numSaturatedPeaks=None, unitCell=None):
         self.clearIndexedPeaks()
         if self.showIndexedPeaks:
-            if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
+            if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0: # indexing succeeded
                 cenX = self.indexedPeaks[:,0]+0.5
                 cenY = self.indexedPeaks[:,1]+0.5
                 cenX = np.concatenate((cenX,cenX,cenX))
@@ -313,7 +331,7 @@ class CrystalIndexing(object):
                 diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[2])*2
                 self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
                                           size=diameter, brush=(255,255,255,0), \
-                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
+                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 1}), pxMode=False)
 
                 # Write unit cell parameters
                 if unitCell is not None:
@@ -332,7 +350,7 @@ class CrystalIndexing(object):
                     self.parent.img.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
                     self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
                     self.parent.img.abc_text.setPos(maxX, maxY)
-            else:
+            else: # Failed indexing
                 xMargin = 5 # pixels
                 maxX   = np.max(self.parent.det.indexes_x(self.parent.evt))+xMargin
                 maxY   = np.max(self.parent.det.indexes_y(self.parent.evt))
@@ -493,6 +511,7 @@ class IndexHandler(QtCore.QThread):
                 self.parent.index.numIndexedPeaksFound = 0
                 self.parent.index.indexedPeaks = None
                 self.parent.index.clearIndexedPeaks()
+                self.parent.index.displayWaiting()
 
                 # Write list
                 with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
