@@ -38,6 +38,8 @@ class MaskMaker(object):
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
+        self.userUpdate = None
+
         self.mask_grp = 'Mask'
         self.mask_mode_str = 'Masking mode'
         self.do_nothing_str = 'Off'
@@ -163,6 +165,65 @@ class MaskMaker(object):
         self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
         self.parent.threadCounter += 1
 
+    def updateParam(self):
+        self.psanaMaskOn = True
+        self.params = [
+            {'name': self.mask_grp, 'type': 'group', 'children': [
+                {'name': self.user_mask_str, 'type': 'bool', 'value': self.userMaskOn, 'tip': "Mask areas defined by user", 'children':[
+                    {'name': self.mask_mode_str, 'type': 'list', 'values': {self.do_toggle_str: 3,
+                                                                            self.do_unmask_str: 2,
+                                                                            self.do_mask_str: 1,
+                                                                            self.do_nothing_str: 0},
+                                                                       'value': self.maskingMode,
+                                                                       'tip': "Choose masking mode"},
+                ]},
+                {'name': self.streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot", 'children':[
+                    {'name': self.streak_width_str, 'type': 'float', 'value': self.streak_width, 'tip': "set maximum length of streak"},
+                    {'name': self.streak_sigma_str, 'type': 'float', 'value': self.streak_sigma, 'tip': "set number of sigma to threshold"},
+                ]},
+                {'name': self.psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask edges and unbonded pixels etc", 'children': [
+                    {'name': self.mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "use custom mask deployed in calibdir"},
+                    {'name': self.mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "mask bad pixel status"},
+                    {'name': self.mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "mask edge pixels"},
+                    {'name': self.mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
+                    {'name': self.mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
+                    {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
+                ]},
+            ]},
+            {'name': self.powder_grp, 'type': 'group', 'children': [
+                {'name': self.powder_outDir_str, 'type': 'str', 'value': self.powder_outDir},
+                {'name': self.powder_runs_str, 'type': 'str', 'value': self.powder_runs,
+                 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
+                {'name': self.powder_queue_str, 'type': 'list', 'values': {self.parent.pk.hitParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                           self.parent.pk.hitParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                           self.parent.pk.hitParam_psfehprioq_str: 'psfehprioq',
+                                                                           self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
+                                                                           self.parent.pk.hitParam_psfehq_str: 'psfehq',
+                                                                           self.parent.pk.hitParam_psnehq_str: 'psnehq',
+                                                                           self.parent.pk.hitParam_psanaq_str: 'psanaq',
+                                                                           self.parent.pk.hitParam_psdebugq_str: 'psdebugq'},
+                 'value': self.powder_queue, 'tip': "Choose queue"},
+                {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
+                {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
+                {'name': self.powder_noe_str, 'type': 'int', 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
+            ]},
+        ]
+
+        self.p6 = Parameter.create(name='paramsMask', type='group', \
+                                   children=self.params, expanded=True)
+        self.w17.setParameters(self.p6, showTop=False)
+        self.p6.sigTreeStateChanged.connect(self.change)
+
+        self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
+        self.parent.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.makeMaskCircle)
+        self.parent.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.makeMaskThresh)
+        self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
+        self.parent.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.deployMask)
+        self.parent.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.loadMask)
+
+        self.parent.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePowder)
+        self.updatePsanaMask(True)
+
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
         for param, change, data in changes:
@@ -180,12 +241,15 @@ class MaskMaker(object):
     def paramUpdate(self, path, change, data):
         if path[0] == self.mask_grp:
             if path[1] == self.user_mask_str and len(path) == 2:
+                self.userUpdate = True
                 self.updateUserMask(data)
                 self.parent.pk.algInitDone = False
             elif path[1] == self.streak_mask_str and len(path) == 2:
+                self.userUpdate = True
                 self.updateStreakMask(data)
                 self.parent.pk.algInitDone = False
             elif path[1] == self.psana_mask_str and len(path) == 2:
+                self.userUpdate = True
                 self.updatePsanaMask(data)
                 self.parent.pk.algInitDone = False
             if len(path) == 3:

@@ -29,6 +29,7 @@ parser.add_argument("--pixelSize", help="pixel size (m)", type=float)
 parser.add_argument("--minPeaks", help="Index only if above minimum number of peaks",default=15, type=int)
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=300, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
+
 parser.add_argument("--minPixels", help="hit only if above minimum number of pixels (SPI)",default=12000, type=float)
 parser.add_argument("--maxBackground", help="use as miss if below maximum number of pixels (SPI)",default=-1, type=float)
 parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
@@ -198,14 +199,13 @@ runStr = "%04d" % args.run
 filename = args.inDir + '/' + args.exp + '_' + runStr + '.cxi'
 print "Reading file: %s" % (filename)
 if mode == 'sfx':
-    statusFname = args.inDir+'/status_index.txt'
+    statusFname = args.inDir+'/status_cxidb.txt'
 elif mode == 'spi':
     statusFname = args.inDir+'/status_hits.txt'
 
 if rank == 0:
     try:
-        d = {"message": "#CXIDB"}
-        print statusFname
+        d = {"message": "#ConvertingCXIDB"}
         writeStatus(statusFname, d)
     except:
         pass
@@ -237,7 +237,7 @@ while notDone:
         print "Number of tries: ", notDone
         notDone += 1
         if notDone >= 10: exit()
-        time.sleep(10)
+        time.sleep(30)
 
 if mode == 'sfx' and instrumentName == 'cxi':
     # Get image shape
@@ -443,6 +443,8 @@ if rank == 0:
     instrument_1 = entry_1.create_group("instrument_1")
     instrument_1.create_dataset("name",data=instrumentName)
 
+    if "source_1" in instrument_1:
+        del instrument_1["source_1"]
     source_1 = instrument_1.create_group("source_1")
     ds_photonEnergy = source_1.create_dataset("energy", (numHits,), dtype=float) # photon energy in J
     ds_photonEnergy.attrs["axes"] = "experiment_identifier"
@@ -454,6 +456,8 @@ if rank == 0:
     ds_pulseWidth.attrs["axes"] = "experiment_identifier"
     ds_pulseWidth.attrs["numEvents"] = numHits
 
+    if "detector_1" in instrument_1:
+        del instrument_1["detector_1"]
     detector_1 = instrument_1.create_group("detector_1")
     ds_dist_1 = detector_1.create_dataset("distance", (numHits,), dtype=float) # in meters
     ds_dist_1.attrs["axes"] = "experiment_identifier"
@@ -573,7 +577,6 @@ for i,val in enumerate(myHitInd):
         if maxBackground > -1:
             ind = abs(missInd - val)
             backgroundEvent = missInd[np.argmin(ind)]
-            print "background: ", val, backgroundEvent
             img = ps.getCleanAssembledImg(backgroundEvent)
             phot = ps.getCleanAssembledPhotons(backgroundEvent)
         else:
@@ -704,10 +707,15 @@ for i,val in enumerate(myHitInd):
 
     if rank == 0 and i%10 == 0:
         try:
-            hitRate = numHits*100./numEvents
-            fracDone = i*100./len(myJobs)
-            d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
-            writeStatus(statusFname, d)
+            if mode == 'sfx':
+                fracDone = i*100./len(myJobs)
+                d = {"numHits": numHits, "fracDone": fracDone}
+                writeStatus(statusFname, d)
+            elif mode == 'spi':
+                hitRate = numHits*100./numEvents
+                fracDone = i*100./len(myJobs)
+                d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+                writeStatus(statusFname, d)
         except:
             pass
 
@@ -715,10 +723,15 @@ f.close()
 
 if rank == 0:
     try:
-        hitRate = numHits * 100. / numEvents
-        fracDone = 100.
-        d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
-        writeStatus(statusFname, d)
+        if mode == 'sfx':
+            fracDone = 100.
+            d = {"numHits": numHits, "fracDone": fracDone}
+            writeStatus(statusFname, d)
+        elif mode == 'spi':
+            hitRate = numHits * 100. / numEvents
+            fracDone = 100.
+            d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+            writeStatus(statusFname, d)
     except:
         pass
 

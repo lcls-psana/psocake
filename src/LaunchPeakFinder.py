@@ -55,7 +55,8 @@ class LaunchPeakFinder(QtCore.QThread):
 
             cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
               " -n "+str(self.parent.pk.hitParam_cpus) + \
-              " -o "+runDir+"/.%J.log mpirun findPeaks -e "+self.experimentName+\
+              " -o "+runDir+"/.%J.log mpirun findPeaks" + \
+              " -e "+self.experimentName+\
               " -d "+self.detInfo+\
               " --outDir "+runDir+\
               " --algorithm "+str(self.parent.pk.algorithm)
@@ -79,17 +80,17 @@ class LaunchPeakFinder(QtCore.QThread):
             #            " --alg3_rank "+str(self.parent.pk.hitParam_alg3_rank)+\
             #            " --alg3_r0 "+str(self.parent.pk.hitParam_alg3_r0)+\
             #            " --alg3_dr "+str(self.parent.pk.hitParam_alg3_dr)
-            elif self.parent.pk.algorithm == 4:
-                cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg4_npix_min)+\
-                       " --alg_npix_max "+str(self.parent.pk.hitParam_alg4_npix_max)+\
-                       " --alg_amax_thr "+str(self.parent.pk.hitParam_alg4_amax_thr)+\
-                       " --alg_atot_thr "+str(self.parent.pk.hitParam_alg4_atot_thr)+\
-                       " --alg_son_min "+str(self.parent.pk.hitParam_alg4_son_min)+\
-                       " --alg4_thr_low "+str(self.parent.pk.hitParam_alg4_thr_low)+\
-                       " --alg4_thr_high "+str(self.parent.pk.hitParam_alg4_thr_high)+\
-                       " --alg4_rank "+str(self.parent.pk.hitParam_alg4_rank)+\
-                       " --alg4_r0 "+str(self.parent.pk.hitParam_alg4_r0)+\
-                       " --alg4_dr "+str(self.parent.pk.hitParam_alg4_dr)
+            #elif self.parent.pk.algorithm == 4:
+            #    cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg4_npix_min)+\
+            #           " --alg_npix_max "+str(self.parent.pk.hitParam_alg4_npix_max)+\
+            #           " --alg_amax_thr "+str(self.parent.pk.hitParam_alg4_amax_thr)+\
+            #           " --alg_atot_thr "+str(self.parent.pk.hitParam_alg4_atot_thr)+\
+            #           " --alg_son_min "+str(self.parent.pk.hitParam_alg4_son_min)+\
+            #           " --alg4_thr_low "+str(self.parent.pk.hitParam_alg4_thr_low)+\
+            #           " --alg4_thr_high "+str(self.parent.pk.hitParam_alg4_thr_high)+\
+            #           " --alg4_rank "+str(self.parent.pk.hitParam_alg4_rank)+\
+            #           " --alg4_r0 "+str(self.parent.pk.hitParam_alg4_r0)+\
+            #           " --alg4_dr "+str(self.parent.pk.hitParam_alg4_dr)
             # Save user mask to a deterministic path
             if self.parent.mk.userMaskOn:
                 tempFilename = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/tempUserMask.npy"
@@ -118,7 +119,17 @@ class LaunchPeakFinder(QtCore.QThread):
                        " --medianRank " + str(self.parent.exp.medianFilterRank)
             elif self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:
                 cmd += " --radialBackground " + str(1) + \
-                       " --distance " + str(self.parent.detectorDistance)
+                       " --detectorDistance " + str(self.parent.detectorDistance)
+
+            cmd += " --clen " + str(self.parent.clenEpics)
+            cmd += " --coffset " + str(self.parent.coffset)
+
+            cmd += " --minPeaks " + str(self.parent.pk.minPeaks)
+            cmd += " --maxPeaks " + str(self.parent.pk.maxPeaks)
+            cmd += " --minRes " + str(self.parent.pk.minRes)
+            cmd += " --sample " + str(self.parent.pk.sample)
+            cmd += " --instrument " + str(self.parent.det.instrument())
+            cmd += " --pixelSize " + str(self.parent.pixelSize)
 
             cmd += " -r " + str(run)
             print "Submitting batch job: ", cmd

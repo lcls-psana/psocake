@@ -270,7 +270,9 @@ class ExperimentInfo(object):
             self.setupExperiment()
             self.parent.mk.resetMasks()
             self.resetVariables()
+            self.parent.pk.userUpdate = None
             self.parent.img.updateImage()
+
         if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
 
     def updateDetInfo(self, data):
@@ -459,7 +461,7 @@ class ExperimentInfo(object):
 
     def updatePixelSize(self, arg):
         if arg == 'lcls':
-            if 'cspad' in self.parent.detInfo.lower():  # FIXME: increase pixel size list: epix, rayonix
+            if 'cspad' in self.parent.detInfo.lower():  # FIXME: increase pixel size list: epix
                 self.parent.pixelSize = 110e-6  # metres
             elif 'pnccd' in self.parent.detInfo.lower():
                 self.parent.pixelSize = 75e-6  # metres
@@ -514,7 +516,42 @@ class ExperimentInfo(object):
             self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(fname)
             self.parent.small.pSmall.param(self.parent.small.quantifier_grp,  self.parent.small.quantifier_dataset_str).setValue(dsetname)
             self.setupPsocake()
-    
+
+            # Load peak parameters if exists
+            #self.parent.pk.updateParam()
+            #peakParamFname = self.parent.psocakeRunDir + '/peakParam.json'
+            #print "peakParamFname: ", peakParamFname
+            #import json
+
+            #if os.path.exists(peakParamFname):
+                #import PeakFindingPanel
+                #self.parent.pk = PeakFindingPanel.PeakFinding(self.parent)
+                #with open(peakParamFname) as infile:
+                #    d = json.load(infile)
+                #    print "d: ", d
+                    #if d[self.parent.pk.hitParam_algorithm_str] == 1:
+                        #self.parent.pk.algorithm = d[self.parent.pk.hitParam_algorithm_str]
+                        #self.parent.pk.hitParam_alg1_npix_min = d[self.parent.pk.hitParam_alg1_npix_min_str]
+                        #self.parent.pk.hitParam_alg1_npix_max = d[self.parent.pk.hitParam_alg1_npix_max_str]
+                        #self.parent.pk.hitParam_alg1_amax_thr = d[self.parent.pk.hitParam_alg1_amax_thr_str]
+                        #self.parent.pk.hitParam_alg1_atot_thr = d[self.parent.pk.hitParam_alg1_atot_thr_str]
+                        #self.parent.pk.hitParam_alg1_son_min = d[self.parent.pk.hitParam_alg1_son_min_str]
+                        #self.parent.pk.hitParam_alg1_thr_low = d[self.parent.pk.hitParam_alg1_thr_low_str]
+                        #self.parent.pk.hitParam_alg1_thr_high = d[self.parent.pk.hitParam_alg1_thr_high_str]
+                        #self.parent.pk.hitParam_alg1_radius = d[self.parent.pk.hitParam_alg1_radius_str]
+                        #self.parent.pk.hitParam_alg1_dr = d[self.parent.pk.hitParam_alg1_dr_str]
+
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm_str).setValue(int(d[self.parent.pk.hitParam_algorithm_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_npix_min_str).setValue(float(d[self.parent.pk.hitParam_alg1_npix_min_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_npix_max_str).setValue(float(d[self.parent.pk.hitParam_alg1_npix_max_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_amax_thr_str).setValue(float(d[self.parent.pk.hitParam_alg1_amax_thr_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_atot_thr_str).setValue(float(d[self.parent.pk.hitParam_alg1_atot_thr_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_son_min_str).setValue(float(d[self.parent.pk.hitParam_alg1_son_min_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_thr_low_str).setValue(float(d[self.parent.pk.hitParam_alg1_thr_low_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_thr_high_str).setValue(float(d[self.parent.pk.hitParam_alg1_thr_high_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_radius_str).setValue(int(d[self.parent.pk.hitParam_alg1_radius_str]))
+                        #self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_algorithm1_str, self.parent.pk.hitParam_alg1_dr_str).setValue(float(d[self.parent.pk.hitParam_alg1_dr_str]))
+
             # Update hidden CrystFEL files
             self.updateHiddenCrystfelFiles('lcls')
     
@@ -598,6 +635,12 @@ class ExperimentInfo(object):
 
             self.parent.img.setupRadialBackground()
             self.parent.img.updatePolarizationFactor()
+
+        #if self.parent.mk.combinedMask is not None and self.parent.mk.psanaMask is not None:
+        #    self.parent.mk.p6.param(self.parent.mk.mask_grp, self.parent.mk.psana_mask_str).setValue(1)
+        #    self.parent.mk.psanaMaskOn = True
+        #    self.parent.mk.updatePsanaMask(self.parent.mk.psanaMaskOn)
+        #    self.parent.mk.updatePsanaMaskOn()
 
         if self.parent.args.v >= 1: print "Done setupExperiment"
     

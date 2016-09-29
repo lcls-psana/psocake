@@ -123,7 +123,10 @@ class SmallData(object):
 
     def updateQuantifierPlot(self, metric):
         self.w9.getPlotItem().clear()
-        self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='w')
+        if len(np.where(metric==-1)[0]) > 0: # Every event was processed
+            self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='w') # blue
+        else:
+            self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(0, 0, 255), symbolPen='w') # red
         self.w9.setLabel('left', "Small data")
         if self.quantifier_sort:
             self.w9.setLabel('bottom', "Sorted Event Index")

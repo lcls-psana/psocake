@@ -299,7 +299,7 @@ class CrystalIndexing(object):
         self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearIndexedPeaks"
 
-    def drawIndexedPeaks(self,unitCell=None):
+    def drawIndexedPeaks(self, latticeType=None, centering=None, numSaturatedPeaks=None, unitCell=None):
         self.clearIndexedPeaks()
         if self.showIndexedPeaks:
             if self.indexedPeaks is not None and self.numIndexedPeaksFound > 0:
@@ -316,19 +316,22 @@ class CrystalIndexing(object):
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
 
                 # Write unit cell parameters
-                xMargin = 5
-                yMargin = 400
-                maxX   = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
-                maxY   = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
-                myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">a='+\
-                            str(round(float(unitCell[0])*10,2))+'A <br>b='+str(round(float(unitCell[1])*10,2))+'A <br>c='+\
-                            str(round(float(unitCell[2])*10,2))+'A <br>&alpha;='+str(round(float(unitCell[3]),2))+\
-                            '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
-                            str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
+                if unitCell is not None:
+                    xMargin = 5
+                    yMargin = 400
+                    maxX   = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+                    maxY   = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
+                    myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">saturated='+\
+                                str(numSaturatedPeaks) + '<br>lattice='+\
+                                latticeType +'<br>centering=' + centering + '<br>a='+\
+                                str(round(float(unitCell[0])*10,2))+'A <br>b='+str(round(float(unitCell[1])*10,2))+'A <br>c='+\
+                                str(round(float(unitCell[2])*10,2))+'A <br>&alpha;='+str(round(float(unitCell[3]),2))+\
+                                '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
+                                str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
 
-                self.parent.img.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
-                self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
-                self.parent.img.abc_text.setPos(maxX, maxY)
+                    self.parent.img.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
+                    self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
+                    self.parent.img.abc_text.setPos(maxX, maxY)
             else:
                 xMargin = 5 # pixels
                 maxX   = np.max(self.parent.det.indexes_x(self.parent.evt))+xMargin
@@ -375,6 +378,9 @@ class IndexHandler(QtCore.QThread):
         self.intRadius = None
         self.pdb = None
         self.indexingMethod = None
+        self.latticeType = None
+        self.centering = None
+        self.numSaturatedPeaks = None
         self.unitCell = None
         self.minPeaks = None
         self.maxPeaks = None
@@ -571,14 +577,30 @@ class IndexHandler(QtCore.QThread):
                     f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     for i, val in enumerate(content):
-                        if 'num_peaks =' in val:
-                            numPeaks = int(val.split('=')[-1])
+                        if 'End of peak list' in val:
+                            endLine = i-1
+                        elif 'num_saturated_peaks =' in val:
+                            self.numSaturatedPeaks = int(val.split('=')[-1])
+                        elif 'lattice_type =' in val:
+                            self.latticeType = val.split('=')[-1]
+                        elif 'centering =' in val:
+                            self.centering = val.split('=')[-1]
                         elif 'fs/px   ss/px (1/d)/nm^-1   Intensity  Panel' in val:
                             startLine = i + 1
-                            endLine = startLine + numPeaks
                         elif 'Cell parameters' in val:
                             (_, _, a, b, c, _, al, be, ga, _) = val.split()
                             self.unitCell = (a, b, c, al, be, ga)
+                        elif 'diffraction_resolution_limit =' in val:
+                            (_, _, _, _, _, resLim, _) = val.split() # Angstrom
+                        elif 'End of reflections' in val:
+                            endReflectionLine = i-1
+                        elif '   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in val:
+                            startReflectionLine = i+1
+
+                    numPeaks = endLine-startLine
+                    numReflections = endReflectionLine-startReflectionLine
+
+                    print "numReflections: ", numPeaks, numReflections
 
                     columns = ['fs', 'ss', 'res', 'intensity', 'asic']
                     df = pd.DataFrame(np.empty((numPeaks, len(columns))), columns=columns)
@@ -589,20 +611,66 @@ class IndexHandler(QtCore.QThread):
                         df['res'][i] = float(content[contentLine][15:26])
                         df['intensity'][i] = float(content[contentLine][26:38])
                         df['asic'][i] = str(content[contentLine][38:-1])
+
+                    if numReflections > 0:
+                        columns = ['h', 'k', 'l', 'I', 'sigma', 'peak', 'background', 'fs', 'ss', 'panel']
+                        dfRefl = pd.DataFrame(np.empty((numReflections, len(columns))), columns=columns)
+                        for i in np.arange(numReflections):
+                            contentLine = startReflectionLine + i
+                            dfRefl['h'][i] = float(content[contentLine][0:4])
+                            dfRefl['k'][i] = float(content[contentLine][4:9])
+                            dfRefl['l'][i] = float(content[contentLine][9:14])
+                            dfRefl['I'][i] = float(content[contentLine][14:25])
+                            dfRefl['sigma'][i] = str(content[contentLine][25:36])
+                            dfRefl['peak'][i] = float(content[contentLine][36:47])
+                            dfRefl['background'][i] = float(content[contentLine][47:58])
+                            dfRefl['fs'][i] = float(content[contentLine][58:65])
+                            dfRefl['ss'][i] = float(content[contentLine][65:72])
+                            dfRefl['panel'][i] = str(content[contentLine][72:-1])
                     f.close()
 
-                    # Convert to CrystFEL coordinates
+                    # #Convert to CrystFEL coordinates
+                    # columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
+                    # dfPeaks = pd.DataFrame(np.empty((numPeaks, len(columnsPeaks))), columns=columnsPeaks)
+                    # for i in np.arange(numPeaks):
+                    #    myAsic = df['asic'][i].strip()
+                    #    x = (df['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + (df['ss'][i] -
+                    #                                                                                    dfGeom.loc[
+                    #                                                                                        myAsic, 'min_ss']) * \
+                    #                                                                                   dfScan.loc[
+                    #                                                                                       myAsic, 'ssx']
+                    #    x += dfGeom.loc[myAsic, 'corner_x']
+                    #    y = (df['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + (df['ss'][i] -
+                    #                                                                                    dfGeom.loc[
+                    #                                                                                        myAsic, 'min_ss']) * \
+                    #                                                                                   dfScan.loc[
+                    #                                                                                       myAsic, 'ssy']
+                    #    y += dfGeom.loc[myAsic, 'corner_y']
+                    #    dfPeaks['x'][i] = x
+                    #    dfPeaks['y'][i] = y
+                    #
+                    # # Convert to psocake coordinates
+                    # for i in np.arange(numPeaks): # numPeaks
+                    #     dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
+                    #     dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
+                    #
+                    # if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
+                    #     self.parent.index.numIndexedPeaksFound = numPeaks
+                    #     self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
+                    #     self.parent.index.drawIndexedPeaks(self.unitCell)
+
+                    # Convert predicted spots to CrystFEL coordinates
                     columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
-                    dfPeaks = pd.DataFrame(np.empty((numPeaks, len(columnsPeaks))), columns=columnsPeaks)
-                    for i in np.arange(numPeaks):
-                        myAsic = df['asic'][i].strip()
-                        x = (df['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + (df['ss'][i] -
+                    dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
+                    for i in np.arange(numReflections):
+                        myAsic = dfRefl['panel'][i].strip()
+                        x = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + (dfRefl['ss'][i] -
                                                                                                         dfGeom.loc[
                                                                                                             myAsic, 'min_ss']) * \
                                                                                                        dfScan.loc[
                                                                                                            myAsic, 'ssx']
                         x += dfGeom.loc[myAsic, 'corner_x']
-                        y = (df['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + (df['ss'][i] -
+                        y = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + (dfRefl['ss'][i] -
                                                                                                         dfGeom.loc[
                                                                                                             myAsic, 'min_ss']) * \
                                                                                                        dfScan.loc[
@@ -612,14 +680,14 @@ class IndexHandler(QtCore.QThread):
                         dfPeaks['y'][i] = y
 
                     # Convert to psocake coordinates
-                    for i in np.arange(numPeaks):
+                    for i in np.arange(numReflections):
                         dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
                         dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
 
                     if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                        self.parent.index.numIndexedPeaksFound = numPeaks
+                        self.parent.index.numIndexedPeaksFound = numReflections
                         self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
-                        self.parent.index.drawIndexedPeaks(self.unitCell)
+                        self.parent.index.drawIndexedPeaks(self.latticeType, self.centering, self.numSaturatedPeaks, self.unitCell)
             else:
                 print "Indexing requirement not met."
                 if self.parent.pk.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"

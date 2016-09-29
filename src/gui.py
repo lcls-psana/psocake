@@ -183,6 +183,11 @@ class MainFrame(QtGui.QWidget):
 
         self.initUI()
 
+        #self.mk.p6.param(self.mk.mask_grp, self.mk.psana_mask_str).setValue(1)
+        #self.mk.psanaMaskOn = True
+        #self.mk.updatePsanaMask(self.mk.psanaMaskOn)
+        #self.mk.updatePsanaMaskOn()
+
     def initUI(self):
         ## Define a top-level widget to hold everything
         self.win = Window()
@@ -384,7 +389,7 @@ class MainFrame(QtGui.QWidget):
                     and indexY >= 0 and indexY < self.data.shape[1]:
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]
                     if self.mk.maskingMode > 0:
-                        self.initMask()
+                        self.mk.initMask()
                         if self.mk.maskingMode == 1:
                             # masking mode
                             self.mk.userMaskAssem[indexX,indexY] = 0

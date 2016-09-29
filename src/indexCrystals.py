@@ -216,7 +216,7 @@ else:
                     Done = -1
             else:
                 if args.v >= 1: print "cxidb job hasn't finished yet: ", myLog
-                time.sleep(10)
+                time.sleep(30)
         else:
             if args.v >= 1: print "no such file yet", myLog
             nodeFailed = checkJobExit(jobID)
@@ -230,7 +230,7 @@ else:
                         writeStatus(fnameIndex, d)
                     except:
                         pass
-            time.sleep(10)
+            time.sleep(30)
 
 if Done == 1:
     # Update elog
@@ -349,14 +349,14 @@ if Done == 1:
                                 pass
                         else:
                             print "getIndexedPeaks returned None"
-                        time.sleep(10)
+                        time.sleep(30)
             else:
                 if args.v >= 1: print "no such file yet: ", runNumber, myLog
                 nodeFailed = checkJobExit(myJobList[i])
                 if nodeFailed == 1:
                     if args.v >= 0: print "indexing job node failure: ", myLog
                     haveFinished[i] = -1
-                time.sleep(10)
+                time.sleep(30)
 
     if abs(Done) == 1:
         indexedPeaks, numProcessed = getIndexedPeaks()
