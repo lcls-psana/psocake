@@ -73,7 +73,7 @@ class CrystalIndexing(object):
         self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
         self.pdb = ''
-        self.indexingMethod = 'dirax-raw-nolatt'
+        self.indexingMethod = 'mosflm,dirax'
         self.minPeaks = 15
         self.maxPeaks = 2048
         self.minRes = 0
@@ -600,7 +600,7 @@ class IndexHandler(QtCore.QThread):
                     numPeaks = endLine-startLine
                     numReflections = endReflectionLine-startReflectionLine
 
-                    print "numReflections: ", numPeaks, numReflections
+                    #print "numReflections: ", numPeaks, numReflections
 
                     columns = ['fs', 'ss', 'res', 'intensity', 'asic']
                     df = pd.DataFrame(np.empty((numPeaks, len(columns))), columns=columns)

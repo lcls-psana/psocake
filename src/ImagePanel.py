@@ -184,8 +184,8 @@ class ImageViewer(object):
             self.parent.pk.updateParam()
 
         # Turn on psana mask by default
-        print "GOT HERE: ", self.parent.mk.userUpdate, self.parent.mk.userMask
-        if self.parent.mk.userMask is None:
+        print "GOT HERE: ", self.parent.mk.psanaMaskOn
+        if self.parent.mk.psanaMaskOn:
             self.parent.mk.updateParam()
 
         if self.parent.args.v >= 1: print "Done updateImage"

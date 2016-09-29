@@ -171,13 +171,11 @@ def runclient(args):
         if len(d.peakFinder.peaks) >= args.minPeaks and \
            len(d.peakFinder.peaks) <= args.maxPeaks and \
            d.peakFinder.maxRes >= args.minRes:
-            print "QQQ: ", len(d.peakFinder.peaks), d.peakFinder.maxRes, args.minPeaks, args.maxPeaks, args.minRes
             # Write image in cheetah format
             if 'cspad' in ps.detInfo.lower():
                 img = ps.getCheetahImg()
                 assert (img is not None)
                 md.addarray('data', img)
-                print "IMG: ", img.shape
             elif 'rayonix' in ps.detInfo.lower():
                 img = ps.getCalibImg()
                 assert (img is not None)

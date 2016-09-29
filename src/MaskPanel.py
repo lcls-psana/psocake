@@ -38,8 +38,6 @@ class MaskMaker(object):
         # Connect listeners to functions
         self.d12.addWidget(self.w18)
 
-        self.userUpdate = None
-
         self.mask_grp = 'Mask'
         self.mask_mode_str = 'Masking mode'
         self.do_nothing_str = 'Off'
@@ -74,7 +72,7 @@ class MaskMaker(object):
         self.streakMaskOn = False
         self.streak_sigma = 1
         self.streak_width = 250
-        self.psanaMaskOn = False
+        self.psanaMaskOn = True
         self.mask_calibOn = True
         self.mask_statusOn = True
         self.mask_edgesOn = True
@@ -241,15 +239,12 @@ class MaskMaker(object):
     def paramUpdate(self, path, change, data):
         if path[0] == self.mask_grp:
             if path[1] == self.user_mask_str and len(path) == 2:
-                self.userUpdate = True
                 self.updateUserMask(data)
                 self.parent.pk.algInitDone = False
             elif path[1] == self.streak_mask_str and len(path) == 2:
-                self.userUpdate = True
                 self.updateStreakMask(data)
                 self.parent.pk.algInitDone = False
             elif path[1] == self.psana_mask_str and len(path) == 2:
-                self.userUpdate = True
                 self.updatePsanaMask(data)
                 self.parent.pk.algInitDone = False
             if len(path) == 3:
@@ -310,12 +305,12 @@ class MaskMaker(object):
         self.gapAssemInd = None
         self.gapAssem = None
         self.userMaskOn = False
-        self.psanaMaskOn = False
+        self.psanaMaskOn = True
         self.streakMaskOn = False
         self.maskingMode = 0
         self.p6.param(self.mask_grp, self.user_mask_str, self.mask_mode_str).setValue(0)
         self.p6.param(self.mask_grp, self.user_mask_str).setValue(0)
-        self.p6.param(self.mask_grp, self.psana_mask_str).setValue(0)
+        self.p6.param(self.mask_grp, self.psana_mask_str).setValue(1)
         self.p6.param(self.mask_grp, self.streak_mask_str).setValue(0)
 
     def updateUserMask(self, data):
