@@ -61,10 +61,10 @@ class LaunchPeakFinder(QtCore.QThread):
                 cmd += " python -m cProfile -o "+runDir+"/.findPeaks.prof /reg/neh/home/yoon82/ana2/psocake/src/findPeaks.py"
             else:
                 cmd += " findPeaks"
-              " -e "+self.experimentName+\
-              " -d "+self.detInfo+\
-              " --outDir "+runDir+\
-              " --algorithm "+str(self.parent.pk.algorithm)
+            cmd += " -e "+self.experimentName+\
+                   " -d "+self.detInfo+\
+                   " --outDir "+runDir+\
+                   " --algorithm "+str(self.parent.pk.algorithm)
 
             if self.parent.pk.algorithm == 1:
                 cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg1_npix_min)+\

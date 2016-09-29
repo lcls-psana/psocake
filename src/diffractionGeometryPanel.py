@@ -9,6 +9,83 @@ from pyqtgraph.Qt import QtCore, QtGui
 import Detector.PyDetector
 import PSCalib.GlobalUtils as gu
 import subprocess
+import scipy.spatial.distance as sd
+
+# Return two equal sized halves of the input image
+# If axis is None, halve along the first axis
+def getTwoHalves(I,centre,axis=None):
+    if axis is None or axis == 0:
+        A = I[:centre,:]
+        B = np.flipud(I[centre:,:])
+
+        (numRowUpper,_) = A.shape
+        (numRowLower,_) = B.shape
+        if numRowUpper >= numRowLower:
+            numRow = numRowLower
+            A = A[-numRow:,:]
+        else:
+            numRow = numRowUpper
+            B = B[-numRow:,:]
+    else:
+        A = I[:,:centre]
+        B = np.fliplr(I[:,centre:])
+
+        (_,numColLeft) = A.shape
+        (_,numColRight) = B.shape
+        if numColLeft >= numColRight:
+            numCol = numColRight
+            A = A[:,-numCol:]
+        else:
+            numCol = numColLeft
+            B = B[:,-numCol:]
+    return A, B
+
+def getScore(A,B):
+    ind = (A>0) & (B>0)
+    dist = sd.euclidean(A[ind].ravel(),B[ind].ravel())
+    numPix = len(ind[np.where(ind==True)])
+    return dist/numPix
+
+def findDetectorCentre(I,guessRow=None,guessCol=None,range=0):
+    """
+    :param I: assembled image
+    :param guessRow: best guess for centre row position (optional)
+    :param guessCol: best guess for centre col position (optional)
+    :param range: range of pixels to search either side of the current guess of the centre
+    :return:
+    """
+    range = int(range)
+    # Search for optimum column centre
+    if guessCol is None:
+        startCol = 1 # search everything
+        endCol = I.shape[1]
+    else:
+        startCol = guessCol - range
+        if startCol < 1: startCol = 1
+        endCol = guessCol + range
+        if endCol > I.shape[1]: endCol = I.shape[1]
+    searchArray = np.arange(startCol,endCol)
+    scoreCol = np.zeros(searchArray.shape)
+    for i, centreCol in enumerate(searchArray):
+        A,B = getTwoHalves(I,centreCol,axis=0)
+        scoreCol[i] = getScore(A,B)
+    centreCol = searchArray[np.argmin(scoreCol)]
+    # Search for optimum row centre
+    if guessRow is None:
+        startRow = 1 # search everything
+        endRow = I.shape[0]
+    else:
+        startRow = guessRow - range
+        if startRow < 1: startRow = 1
+        endRow = guessRow + range
+        if endRow > I.shape[0]: endRow = I.shape[0]
+    searchArray = np.arange(startRow,endRow)
+    scoreRow = np.zeros(searchArray.shape)
+    for i, centreRow in enumerate(searchArray):
+        A,B = getTwoHalves(I,centreRow,axis=1)
+        scoreRow[i] = getScore(A,B)
+    centreRow = searchArray[np.argmin(scoreRow)]
+    return centreCol,centreRow
 
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
@@ -422,10 +499,47 @@ class DiffractionGeometry(object):
         self.drawCentre()
 
     def autoDeploy(self):
-        print "Not implemented yet"
-        if self.parent.args.localCalib:
-            calibDir = './calib'
-        elif self.parent.args.outDir is None:
-            calibDir = self.parent.rootDir + '/calib'
+        print "Center: ", self.parent.cx, self.parent.cy
+        powderHits = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxHits.npy')
+        powderMisses = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxMisses.npy')
+        powderImg = self.parent.det.image(self.parent.evt, np.maximum(powderHits,powderMisses))
+        centreRow, centreCol = findDetectorCentre(np.log(abs(powderImg)), self.parent.cx, self.parent.cy, range=100)
+        print("Current centre along row,centre along column: ", self.parent.cx, self.parent.cy)
+        print("Optimum centre along row,centre along column: ", centreRow, centreCol)
+        allowedDeviation = 75 # pixels
+        if abs(self.parent.cx - centreRow) <= allowedDeviation and \
+            abs(self.parent.cy - centreCol) <= allowedDeviation:
+            deploy = True
         else:
-            calibDir = '/reg/d/psdm/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
+            deploy = False
+            print "Too far away from current centre. I will not deploy the auto centred geometry."
+        if deploy:
+            from PSCalib.CalibFileFinder import deploy_calib_file
+            # Calculate detector translation in x and y
+            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - centreRow)  # microns
+            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - centreCol)  # microns
+            geo = self.parent.det.geometry(self.parent.evt)
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
+            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+            fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
+            geo.save_pars_in_file(fname)
+            print "#################################################"
+            print "Deploying psana detector geometry: ", fname
+            print "#################################################"
+            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
+            if self.parent.args.localCalib:
+                calibDir = './calib'
+            elif self.parent.args.outDir is None:
+                calibDir = self.parent.rootDir + '/calib'
+            else:
+                calibDir = '/reg/d/psdm/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
+            deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
+                              run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+            # Reload new psana geometry
+            self.parent.exp.setupExperiment()
+            self.parent.img.getDetImage(self.parent.eventNumber)
+            self.updateRings()
+            self.parent.index.updateIndex()
+            self.drawCentre()
