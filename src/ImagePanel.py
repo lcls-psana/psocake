@@ -179,12 +179,10 @@ class ImageViewer(object):
                 pass
 
         # Load peak parameters if exists
-        print "GOT THERE: ", self.parent.pk.userUpdate
         if self.parent.pk.userUpdate is None:
             self.parent.pk.updateParam()
 
         # Turn on psana mask by default
-        print "GOT HERE: ", self.parent.mk.psanaMaskOn
         if self.parent.mk.psanaMaskOn:
             self.parent.mk.updateParam()
 

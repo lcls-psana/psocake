@@ -53,9 +53,14 @@ class LaunchPeakFinder(QtCore.QThread):
             except AttributeError:
                 print "e-Log table does not exist"
 
+            profileOn = False
             cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
               " -n "+str(self.parent.pk.hitParam_cpus) + \
-              " -o "+runDir+"/.%J.log mpirun findPeaks" + \
+              " -o "+runDir+"/.%J.log mpirun"
+            if profileOn:
+                cmd += " python -m cProfile -o "+runDir+"/.findPeaks.prof /reg/neh/home/yoon82/ana2/psocake/src/findPeaks.py"
+            else:
+                cmd += " findPeaks"
               " -e "+self.experimentName+\
               " -d "+self.detInfo+\
               " --outDir "+runDir+\
