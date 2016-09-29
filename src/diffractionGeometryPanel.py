@@ -499,7 +499,6 @@ class DiffractionGeometry(object):
         self.drawCentre()
 
     def autoDeploy(self):
-        print "Center: ", self.parent.cx, self.parent.cy
         powderHits = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxHits.npy')
         powderMisses = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxMisses.npy')
         powderImg = self.parent.det.image(self.parent.evt, np.maximum(powderHits,powderMisses))
@@ -528,7 +527,7 @@ class DiffractionGeometry(object):
             print "#################################################"
             print "Deploying psana detector geometry: ", fname
             print "#################################################"
-            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
+            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'auto recentred geometry'}
             if self.parent.args.localCalib:
                 calibDir = './calib'
             elif self.parent.args.outDir is None:
