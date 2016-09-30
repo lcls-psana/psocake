@@ -331,7 +331,7 @@ class CrystalIndexing(object):
                 diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[2])*2
                 self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
                                           size=diameter, brush=(255,255,255,0), \
-                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 1}), pxMode=False)
+                                          pen=pg.mkPen({'color': "#FF00FF", 'width': 1.5}), pxMode=False)
 
                 # Write unit cell parameters
                 if unitCell is not None:
