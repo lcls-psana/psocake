@@ -7,8 +7,6 @@ import argparse
 import os, json
 
 from mpi4py import MPI
-import Detector.PyDetector
-
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
@@ -22,67 +20,23 @@ parser.add_argument("-o","--outDir",help="output directory (e.g. /reg/d/psdm/cxi
 parser.add_argument("--sample",help="sample name (e.g. lysozyme)",default='', type=str)
 parser.add_argument("--instrument",help="instrument name (e.g. CXI)", type=str)
 parser.add_argument("--clen", help="camera length epics name (e.g. CXI:DS1:MMS:06.RBV or CXI:DS2:MMS:06.RBV)", type=str)
-parser.add_argument("--coffset", help="camera offset, CXI home position to sample (m)", default=0, type=float)
-parser.add_argument("--detectorDistance", help="detector distance from interaction point (m)", default=0, type=float)
+parser.add_argument("--coffset", help="camera offset, CXI home position to sample (m)",default=0, type=float)
+parser.add_argument("--detectorDistance", help="detector distance from interaction point (m)",default=0, type=float)
 parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
 parser.add_argument("--pixelSize", help="pixel size (m)", type=float)
 parser.add_argument("--minPeaks", help="Index only if above minimum number of peaks",default=15, type=int)
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=300, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
-parser.add_argument("--minPixels", help="hit only if above minimum number of pixels (SPI)",default=12000, type=float)
-parser.add_argument("--maxBackground", help="use as miss if below maximum number of pixels (SPI)",default=-1, type=float)
-parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
-parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 args = parser.parse_args()
 
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
 
-def getMyUnfairShare(numJobs, numWorkers, rank):
-    """Returns number of events assigned to the slave calling this function."""
-    print "numJobs >= numWorkers: ", numJobs, numWorkers
-    assert(numJobs >= numWorkers)
-    try:
-        allJobs = np.arange(numJobs)
-        jobChunks = np.array_split(allJobs, numWorkers)
-        myChunk = jobChunks[rank]
-        myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
-        return myJobs
-    except:
-        return None
-
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1, backgroundThresh=-1):
+    def __init__(self, experimentName, runNumber, detInfo):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
-        self.aduPerPhoton = aduPerPhoton
-        self.backgroundThresh = backgroundThresh
-
-    def getDetectorAlias(self, srcOrAlias):
-        for i in self.detInfoList:
-            src, alias, _ = i
-            if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
-                return alias
-
-    def getDetInfoList(self):
-        myAreaDetectors = []
-        self.detnames = psana.DetNames()
-        for k in self.detnames:
-            try:
-                if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
-                    myAreaDetectors.append(k)
-            except ValueError:
-                continue
-        self.detInfoList = list(set(myAreaDetectors))
-        print "detInfoList: ", self.detInfoList
-
-    def updateClen(self):
-        if 'cspad' in self.detAlias.lower() and 'cxi' in self.experimentName:
-            self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(args.clen)
-        elif 'rayonix' in self.detAlias.lower() and 'mfx' in self.experimentName:
-            self.clen = 0
 
     def setupExperiment(self):
         self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
@@ -92,11 +46,10 @@ class psanaWhisperer():
         self.env = self.ds.env()
         self.evt = self.run.event(self.times[0])
         self.det = psana.Detector(str(self.detInfo), self.env)
-        self.det.do_reshape_2d_to_3d(flag=True)
-        self.getDetInfoList()
-        self.detAlias = self.getDetectorAlias(str(self.detInfo))
         # Get epics variable, clen
-        self.updateClen()
+        if "cxi" in self.experimentName:
+            self.epics = self.ds.env().epicsStore()
+            self.clen = self.epics.value(args.clen)
 
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
@@ -113,46 +66,6 @@ class psanaWhisperer():
                 img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
                 counter += 1
         return img
-
-    def getCleanAssembledImg(self, backgroundEvent):
-        """Returns psana assembled image
-        """
-        backgroundEvt = self.run.event(self.times[backgroundEvent])
-        backgroundCalib = self.det.calib(backgroundEvt)
-        calib = self.det.calib(self.evt)
-        cleanCalib = calib - backgroundCalib
-        img = self.det.image(self.evt, cleanCalib)
-        return img
-
-    def getAssembledImg(self):
-        """Returns psana assembled image
-        """
-        img = self.det.image(self.evt)
-        return img
-
-    def getCalibImg(self):
-        """Returns psana assembled image
-        """
-        img = self.det.calib(self.evt)
-        return img
-
-    def getCleanAssembledPhotons(self, backgroundEvent):
-        """Returns psana assembled image in photon counts
-        """
-        backgroundEvt = self.run.event(self.times[backgroundEvent])
-        backgroundCalib = self.det.calib(backgroundEvt)
-        calib = self.det.calib(self.evt)
-        cleanCalib = calib - backgroundCalib
-        img = self.det.photons(self.evt, nda_calib=cleanCalib, adu_per_photon=self.aduPerPhoton)
-        phot = self.det.image(self.evt, img)
-        return phot
-
-    def getAssembledPhotons(self):
-        """Returns psana assembled image in photon counts
-        """
-        img = self.det.photons(self.evt, adu_per_photon=self.aduPerPhoton)
-        phot = self.det.image(self.evt, img)
-        return phot
 
     def getPsanaEvent(self, cheetahFilename):
         # Gets psana event given cheetahFilename, e.g. LCLS_2015_Jul26_r0014_035035_e820.h5
@@ -175,32 +88,24 @@ class psanaWhisperer():
         fid = evtId.fiducials()
         return time.strftime('%FT%H:%M:%S-0800', time.localtime(sec))  # Hard-coded pacific time
 
-#################################################################################
-
 # Set up variable
 experimentName = args.exp
 runNumber = args.run
 detInfo = args.det
 sampleName = args.sample
-instrumentName = args.instrument.lower()
+instrumentName = args.instrument
 coffset = args.coffset
-(x_pixel_size,y_pixel_size) = (args.pixelSize, args.pixelSize)
-mode = args.mode
-aduPerPhoton = args.aduPerPhoton
-maxBackground = args.maxBackground
+(x_pixel_size,y_pixel_size) = (args.pixelSize,args.pixelSize)
 
 # Set up psana
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton, maxBackground)
+ps = psanaWhisperer(experimentName,runNumber,detInfo)
 ps.setupExperiment()
 
 # Read list of files
 runStr = "%04d" % args.run
 filename = args.inDir + '/' + args.exp + '_' + runStr + '.cxi'
 print "Reading file: %s" % (filename)
-if mode == 'sfx':
-    statusFname = args.inDir+'/status_index.txt'
-elif mode == 'spi':
-    statusFname = args.inDir+'/status_hits.txt'
+statusFname = args.inDir+'/status_index.txt'
 
 if rank == 0:
     try:
@@ -210,53 +115,22 @@ if rank == 0:
     except:
         pass
 
-notDone = 1
-while notDone:
-    try:
-        f = h5py.File(filename, "r")
-        if mode == 'sfx':
-            nPeaks = f["/entry_1/result_1/nPeaksAll"].value
-            maxRes = f["/entry_1/result_1/maxResAll"].value
-            posX = f["/entry_1/result_1/peakXPosRawAll"].value
-            posY = f["/entry_1/result_1/peakYPosRawAll"].value
-            atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
-            maxRes = f["/entry_1/result_1/maxResAll"].value
-            hitInd = ((nPeaks >= args.minPeaks) & (nPeaks <= args.maxPeaks) & (maxRes >= args.minRes)).nonzero()[0]
-            numHits = len(hitInd)
-        elif mode == 'spi':
-            nHits = f["/entry_1/result_1/nHitsAll"].value
-            hitInd = (nHits >= args.minPixels).nonzero()[0]
-            if args.maxBackground > -1:
-                missInd = (nHits < args.maxBackground).nonzero()[0]
-                print "missInd: ", missInd
-            numHits = len(hitInd)
-        f.close()
-        notDone = 0
-    except:
-        print "Couldn't read h5 file: ", filename
-        print "Number of tries: ", notDone
-        notDone += 1
-        if notDone >= 10: exit()
-        time.sleep(10)
+f = h5py.File(filename, "r")
+nPeaks = f["/entry_1/result_1/nPeaksAll"].value
+maxRes = f["/entry_1/result_1/maxResAll"].value
+posX = f["/entry_1/result_1/peakXPosRawAll"].value
+posY = f["/entry_1/result_1/peakYPosRawAll"].value
+atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
+maxRes = f["/entry_1/result_1/maxResAll"].value
+hitInd = ((nPeaks >= args.minPeaks) & (nPeaks <= args.maxPeaks) & (maxRes >= args.minRes)).nonzero()[0]
+numHits = len(hitInd)
+f.close()
 
-if mode == 'sfx' and instrumentName == 'cxi':
-    # Get image shape
-    firstHit = hitInd[0]
-    ps.getEvent(firstHit)
-    img = ps.getCheetahImg()
-    (dim0, dim1) = img.shape
-elif mode == 'sfx' and instrumentName == 'mfx':
-    # Get image shape
-    firstHit = hitInd[0]
-    ps.getEvent(firstHit)
-    img = ps.getCalibImg()
-    (_, dim0, dim1) = img.shape
-elif mode == 'spi':
-    # Get image shape
-    firstHit = hitInd[0]
-    ps.getEvent(firstHit)
-    img = ps.getAssembledImg()
-    (dim0, dim1) = img.shape
+# Get image shape
+firstHit = hitInd[0]
+ps.getEvent(firstHit)
+img = ps.getCheetahImg()
+(dim0, dim1) = img.shape
 
 if rank == 0: tic = time.time()
 
@@ -274,27 +148,32 @@ if args.detectorDistance is not 0:
     hasDetectorDistance = True
 if args.coffset is not 0:
     hasCoffset = True
+#if hasDetectorDistance is False and hasCoffset is False:
+#    print "Need at least hasDetectorDistance or coffset input"
+#    exit(0)
 
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton, maxBackground)
+def getMyUnfairShare(numJobs,numWorkers,rank):
+    """Returns number of events assigned to the slave calling this function."""
+    assert(numJobs >= numWorkers)
+    try:
+        allJobs = np.arange(numJobs)
+        jobChunks = np.array_split(allJobs,numWorkers)
+        myChunk = jobChunks[rank]
+        myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
+        return myJobs
+    except:
+        return None
+
+ps = psanaWhisperer(experimentName,runNumber,detInfo)
 ps.setupExperiment()
 startTime = ps.getStartTime()
 numEvents = ps.eventTotal
 es = ps.ds.env().epicsStore()
-try:
-    pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
-    numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
-except:
-    pulseLength = 0
-    numPhotons = 0
-
+pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
+numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
 ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-try:
-    photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
-    pulseEnergy = ebeam.ebeamL3Energy() # MeV
-except:
-    photonEnergy = 0
-    pulseEnergy = 0
-
+photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
+pulseEnergy = ebeam.ebeamL3Energy() # MeV
 if hasCoffset:
     detectorDistance = coffset + ps.clen*1e-3 # sample to detector in m
 elif hasDetectorDistance:
@@ -317,7 +196,6 @@ if rank == 0:
     if "cxi_version" in f:
         del f["cxi_version"]
     f.create_dataset("cxi_version",data=args.cxiVersion)
-    f.flush()
 
     ###################
     # LCLS
@@ -381,7 +259,6 @@ if rank == 0:
     ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(numHits,),dtype=int)
     ds_evtNum_1.attrs["axes"] = "experiment_identifier"
     ds_evtNum_1.attrs["numEvents"] = numHits
-    f.flush()
     ###################
     # entry_1
     ###################
@@ -393,41 +270,31 @@ if rank == 0:
     ds_expId = entry_1.create_dataset("experimental_identifier",(numHits,),dtype=int)#dt)
     ds_expId.attrs["axes"] = "experiment_identifier"
     ds_expId.attrs["numEvents"] = numHits
-    f.flush()
 
-    if mode == 'sfx':
-        if "entry_1/result_1/nPeaks" in f:
-            del f["entry_1/result_1/nPeaks"]
-            del f["entry_1/result_1/peakXPosRaw"]
-            del f["entry_1/result_1/peakYPosRaw"]
-            del f["entry_1/result_1/peakTotalIntensity"]
-            del f["entry_1/result_1/maxRes"]
-        ds_nPeaks = f.create_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
-        ds_nPeaks.attrs["axes"] = "experiment_identifier"
-        ds_nPeaks.attrs["numEvents"] = numHits
-        ds_nPeaks.attrs["minPeaks"] = args.minPeaks
-        ds_nPeaks.attrs["maxPeaks"] = args.maxPeaks
-        ds_nPeaks.attrs["minRes"] = args.minRes
-        ds_posX = f.create_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-        ds_posX.attrs["axes"] = "experiment_identifier:peaks"
-        ds_posX.attrs["numEvents"] = numHits
-        ds_posY = f.create_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-        ds_posY.attrs["axes"] = "experiment_identifier:peaks"
-        ds_posY.attrs["numEvents"] = numHits
-        ds_atot = f.create_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-        ds_atot.attrs["axes"] = "experiment_identifier:peaks"
-        ds_atot.attrs["numEvents"] = numHits
-        ds_maxRes = f.create_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
-        ds_maxRes.attrs["axes"] = "experiment_identifier:peaks"
-        ds_maxRes.attrs["numEvents"] = numHits
-    elif mode == 'spi':
-        if "entry_1/result_1/nHits" in f:
-            del f["entry_1/result_1/nHits"]
-        ds_nHits = f.create_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
-        ds_nHits.attrs["axes"] = "experiment_identifier"
-        ds_nHits.attrs["numEvents"] = numHits
-        ds_nHits.attrs["minPixels"] = args.minPixels
-    f.flush()
+    if "entry_1/result_1/nPeaks" in f:
+        del f["entry_1/result_1/nPeaks"]
+        del f["entry_1/result_1/peakXPosRaw"]
+        del f["entry_1/result_1/peakYPosRaw"]
+        del f["entry_1/result_1/peakTotalIntensity"]
+        del f["entry_1/result_1/maxRes"]
+    ds_nPeaks = f.create_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
+    ds_nPeaks.attrs["axes"] = "experiment_identifier"
+    ds_nPeaks.attrs["numEvents"] = numHits
+    ds_nPeaks.attrs["minPeaks"] = args.minPeaks
+    ds_nPeaks.attrs["maxPeaks"] = args.maxPeaks
+    ds_nPeaks.attrs["minRes"] = args.minRes
+    ds_posX = f.create_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+    ds_posX.attrs["axes"] = "experiment_identifier:peaks"
+    ds_posX.attrs["numEvents"] = numHits
+    ds_posY = f.create_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+    ds_posY.attrs["axes"] = "experiment_identifier:peaks"
+    ds_posY.attrs["numEvents"] = numHits
+    ds_atot = f.create_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+    ds_atot.attrs["axes"] = "experiment_identifier:peaks"
+    ds_atot.attrs["numEvents"] = numHits
+    ds_maxRes = f.create_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
+    ds_maxRes.attrs["axes"] = "experiment_identifier:peaks"
+    ds_maxRes.attrs["numEvents"] = numHits
 
     if "start_time" in entry_1:
         del entry_1["start_time"]
@@ -464,39 +331,21 @@ if rank == 0:
     ds_y_pixel_size_1 = detector_1.create_dataset("y_pixel_size", (numHits,), dtype=float)
     ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
     ds_y_pixel_size_1.attrs["numEvents"] = numHits
+    dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)#,
+                                       #chunks=(1,dim0,dim1),dtype=float)#,
+                                       #compression='gzip',
+                                       #compression_opts=9)
+    dset_1.attrs["axes"] = "experiment_identifier:y:x"
+    dset_1.attrs["numEvents"] = numHits
     detector_1.create_dataset("description",data=detInfo)
-    f.flush()
 
-    if mode == 'sfx':
-        dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)#,
-                                           #chunks=(1,dim0,dim1),dtype=float)#,
-                                           #compression='gzip',
-                                           #compression_opts=9)
-        dset_1.attrs["axes"] = "experiment_identifier:y:x"
-        dset_1.attrs["numEvents"] = numHits
-        # Soft links
-        if "data_1" in entry_1:
-            del entry_1["data_1"]
-        data_1 = entry_1.create_group("data_1")
-        data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
-        source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
-    elif mode == 'spi':
-        dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
-        # chunks=(1,dim0,dim1),dtype=float)#,
-        # compression='gzip',
-        # compression_opts=9)
-        dset_1.attrs["axes"] = "experiment_identifier:y:x"
-        dset_1.attrs["numEvents"] = numHits
-        dset_2 = detector_1.create_dataset("photons", (numHits, dim0, dim1), dtype=int)
-        dset_2.attrs["axes"] = "experiment_identifier:y:x"
-        dset_2.attrs["numEvents"] = numHits
-        # Soft links
-        if "data_1" in entry_1:
-            del entry_1["data_1"]
-        data_1 = entry_1.create_group("data_1")
-        data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
-        source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
-    f.flush()
+    # Soft links
+    if "data_1" in entry_1:
+        del entry_1["data_1"]
+    data_1 = entry_1.create_group("data_1")
+    data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
+    source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
+
     f.close()
 
 comm.Barrier()
@@ -510,6 +359,7 @@ myJobs = getMyUnfairShare(numHits,size,rank)
 myHitInd = hitInd[myJobs]
 
 ds_expId = f.require_dataset("entry_1/experimental_identifier",(numHits,),dtype=int)
+dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data",(numHits,dim0,dim1),dtype=float)#,chunks=(1,dim0,dim1))
 ds_photonEnergy_1 = f.require_dataset("LCLS/photon_energy_eV", (numHits,), dtype=float)
 ds_photonEnergy = f.require_dataset("entry_1/instrument_1/source_1/energy", (numHits,), dtype=float)
 ds_pulseEnergy = f.require_dataset("entry_1/instrument_1/source_1/pulse_energy", (numHits,), dtype=float)
@@ -533,21 +383,12 @@ ds_wavelengthA_1 = f.require_dataset("LCLS/photon_wavelength_A",(numHits,), dtyp
 ds_sec_1 = f.require_dataset("LCLS/machineTime",(numHits,),dtype=int)
 ds_nsec_1 = f.require_dataset("LCLS/machineTimeNanoSeconds",(numHits,),dtype=int)
 ds_fid_1 = f.require_dataset("LCLS/fiducial",(numHits,),dtype=int)
+ds_nPeaks = f.require_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
+ds_posX = f.require_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+ds_posY = f.require_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+ds_atot = f.require_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+ds_maxRes = f.require_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
 ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
-if mode == 'sfx':
-    dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
-                               dtype=float)  # ,chunks=(1,dim0,dim1))
-    ds_nPeaks = f.require_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
-    ds_posX = f.require_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-    ds_posY = f.require_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-    ds_atot = f.require_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-    ds_maxRes = f.require_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
-elif mode == 'spi':
-    dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
-                               dtype=float)  # ,chunks=(1,dim0,dim1))
-    dset_2 = f.require_dataset("entry_1/instrument_1/detector_1/photons", (numHits, dim0, dim1),
-                               dtype=int)
-    ds_nHits = f.require_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
 
 if rank == 0:
     try:
@@ -558,71 +399,38 @@ if rank == 0:
 
 for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
-    ds_expId[globalInd] = val
+    ds_expId[globalInd] = val #cheetahfilename.split("/")[-1].split(".")[0]
+
     ps.getEvent(val)
-    # Write image in cheetah format
-    if mode == 'sfx' and 'cspad' in ps.detInfo.lower():
-        img = ps.getCheetahImg()
-        assert(img is not None)
-        dset_1[globalInd,:,:] = img
-    elif mode == 'sfx' and 'rayonix' in ps.detInfo.lower():
-        img = ps.getCalibImg()
-        assert(img is not None)
-        dset_1[globalInd,:,:] = img[0,:,:]
-    elif mode == 'spi':
-        if maxBackground > -1:
-            ind = abs(missInd - val)
-            backgroundEvent = missInd[np.argmin(ind)]
-            print "background: ", val, backgroundEvent
-            img = ps.getCleanAssembledImg(backgroundEvent)
-            phot = ps.getCleanAssembledPhotons(backgroundEvent)
-        else:
-            img = ps.getAssembledImg()
-            assert (img is not None)
-            phot = ps.getAssembledPhotons()
-        dset_1[globalInd, :, :] = img
-        dset_2[globalInd, :, :] = phot
+    img = ps.getCheetahImg()
+    assert(img is not None)
+    dset_1[globalInd,:,:] = img
 
     es = ps.ds.env().epicsStore()
-    try:
-        pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
-        numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
-    except:
-        pulseLength = 0
-        numPhotons = 0
-
+    pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
+    numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons
     ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-    try:
-        #print "photons!!!"
-        photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
-        pulseEnergy = ebeam.ebeamL3Energy() # MeV
-    except:
-        photonEnergy = 0
-        pulseEnergy = 0
-    #print "photonEnergy: ", photonEnergy
+    photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
+    pulseEnergy = ebeam.ebeamL3Energy() # MeV
 
-    try:
-        ds_photonEnergy_1[globalInd] = ebeam.ebeamPhotonEnergy()
-    except:
-        ds_photonEnergy_1[globalInd] = 0
+
+    ds_photonEnergy_1[globalInd] = ebeam.ebeamPhotonEnergy()
+
     ds_photonEnergy[globalInd] = photonEnergy
+
     ds_pulseEnergy[globalInd] = pulseEnergy
+
     ds_pulseWidth[globalInd] = pulseLength
+
     ds_dist_1[globalInd] = detectorDistance
+
     ds_x_pixel_size_1[globalInd] = x_pixel_size
     ds_y_pixel_size_1[globalInd] = y_pixel_size
-    f.flush()
 
     # LCLS
-    if "cxi" in args.exp:
-        ds_lclsDet_1[globalInd] = es.value(args.clen) # mm
-    elif "mfx" in args.exp:
-        ds_lclsDet_1[globalInd] = 0 # FIXME
+    ds_lclsDet_1[globalInd] = es.value(args.clen) # mm
 
-    try:
-        ds_ebeamCharge_1[globalInd] = es.value('BEND:DMP1:400:BDES')
-    except:
-        ds_ebeamCharge_1[globalInd] = 0
+    ds_ebeamCharge_1[globalInd] = es.value('BEND:DMP1:400:BDES')
 
     try:
         ds_beamRepRate_1[globalInd] = es.value('EVNT:SYS0:1:LCLSBEAMRATE')
@@ -634,51 +442,24 @@ for i,val in enumerate(myHitInd):
     except:
         ds_particleN_electrons_1[globalInd] = 0
 
-    try:
-        ds_eVernier_1[globalInd] = es.value('SIOC:SYS0:ML00:AO289')
-    except:
-        ds_eVernier_1[globalInd] = 0
 
-    try:
-        ds_charge_1[globalInd] = es.value('BEAM:LCLS:ELEC:Q')
-    except:
-        ds_charge_1[globalInd] = 0
+    ds_eVernier_1[globalInd] = es.value('SIOC:SYS0:ML00:AO289')
 
-    try:
-        ds_peakCurrentAfterSecondBunchCompressor_1[globalInd] = es.value('SIOC:SYS0:ML00:AO195')
-    except:
-        ds_peakCurrentAfterSecondBunchCompressor_1[globalInd] = 0
+    ds_charge_1[globalInd] = es.value('BEAM:LCLS:ELEC:Q')
 
-    try:
-        ds_pulseLength_1[globalInd] = es.value('SIOC:SYS0:ML00:AO820')
-    except:
-        ds_pulseLength_1[globalInd] = 0
+    ds_peakCurrentAfterSecondBunchCompressor_1[globalInd] = es.value('SIOC:SYS0:ML00:AO195')
 
-    try:
-        ds_ebeamEnergyLossConvertedToPhoton_mJ_1[globalInd] = es.value('SIOC:SYS0:ML00:AO569')
-    except:
-        ds_ebeamEnergyLossConvertedToPhoton_mJ_1[globalInd] = 0
+    ds_pulseLength_1[globalInd] = es.value('SIOC:SYS0:ML00:AO820')
 
-    try:
-        ds_calculatedNumberOfPhotons_1[globalInd] = es.value('SIOC:SYS0:ML00:AO580')
-    except:
-        ds_calculatedNumberOfPhotons_1[globalInd] = 0
+    ds_ebeamEnergyLossConvertedToPhoton_mJ_1[globalInd] = es.value('SIOC:SYS0:ML00:AO569')
 
-    try:
-        ds_photonBeamEnergy_1[globalInd] = es.value('SIOC:SYS0:ML00:AO541')
-    except:
-        ds_photonBeamEnergy_1[globalInd] = 0
+    ds_calculatedNumberOfPhotons_1[globalInd] = es.value('SIOC:SYS0:ML00:AO580')
 
-    try:
-        ds_wavelength_1[globalInd] = es.value('SIOC:SYS0:ML00:AO192')
-    except:
-        ds_wavelength_1[globalInd] = 0
+    ds_photonBeamEnergy_1[globalInd] = es.value('SIOC:SYS0:ML00:AO541')
 
-    try:
-        ds_wavelengthA_1[globalInd] = ds_wavelength_1[globalInd] * 10.
-    except:
-        ds_wavelengthA_1[globalInd] = 0
-    f.flush()
+    ds_wavelength_1[globalInd] = es.value('SIOC:SYS0:ML00:AO192')
+
+    ds_wavelengthA_1[globalInd] = ds_wavelength_1[globalInd] * 10.
 
     evtId = ps.evt.get(psana.EventId)
     sec = evtId.time()[0]
@@ -686,27 +467,28 @@ for i,val in enumerate(myHitInd):
     fid = evtId.fiducials()
 
     ds_sec_1[globalInd] = sec
+
     ds_nsec_1[globalInd] = nsec
+
     ds_fid_1[globalInd] = fid
+
+    ds_nPeaks[globalInd] = nPeaks[val]
+
+    ds_posX[globalInd,:] = posX[val,:]
+
+    ds_posY[globalInd,:] = posY[val,:]
+
+    ds_atot[globalInd,:] = atot[val,:]
+
+    ds_maxRes[globalInd] = maxRes[val]
+
     ds_evtNum_1[globalInd] = val
 
-    if mode == 'sfx':
-        ds_nPeaks[globalInd] = nPeaks[val]
-        ds_posX[globalInd,:] = posX[val,:]
-        ds_posY[globalInd,:] = posY[val,:]
-        ds_atot[globalInd,:] = atot[val,:]
-        ds_maxRes[globalInd] = maxRes[val]
-    elif mode == 'spi':
-        ds_nHits[globalInd] = nHits[val]
-    f.flush()
-
-    if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+    if i%10 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 
     if rank == 0 and i%10 == 0:
         try:
-            hitRate = numHits*100./numEvents
-            fracDone = i*100./len(myJobs)
-            d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+            d = {"convert": "cxidb", "fracDone": i*100./len(myJobs)}
             writeStatus(statusFname, d)
         except:
             pass
@@ -715,9 +497,7 @@ f.close()
 
 if rank == 0:
     try:
-        hitRate = numHits * 100. / numEvents
-        fracDone = 100.
-        d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+        d = {"convert": "cxidb", "fracDone": 100.}
         writeStatus(statusFname, d)
     except:
         pass
@@ -726,9 +506,6 @@ if rank == 0:
     if "/status/xtc2cxidb" in f:
         del f["/status/xtc2cxidb"]
     f["/status/xtc2cxidb"] = 'success'
-    # Add attributes
-    if mode == 'spi':
-        f.attrs["/entry_1/result_1/nHits"] = numHits
     f.close()
     toc = time.time()
     print "time taken: ", toc-tic

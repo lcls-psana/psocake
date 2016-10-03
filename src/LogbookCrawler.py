@@ -27,95 +27,63 @@ class LogbookCrawler(QtCore.QThread):
             try:
                 # Get number of runs
                 lastRun = self.table.values(0)['last_run']
-                #print "lastRun: ", lastRun
                 for run in range(lastRun):
-                    #print "run: ", run
-                    try:
-                        # hit finder
-                        fname = self.outDir + '/r' + str(run).zfill(4) + '/status_hits.txt'
-                        if os.path.exists(fname):
-                            with open(fname) as infile:
-                                d = json.load(infile)
-                                if 'message' in d:
-                                    msg = d['message']
-                                elif 'numHits' in d:
-                                    numHits = d['numHits']
-                                    hitRate = d['hitRate']
-                                    fracDone = d['fracDone']
-                                    if fracDone == 100:
-                                        msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
-                                    else:
-                                        msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate,
-                                                                                                    fracDone)
+                    # hit finder
+                    fname = self.outDir + '/r' + str(run).zfill(4) + '/status_hits.txt'
+                    if os.path.exists(fname):
+                        with open(fname) as infile:
+                            d = json.load(infile)
+                            if 'message' in d:
+                                msg = d['message']
+                            elif 'numHits' in d:
+                                numHits = d['numHits']
+                                hitRate = d['hitRate']
+                                fracDone = d['fracDone']
+                                if fracDone == 100:
+                                    msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
                                 else:
-                                    fracDone = d['fracDone']
-                                    msg = '{0:.1f}% done'.format(fracDone)
-                                self.table.setValue(run, "Number of hits", msg)
-                    except:
-                        pass
+                                    msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate,
+                                                                                                fracDone)
+                            else:
+                                fracDone = d['fracDone']
+                                msg = '{0:.1f}% done'.format(fracDone)
+                            self.table.setValue(run, "Number of hits", msg)
 
-                    try:
-                        # peak finder
-                        fname = self.outDir + '/r' + str(run).zfill(4) + '/status_peaks.txt'
-                        #print "fname: ", fname
-                        if os.path.exists(fname):
-                            with open(fname) as infile:
-                                d = json.load(infile)
-                                if 'message' in d:
-                                    msg = d['message']
+                    # peak finder
+                    fname = self.outDir + '/r' + str(run).zfill(4) + '/status_peaks.txt'
+                    if os.path.exists(fname):
+                        with open(fname) as infile:
+                            d = json.load(infile)
+                            if 'message' in d:
+                                msg = d['message']
+                            else:
+                                numHits = d['numHits']
+                                hitRate = d['hitRate']
+                                fracDone = d['fracDone']
+                                if fracDone == 100:
+                                    msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
                                 else:
-                                    numHits = d['numHits']
-                                    hitRate = d['hitRate']
-                                    fracDone = d['fracDone']
-                                    if fracDone == 100:
-                                        msg = '{0:.1f} hits / {1:.1f}% rate'.format(numHits, hitRate)
-                                    else:
-                                        msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
-                                    #print "msg", msg
-                                self.table.setValue(run, "Number of hits", msg)
-                    except:
-                        pass
+                                    msg = '{0:.1f} hits / {1:.1f}% rate / {2:.1f}% done'.format(numHits, hitRate, fracDone)
+                            self.table.setValue(run, "Number of hits", msg)
 
-                    try:
-                        # CXIDB
-                        fname = self.outDir + '/r' + str(run).zfill(4) + '/status_cxidb.txt'
-                        if os.path.exists(fname):
-                            #print 'cxidb: ', fname
-                            with open(fname) as infile:
-                                d = json.load(infile)
-                                if 'message' in d:
-                                    msg = d['message']
+                    # indexing
+                    fname = self.outDir + '/r' + str(run).zfill(4) + '/status_index.txt'
+                    if os.path.exists(fname):
+                        with open(fname) as infile:
+                            d = json.load(infile)
+                            if 'message' in d:
+                                msg = d['message']
+                            elif 'convert' in d:
+                                msg = "{0:.1f}% CXIDB ".format(d['fracDone'])
+                            else:
+                                numIndexed = d['numIndexed']
+                                indexingRate = d['indexRate']
+                                fracDone = d['fracDone']
+                                if fracDone == 100:
+                                    msg = '{0:.1f} indexed / {1:.1f}% rate'.format(numIndexed, indexingRate)
                                 else:
-                                    numHits = d['numHits']
-                                    fracDone = d['fracDone']
-                                    msg = '{0:.1f} hits / {1:.1f}% done'.format(numHits, fracDone)
-                                #print "msg: ", msg
-                                self.table.setValue(run, "CXIDB", msg)
-                    except:
-                        pass
-
-                    try:
-                        # indexing
-                        fname = self.outDir + '/r' + str(run).zfill(4) + '/status_index.txt'
-                        #print "index fname: ", fname
-                        if os.path.exists(fname):
-                            with open(fname) as infile:
-                                d = json.load(infile)
-                                if 'message' in d:
-                                    msg = d['message']
-                                elif 'convert' in d:
-                                    msg = "{0:.1f}% CXIDB ".format(d['fracDone'])
-                                else:
-                                    numIndexed = d['numIndexed']
-                                    indexingRate = d['indexRate']
-                                    fracDone = d['fracDone']
-                                    if fracDone == 100:
-                                        msg = '{0:.1f} indexed / {1:.1f}% rate'.format(numIndexed, indexingRate)
-                                    else:
-                                        msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
-                                self.table.setValue(run, "Number of indexed", msg)
-                    except:
-                        pass
-                time.sleep(30)  # logbook update
+                                    msg = '{0:.1f} indexed / {1:.1f}% rate / {2:.1f}% done'.format(numIndexed, indexingRate, fracDone)
+                            self.table.setValue(run, "Number of indexed", msg)
+                time.sleep(10)  # logbook update
             except:
-                time.sleep(30)
+                time.sleep(10)

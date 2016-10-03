@@ -6,12 +6,11 @@ from PSCalib.GeometryAccess import GeometryAccess
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, clen='', localCalib=False):
+    def __init__(self, experimentName, runNumber, detInfo, args):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
-        self.clen = clen
-        self.localCalib = localCalib
+        self.args = args
 
     def setupExperiment(self):
         self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
@@ -26,7 +25,7 @@ class psanaWhisperer():
         # Get epics variable, clen
         if "cxi" in self.experimentName:
             self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(self.clen)
+            self.clen = self.epics.value(self.args.clen)
 
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
@@ -87,7 +86,7 @@ class psanaWhisperer():
             self.detectorType = gu.det_type_from_source(self.source)  # 1
             self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
             self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
-            if self.localCalib:
+            if self.args.localCalib:
                 self.calibPath = "./calib/" + self.calibGroup + "/" + self.calibSource + "/geometry"
             else:
                 self.calibPath = "/reg/d/psdm/" + self.parent.experimentName[0:3] + \

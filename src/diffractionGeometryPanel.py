@@ -9,83 +9,6 @@ from pyqtgraph.Qt import QtCore, QtGui
 import Detector.PyDetector
 import PSCalib.GlobalUtils as gu
 import subprocess
-import scipy.spatial.distance as sd
-
-# Return two equal sized halves of the input image
-# If axis is None, halve along the first axis
-def getTwoHalves(I,centre,axis=None):
-    if axis is None or axis == 0:
-        A = I[:centre,:]
-        B = np.flipud(I[centre:,:])
-
-        (numRowUpper,_) = A.shape
-        (numRowLower,_) = B.shape
-        if numRowUpper >= numRowLower:
-            numRow = numRowLower
-            A = A[-numRow:,:]
-        else:
-            numRow = numRowUpper
-            B = B[-numRow:,:]
-    else:
-        A = I[:,:centre]
-        B = np.fliplr(I[:,centre:])
-
-        (_,numColLeft) = A.shape
-        (_,numColRight) = B.shape
-        if numColLeft >= numColRight:
-            numCol = numColRight
-            A = A[:,-numCol:]
-        else:
-            numCol = numColLeft
-            B = B[:,-numCol:]
-    return A, B
-
-def getScore(A,B):
-    ind = (A>0) & (B>0)
-    dist = sd.euclidean(A[ind].ravel(),B[ind].ravel())
-    numPix = len(ind[np.where(ind==True)])
-    return dist/numPix
-
-def findDetectorCentre(I,guessRow=None,guessCol=None,range=0):
-    """
-    :param I: assembled image
-    :param guessRow: best guess for centre row position (optional)
-    :param guessCol: best guess for centre col position (optional)
-    :param range: range of pixels to search either side of the current guess of the centre
-    :return:
-    """
-    range = int(range)
-    # Search for optimum column centre
-    if guessCol is None:
-        startCol = 1 # search everything
-        endCol = I.shape[1]
-    else:
-        startCol = guessCol - range
-        if startCol < 1: startCol = 1
-        endCol = guessCol + range
-        if endCol > I.shape[1]: endCol = I.shape[1]
-    searchArray = np.arange(startCol,endCol)
-    scoreCol = np.zeros(searchArray.shape)
-    for i, centreCol in enumerate(searchArray):
-        A,B = getTwoHalves(I,centreCol,axis=0)
-        scoreCol[i] = getScore(A,B)
-    centreCol = searchArray[np.argmin(scoreCol)]
-    # Search for optimum row centre
-    if guessRow is None:
-        startRow = 1 # search everything
-        endRow = I.shape[0]
-    else:
-        startRow = guessRow - range
-        if startRow < 1: startRow = 1
-        endRow = guessRow + range
-        if endRow > I.shape[0]: endRow = I.shape[0]
-    searchArray = np.arange(startRow,endRow)
-    scoreRow = np.zeros(searchArray.shape)
-    for i, centreRow in enumerate(searchArray):
-        A,B = getTwoHalves(I,centreRow,axis=1)
-        scoreRow[i] = getScore(A,B)
-    centreRow = searchArray[np.argmin(scoreRow)]
-    return centreCol,centreRow
 
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
@@ -500,3 +423,9 @@ class DiffractionGeometry(object):
 
     def autoDeploy(self):
         print "Not implemented yet"
+        if self.parent.args.localCalib:
+            calibDir = './calib'
+        elif self.parent.args.outDir is None:
+            calibDir = self.parent.rootDir + '/calib'
+        else:
+            calibDir = '/reg/d/psdm/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'

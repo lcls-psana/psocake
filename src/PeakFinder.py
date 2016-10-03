@@ -14,17 +14,13 @@ class PeakFinder:
                  hitParam_alg_amax_thr,hitParam_alg_atot_thr,hitParam_alg_son_min,
                  streakMask_on,streakMask_sigma,streakMask_width,userMask_path,psanaMask_on,psanaMask_calib,
                  psanaMask_status,psanaMask_edges,psanaMask_central,psanaMask_unbond,psanaMask_unbondnrs,
-                 medianFilterOn=0, medianRank=5, radialFilterOn=0, distance=0.0, minNumPeaks=15, maxNumPeaks=2048,
-                 minResCutoff=-1, windows=None, **kwargs):
+                 medianFilterOn=0, medianRank=5, radialFilterOn=0, distance=0.0, windows=None, **kwargs):
         self.exp = exp
         self.run = run
         self.detname = detname
         self.det = detector
         self.algorithm = algorithm
         self.maxRes = 0
-        self.minNumPeaks = minNumPeaks
-        self.maxNumPeaks = maxNumPeaks
-        self.minRes = minResCutoff
 
         self.npix_min=hitParam_alg_npix_min
         self.npix_max=hitParam_alg_npix_max
@@ -89,16 +85,16 @@ class PeakFinder:
             self.hitParam_alg1_thr_high = kwargs["alg1_thr_high"]
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
-        #elif algorithm == 3:
-        #    self.hitParam_alg3_rank = kwargs["alg3_rank"]
-        #    self.hitParam_alg3_r0 = int(kwargs["alg3_r0"])
-        #    self.hitParam_alg3_dr = kwargs["alg3_dr"]
-        #elif algorithm == 4:
-        #    self.hitParam_alg4_thr_low = kwargs["alg4_thr_low"]
-        #    self.hitParam_alg4_thr_high = kwargs["alg4_thr_high"]
-        #    self.hitParam_alg4_rank = int(kwargs["alg4_rank"])
-        #    self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
-        #    self.hitParam_alg4_dr = kwargs["alg4_dr"]
+        elif algorithm == 3:
+            self.hitParam_alg3_rank = kwargs["alg3_rank"]
+            self.hitParam_alg3_r0 = int(kwargs["alg3_r0"])
+            self.hitParam_alg3_dr = kwargs["alg3_dr"]
+        elif algorithm == 4:
+            self.hitParam_alg4_thr_low = kwargs["alg4_thr_low"]
+            self.hitParam_alg4_thr_high = kwargs["alg4_thr_high"]
+            self.hitParam_alg4_rank = int(kwargs["alg4_rank"])
+            self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
+            self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
         self.maxNumPeaks = 2048
         self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
@@ -145,23 +141,6 @@ class PeakFinder:
     def updatePolarizationFactor(self):
         self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.distance * 1e6)  # convert to um
 
-    def getCheetahImg(self, calib):
-        """Converts seg, row, col assuming (32,185,388)
-           to cheetah 2-d table row and col (8*185, 4*388)
-        """
-        if 'cspad' in self.detname.lower():
-            img = np.zeros((8 * 185, 4 * 388))
-            counter = 0
-            for quad in range(4):
-                for seg in range(8):
-                    img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
-                    counter += 1
-        elif 'rayonix' in self.detname.lower():
-            # FIXME: check this is correct
-            img = np.squeeze(calib)
-            print "Rayonix shape: ", img.shape
-        return img
-
     def findPeaks(self, calib, evt):
         # Apply background correction
         if self.medianFilterOn:
@@ -186,13 +165,13 @@ class PeakFinder:
             #                           around pixel with maximal intensity.
             self.peaks = self.alg.peak_finder_v1(calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                    radius=self.hitParam_alg1_radius, dr=self.hitParam_alg1_dr)
-        #elif self.algorithm == 3:
-        #    self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
-        #elif self.algorithm == 4:
-        #    # v4 - aka iDroplet Finder - two-threshold peak-finding algorithm in restricted region
-        #    #                            around pixel with maximal intensity.
-        #    self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
-        #                           rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
+        elif self.algorithm == 3:
+            self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
+        elif self.algorithm == 4:
+            # v4 - aka iDroplet Finder - two-threshold peak-finding algorithm in restricted region
+            #                            around pixel with maximal intensity.
+            self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
+                                   rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
         self.numPeaksFound = self.peaks.shape[0]
 
         if self.numPeaksFound > 0:
@@ -204,12 +183,10 @@ class PeakFinder:
         else:
             self.maxRes = 0
 
-        if self.numPeaksFound >= self.minNumPeaks:
+        if self.numPeaksFound >= 15:
             self.powderHits = np.maximum(self.powderHits, calib)
-            self.cheetahImg = self.getCheetahImg(calib)
         else:
             self.powderMisses = np.maximum(self.powderMisses, calib)
-            self.cheetahImg = 0
 
 def getMaxRes(posX, posY, centerX, centerY):
     maxRes = np.max(np.sqrt((posX - centerX) ** 2 + (posY - centerY) ** 2))

@@ -178,14 +178,6 @@ class ImageViewer(object):
             except:
                 pass
 
-        # Load peak parameters if exists
-        if self.parent.pk.userUpdate is None:
-            self.parent.pk.updateParam()
-
-        # Turn on psana mask by default
-        if self.parent.mk.psanaMaskOn:
-            self.parent.mk.updateParam()
-
         if self.parent.args.v >= 1: print "Done updateImage"
 
     def getCalib(self, evtNumber):
