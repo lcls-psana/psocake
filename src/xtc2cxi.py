@@ -121,7 +121,10 @@ class psanaWhisperer():
         backgroundEvt = self.run.event(self.times[backgroundEvent])
         backgroundCalib = self.det.calib(backgroundEvt)
         calib = self.det.calib(self.evt)
-        cleanCalib = calib - backgroundCalib
+        try:
+            cleanCalib = calib - backgroundCalib
+        except:
+            cleanCalib = calib
         img = self.det.image(self.evt, cleanCalib)
         return img
 
@@ -143,7 +146,10 @@ class psanaWhisperer():
         backgroundEvt = self.run.event(self.times[backgroundEvent])
         backgroundCalib = self.det.calib(backgroundEvt)
         calib = self.det.calib(self.evt)
-        cleanCalib = calib - backgroundCalib
+        try:
+            cleanCalib = calib - backgroundCalib
+        except:
+            cleanCalib = calib
         img = self.det.photons(self.evt, nda_calib=cleanCalib, adu_per_photon=self.aduPerPhoton)
         phot = self.det.image(self.evt, img)
         return phot

@@ -103,53 +103,6 @@ def runmaster(args,nClients):
                 myHdf5.flush()
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
-
-            myHdf5.flush()
-            # If the event is a hit
-            if nPeaks >= args.minPeaks and \
-               nPeaks <= args.maxPeaks and \
-               maxRes >= args.minRes:
-                # Save peak information
-                updateHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits, nPeaks)
-                myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits+1,2048))
-                myHdf5["/entry_1/result_1/peakXPosRaw"][numHits,:] = myHdf5[grpName+dset_posX][md.small.eventNum,:]
-                myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits+1,2048))
-                myHdf5["/entry_1/result_1/peakYPosRaw"][numHits,:] = myHdf5[grpName+dset_posY][md.small.eventNum,:]
-                myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits+1,2048))
-                myHdf5["/entry_1/result_1/peakTotalIntensity"][numHits,:] = myHdf5[grpName+dset_atot][md.small.eventNum,:]
-                updateHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, maxRes)
-                # Save epics
-                updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, md.small.pulseLength)
-                updateHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, md.small.photonEnergy)
-                updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, md.small.photonEnergy * 1.60218e-19) # J
-                updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_energy', numHits, md.small.pulseEnergy)
-                updateHdf5(myHdf5, '/entry_1/instrument_1/detector_1/distance', numHits, md.small.detectorDistance)
-                updateHdf5(myHdf5, '/entry_1/instrument_1/detector_1/x_pixel_size', numHits, args.pixelSize)
-                updateHdf5(myHdf5, '/entry_1/instrument_1/detector_1/y_pixel_size', numHits, args.pixelSize)
-                updateHdf5(myHdf5, '/LCLS/detector_1/EncoderValue', numHits, md.small.lclsDet)
-                updateHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits, md.small.ebeamCharge)
-                updateHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits, md.small.beamRepRate)
-                updateHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits, md.small.particleN_electrons)
-                updateHdf5(myHdf5, '/LCLS/eVernier', numHits, md.small.eVernier)
-                updateHdf5(myHdf5, '/LCLS/charge', numHits, md.small.charge)
-                updateHdf5(myHdf5, '/LCLS/peakCurrentAfterSecondBunchCompressor', numHits, md.small.peakCurrentAfterSecondBunchCompressor)
-                updateHdf5(myHdf5, '/LCLS/pulseLength', numHits, md.small.pulseLength)
-                updateHdf5(myHdf5, '/LCLS/ebeamEnergyLossConvertedToPhoton_mJ', numHits, md.small.ebeamEnergyLossConvertedToPhoton_mJ)
-                updateHdf5(myHdf5, '/LCLS/calculatedNumberOfPhotons', numHits, md.small.calculatedNumberOfPhotons)
-                updateHdf5(myHdf5, '/LCLS/photonBeamEnergy', numHits, md.small.photonBeamEnergy)
-                updateHdf5(myHdf5, '/LCLS/wavelength', numHits, md.small.wavelength)
-                updateHdf5(myHdf5, '/LCLS/photon_wavelength_A', numHits, md.small.wavelength * 10.)
-                updateHdf5(myHdf5, '/LCLS/machineTime', numHits, md.small.sec)
-                updateHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, md.small.nsec)
-                updateHdf5(myHdf5, '/LCLS/fiducial', numHits, md.small.fid)
-                updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.evtNum)
-                updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.evtNum)  # same as /LCLS/eventNumber
-                # Save images
-                #print "md.data: ", md.data, md.data.shape
-                myHdf5["/entry_1/data_1/data"].resize((numHits + 1, md.data.shape[0], md.data.shape[1]))
-                myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
-                numHits += 1
-
             numProcessed += 1
             # Update status
             if numProcessed % 120:
