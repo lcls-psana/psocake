@@ -1,2 +1,2 @@
 # Same version as reported in doc/ChangeLog
-__version__ = "0.1.42"
+__version__ = "0.1.46"
