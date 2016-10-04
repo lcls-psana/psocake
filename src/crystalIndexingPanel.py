@@ -299,6 +299,24 @@ class CrystalIndexing(object):
         self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearIndexedPeaks"
 
+    def displayWaiting(self):
+        if self.showIndexedPeaks:
+            if self.numIndexedPeaksFound == 0:  # indexing proceeding
+                xMargin = 5  # pixels
+                maxX = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+                maxY = np.max(self.parent.det.indexes_y(self.parent.evt))
+                # Draw a big X
+                cenX = np.array((self.parent.cx,)) + 0.5
+                cenY = np.array((self.parent.cy,)) + 0.5
+                diameter = 256  # self.peakRadius*2+1
+                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='t', \
+                                                            size=diameter, brush=(255, 255, 255, 0), \
+                                                            pen=pg.mkPen({'color': "#FF00FF", 'width': 3}),
+                                                            pxMode=False)
+                self.parent.img.abc_text = pg.TextItem(html='', anchor=(0, 0))
+                self.parent.img.w1.getView().addItem(self.parent.img.abc_text)
+                self.parent.img.abc_text.setPos(maxX, maxY)
+
     def drawIndexedPeaks(self,unitCell=None):
         self.clearIndexedPeaks()
         if self.showIndexedPeaks:
@@ -487,6 +505,7 @@ class IndexHandler(QtCore.QThread):
                 self.parent.index.numIndexedPeaksFound = 0
                 self.parent.index.indexedPeaks = None
                 self.parent.index.clearIndexedPeaks()
+                self.parent.index.displayWaiting()
 
                 # Write list
                 with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
