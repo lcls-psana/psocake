@@ -22,7 +22,7 @@ parser.add_argument("--minRes", help="",default=0, type=int)
 parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("--sample", help="", default=None, type=str)
 parser.add_argument("--queue", help="", default=None, type=str)
-parser.add_argument("--cpus", help="", default=24, type=int)
+parser.add_argument("--chunkSize", help="", default=500, type=int)
 parser.add_argument("--noe", help="", default=-1, type=int)
 parser.add_argument("--instrument", help="", default=None, type=str)
 parser.add_argument("--pixelSize", help="", default=0, type=float)
@@ -58,7 +58,7 @@ extra = args.extra
 outDir = args.outDir
 sample = args.sample
 queue = args.queue
-cpus = args.cpus
+chunkSize = args.chunkSize
 noe = args.noe
 instrument = args.instrument
 pixelSize = args.pixelSize
@@ -78,14 +78,15 @@ def checkJobExit(jobID):
     else:
         return 0
 
-def getMyUnfairShare(numJobs, numWorkers, rank):
+def getMyChunkSize(numJobs, numWorkers, chunkSize, rank):
     """Returns number of events assigned to the slave calling this function."""
-    print "numJobs, numWorkers: ", numJobs, numWorkers
+    print "numJobs, numWorkers: ", numJobs, numWorkers, chunkSize
     assert(numJobs >= numWorkers)
     allJobs = np.arange(numJobs)
-    jobChunks = np.array_split(allJobs,numWorkers)
-    myChunk = jobChunks[rank]
-    myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
+    startInd = (np.arange(numWorkers)) * chunkSize
+    endInd = (np.arange(numWorkers) + 1) * chunkSize
+    endInd[-1] = numJobs
+    myJobs = allJobs[startInd[rank]:endInd[rank]]
     return myJobs
 
 def writeStatus(fname, d):
@@ -139,100 +140,17 @@ fnameIndex = runDir+"/status_index.txt"
 
 try:
     f = h5py.File(peakFile, 'r')
-    hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/xtc2cxidb'].value == 'success'
+    hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'].value == 'success'
     minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
     maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
     minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
     f.close()
 except:
-    hasData = 0
-    minPeaksUsed = 0
-    maxPeaksUsed = 0
-    minResUsed = 0
+    print "Error while reading: ", peakFile
+    print "Note that peak finding has to finish before launching indexing jobs"
+    exit()
 
-Done = 0
-if hasData and minPeaks == minPeaksUsed and maxPeaks == maxPeaksUsed and minRes == minResUsed:
-    if args.v >= 1: print "Data already exists"
-    # Update elog
-    if logger == True:
-        try:
-            d = {"message": "DoneCXIDB"}
-            writeStatus(fnameIndex, d)
-        except:
-            pass
-    Done = 1
-else:
-    cmd = "bsub -q " + queue + " -n " + str(cpus) + \
-          " -o " + runDir + "/.%J.log mpirun xtc2cxidb" + \
-          " -e " + experimentName + \
-          " -d " + detInfo + \
-          " -i " + outDir + '/r' + str(runNumber).zfill(4) + \
-          " --sample " + sample + \
-          " --instrument " + instrument + " --pixelSize " + str(pixelSize) + \
-          " --coffset " + str(coffset) + " --clen " + clenEpics + \
-          " --minPeaks " + str(minPeaks) + \
-          " --maxPeaks " + str(maxPeaks) + \
-          " --minRes " + str(minRes) + \
-          " --mode sfx" + \
-          " --run " + str(runNumber)
-    print "Submitting batch job: ", cmd
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    out, err = process.communicate()
-    print "out, err: ", out, err
-    jobID = out.split("<")[1].split(">")[0]
-    myLog = runDir + "/." + jobID + ".log"
-    print "bsub log filename: ", myLog
-    myKeyString = "The output (if any) is above this job summary."
-    mySuccessString = "Successfully completed."
-    while Done == 0:
-        if os.path.isfile(myLog):
-            p = subprocess.Popen(["grep", myKeyString, myLog], stdout=subprocess.PIPE)
-            output = p.communicate()[0]
-            p.stdout.close()
-            if myKeyString in output:  # job has completely finished
-                # check job was a success or a failure
-                p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
-                if mySuccessString in output:  # success
-                    if args.v >= 1: print "successfully done converting to cxidb: ", runNumber
-                    # Update elog
-                    if logger == True:
-                        try:
-                            d = {"message": "#DoneCXIDB"}
-                            writeStatus(fnameIndex, d)
-                        except:
-                            pass
-                    Done = 1
-                else:
-                    if args.v >= 1: print "failed attempt", runNumber
-                    # Update elog
-                    if logger == True:
-                        try:
-                            d = {"message": "#FailedCXIDB"}
-                            writeStatus(fnameIndex, d)
-                        except:
-                            pass
-                    Done = -1
-            else:
-                if args.v >= 1: print "cxidb job hasn't finished yet: ", myLog
-                time.sleep(10)
-        else:
-            if args.v >= 1: print "no such file yet", myLog
-            nodeFailed = checkJobExit(jobID)
-            if nodeFailed == 1:
-                if args.v >= 1: print "cxidb job node failure: ", myLog
-                Done = -2
-                # Update elog
-                if logger == True:
-                    try:
-                        d = {"message": "#FailedNode"}
-                        writeStatus(fnameIndex, d)
-                    except:
-                        pass
-            time.sleep(10)
-
-if Done == 1:
+if hasData:
     # Update elog
     if logger == True:
         if args.v >= 1: print "Start indexing"
@@ -249,21 +167,19 @@ if Done == 1:
         f.close()
     except:
         print "Couldn't read file: ", peakFile
-        fname = runDir + '/status_peaks.txt'
-        print "Try reading file: ", fname
-        with open(fname) as infile:
-            d = json.load(infile)
-            numEvents = int(d['numHits'])
+        exit()
 
     # Split into chunks for faster indexing
-    numWorkers = int(cpus / 6.) + 1
+    numWorkers = int(np.ceil(numEvents*1./chunkSize))
+
     myLogList = []
     myJobList = []
     myStreamList = []
     for rank in range(numWorkers):
-        myJobs = getMyUnfairShare(numEvents, numWorkers, rank)
-        myList = runDir + "/temp_" + experimentName + "_" + str(runNumber) + "_" + str(rank) + ".lst"
-        myStream = runDir + "/temp_" + experimentName + "_" + str(runNumber) + "_" + str(rank) + ".stream"
+        myJobs = getMyChunkSize(numEvents, numWorkers, chunkSize, rank)
+        jobName = experimentName + "_" + str(runNumber) + "_" + str(rank)
+        myList = runDir + "/temp_" + jobName + ".lst"
+        myStream = runDir + "/temp_" + jobName + ".stream"
         myStreamList.append(myStream)
 
         # Write list
@@ -271,14 +187,18 @@ if Done == 1:
             for i, val in enumerate(myJobs):
                 text_file.write("{} //{}\n".format(peakFile, val))
 
-        cmd = "bsub -q " + queue + " -R 'span[hosts=1]' -o " + runDir + \
-              "/.%J.log indexamajig -j " + str(6) + " -i " + myList + \
-              " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
-              " --indexing=" + indexingMethod + " -o " + myStream + " --temp-dir=" + runDir + \
-              " --tolerance=" + tolerance
+        cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
+        cmd += " indexamajig -i " + myList + \
+               " -j '`nproc`'" + \
+               " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
+               " --indexing=" + indexingMethod + " -o " + myStream + \
+               " --temp-dir=/tmp" + \
+               " --tolerance=" + tolerance + \
+               " --no-revalidate --profile"
         if pdb: cmd += " --pdb=" + pdb
         if extra: cmd += " " + extra
         print "Submitting batch job: ", cmd
+
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
         jobID = out.split("<")[1].split(">")[0]
@@ -340,7 +260,7 @@ if Done == 1:
                                 indexRate = numIndexedNow * 100. / numProcessed
                             fracDone = numProcessed * 100. / numHits
 
-                            if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
+                            if args.v >= 1: print "Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone
                             try:
                                 d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
                                 writeStatus(fnameIndex, d)
@@ -367,7 +287,7 @@ if Done == 1:
             else:
                 indexRate = numIndexedNow * 100. / numProcessed
             fracDone = numProcessed * 100. / numHits
-            if args.v >= 1: print "Progress: ", runNumber, numIndexedNow, numProcessed, indexRate, fracDone
+            if args.v >= 1: print "Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone
 
             try:
                 d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
@@ -377,7 +297,7 @@ if Done == 1:
 
         if args.v >= 1: print "Merging stream file: ", runNumber
         # Merge all stream files into one
-        totalStream = runDir + "/" + experimentName + "_" + str(runNumber) + ".stream"
+        totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
         with open(totalStream, 'w') as outfile:
             for fname in myStreamList:
                 with open(fname) as infile:

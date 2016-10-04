@@ -35,9 +35,9 @@ class CrystalIndexing(object):
         self.index_intRadius_str = 'Integration radii'
         self.index_pdb_str = 'PDB'
         self.index_method_str = 'Indexing method'
-        self.index_minPeaks_str = 'Minimum number of peaks'
-        self.index_maxPeaks_str = 'Maximum number of peaks'
-        self.index_minRes_str = 'Minimum resolution (pixels)'
+        #self.index_minPeaks_str = 'Minimum number of peaks'
+        #self.index_maxPeaks_str = 'Maximum number of peaks'
+        #self.index_minRes_str = 'Minimum resolution (pixels)'
         self.index_tolerance_str = 'Tolerance'
         self.index_extra_str = 'Extra CrystFEL parameters'
 
@@ -46,7 +46,7 @@ class CrystalIndexing(object):
         self.runs_str = 'Runs(s)'
         self.sample_str = 'Sample name'
         self.queue_str = 'Queue'
-        self.cpu_str = 'CPUs'
+        self.chunkSize_str = 'Chunk size'
         self.keepData_str = 'Keep CXI images'
         self.noe_str = 'Number of events to process'
         (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str,self.psdebugq_str) = \
@@ -57,7 +57,7 @@ class CrystalIndexing(object):
         self.runs = ''
         self.sample = 'crystal'
         self.queue = self.psanaq_str
-        self.cpus = 24
+        self.chunkSize = 500
         self.noe = -1
 
         # Indexing
@@ -74,12 +74,12 @@ class CrystalIndexing(object):
         self.intRadius = '2,3,4'
         self.pdb = ''
         self.indexingMethod = 'mosflm-noretry,dirax'
-        self.minPeaks = 15
-        self.maxPeaks = 2048
-        self.minRes = 0
+        #self.minPeaks = 15
+        #self.maxPeaks = 2048
+        #self.minRes = 0
         self.tolerance = '5,5,5,1.5'
         self.extra = ''
-        self.keepData = False
+        self.keepData = True
 
         #######################
         # Mandatory parameter #
@@ -96,12 +96,12 @@ class CrystalIndexing(object):
                  'tip': "Indexing tolerance, default: 5,5,5,1.5"},
                 {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
                  'tip': "Other indexing parameters"},
-                {'name': self.index_minPeaks_str, 'type': 'int', 'value': self.minPeaks,
-                 'tip': "Index only if there are more Bragg peaks found"},
-                {'name': self.index_maxPeaks_str, 'type': 'int', 'value': self.maxPeaks,
-                 'tip': "Index only if there are less Bragg peaks found"},
-                {'name': self.index_minRes_str, 'type': 'int', 'value': self.minRes,
-                 'tip': "Index only if Bragg peak resolution is at least this"},
+                #{'name': self.index_minPeaks_str, 'type': 'int', 'value': self.minPeaks,
+                # 'tip': "Index only if there are more Bragg peaks found"},
+                #{'name': self.index_maxPeaks_str, 'type': 'int', 'value': self.maxPeaks,
+                # 'tip': "Index only if there are less Bragg peaks found"},
+                #{'name': self.index_minRes_str, 'type': 'int', 'value': self.minRes,
+                # 'tip': "Index only if Bragg peak resolution is at least this"},
             ]},
             {'name': self.launch_grp, 'type': 'group', 'children': [
                 {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
@@ -116,7 +116,7 @@ class CrystalIndexing(object):
                                                                self.psanaq_str: self.psanaq_str,
                                                                self.psdebugq_str: self.psdebugq_str},
                  'value': self.queue, 'tip': "Choose queue"},
-                {'name': self.cpu_str, 'type': 'int', 'value': self.cpus, 'tip': "number of cpus to use per run"},
+                {'name': self.chunkSize_str, 'type': 'int', 'value': self.chunkSize, 'tip': "number of patterns to process per worker"},
                 {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
             ]},
         ]
@@ -195,12 +195,12 @@ class CrystalIndexing(object):
             self.updatePDB(data)
         elif path[1] == self.index_method_str:
             self.updateIndexingMethod(data)
-        elif path[1] == self.index_minPeaks_str:
-            self.updateMinPeaks(data)
-        elif path[1] == self.index_maxPeaks_str:
-            self.updateMaxPeaks(data)
-        elif path[1] == self.index_minRes_str:
-            self.updateMinRes(data)
+        #elif path[1] == self.index_minPeaks_str:
+        #    self.updateMinPeaks(data)
+        #elif path[1] == self.index_maxPeaks_str:
+        #    self.updateMaxPeaks(data)
+        #elif path[1] == self.index_minRes_str:
+        #    self.updateMinRes(data)
         elif path[1] == self.index_tolerance_str:
             self.updateTolerance(data)
         elif path[1] == self.index_extra_str:
@@ -214,8 +214,8 @@ class CrystalIndexing(object):
             self.updateSample(data)
         elif path[1] == self.queue_str:
             self.updateQueue(data)
-        elif path[1] == self.cpu_str:
-            self.updateCpus(data)
+        elif path[1] == self.chunkSize_str:
+            self.updateChunkSize(data)
         elif path[1] == self.noe_str:
             self.updateNoe(data)
         elif path[1] == self.keepData_str:
@@ -247,17 +247,17 @@ class CrystalIndexing(object):
         self.indexingMethod = data
         self.updateIndex()
 
-    def updateMinPeaks(self, data):
-        self.minPeaks = data
-        self.updateIndex()
+    #def updateMinPeaks(self, data):
+    #    self.minPeaks = data
+    #    self.updateIndex()
 
-    def updateMaxPeaks(self, data):
-        self.maxPeaks = data
-        self.updateIndex()
+    #def updateMaxPeaks(self, data):
+    #    self.maxPeaks = data
+    #    self.updateIndex()
 
-    def updateMinRes(self, data):
-        self.minRes = data
-        self.updateIndex()
+    #def updateMinRes(self, data):
+    #    self.minRes = data
+    #    self.updateIndex()
 
     def updateTolerance(self, data):
         self.tolerance = data
@@ -272,7 +272,7 @@ class CrystalIndexing(object):
             self.indexer = IndexHandler(parent=self.parent)
             self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                      self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
+                                      self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
                                       self.tolerance, self.extra, self.outDir, queue=None)
 
     def updateOutputDir(self, data):
@@ -288,8 +288,8 @@ class CrystalIndexing(object):
     def updateQueue(self, data):
         self.queue = data
 
-    def updateCpus(self, data):
-        self.cpus = data
+    def updateChunkSize(self, data):
+        self.chunkSize = data
 
     def updateNoe(self, data):
         self.noe = data
@@ -374,13 +374,13 @@ class CrystalIndexing(object):
         if requestRun is None:
             self.batchIndexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
-                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
+                                       self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
+                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.chunkSize, self.noe)
         else:
             self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.minPeaks, self.maxPeaks, self.minRes,
-                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.cpus, self.noe)
+                                       self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
+                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.chunkSize, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -408,7 +408,7 @@ class IndexHandler(QtCore.QThread):
         self.runs = None
         self.sample = None
         self.queue = None
-        self.cpus = None
+        self.chunkSize = None
         self.noe = None
 
     def __del__(self):
@@ -417,7 +417,7 @@ class IndexHandler(QtCore.QThread):
         self.wait()
 
     def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod,
-                     minPeaks, maxPeaks, minRes, tolerance, extra, outDir=None, runs=None, sample=None, queue=None, cpus=None, noe=None):
+                     minPeaks, maxPeaks, minRes, tolerance, extra, outDir=None, runs=None, sample=None, queue=None, chunkSize=None, noe=None):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
@@ -437,7 +437,7 @@ class IndexHandler(QtCore.QThread):
         self.runs = runs
         self.sample = sample
         self.queue = queue
-        self.cpus = cpus
+        self.chunkSize = chunkSize
         self.noe = noe
 
         if self.geom is not '':

@@ -60,14 +60,14 @@ class LaunchIndexer(QtCore.QThread):
                   " --peakMethod " + self.parent.index.peakMethod + \
                   " --integrationRadius " + self.parent.index.intRadius + \
                   " --indexingMethod " + self.parent.index.indexingMethod + \
-                  " --minPeaks " + str(self.parent.index.minPeaks) + \
-                  " --maxPeaks " + str(self.parent.index.maxPeaks) + \
-                  " --minRes " + str(self.parent.index.minRes) + \
+                  " --minPeaks " + str(self.parent.pk.minPeaks) + \
+                  " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
+                  " --minRes " + str(self.parent.pk.minRes) + \
                   " --tolerance " + str(self.parent.index.tolerance) + \
                   " --outDir " + self.parent.index.outDir + \
                   " --sample " + self.parent.index.sample + \
                   " --queue " + self.parent.index.queue + \
-                  " --cpus " + str(self.parent.index.cpus) + \
+                  " --chunkSize " + str(self.parent.index.chunkSize) + \
                   " --noe " + str(self.parent.index.noe) + \
                   " --instrument " + self.parent.det.instrument() + \
                   " --pixelSize " + str(self.parent.pixelSize) + \

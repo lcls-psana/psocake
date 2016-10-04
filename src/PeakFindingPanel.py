@@ -105,13 +105,13 @@ class PeakFinding(object):
         self.peaksMaxRes = 0
         self.classify = False
 
-        self.hitParam_alg1_npix_min = 1.
-        self.hitParam_alg1_npix_max = 45.
+        self.hitParam_alg1_npix_min = 2.
+        self.hitParam_alg1_npix_max = 20.
         self.hitParam_alg1_amax_thr = 0.
-        self.hitParam_alg1_atot_thr = 800.
+        self.hitParam_alg1_atot_thr = 1000.
         self.hitParam_alg1_son_min = 7.
-        self.hitParam_alg1_thr_low = 200.
-        self.hitParam_alg1_thr_high = 800.
+        self.hitParam_alg1_thr_low = 250.
+        self.hitParam_alg1_thr_high = 600.
         self.hitParam_alg1_radius = 2
         self.hitParam_alg1_dr = 1
         # self.hitParam_alg2_npix_min = 1.
@@ -237,7 +237,7 @@ class PeakFinding(object):
                         d = json.load(infile)
                         if d[self.hitParam_algorithm_str] == 1:
                             # Update variables
-                            self.algorithm = d[self.hitParam_algorithm_str]
+                            #self.algorithm = d[self.hitParam_algorithm_str]
                             self.hitParam_alg1_npix_min = d[self.hitParam_alg1_npix_min_str]
                             self.hitParam_alg1_npix_max = d[self.hitParam_alg1_npix_max_str]
                             self.hitParam_alg1_amax_thr = d[self.hitParam_alg1_amax_thr_str]
@@ -249,8 +249,7 @@ class PeakFinding(object):
                             self.hitParam_alg1_dr = d[self.hitParam_alg1_dr_str]
                             # Update GUI
                             self.doingUpdate = True
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(
-                                self.algorithm)
+                            #self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(self.algorithm)
                             self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_min_str).setValue(
                                 self.hitParam_alg1_npix_min)
                             self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_max_str).setValue(
