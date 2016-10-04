@@ -270,6 +270,7 @@ class ExperimentInfo(object):
             self.setupExperiment()
             self.parent.mk.resetMasks()
             self.resetVariables()
+            self.parent.pk.userUpdate = None
             self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
 
