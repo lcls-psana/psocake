@@ -2,6 +2,7 @@ import psana
 import numpy as np
 from mpidata import mpidata 
 import PeakFinder as pf
+import psanaWhisperer
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -15,6 +16,21 @@ def runclient(args):
     times = run.times()
     d = psana.Detector(args.det)
     d.do_reshape_2d_to_3d(flag=True)
+
+    ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib)
+    ps.setupExperiment()
+
+    hasCoffset = False
+    hasDetectorDistance = False
+    if args.detectorDistance is not 0:
+        hasDetectorDistance = True
+    if args.coffset is not 0:
+        hasCoffset = True
+
+    if hasCoffset:
+        detectorDistance = args.coffset + ps.clen * 1e-3  # sample to detector in m
+    elif hasDetectorDistance:
+        detectorDistance = args.detectorDistance
 
     for nevent in np.arange(len(times)):
         if nevent == args.noe : break
@@ -46,55 +62,124 @@ def runclient(args):
                                           medianFilterOn=args.medianBackground,
                                           medianRank=args.medianRank,
                                           radialFilterOn=args.radialBackground,
-                                          distance=args.distance)
-            # elif args.algorithm == 3:
-            #     d.peakFinder = pf.PeakFinder(env.experiment(),evt.run(),args.det,evt,d,
-            #                               args.algorithm, args.alg_npix_min,
-            #                               args.alg_npix_max, args.alg_amax_thr,
-            #                               args.alg_atot_thr, args.alg_son_min,
-            #                               alg3_rank=args.alg3_rank, alg3_r0=args.alg3_r0,
-            #                               alg3_dr=args.alg3_dr,
-            #                               streakMask_on=args.streakMask_on,
-            #                               streakMask_sigma=args.streakMask_sigma,
-            #                               streakMask_width=args.streakMask_width,
-            #                               userMask_path=args.userMask_path,
-            #                               psanaMask_on=args.psanaMask_on,
-            #                               psanaMask_calib=args.psanaMask_calib,
-            #                               psanaMask_status=args.psanaMask_status,
-            #                               psanaMask_edges=args.psanaMask_edges,
-            #                               psanaMask_central=args.psanaMask_central,
-            #                               psanaMask_unbond=args.psanaMask_unbond,
-            #                               psanaMask_unbondnrs=args.psanaMask_unbondnrs)
-            elif args.algorithm == 4:
-                d.peakFinder = pf.PeakFinder(env.experiment(),evt.run(),args.det,evt,d,
-                                          args.algorithm, args.alg_npix_min,
-                                          args.alg_npix_max, args.alg_amax_thr,
-                                          args.alg_atot_thr, args.alg_son_min,
-                                          alg4_thr_low=args.alg4_thr_low, alg4_thr_high=args.alg4_thr_high,
-                                          alg4_rank=args.alg4_rank, alg4_r0=args.alg4_r0,
-                                          alg4_dr=args.alg4_dr,
-                                          streakMask_on=args.streakMask_on,
-                                          streakMask_sigma=args.streakMask_sigma,
-                                          streakMask_width=args.streakMask_width,
-                                          userMask_path=args.userMask_path,
-                                          psanaMask_on=args.psanaMask_on,
-                                          psanaMask_calib=args.psanaMask_calib,
-                                          psanaMask_status=args.psanaMask_status,
-                                          psanaMask_edges=args.psanaMask_edges,
-                                          psanaMask_central=args.psanaMask_central,
-                                          psanaMask_unbond=args.psanaMask_unbond,
-                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                          medianFilterOn=args.medianBackground,
-                                          medianRank=args.medianRank,
-                                          radialFilterOn=args.radialBackground,
-                                          distance=args.distance)
+                                          distance=args.detectorDistance,
+                                          minNumPeaks=args.minPeaks,
+                                          maxNumPeaks=args.maxPeaks,
+                                          minResCutoff=args.minRes,
+                                          clen=args.clen,
+                                          localCalib=args.localCalib)
         d.peakFinder.findPeaks(detarr,evt)
         md=mpidata()
-
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes
         md.small.powder = 0
+
+        # other cxidb data
+        ps.getEvent(nevent)
+
+        es = ps.ds.env().epicsStore()
+        try:
+            pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
+        except:
+            pulseLength = 0
+
+        md.small.pulseLength = pulseLength
+
+        ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+        try:
+            photonEnergy = ebeam.ebeamPhotonEnergy()
+            pulseEnergy = ebeam.ebeamL3Energy()  # MeV
+        except:
+            photonEnergy = 0
+            pulseEnergy = 0
+
+        md.small.photonEnergy = photonEnergy
+        md.small.pulseEnergy = pulseEnergy
+
+        md.small.detectorDistance = detectorDistance
+
+        md.small.pixelSize = args.pixelSize
+
+        # LCLS
+        if "cxi" in args.exp:
+            md.small.lclsDet = es.value(args.clen)  # mm
+        elif "mfx" in args.exp:
+            md.small.lclsDet = 0  # FIXME
+
+        try:
+            md.small.ebeamCharge = es.value('BEND:DMP1:400:BDES')
+        except:
+            md.small.ebeamCharge = 0
+
+        try:
+            md.small.beamRepRate = es.value('EVNT:SYS0:1:LCLSBEAMRATE')
+        except:
+            md.small.beamRepRate = 0
+
+        try:
+            md.small.particleN_electrons = es.value('BPMS:DMP1:199:TMIT1H')
+        except:
+            md.small.particleN_electrons = 0
+
+        try:
+            md.small.eVernier = es.value('SIOC:SYS0:ML00:AO289')
+        except:
+            md.small.eVernier = 0
+
+        try:
+            md.small.charge = es.value('BEAM:LCLS:ELEC:Q')
+        except:
+            md.small.charge = 0
+
+        try:
+            md.small.peakCurrentAfterSecondBunchCompressor = es.value('SIOC:SYS0:ML00:AO195')
+        except:
+            md.small.peakCurrentAfterSecondBunchCompressor = 0
+
+        try:
+            md.small.pulseLength = es.value('SIOC:SYS0:ML00:AO820')
+        except:
+            md.small.pulseLength = 0
+
+        try:
+            md.small.ebeamEnergyLossConvertedToPhoton_mJ = es.value('SIOC:SYS0:ML00:AO569')
+        except:
+            md.small.ebeamEnergyLossConvertedToPhoton_mJ = 0
+
+        try:
+            md.small.calculatedNumberOfPhotons = es.value('SIOC:SYS0:ML00:AO580') * 1e12  # number of photons
+        except:
+            md.small.calculatedNumberOfPhotons = 0
+
+        try:
+            md.small.photonBeamEnergy = es.value('SIOC:SYS0:ML00:AO541')
+        except:
+            md.small.photonBeamEnergy = 0
+
+        try:
+            md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
+        except:
+            md.small.wavelength = 0
+
+        evtId = ps.evt.get(psana.EventId)
+        md.small.sec = evtId.time()[0]
+        md.small.nsec = evtId.time()[1]
+        md.small.fid = evtId.fiducials()
+        md.small.evtNum = nevent
+
+        if len(d.peakFinder.peaks) >= args.minPeaks and \
+           len(d.peakFinder.peaks) <= args.maxPeaks and \
+           d.peakFinder.maxRes >= args.minRes:
+            # Write image in cheetah format
+            if 'cspad' in ps.detInfo.lower():
+                img = ps.getCheetahImg()
+                assert (img is not None)
+                md.addarray('data', img)
+            elif 'rayonix' in ps.detInfo.lower():
+                img = ps.getCalibImg()
+                assert (img is not None)
+                md.addarray('data', img)
         md.send() # send mpi data object to master when desired
     # At the end of the run, send the powder of hits and misses
     md = mpidata()
