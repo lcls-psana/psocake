@@ -73,7 +73,7 @@ class CrystalIndexing(object):
         self.peakMethod = 'cxi'
         self.intRadius = '2,3,4'
         self.pdb = ''
-        self.indexingMethod = 'dirax-raw-nolatt'
+        self.indexingMethod = 'mosflm-noretry,dirax'
         self.minPeaks = 15
         self.maxPeaks = 2048
         self.minRes = 0
