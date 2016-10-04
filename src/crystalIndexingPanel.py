@@ -466,7 +466,7 @@ class IndexHandler(QtCore.QThread):
 
     def getIndexedPeaks(self):
         # Merge all stream files into one
-        totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber)+".stream"
+        totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber).zfill(4)+".stream"
         with open(totalStream, 'w') as outfile:
             for fname in self.myStreamList:
                 try:

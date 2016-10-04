@@ -294,7 +294,7 @@ class ImageViewer(object):
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
                 try:
                     self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                    print "!!!!!!!!!!!!!!! CLEN: ", self.parent.clen
+                    if self.parent.args.v >= 1: print "clen from epics (m): ", self.parent.clen
                 except:
                     print "WARNING: epics PV for clen is not available"
                     self.parent.clen = 0

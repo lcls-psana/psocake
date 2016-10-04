@@ -331,7 +331,6 @@ class DiffractionGeometry(object):
                     coffset = self.parent.detectorDistance - encoderVal
                     if self.parent.args.v >= 1:
                         print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
-                    #coffsetStr = "coffset = "+str(coffset)+"\n"
 
                     # Replace coffset value in geometry file
                     if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':

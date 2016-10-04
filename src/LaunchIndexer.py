@@ -34,6 +34,37 @@ class LaunchIndexer(QtCore.QThread):
                 runsToDo.append(int(temp[0]))
         return runsToDo
 
+    def saveCheetahFormatMask(self, run, arg):
+        import h5py
+        if arg == 'lcls':
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                dim0 = 8 * 185
+                dim1 = 4 * 388
+            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                dim0 = 1920
+                dim1 = 1920
+
+            fname = self.parent.index.outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
+            print "Saving static mask in Cheetah format: ", fname
+            myHdf5 = h5py.File(fname, 'w')
+            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0,dim1), dtype='int')
+
+            # Convert calib image to cheetah image
+            if self.parent.mk.combinedMask is None:
+                img = np.ones((dim0, dim1))
+            else:
+                img = np.zeros((dim0, dim1))
+                counter = 0
+                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                    for quad in range(4):
+                        for seg in range(8):
+                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.mk.combinedMask[counter, :, :]
+                            counter += 1
+                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                    img = self.parent.mk.combinedMask[counter, :, :] # psana format
+            dset[:,:] = img
+            myHdf5.close()
+
     def run(self):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.index.runs)
@@ -45,6 +76,9 @@ class LaunchIndexer(QtCore.QThread):
                     os.makedirs(runDir, 0774)
             except:
                 print "No write access to: ", runDir
+
+            # Generate Cheetah mask
+            self.saveCheetahFormatMask(run, 'lcls')
 
             # Update elog
             try:

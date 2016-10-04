@@ -282,7 +282,6 @@ class PeakFinding(object):
         runsToDo = self.digestRunList(self.hitParam_runs)
         for run in runsToDo:
             peakParamFname = self.parent.psocakeDir+'/r'+str(run).zfill(4)+'/peakParam.json'
-            print "peakParamFname: ", peakParamFname
             d = {self.hitParam_algorithm_str: self.algorithm,
                  self.hitParam_alg1_npix_min_str: self.hitParam_alg1_npix_min,
                  self.hitParam_alg1_npix_max_str: self.hitParam_alg1_npix_max,
