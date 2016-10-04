@@ -10,6 +10,7 @@ import pyqtgraph as pg
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchIndexer
+from PSCalib.CalibFileFinder import deploy_calib_file
 
 class CrystalIndexing(object):
     def __init__(self, parent = None):
@@ -137,36 +138,47 @@ class CrystalIndexing(object):
 
     # Update psana geometry
     def syncGeom(self):
-        print "#################################################"
-        print "Updating psana geometry with CrystFEL geometry"
-        print "#################################################"
-        self.parent.geom.findPsanaGeometry()
-        if self.parent.args.localCalib:
-            cmd = ["crystfel2psana",
-                   "-e", self.parent.experimentName,
-                   "-r", str(self.parent.runNumber),
-                   "-d", str(self.parent.det.name),
-                   "--rootDir", '.',
-                   "-c", self.geom,
-                   "-p", self.parent.psocakeRunDir + "/.temp.data"]  # TODO: remove my home
-        else:
-            cmd = ["crystfel2psana",
-                   "-e", self.parent.experimentName,
-                   "-r", str(self.parent.runNumber),
-                   "-d", str(self.parent.det.name),
-                   "--rootDir", self.parent.rootDir,
-                   "-c", self.geom,
-                   "-p", self.parent.psocakeRunDir+"/.temp.data"]  # TODO: remove my home
-        if self.parent.args.v >= 1: print "cmd: ", cmd
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-        output = p.communicate()[0]
-        p.stdout.close()
-        # Reload new psana geometry
-        self.parent.exp.setupExperiment()
-        self.parent.img.getDetImage(self.parent.eventNumber)
-        self.parent.geom.updateRings()
-        self.parent.index.updateIndex()
-        self.parent.geom.drawCentre()
+        with pg.BusyCursor():
+            print "#################################################"
+            print "Updating psana geometry with CrystFEL geometry"
+            print "#################################################"
+            self.parent.geom.findPsanaGeometry()
+            if self.parent.args.localCalib:
+                cmd = ["crystfel2psana",
+                       "-e", self.parent.experimentName,
+                       "-r", str(self.parent.runNumber),
+                       "-d", str(self.parent.det.name),
+                       "--rootDir", '.',
+                       "-c", self.geom,
+                       "-p", self.parent.psocakeRunDir + "/.temp.data"]  # TODO: remove my home
+            else:
+                cmd = ["crystfel2psana",
+                       "-e", self.parent.experimentName,
+                       "-r", str(self.parent.runNumber),
+                       "-d", str(self.parent.det.name),
+                       "--rootDir", self.parent.rootDir,
+                       "-c", self.geom,
+                       "-p", self.parent.psocakeRunDir+"/.temp.data"]  # TODO: remove my home
+            if self.parent.args.v >= 1: print "cmd: ", cmd
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+            output = p.communicate()[0]
+            p.stdout.close()
+            # Reload new psana geometry
+            fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
+            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'converted from crystfel geometry'}
+            if self.parent.args.localCalib:
+                calibDir = './calib'
+            elif self.parent.args.outDir is None:
+                calibDir = self.parent.rootDir + '/calib'
+            else:
+                calibDir = '/reg/d/psdm/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
+            deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
+                              run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+            self.parent.exp.setupExperiment()
+            self.parent.img.getDetImage(self.parent.eventNumber)
+            self.parent.geom.updateRings()
+            self.parent.index.updateIndex()
+            self.parent.geom.drawCentre()
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):

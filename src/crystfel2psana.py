@@ -14,6 +14,6 @@ args = parser.parse_args()
 cspad = camera.Cspad.from_crystfel_file(args.crystfel)
 cspad.to_psana_file(args.psana)
 
-from PSCalib.CalibFileFinder import deploy_calib_file
-cmts = {'exp': args.exp, 'app': 'psocake', 'comment': 'converted from CrystFEL geometry'}
-deploy_calib_file(cdir=args.rootDir+'/calib', src=str(args.det), type='geometry', run_start=args.run, run_end=None, ifname=args.psana, dcmts=cmts, pbits=0)
+#from PSCalib.CalibFileFinder import deploy_calib_file
+#cmts = {'exp': args.exp, 'app': 'psocake', 'comment': 'converted from CrystFEL geometry'}
+#deploy_calib_file(cdir=args.rootDir+'/calib', src=str(args.det), type='geometry', run_start=args.run, run_end=None, ifname=args.psana, dcmts=cmts, pbits=0)
