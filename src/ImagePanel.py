@@ -294,8 +294,9 @@ class ImageViewer(object):
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
                 try:
                     self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                    print "!!!!!!!!!!!!!!! CLEN: ", self.parent.clen
                 except:
-                    print "epics PV for clen is not available"
+                    print "WARNING: epics PV for clen is not available"
                     self.parent.clen = 0
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
@@ -430,6 +431,7 @@ class ImageViewer(object):
 
         # Write a temporary geom file
         self.parent.geom.deployCrystfelGeometry('lcls')
+        self.parent.geom.writeCrystfelGeom('lcls') # Hack to override coffset
 
         # Get assembled image
         if calib is not None:

@@ -113,6 +113,7 @@ class DiffractionGeometry(object):
         self.geom_grp = 'Diffraction geometry'
         self.geom_detectorDistance_str = 'Detector distance'
         self.geom_clen_str = 'Home to Detector'
+        self.geom_coffset_str = 'Home to Sample'
         self.geom_photonEnergy_str = 'Photon energy'
         self.geom_wavelength_str = "Wavelength"
         self.geom_pixelSize_str = 'Pixel size'
@@ -135,6 +136,8 @@ class DiffractionGeometry(object):
             {'name': self.geom_grp, 'type': 'group', 'children': [
                 {'name': self.geom_detectorDistance_str, 'type': 'float', 'value': 0.0, 'precision': 6, 'minVal': 0.0001, 'siFormat': (6,6), 'siPrefix': True, 'suffix': 'mm'},
                 {'name': self.geom_clen_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True,
+                 'suffix': 'm', 'readonly': True},
+                {'name': self.geom_coffset_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True,
                  'suffix': 'm', 'readonly': True},
                 {'name': self.geom_photonEnergy_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'eV'},
                 {'name': self.geom_wavelength_str, 'type': 'float', 'value': 0.0, 'step': 1e-6, 'siPrefix': True, 'suffix': 'm', 'readonly': True},
@@ -179,6 +182,8 @@ class DiffractionGeometry(object):
         if path[1] == self.geom_detectorDistance_str:
             self.updateDetectorDistance(data)
         elif path[1] == self.geom_clen_str:
+            pass
+        elif path[1] == self.geom_coffset_str:
             pass
         elif path[1] == self.geom_photonEnergy_str:
             self.updatePhotonEnergy(data)
@@ -247,7 +252,7 @@ class DiffractionGeometry(object):
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom"]
-                        if self.parent.args.v >= 1: print "cmd: ", cmd
+                        if self.parent.args.v >= 1: print "@@@@ cmd: ", cmd
                         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                         output = p.communicate()[0]
                         p.stdout.close()
@@ -270,11 +275,14 @@ class DiffractionGeometry(object):
                     self.parent.clen = 0
                 self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
+                print "Home to Sample (m): ", self.parent.coffset
+                if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000.  # mm to metres
         self.updateClen('lcls')
-        if self.parent.args.v >= 1: print "!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+        if self.parent.args.v >= 1: print "!!!!!!coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
         self.writeCrystfelGeom('lcls')
         if self.hasGeometryInfo():
             if self.parent.args.v >= 1: print "has geometry info"
@@ -322,8 +330,8 @@ class DiffractionGeometry(object):
                     f.close()
                     coffset = self.parent.detectorDistance - encoderVal
                     if self.parent.args.v >= 1:
-                        print "& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
-                    coffsetStr = "coffset = "+str(coffset)+"\n"
+                        print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
+                    #coffsetStr = "coffset = "+str(coffset)+"\n"
 
                     # Replace coffset value in geometry file
                     if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
