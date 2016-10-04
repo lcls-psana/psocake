@@ -178,6 +178,10 @@ class ImageViewer(object):
             except:
                 pass
 
+        # Load peak parameters if exists
+        if 'sfx' in self.parent.args.mode and self.parent.pk.userUpdate is None:
+            self.parent.pk.updateParam()
+
         if self.parent.args.v >= 1: print "Done updateImage"
 
     def getCalib(self, evtNumber):

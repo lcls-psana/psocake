@@ -6,6 +6,7 @@ from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
+import json, os
 
 class PeakFinding(object):
     def __init__(self, parent = None):
@@ -21,6 +22,8 @@ class PeakFinding(object):
         #self.w11.addWidget(self.launchBtn, row=0,col=0)
         #self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
         #self.d9.addWidget(self.w11)
+
+        self.userUpdate = None
 
         # Peak finding
         self.hitParam_grp = 'Peak finder'
@@ -178,50 +181,6 @@ class PeakFinding(object):
                     {'name': self.hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr,
                      'tip': "background region outside the region of interest"},
                 ]},
-                # {'name': self.hitParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
-                #     {'name': self.hitParam_alg2_npix_min_str, 'type': 'float', 'value': self.hitParam_alg2_npix_min, 'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
-                #     {'name': self.hitParam_alg2_npix_max_str, 'type': 'float', 'value': self.hitParam_alg2_npix_max, 'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
-                #     {'name': self.hitParam_alg2_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg2_amax_thr, 'tip': "Only keep the peak if max value is above this value"},
-                #     {'name': self.hitParam_alg2_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg2_atot_thr, 'tip': "Only keep the peak if integral inside region of interest is above this value"},
-                #     {'name': self.hitParam_alg2_son_min_str, 'type': 'float', 'value': self.hitParam_alg2_son_min, 'tip': "Only keep the peak if signal-over-noise is above this value"},
-                #     {'name': self.hitParam_alg2_thr_str, 'type': 'float', 'value': self.hitParam_alg2_thr, 'tip': "Only keep the peak if max value is above this value"},
-                #     {'name': self.hitParam_alg2_r0_str, 'type': 'float', 'value': self.hitParam_alg2_r0, 'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                #     {'name': self.hitParam_alg2_dr_str, 'type': 'float', 'value': self.hitParam_alg2_dr, 'tip': "background region outside the region of interest"},
-                # ]},
-                # {'name': self.hitParam_algorithm3_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
-                #  'readonly': True, 'children': [
-                #     {'name': self.hitParam_alg3_npix_min_str, 'type': 'float', 'value': self.hitParam_alg3_npix_min},
-                #     {'name': self.hitParam_alg3_npix_max_str, 'type': 'float', 'value': self.hitParam_alg3_npix_max},
-                #     {'name': self.hitParam_alg3_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg3_amax_thr},
-                #     {'name': self.hitParam_alg3_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg3_atot_thr},
-                #     {'name': self.hitParam_alg3_son_min_str, 'type': 'float', 'value': self.hitParam_alg3_son_min},
-                #     {'name': self.hitParam_alg3_rank_str, 'type': 'int', 'value': self.hitParam_alg3_rank},
-                #     {'name': self.hitParam_alg3_r0_str, 'type': 'float', 'value': self.hitParam_alg3_r0},
-                #     {'name': self.hitParam_alg3_dr_str, 'type': 'float', 'value': self.hitParam_alg3_dr},
-                # ]},
-                # {'name': self.hitParam_algorithm4_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
-                #  'readonly': True, 'children': [
-                #     {'name': self.hitParam_alg4_npix_min_str, 'type': 'float', 'value': self.hitParam_alg4_npix_min,
-                #      'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
-                #     {'name': self.hitParam_alg4_npix_max_str, 'type': 'float', 'value': self.hitParam_alg4_npix_max,
-                #      'tip': "Only keep the peak if number of pixels above thr_low is below this value"},
-                #     {'name': self.hitParam_alg4_amax_thr_str, 'type': 'float', 'value': self.hitParam_alg4_amax_thr,
-                #      'tip': "Only keep the peak if max value is above this value"},
-                #     {'name': self.hitParam_alg4_atot_thr_str, 'type': 'float', 'value': self.hitParam_alg4_atot_thr,
-                #      'tip': "Only keep the peak if integral inside region of interest is above this value"},
-                #     {'name': self.hitParam_alg4_son_min_str, 'type': 'float', 'value': self.hitParam_alg4_son_min,
-                #      'tip': "Only keep the peak if signal-over-noise is above this value"},
-                #     {'name': self.hitParam_alg4_thr_low_str, 'type': 'float', 'value': self.hitParam_alg4_thr_low,
-                #      'tip': "Grow a seed peak if above this value"},
-                #     {'name': self.hitParam_alg4_thr_high_str, 'type': 'float', 'value': self.hitParam_alg4_thr_high,
-                #      'tip': "Start a seed peak if above this value"},
-                #     {'name': self.hitParam_alg4_rank_str, 'type': 'int', 'value': self.hitParam_alg4_rank,
-                #      'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                #     {'name': self.hitParam_alg4_r0_str, 'type': 'int', 'value': self.hitParam_alg4_r0,
-                #      'tip': "region of integration is a square, (2r+1)x(2r+1)"},
-                #     {'name': self.hitParam_alg4_dr_str, 'type': 'float', 'value': self.hitParam_alg4_dr,
-                #      'tip': "background region outside the region of interest"},
-                # ]},
                 {'name': self.save_minPeaks_str, 'type': 'int', 'value': self.minPeaks,
                  'tip': "Index only if there are more Bragg peaks found"},
                 {'name': self.save_maxPeaks_str, 'type': 'int', 'value': self.maxPeaks,
@@ -254,11 +213,86 @@ class PeakFinding(object):
         self.p3.sigTreeStateChanged.connect(self.change)
         #self.parent.connect(self.launchBtn, QtCore.SIGNAL("clicked()"), self.findPeaks)
 
+    def digestRunList(self, runList):
+        runsToDo = []
+        if not runList:
+            print "Run(s) is empty. Please type in the run number(s)."
+            return runsToDo
+        runLists = str(runList).split(",")
+        for list in runLists:
+            temp = list.split(":")
+            if len(temp) == 2:
+                for i in np.arange(int(temp[0]),int(temp[1])+1):
+                    runsToDo.append(i)
+            elif len(temp) == 1:
+                runsToDo.append(int(temp[0]))
+        return runsToDo
+
+    def updateParam(self):
+        if self.userUpdate is None:
+            if self.parent.psocakeRunDir is not None:
+                peakParamFname = self.parent.psocakeRunDir + '/peakParam.json'
+                if os.path.exists(peakParamFname):
+                    with open(peakParamFname) as infile:
+                        d = json.load(infile)
+                        if d[self.hitParam_algorithm_str] == 1:
+                            # Update variables
+                            self.algorithm = d[self.hitParam_algorithm_str]
+                            self.hitParam_alg1_npix_min = d[self.hitParam_alg1_npix_min_str]
+                            self.hitParam_alg1_npix_max = d[self.hitParam_alg1_npix_max_str]
+                            self.hitParam_alg1_amax_thr = d[self.hitParam_alg1_amax_thr_str]
+                            self.hitParam_alg1_atot_thr = d[self.hitParam_alg1_atot_thr_str]
+                            self.hitParam_alg1_son_min = d[self.hitParam_alg1_son_min_str]
+                            self.hitParam_alg1_thr_low = d[self.hitParam_alg1_thr_low_str]
+                            self.hitParam_alg1_thr_high = d[self.hitParam_alg1_thr_high_str]
+                            self.hitParam_alg1_radius = int(d[self.hitParam_alg1_radius_str])
+                            self.hitParam_alg1_dr = d[self.hitParam_alg1_dr_str]
+                            # Update GUI
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(
+                                self.algorithm)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_min_str).setValue(
+                                self.hitParam_alg1_npix_min)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_max_str).setValue(
+                                self.hitParam_alg1_npix_max)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_amax_thr_str).setValue(
+                                self.hitParam_alg1_amax_thr)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_atot_thr_str).setValue(
+                                self.hitParam_alg1_atot_thr)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_son_min_str).setValue(
+                                self.hitParam_alg1_son_min)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_low_str).setValue(
+                                self.hitParam_alg1_thr_low)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_high_str).setValue(
+                                self.hitParam_alg1_thr_high)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_radius_str).setValue(
+                                self.hitParam_alg1_radius)
+                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_dr_str).setValue(
+                                self.hitParam_alg1_dr)
+
+    def writeStatus(self, fname, d):
+        json.dump(d, open(fname, 'w'))
+
     # Launch peak finding
     def findPeaks(self):
         self.parent.thread.append(LaunchPeakFinder.LaunchPeakFinder(self.parent)) # send parent parameters with self
         self.parent.thread[self.parent.threadCounter].launch(self.parent.experimentName, self.parent.detInfo)
         self.parent.threadCounter+=1
+        # Save peak finding parameters
+        runsToDo = self.digestRunList(self.hitParam_runs)
+        for run in runsToDo:
+            peakParamFname = self.parent.psocakeDir+'/r'+str(run).zfill(4)+'/peakParam.json'
+            print "peakParamFname: ", peakParamFname
+            d = {self.hitParam_algorithm_str: self.algorithm,
+                 self.hitParam_alg1_npix_min_str: self.hitParam_alg1_npix_min,
+                 self.hitParam_alg1_npix_max_str: self.hitParam_alg1_npix_max,
+                 self.hitParam_alg1_amax_thr_str: self.hitParam_alg1_amax_thr,
+                 self.hitParam_alg1_atot_thr_str: self.hitParam_alg1_atot_thr,
+                 self.hitParam_alg1_son_min_str: self.hitParam_alg1_son_min,
+                 self.hitParam_alg1_thr_low_str: self.hitParam_alg1_thr_low,
+                 self.hitParam_alg1_thr_high_str: self.hitParam_alg1_thr_high,
+                 self.hitParam_alg1_radius_str: self.hitParam_alg1_radius,
+                 self.hitParam_alg1_dr_str: self.hitParam_alg1_dr}
+            self.writeStatus(peakParamFname, d)
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
@@ -629,8 +663,10 @@ class PeakFinding(object):
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                 #                           around pixel with maximal intensity.
                 self.peakRadius = int(self.hitParam_alg1_radius)
+                print "### peakRadius: ", self.peakRadius, self.hitParam_alg1_dr
                 self.peaks = self.alg.peak_finder_v1(self.parent.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
-                                           radius=self.peakRadius, dr=self.hitParam_alg1_dr)
+                                           radius=self.peakRadius,
+                                                     dr=self.hitParam_alg1_dr)
             elif self.algorithm == 2:
                 # v2 - define peaks for regions of connected pixels above threshold
                 self.peakRadius = int(self.hitParam_alg2_r0)
