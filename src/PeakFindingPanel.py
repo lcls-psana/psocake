@@ -100,7 +100,7 @@ class PeakFinding(object):
         self.showPeaks = True
         self.peaks = None
         self.numPeaksFound = 0
-        self.algorithm = 1
+        self.algorithm = 0
         self.algInitDone = False
         self.peaksMaxRes = 0
         self.classify = False
@@ -157,8 +157,7 @@ class PeakFinding(object):
             {'name': self.hitParam_grp, 'type': 'group', 'children': [
                 {'name': self.hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks,
                  'tip': "Show peaks found shot-to-shot"},
-                {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm4_str: 4,
-                                                                                 self.hitParam_algorithm1_str: 1,
+                {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm1_str: 1,
                                                                                  self.hitParam_algorithm0_str: 0},
                  'value': self.algorithm},
                 {'name': self.hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
@@ -546,7 +545,6 @@ class PeakFinding(object):
                     # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                     #                           around pixel with maximal intensity.
                     self.peakRadius = int(self.hitParam_alg1_radius)
-                    print "### peakRadius: ", self.peakRadius, self.hitParam_alg1_dr
                     self.peaks = self.alg.peak_finder_v1(self.parent.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
                                                          radius=self.peakRadius,
                                                          dr=self.hitParam_alg1_dr)
