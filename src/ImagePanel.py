@@ -102,7 +102,7 @@ class ImageViewer(object):
         if self.parent.args.v >= 1: print "Done clearPeakMessage"
 
     def drawLabCoordinates(self):
-        (cenX,cenY) = (0,0) # no offset
+        (cenX,cenY) = (-20,-20) # no offset
         # Draw xy arrows
         symbolSize = 40
         cutoff=symbolSize/2
