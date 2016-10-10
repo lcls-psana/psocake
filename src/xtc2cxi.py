@@ -29,8 +29,8 @@ parser.add_argument("--pixelSize", help="pixel size (m)", type=float)
 parser.add_argument("--minPeaks", help="Index only if above minimum number of peaks",default=15, type=int)
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=300, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
-parser.add_argument("--minPixels", help="hit only if above minimum number of pixels (SPI)",default=12000, type=float)
-parser.add_argument("--backgroundThresh", help="use as miss if below maximum number of pixels (SPI)",default='-1', type=str)
+parser.add_argument("--hitThresh", help="hit only if above minimum number of pixels, or a range specified by a colon (SPI)",default='-1', type=str)
+parser.add_argument("--backgroundThresh", help="use as miss if below maximum number of pixels, or a range specified by a colon (SPI)",default='-1', type=str)
 parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 args = parser.parse_args()
@@ -188,6 +188,15 @@ coffset = args.coffset
 (x_pixel_size,y_pixel_size) = (args.pixelSize, args.pixelSize)
 mode = args.mode
 aduPerPhoton = args.aduPerPhoton
+# Munch hitThresh
+if ":" in args.hitThresh:
+    (hitThreshMin, hitThreshMax) = args.hitThresh.split(':')
+    hitThreshMin = float(hitThreshMin)
+    hitThreshMax = float(hitThreshMax)
+else:
+    hitThreshMin = float(args.hitThresh)
+    hitThreshMax = float('inf')
+# Munch backgroundThresh
 if args.backgroundThresh == '-1':
     backgroundThreshMin = -1
     backgroundThreshMax = -1
@@ -235,7 +244,7 @@ while notDone:
             numHits = len(hitInd)
         elif mode == 'spi':
             nHits = f["/entry_1/result_1/nHitsAll"].value
-            hitInd = (nHits >= args.minPixels).nonzero()[0]
+            hitInd = ((nHits >= hitThreshMin) & (nHits <= hitThreshMax)).nonzero()[0]
             if backgroundThreshMax > -1:
                 missInd = ((nHits >= backgroundThreshMin) & (nHits <= backgroundThreshMax)).nonzero()[0]
                 print "missInd: ", missInd
@@ -436,7 +445,7 @@ if rank == 0:
         ds_nHits = f.create_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
         ds_nHits.attrs["axes"] = "experiment_identifier"
         ds_nHits.attrs["numEvents"] = numHits
-        ds_nHits.attrs["minPixels"] = args.minPixels
+        ds_nHits.attrs["hitThresh"] = args.hitThresh
         ds_nHits.attrs["backgroundThreshMin"] = backgroundThreshMin
         ds_nHits.attrs["backgroundThreshMax"] = backgroundThreshMax
     f.flush()
@@ -480,10 +489,7 @@ if rank == 0:
     f.flush()
 
     if mode == 'sfx':
-        dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)#,
-                                           #chunks=(1,dim0,dim1),dtype=float)#,
-                                           #compression='gzip',
-                                           #compression_opts=9)
+        dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)
         dset_1.attrs["axes"] = "experiment_identifier:y:x"
         dset_1.attrs["numEvents"] = numHits
         # Soft links

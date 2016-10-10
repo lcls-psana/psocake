@@ -63,8 +63,8 @@ class LaunchHitConverter(QtCore.QThread):
                   " --instrument " + self.parent.det.instrument() + \
                   " --pixelSize " + str(self.parent.pixelSize) + \
                   " --detectorDistance " + str(self.parent.detectorDistance) + \
-                  " --minPixels " + str(self.parent.hf.hitParam_threshMin) + \
-                  " --backgroundThresh " + str(self.parent.hf.hitParam_background) + \
+                  " --hitThresh " + str(self.parent.hf.hitParam_hitThresh) + \
+                  " --backgroundThresh " + str(self.parent.hf.hitParam_backgroundThresh) + \
                   " --mode spi" + \
                   " --run " + str(run)
             print "Submitting batch job: ", cmd
