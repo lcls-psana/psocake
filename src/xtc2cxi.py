@@ -30,7 +30,7 @@ parser.add_argument("--minPeaks", help="Index only if above minimum number of pe
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=300, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
 parser.add_argument("--minPixels", help="hit only if above minimum number of pixels (SPI)",default=12000, type=float)
-parser.add_argument("--maxBackground", help="use as miss if below maximum number of pixels (SPI)",default=-1, type=float)
+parser.add_argument("--backgroundThresh", help="use as miss if below maximum number of pixels (SPI)",default='-1', type=str)
 parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 args = parser.parse_args()
@@ -52,12 +52,13 @@ def getMyUnfairShare(numJobs, numWorkers, rank):
         return None
 
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1, backgroundThresh=-1):
+    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1):#, backgroundThreshMin='-1', backgroundThreshMax='-1'):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.aduPerPhoton = aduPerPhoton
-        self.backgroundThresh = backgroundThresh
+        #self.backgroundThreshMin = float(backgroundThreshMin)
+        #self.backgroundThreshMax = float(backgroundThreshMax)
 
     def getDetectorAlias(self, srcOrAlias):
         for i in self.detInfoList:
@@ -187,10 +188,19 @@ coffset = args.coffset
 (x_pixel_size,y_pixel_size) = (args.pixelSize, args.pixelSize)
 mode = args.mode
 aduPerPhoton = args.aduPerPhoton
-maxBackground = args.maxBackground
+if args.backgroundThresh == '-1':
+    backgroundThreshMin = -1
+    backgroundThreshMax = -1
+elif ":" in args.backgroundThresh:
+    (backgroundThreshMin, backgroundThreshMax) = args.backgroundThresh.split(':')
+    backgroundThreshMin = float(backgroundThreshMin)
+    backgroundThreshMax = float(backgroundThreshMax)
+else:
+    backgroundThreshMin = -1
+    backgroundThreshMax = float(args.backgroundThresh)
 
 # Set up psana
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton, maxBackground)
+ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton)#, backgroundThreshMin, backgroundThreshMax)
 ps.setupExperiment()
 
 # Read list of files
@@ -226,8 +236,8 @@ while notDone:
         elif mode == 'spi':
             nHits = f["/entry_1/result_1/nHitsAll"].value
             hitInd = (nHits >= args.minPixels).nonzero()[0]
-            if args.maxBackground > -1:
-                missInd = (nHits < args.maxBackground).nonzero()[0]
+            if backgroundThreshMax > -1:
+                missInd = ((nHits >= backgroundThreshMin) & (nHits <= backgroundThreshMax)).nonzero()[0]
                 print "missInd: ", missInd
             numHits = len(hitInd)
         f.close()
@@ -275,7 +285,7 @@ if args.detectorDistance is not 0:
 if args.coffset is not 0:
     hasCoffset = True
 
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton, maxBackground)
+ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton)#, backgroundThreshMin, backgroundThreshMax)
 ps.setupExperiment()
 startTime = ps.getStartTime()
 numEvents = ps.eventTotal
@@ -427,6 +437,8 @@ if rank == 0:
         ds_nHits.attrs["axes"] = "experiment_identifier"
         ds_nHits.attrs["numEvents"] = numHits
         ds_nHits.attrs["minPixels"] = args.minPixels
+        ds_nHits.attrs["backgroundThreshMin"] = backgroundThreshMin
+        ds_nHits.attrs["backgroundThreshMax"] = backgroundThreshMax
     f.flush()
 
     if "start_time" in entry_1:
@@ -570,7 +582,7 @@ for i,val in enumerate(myHitInd):
         assert(img is not None)
         dset_1[globalInd,:,:] = img[0,:,:]
     elif mode == 'spi':
-        if maxBackground > -1:
+        if backgroundThreshMax > -1:
             ind = abs(missInd - val)
             backgroundEvent = missInd[np.argmin(ind)]
             print "background: ", val, backgroundEvent

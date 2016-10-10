@@ -6,8 +6,6 @@ size = comm.Get_size()
 import h5py, json
 from mpidata import mpidata
 import psana
-import numpy as np
-from PSCalib.GeometryObject import two2x1ToData2x2
 
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
