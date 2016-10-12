@@ -247,7 +247,7 @@ class DiffractionGeometry(object):
             if self.calibFile is not None and self.parent.writeAccess:
                 # Convert psana geometry to crystfel geom
                 if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                    if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                    if '.temp.geom' in self.parent.index.geom:
                         self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
@@ -258,7 +258,7 @@ class DiffractionGeometry(object):
                         p.stdout.close()
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     print "Not implemented yet"
-                    if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
+                    if '.temp.geom' in self.parent.index.geom:
                         self.parent.index.p9.param(self.parent.index.index_grp,
                                                    self.parent.index.index_geom_str).setValue(
                             self.parent.psocakeRunDir + '/.temp.geom')
@@ -324,22 +324,27 @@ class DiffractionGeometry(object):
         if arg == 'lcls':
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
+                print "8888888: ", self.parent.index.geom
+                print "777777: ", self.parent.index.hiddenCXI
                 if os.path.isfile(self.parent.index.hiddenCXI):
                     f = h5py.File(self.parent.index.hiddenCXI,'r')
                     encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
                     f.close()
-                    coffset = self.parent.detectorDistance - encoderVal
-                    if self.parent.args.v >= 1:
-                        print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
+                else:
+                    encoderVal = self.parent.clen # metres
 
-                    # Replace coffset value in geometry file
-                    if self.parent.index.geom == '.temp.geom' or self.parent.index.geom == self.parent.psocakeRunDir + '/.temp.geom':
-                        for line in fileinput.input(self.parent.index.geom, inplace=True):
-                            if 'coffset' in line and line.strip()[0] is not ';':
-                                coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
-                                print coffsetStr, # comma is required
-                            else:
-                                print line, # comma is required
+                coffset = self.parent.detectorDistance - encoderVal
+                if self.parent.args.v >= 1: print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
+
+                # Replace coffset value in geometry file
+                if '.temp.geom' in self.parent.index.geom:
+                    print "9999999999: ", self.parent.index.geom
+                    for line in fileinput.input(self.parent.index.geom, inplace=True):
+                        if 'coffset' in line and line.strip()[0] is not ';':
+                            coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
+                            print coffsetStr, # comma is required
+                        else:
+                            print line, # comma is required
 
     def updateGeometry(self):
         if self.hasUserDefinedResolution:

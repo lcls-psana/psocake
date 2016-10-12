@@ -596,6 +596,7 @@ class ExperimentInfo(object):
 
             # Write a temporary geom file
             self.parent.geom.deployCrystfelGeometry('lcls')
+            self.parent.geom.writeCrystfelGeom('lcls')
 
             self.parent.img.setupRadialBackground()
             self.parent.img.updatePolarizationFactor()
