@@ -143,6 +143,7 @@ class CrystalIndexing(object):
             print "Updating psana geometry with CrystFEL geometry"
             print "#################################################"
             self.parent.geom.findPsanaGeometry()
+            psanaGeom = self.parent.psocakeRunDir + "/.temp.data"
             if self.parent.args.localCalib:
                 cmd = ["crystfel2psana",
                        "-e", self.parent.experimentName,
@@ -150,7 +151,7 @@ class CrystalIndexing(object):
                        "-d", str(self.parent.det.name),
                        "--rootDir", '.',
                        "-c", self.geom,
-                       "-p", self.parent.psocakeRunDir + "/.temp.data"]  # TODO: remove my home
+                       "-p", psanaGeom]
             else:
                 cmd = ["crystfel2psana",
                        "-e", self.parent.experimentName,
@@ -158,13 +159,12 @@ class CrystalIndexing(object):
                        "-d", str(self.parent.det.name),
                        "--rootDir", self.parent.rootDir,
                        "-c", self.geom,
-                       "-p", self.parent.psocakeRunDir+"/.temp.data"]  # TODO: remove my home
+                       "-p", psanaGeom]
             if self.parent.args.v >= 1: print "cmd: ", cmd
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             output = p.communicate()[0]
             p.stdout.close()
             # Reload new psana geometry
-            fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
             cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'converted from crystfel geometry'}
             if self.parent.args.localCalib:
                 calibDir = './calib'
@@ -173,7 +173,7 @@ class CrystalIndexing(object):
             else:
                 calibDir = '/reg/d/psdm/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
             deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
-                              run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+                              run_start=self.parent.runNumber, run_end=None, ifname=psanaGeom, dcmts=cmts, pbits=0)
             self.parent.exp.setupExperiment()
             self.parent.img.getDetImage(self.parent.eventNumber)
             self.parent.geom.updateRings()

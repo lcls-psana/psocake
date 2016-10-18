@@ -324,8 +324,6 @@ class DiffractionGeometry(object):
         if arg == 'lcls':
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                print "8888888: ", self.parent.index.geom
-                print "777777: ", self.parent.index.hiddenCXI
                 if os.path.isfile(self.parent.index.hiddenCXI):
                     f = h5py.File(self.parent.index.hiddenCXI,'r')
                     encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
@@ -338,7 +336,6 @@ class DiffractionGeometry(object):
 
                 # Replace coffset value in geometry file
                 if '.temp.geom' in self.parent.index.geom:
-                    print "9999999999: ", self.parent.index.geom
                     for line in fileinput.input(self.parent.index.geom, inplace=True):
                         if 'coffset' in line and line.strip()[0] is not ';':
                             coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
