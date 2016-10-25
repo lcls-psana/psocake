@@ -44,7 +44,6 @@ class HitFinder(QtCore.QThread):
             runDir = self.parent.hf.spiParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
-                #expRun = 'exp='+self.experimentName+':run='+str(run)
                 cmd = "bsub -q "+self.parent.hf.spiParam_queue+\
                   " -n "+str(self.parent.hf.spiParam_cpus)+\
                   " -o "+runDir+"/.%J.log mpirun findHits"+\
@@ -52,9 +51,12 @@ class HitFinder(QtCore.QThread):
                   " -d "+self.detInfo+\
                   " --outDir " + runDir
 
-                if self.parent.hf.spiAlgorithm == 2:
+                cmd += " --algorithm " + str(self.parent.hf.spiAlgorithm)
+
+                if self.parent.hf.spiAlgorithm == 1:
+                    cmd += " --pruneInterval " + str(self.parent.hf.spiParam_alg1_pruneInterval)
+                elif self.parent.hf.spiAlgorithm == 2:
                     cmd += " --litPixelThreshold " + str(self.parent.hf.spiParam_alg2_threshold)
-                    #cmd += " --hitThreshold " + str(self.parent.hf.spiParam_alg2_hitThreshold)
 
                 # Save user mask to a deterministic path
                 if self.parent.mk.userMaskOn:

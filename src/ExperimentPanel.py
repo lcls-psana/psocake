@@ -442,8 +442,19 @@ class ExperimentInfo(object):
     def updateDetectorDistance(self, arg):
         if arg == 'lcls':
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
-                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                try:
+                    self.parent.clenEpics = str(self.parent.detAlias) + '_z'
+                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                except:
+                    if 'ds1' in self.parent.detInfo.lower():
+                        self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
+                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                    elif 'ds2' in self.parent.detInfo.lower():
+                        self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
+                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                    else:
+                        print "Couldn't handle detector clen"
+                        exit()
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
                     self.parent.clen)

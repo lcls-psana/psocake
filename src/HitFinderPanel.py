@@ -61,7 +61,7 @@ class HitFinder(object):
         # Init hit finding
         self.nPixels = 0
         self.spiAlgorithm = 2
-        self.spiParam_alg1_pruneInterval = 0
+        self.spiParam_alg1_pruneInterval = -1
         self.spiParam_alg2_threshold = 30
         self.spiParam_outDir = self.parent.psocakeDir
         self.spiParam_outDir_overridden = False
@@ -76,8 +76,14 @@ class HitFinder(object):
         self.params = [
             {'name': self.spiParam_grp, 'type': 'group', 'children': [
                 {'name': self.spiParam_algorithm_str, 'type': 'list', 'values': {self.spiParam_algorithm2_str: 2,
+                                                                                 self.spiParam_algorithm1_str: 1,
                                                                                  self.spiParam_algorithm0_str: 0},
                                                                             'value': self.spiAlgorithm},
+                {'name': self.spiParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
+                 'readonly': True, 'children': [
+                    {'name': self.spiParam_alg1_pruneInterval_str, 'type': 'float', 'value': self.spiParam_alg1_pruneInterval,
+                     'tip': "update running background"},
+                ]},
                 {'name': self.spiParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': self.spiParam_alg2_threshold_str, 'type': 'float', 'value': self.spiParam_alg2_threshold, 'tip': "search for pixels above ADU per photon"},
                 ]},
@@ -151,6 +157,9 @@ class HitFinder(object):
                 self.spiParam_noe = data
             elif path[1] == self.spiParam_launch_str:
                 self.findHits()
+            elif path[2] == self.spiParam_alg1_pruneInterval_str and path[1] == self.spiParam_algorithm1_str:
+                self.spiParam_alg1_pruneInterval = data
+                self.updateHit()
             elif path[2] == self.spiParam_alg2_threshold_str and path[1] == self.spiParam_algorithm2_str:
                 self.spiParam_alg2_threshold = data
                 self.updateHit()
