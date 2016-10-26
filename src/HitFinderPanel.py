@@ -76,14 +76,13 @@ class HitFinder(object):
         self.params = [
             {'name': self.spiParam_grp, 'type': 'group', 'children': [
                 {'name': self.spiParam_algorithm_str, 'type': 'list', 'values': {self.spiParam_algorithm2_str: 2,
-                                                                                 self.spiParam_algorithm1_str: 1,
                                                                                  self.spiParam_algorithm0_str: 0},
                                                                             'value': self.spiAlgorithm},
-                {'name': self.spiParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
-                 'readonly': True, 'children': [
-                    {'name': self.spiParam_alg1_pruneInterval_str, 'type': 'float', 'value': self.spiParam_alg1_pruneInterval,
-                     'tip': "update running background"},
-                ]},
+                #{'name': self.spiParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
+                # 'readonly': True, 'children': [
+                #    {'name': self.spiParam_alg1_pruneInterval_str, 'type': 'float', 'value': self.spiParam_alg1_pruneInterval,
+                #     'tip': "update running background"},
+                #]},
                 {'name': self.spiParam_algorithm2_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "", 'readonly': True, 'children': [
                     {'name': self.spiParam_alg2_threshold_str, 'type': 'float', 'value': self.spiParam_alg2_threshold, 'tip': "search for pixels above ADU per photon"},
                 ]},

@@ -4,13 +4,15 @@ import numpy as np
 import PSCalib.GlobalUtils as gu
 from PSCalib.GeometryAccess import GeometryAccess
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
+import Detector.PyDetector
 
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, clen='', localCalib=False):
+    def __init__(self, experimentName, runNumber, detInfo, clen='', aduPerPhoton=1, localCalib=False):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.clen = clen
+        self.aduPerPhoton = aduPerPhoton
         self.localCalib = localCalib
 
     def setupExperiment(self):
@@ -22,11 +24,34 @@ class psanaWhisperer():
         self.evt = self.run.event(self.times[0])
         self.det = psana.Detector(str(self.detInfo), self.env)
         self.det.do_reshape_2d_to_3d(flag=True)
-        self.gain = self.det.gain(self.evt)
-        # Get epics variable, clen
-        if "cxi" in self.experimentName:
+        self.getDetInfoList()
+        self.detAlias = self.getDetectorAlias(str(self.detInfo))
+        self.updateClen() # Get epics variable, clen
+
+    def updateClen(self):
+        if 'cspad' in self.detAlias.lower() and 'cxi' in self.experimentName:
             self.epics = self.ds.env().epicsStore()
             self.clen = self.epics.value(self.clen)
+        elif 'rayonix' in self.detAlias.lower() and 'mfx' in self.experimentName:
+            self.clen = 0
+
+    def getDetectorAlias(self, srcOrAlias):
+        for i in self.detInfoList:
+            src, alias, _ = i
+            if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
+                return alias
+
+    def getDetInfoList(self):
+        myAreaDetectors = []
+        self.detnames = psana.DetNames()
+        for k in self.detnames:
+            try:
+                if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
+                    myAreaDetectors.append(k)
+            except ValueError:
+                continue
+        self.detInfoList = list(set(myAreaDetectors))
+        print "detInfoList: ", self.detInfoList
 
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
@@ -46,14 +71,60 @@ class psanaWhisperer():
         """Converts seg, row, col assuming (32,185,388)
            to cheetah 2-d table row and col (8*185, 4*388)
         """
-        calib = self.det.calib(self.evt) * self.gain  # (32,185,388)
-        img = np.zeros((8 * 185, 4 * 388))
-        counter = 0
-        for quad in range(4):
-            for seg in range(8):
-                img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
-                counter += 1
+        if 'cspad2x2' in self.detInfo.lower():
+            print "Not implemented yet: cspad2x2"
+        elif 'cspad' in self.detInfo.lower():
+            calib = self.det.calib(self.evt) # (32,185,388)
+            img = np.zeros((8 * 185, 4 * 388))
+            counter = 0
+            for quad in range(4):
+                for seg in range(8):
+                    img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
+                    counter += 1
+        elif 'rayonix' in self.detInfo.lower():
+            img = self.det.calib(self.evt)  # (1920,1920)
+        print "getCheetahImg shape: ", img.shape
         return img
+
+    def getCleanAssembledImg(self, backgroundEvent):
+        """Returns psana assembled image
+        """
+        backgroundEvt = self.run.event(self.times[backgroundEvent])
+        backgroundCalib = self.det.calib(backgroundEvt)
+        calib = self.det.calib(self.evt)
+        cleanCalib = calib - backgroundCalib
+        img = self.det.image(self.evt, cleanCalib)
+        return img
+
+    def getAssembledImg(self):
+        """Returns psana assembled image
+        """
+        img = self.det.image(self.evt)
+        return img
+
+    def getCalibImg(self):
+        """Returns psana assembled image
+        """
+        img = self.det.calib(self.evt)
+        return img
+
+    def getCleanAssembledPhotons(self, backgroundEvent):
+        """Returns psana assembled image in photon counts
+        """
+        backgroundEvt = self.run.event(self.times[backgroundEvent])
+        backgroundCalib = self.det.calib(backgroundEvt)
+        calib = self.det.calib(self.evt)
+        cleanCalib = calib - backgroundCalib
+        img = self.det.photons(self.evt, nda_calib=cleanCalib, adu_per_photon=self.aduPerPhoton)
+        phot = self.det.image(self.evt, img)
+        return phot
+
+    def getAssembledPhotons(self):
+        """Returns psana assembled image in photon counts
+        """
+        img = self.det.photons(self.evt, adu_per_photon=self.aduPerPhoton)
+        phot = self.det.image(self.evt, img)
+        return phot
 
     def getPsanaEvent(self, cheetahFilename):
         # Gets psana event given cheetahFilename, e.g. LCLS_2015_Jul26_r0014_035035_e820.h5

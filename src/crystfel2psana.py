@@ -11,9 +11,8 @@ parser.add_argument('-c','--crystfel', help="crystfel geometry", type=str)
 parser.add_argument('-p','--psana', help="psana filename", type=str)
 args = parser.parse_args()
 
-cspad = camera.Cspad.from_crystfel_file(args.crystfel)
-cspad.to_psana_file(args.psana)
-
-#from PSCalib.CalibFileFinder import deploy_calib_file
-#cmts = {'exp': args.exp, 'app': 'psocake', 'comment': 'converted from CrystFEL geometry'}
-#deploy_calib_file(cdir=args.rootDir+'/calib', src=str(args.det), type='geometry', run_start=args.run, run_end=None, ifname=args.psana, dcmts=cmts, pbits=0)
+if 'cspad' in args.det.lower():
+    cspad = camera.Cspad.from_crystfel_file(args.crystfel)
+    cspad.to_psana_file(args.psana)
+elif 'rayonix' in args.det.lower():
+    print "Converting Rayonix .geom to .data"

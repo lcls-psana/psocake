@@ -90,7 +90,7 @@ def runmaster(args,nClients):
                 maxRes = md.small.maxRes
             except:
                 continue
-            if nPeaks >= 2048: # only save upto maxNumPeaks
+            if nPeaks > 2048: # only save upto maxNumPeaks
                 md.peaks = md.peaks[:2048]
                 nPeaks = md.peaks.shape[0]
 
@@ -108,7 +108,8 @@ def runmaster(args,nClients):
             # If the event is a hit
             if nPeaks >= args.minPeaks and \
                nPeaks <= args.maxPeaks and \
-               maxRes >= args.minRes:
+               maxRes >= args.minRes and \
+               hasattr(md, 'data'):
                 # Save peak information
                 updateHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits, nPeaks)
                 myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits+1,2048))
@@ -145,7 +146,8 @@ def runmaster(args,nClients):
                 updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.evtNum)
                 updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.evtNum)  # same as /LCLS/eventNumber
                 # Save images
-                #print "md.data: ", md.data, md.data.shape
+                print "md.data: ", numHits, nPeaks, maxRes
+                print "data: ", md.data, md.data.shape
                 myHdf5["/entry_1/data_1/data"].resize((numHits + 1, md.data.shape[0], md.data.shape[1]))
                 myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
                 numHits += 1

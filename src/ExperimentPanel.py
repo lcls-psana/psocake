@@ -438,6 +438,8 @@ class ExperimentInfo(object):
                 self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
                 self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
                 self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
+            else:
+                self.parent.index.hiddenCXI = None
 
     def updateDetectorDistance(self, arg):
         if arg == 'lcls':
@@ -455,10 +457,17 @@ class ExperimentInfo(object):
                     else:
                         print "Couldn't handle detector clen"
                         exit()
+                print "#######################"
+                if self.parent.detectorDistance <= 0.01:
+                    print "Det Z0: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+                    self.parent.detectorDistance = 75000.* 1e-6 #np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                print "Det Z: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
                     self.parent.clen)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                print "Not implemented yet: updateDetectorDistance"
                 self.parent.clenEpics = 'detector_z'
                 self.parent.clen = -0.582 #self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
@@ -579,10 +588,10 @@ class ExperimentInfo(object):
             self.updateDetectorDistance('lcls')
             # pixel size
             self.updatePixelSize('lcls')
-            # Update geometry panel
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize)
             # photon energy
             self.updatePhotonEnergy('lcls')
+            # Update geometry panel
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize) # pixel size
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
     
             if self.parent.evt is None:

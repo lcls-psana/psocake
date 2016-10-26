@@ -54,6 +54,8 @@ class ImageViewer(object):
         self.displayMaxPercentile = 99.0
         self.displayMinPercentile = 1.0
 
+        self.rb = None
+
         ## Dock 1: Image Panel
         self.d1 = Dock("Image Panel", size=(500, 400))
         self.w1 = pg.ImageView(view=pg.PlotItem())

@@ -418,61 +418,66 @@ class PeakFinding(object):
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                 dim0 = 1920
                 dim1 = 1920
+            else:
+                dim0 = 0
+                dim1 = 0
 
-            maxNumPeaks = 2048
-            myHdf5 = h5py.File(self.parent.index.hiddenCXI, 'w')
-            grpName = "/entry_1/result_1"
-            dset_nPeaks = "/nPeaks"
-            dset_posX = "/peakXPosRaw"
-            dset_posY = "/peakYPosRaw"
-            dset_atot = "/peakTotalIntensity"
-            if grpName in myHdf5:
-                del myHdf5[grpName]
-            grp = myHdf5.create_group(grpName)
-            myHdf5.create_dataset(grpName + dset_nPeaks, (1,), dtype='int')
-            myHdf5.create_dataset(grpName + dset_posX, (1, maxNumPeaks), dtype='float32', chunks=(1, maxNumPeaks))
-            myHdf5.create_dataset(grpName + dset_posY, (1, maxNumPeaks), dtype='float32', chunks=(1, maxNumPeaks))
-            myHdf5.create_dataset(grpName + dset_atot, (1, maxNumPeaks), dtype='float32', chunks=(1, maxNumPeaks))
+            if dim0 > 0:
+                maxNumPeaks = 2048
+                if self.parent.index.hiddenCXI is not None:
+                    myHdf5 = h5py.File(self.parent.index.hiddenCXI, 'w')
+                    grpName = "/entry_1/result_1"
+                    dset_nPeaks = "/nPeaks"
+                    dset_posX = "/peakXPosRaw"
+                    dset_posY = "/peakYPosRaw"
+                    dset_atot = "/peakTotalIntensity"
+                    if grpName in myHdf5:
+                        del myHdf5[grpName]
+                    grp = myHdf5.create_group(grpName)
+                    myHdf5.create_dataset(grpName + dset_nPeaks, (1,), dtype='int')
+                    myHdf5.create_dataset(grpName + dset_posX, (1, maxNumPeaks), dtype='float32', chunks=(1, maxNumPeaks))
+                    myHdf5.create_dataset(grpName + dset_posY, (1, maxNumPeaks), dtype='float32', chunks=(1, maxNumPeaks))
+                    myHdf5.create_dataset(grpName + dset_atot, (1, maxNumPeaks), dtype='float32', chunks=(1, maxNumPeaks))
 
-            myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
-            myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
-            dset = myHdf5.create_dataset("/entry_1/data_1/data", (1, dim0, dim1), dtype=float)
+                    myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
+                    myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
+                    dset = myHdf5.create_dataset("/entry_1/data_1/data", (1, dim0, dim1), dtype=float)
 
-            # Convert calib image to cheetah image
-            img = np.zeros((dim0, dim1))
-            counter = 0
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                for quad in range(4):
-                    for seg in range(8):
-                        img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.calib[counter, :, :]
-                        counter += 1
-            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                img = self.parent.calib[counter, :, :] # psana format
+                    # Convert calib image to cheetah image
+                    img = np.zeros((dim0, dim1))
+                    counter = 0
+                    if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                        for quad in range(4):
+                            for seg in range(8):
+                                img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.calib[counter, :, :]
+                                counter += 1
+                    elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                        img = self.parent.calib[counter, :, :] # psana format
 
-            peaks = self.peaks.copy()
-            nPeaks = peaks.shape[0]
+                    peaks = self.peaks.copy()
+                    nPeaks = peaks.shape[0]
 
-            if nPeaks > maxNumPeaks:
-                peaks = peaks[:maxNumPeaks]
-                nPeaks = maxNumPeaks
-            for i, peak in enumerate(peaks):
-                seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
-                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                    cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg, row, col)
-                    myHdf5[grpName + dset_posX][0, i] = cheetahCol
-                    myHdf5[grpName + dset_posY][0, i] = cheetahRow
-                    myHdf5[grpName + dset_atot][0, i] = atot
-                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    myHdf5[grpName + dset_posX][0, i] = col
-                    myHdf5[grpName + dset_posY][0, i] = row
-                    myHdf5[grpName + dset_atot][0, i] = atot
-            myHdf5[grpName + dset_nPeaks][0] = nPeaks
+                    if nPeaks > maxNumPeaks:
+                        peaks = peaks[:maxNumPeaks]
+                        nPeaks = maxNumPeaks
+                    for i, peak in enumerate(peaks):
+                        seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
+                        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                            cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg, row, col)
+                            myHdf5[grpName + dset_posX][0, i] = cheetahCol
+                            myHdf5[grpName + dset_posY][0, i] = cheetahRow
+                            myHdf5[grpName + dset_atot][0, i] = atot
+                        elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                            myHdf5[grpName + dset_posX][0, i] = col
+                            myHdf5[grpName + dset_posY][0, i] = row
+                            myHdf5[grpName + dset_atot][0, i] = atot
+                    myHdf5[grpName + dset_nPeaks][0] = nPeaks
 
-            if self.parent.args.v >= 1: print "hiddenCXI clen (mm): ", self.parent.clen * 1000.
-            myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.parent.clen * 1000.  # mm
-            myHdf5["/LCLS/photon_energy_eV"][0] = self.parent.photonEnergy
-            dset[0, :, :] = img
-            myHdf5.close()
+                    if self.parent.args.v >= 1: print "hiddenCXI clen (mm): ", self.parent.clen * 1000.
+                    myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.parent.clen * 1000.  # mm
+                    myHdf5["/LCLS/photon_energy_eV"][0] = self.parent.photonEnergy
+                    dset[0, :, :] = img
+                    myHdf5.close()
 
     def updateClassification(self):
         if self.parent.calib is not None:

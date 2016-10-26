@@ -172,14 +172,9 @@ def runclient(args):
            len(d.peakFinder.peaks) <= args.maxPeaks and \
            d.peakFinder.maxRes >= args.minRes:
             # Write image in cheetah format
-            if 'cspad' in ps.detInfo.lower():
-                img = ps.getCheetahImg()
-                assert (img is not None)
-                md.addarray('data', img)
-            elif 'rayonix' in ps.detInfo.lower():
-                img = ps.getCalibImg()
-                assert (img is not None)
-                md.addarray('data', img)
+            img = ps.getCheetahImg()
+            #assert (img is not None)
+            md.addarray('data', img)
         md.send() # send mpi data object to master when desired
     # At the end of the run, send the powder of hits and misses
     md = mpidata()

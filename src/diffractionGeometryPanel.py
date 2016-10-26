@@ -257,11 +257,17 @@ class DiffractionGeometry(object):
                         output = p.communicate()[0]
                         p.stdout.close()
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    print "Not implemented yet"
                     if '.temp.geom' in self.parent.index.geom:
+                        # Set GUI field to .temp.geom
                         self.parent.index.p9.param(self.parent.index.index_grp,
                                                    self.parent.index.index_geom_str).setValue(
                             self.parent.psocakeRunDir + '/.temp.geom')
+                        cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
+                               self.parent.psocakeRunDir + "/.temp.geom"]
+                        print "Not implemented yet, cmd: ", cmd
+                        #p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                        #output = p.communicate()[0]
+                        #p.stdout.close()
                     # TODO: Run psana2crystfel for Rayonix
 
     def updateClen(self, arg):
@@ -335,7 +341,7 @@ class DiffractionGeometry(object):
                 if self.parent.args.v >= 1: print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
 
                 # Replace coffset value in geometry file
-                if '.temp.geom' in self.parent.index.geom:
+                if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
                     for line in fileinput.input(self.parent.index.geom, inplace=True):
                         if 'coffset' in line and line.strip()[0] is not ';':
                             coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
@@ -354,7 +360,7 @@ class DiffractionGeometry(object):
         self.dMin_physics = np.zeros_like(self.myResolutionRingList)
         self.qMax_physics = np.zeros_like(self.myResolutionRingList)
         for i, pix in enumerate(self.myResolutionRingList):
-            if self.parent.detectorDistance > 0:
+            if self.parent.detectorDistance > 0 and self.parent.wavelength is not None:
                 self.thetaMax[i] = np.arctan(pix*self.parent.pixelSize/self.parent.detectorDistance)
                 self.qMax_crystal[i] = 2/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
                 self.dMin_crystal[i] = 1/self.qMax_crystal[i]

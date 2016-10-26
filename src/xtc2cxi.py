@@ -6,6 +6,8 @@ import time
 import argparse
 import os, json
 
+import psanaWhisperer
+
 from mpi4py import MPI
 import Detector.PyDetector
 
@@ -51,130 +53,130 @@ def getMyUnfairShare(numJobs, numWorkers, rank):
     except:
         return None
 
-class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1):#, backgroundThreshMin='-1', backgroundThreshMax='-1'):
-        self.experimentName = experimentName
-        self.runNumber = runNumber
-        self.detInfo = detInfo
-        self.aduPerPhoton = aduPerPhoton
-        #self.backgroundThreshMin = float(backgroundThreshMin)
-        #self.backgroundThreshMax = float(backgroundThreshMax)
-
-    def getDetectorAlias(self, srcOrAlias):
-        for i in self.detInfoList:
-            src, alias, _ = i
-            if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
-                return alias
-
-    def getDetInfoList(self):
-        myAreaDetectors = []
-        self.detnames = psana.DetNames()
-        for k in self.detnames:
-            try:
-                if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
-                    myAreaDetectors.append(k)
-            except ValueError:
-                continue
-        self.detInfoList = list(set(myAreaDetectors))
-        print "detInfoList: ", self.detInfoList
-
-    def updateClen(self):
-        if 'cspad' in self.detAlias.lower() and 'cxi' in self.experimentName:
-            self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(args.clen)
-        elif 'rayonix' in self.detAlias.lower() and 'mfx' in self.experimentName:
-            self.clen = 0
-
-    def setupExperiment(self):
-        self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
-        self.run = self.ds.runs().next()
-        self.times = self.run.times()
-        self.eventTotal = len(self.times)
-        self.env = self.ds.env()
-        self.evt = self.run.event(self.times[0])
-        self.det = psana.Detector(str(self.detInfo), self.env)
-        self.det.do_reshape_2d_to_3d(flag=True)
-        self.getDetInfoList()
-        self.detAlias = self.getDetectorAlias(str(self.detInfo))
-        # Get epics variable, clen
-        self.updateClen()
-
-    def getEvent(self, number):
-        self.evt = self.run.event(self.times[number])
-
-    def getCheetahImg(self):
-        """Converts seg, row, col assuming (32,185,388)
-           to cheetah 2-d table row and col (8*185, 4*388)
-        """
-        calib = self.det.calib(self.evt) # (32,185,388)
-        img = np.zeros((8 * 185, 4 * 388))
-        counter = 0
-        for quad in range(4):
-            for seg in range(8):
-                img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
-                counter += 1
-        return img
-
-    def getCleanAssembledImg(self, backgroundEvent):
-        """Returns psana assembled image
-        """
-        backgroundEvt = self.run.event(self.times[backgroundEvent])
-        backgroundCalib = self.det.calib(backgroundEvt)
-        calib = self.det.calib(self.evt)
-        cleanCalib = calib - backgroundCalib
-        img = self.det.image(self.evt, cleanCalib)
-        return img
-
-    def getAssembledImg(self):
-        """Returns psana assembled image
-        """
-        img = self.det.image(self.evt)
-        return img
-
-    def getCalibImg(self):
-        """Returns psana assembled image
-        """
-        img = self.det.calib(self.evt)
-        return img
-
-    def getCleanAssembledPhotons(self, backgroundEvent):
-        """Returns psana assembled image in photon counts
-        """
-        backgroundEvt = self.run.event(self.times[backgroundEvent])
-        backgroundCalib = self.det.calib(backgroundEvt)
-        calib = self.det.calib(self.evt)
-        cleanCalib = calib - backgroundCalib
-        img = self.det.photons(self.evt, nda_calib=cleanCalib, adu_per_photon=self.aduPerPhoton)
-        phot = self.det.image(self.evt, img)
-        return phot
-
-    def getAssembledPhotons(self):
-        """Returns psana assembled image in photon counts
-        """
-        img = self.det.photons(self.evt, adu_per_photon=self.aduPerPhoton)
-        phot = self.det.image(self.evt, img)
-        return phot
-
-    def getPsanaEvent(self, cheetahFilename):
-        # Gets psana event given cheetahFilename, e.g. LCLS_2015_Jul26_r0014_035035_e820.h5
-        hrsMinSec = cheetahFilename.split('_')[-2]
-        fid = int(cheetahFilename.split('_')[-1].split('.')[0], 16)
-        for t in ps.times:
-            if t.fiducial() == fid:
-                localtime = time.strftime('%H:%M:%S', time.localtime(t.seconds()))
-                localtime = localtime.replace(':', '')
-                if localtime[0:3] == hrsMinSec[0:3]:
-                    self.evt = ps.run.event(t)
-                else:
-                    self.evt = None
-
-    def getStartTime(self):
-        self.evt = self.run.event(self.times[0])
-        evtId = self.evt.get(psana.EventId)
-        sec = evtId.time()[0]
-        nsec = evtId.time()[1]
-        fid = evtId.fiducials()
-        return time.strftime('%FT%H:%M:%S-0800', time.localtime(sec))  # Hard-coded pacific time
+# class psanaWhisperer():
+#     def __init__(self, experimentName, runNumber, detInfo, aduPerPhoton=1):#, backgroundThreshMin='-1', backgroundThreshMax='-1'):
+#         self.experimentName = experimentName
+#         self.runNumber = runNumber
+#         self.detInfo = detInfo
+#         self.aduPerPhoton = aduPerPhoton
+#         #self.backgroundThreshMin = float(backgroundThreshMin)
+#         #self.backgroundThreshMax = float(backgroundThreshMax)
+#
+#     def getDetectorAlias(self, srcOrAlias):
+#         for i in self.detInfoList:
+#             src, alias, _ = i
+#             if srcOrAlias.lower() == src.lower() or srcOrAlias.lower() == alias.lower():
+#                 return alias
+#
+#     def getDetInfoList(self):
+#         myAreaDetectors = []
+#         self.detnames = psana.DetNames()
+#         for k in self.detnames:
+#             try:
+#                 if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
+#                     myAreaDetectors.append(k)
+#             except ValueError:
+#                 continue
+#         self.detInfoList = list(set(myAreaDetectors))
+#         print "detInfoList: ", self.detInfoList
+#
+#     def updateClen(self):
+#         if 'cspad' in self.detAlias.lower() and 'cxi' in self.experimentName:
+#             self.epics = self.ds.env().epicsStore()
+#             self.clen = self.epics.value(args.clen)
+#         elif 'rayonix' in self.detAlias.lower() and 'mfx' in self.experimentName:
+#             self.clen = 0
+#
+#     def setupExperiment(self):
+#         self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
+#         self.run = self.ds.runs().next()
+#         self.times = self.run.times()
+#         self.eventTotal = len(self.times)
+#         self.env = self.ds.env()
+#         self.evt = self.run.event(self.times[0])
+#         self.det = psana.Detector(str(self.detInfo), self.env)
+#         self.det.do_reshape_2d_to_3d(flag=True)
+#         self.getDetInfoList()
+#         self.detAlias = self.getDetectorAlias(str(self.detInfo))
+#         # Get epics variable, clen
+#         self.updateClen()
+#
+#     def getEvent(self, number):
+#         self.evt = self.run.event(self.times[number])
+#
+#     def getCheetahImg(self):
+#         """Converts seg, row, col assuming (32,185,388)
+#            to cheetah 2-d table row and col (8*185, 4*388)
+#         """
+#         calib = self.det.calib(self.evt) # (32,185,388)
+#         img = np.zeros((8 * 185, 4 * 388))
+#         counter = 0
+#         for quad in range(4):
+#             for seg in range(8):
+#                 img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
+#                 counter += 1
+#         return img
+#
+#     def getCleanAssembledImg(self, backgroundEvent):
+#         """Returns psana assembled image
+#         """
+#         backgroundEvt = self.run.event(self.times[backgroundEvent])
+#         backgroundCalib = self.det.calib(backgroundEvt)
+#         calib = self.det.calib(self.evt)
+#         cleanCalib = calib - backgroundCalib
+#         img = self.det.image(self.evt, cleanCalib)
+#         return img
+#
+#     def getAssembledImg(self):
+#         """Returns psana assembled image
+#         """
+#         img = self.det.image(self.evt)
+#         return img
+#
+#     def getCalibImg(self):
+#         """Returns psana assembled image
+#         """
+#         img = self.det.calib(self.evt)
+#         return img
+#
+#     def getCleanAssembledPhotons(self, backgroundEvent):
+#         """Returns psana assembled image in photon counts
+#         """
+#         backgroundEvt = self.run.event(self.times[backgroundEvent])
+#         backgroundCalib = self.det.calib(backgroundEvt)
+#         calib = self.det.calib(self.evt)
+#         cleanCalib = calib - backgroundCalib
+#         img = self.det.photons(self.evt, nda_calib=cleanCalib, adu_per_photon=self.aduPerPhoton)
+#         phot = self.det.image(self.evt, img)
+#         return phot
+#
+#     def getAssembledPhotons(self):
+#         """Returns psana assembled image in photon counts
+#         """
+#         img = self.det.photons(self.evt, adu_per_photon=self.aduPerPhoton)
+#         phot = self.det.image(self.evt, img)
+#         return phot
+#
+#     def getPsanaEvent(self, cheetahFilename):
+#         # Gets psana event given cheetahFilename, e.g. LCLS_2015_Jul26_r0014_035035_e820.h5
+#         hrsMinSec = cheetahFilename.split('_')[-2]
+#         fid = int(cheetahFilename.split('_')[-1].split('.')[0], 16)
+#         for t in ps.times:
+#             if t.fiducial() == fid:
+#                 localtime = time.strftime('%H:%M:%S', time.localtime(t.seconds()))
+#                 localtime = localtime.replace(':', '')
+#                 if localtime[0:3] == hrsMinSec[0:3]:
+#                     self.evt = ps.run.event(t)
+#                 else:
+#                     self.evt = None
+#
+#     def getStartTime(self):
+#         self.evt = self.run.event(self.times[0])
+#         evtId = self.evt.get(psana.EventId)
+#         sec = evtId.time()[0]
+#         nsec = evtId.time()[1]
+#         fid = evtId.fiducials()
+#         return time.strftime('%FT%H:%M:%S-0800', time.localtime(sec))  # Hard-coded pacific time
 
 #################################################################################
 
@@ -209,7 +211,7 @@ else:
     backgroundThreshMax = float(args.backgroundThresh)
 
 # Set up psana
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton)#, backgroundThreshMin, backgroundThreshMax)
+ps = psanaWhisperer.psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton=aduPerPhoton)
 ps.setupExperiment()
 
 # Read list of files
