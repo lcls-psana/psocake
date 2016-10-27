@@ -94,7 +94,7 @@ def writeStatus(fname, d):
 
 def getIndexedPeaks():
     # Merge all stream files into one
-    totalStream = runDir + "/" + experimentName + "_" + str(runNumber) + ".stream"
+    totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
     with open(totalStream, 'w') as outfile:
         for fname in myStreamList:
             try:
