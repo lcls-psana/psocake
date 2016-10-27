@@ -513,6 +513,7 @@ class IndexHandler(QtCore.QThread):
     def run(self):
         if self.queue is None: # interactive indexing
             # Check if requirements are met for indexing
+            print "#### self.minPeaks: ", self.minPeaks
             if self.parent.pk.numPeaksFound >= self.minPeaks and \
                 self.parent.pk.numPeaksFound <= self.maxPeaks and \
                 self.parent.pk.peaksMaxRes >= self.minRes:

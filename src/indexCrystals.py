@@ -113,20 +113,29 @@ def getIndexedPeaks():
         fstream = open(totalStream, 'r')
         content = fstream.readlines()
         fstream.close()
-        indexedPeaks = np.zeros((totalEvents,), dtype=int)
+        indexedPeaks = -1 * np.ones((totalEvents,), dtype=int)
         numProcessed = 0
         for i, val in enumerate(content):
             if "Event: //" in val:
                 _evt = int(val.split("Event: //")[-1].strip())
             if "indexed_by =" in val:
                 _ind = val.split("indexed_by =")[-1].strip()
-            if "num_peaks =" in val:
-                _num = val.split("num_peaks =")[-1].strip()
+            if "fs/px" in val:
+                startPeak = i
+            if "End of peak list" in val:
+                numPeaks = i - startPeak - 1
                 numProcessed += 1
                 if 'none' in _ind:
-                    continue
+                    indexedPeaks[hitEvents[_evt]] = 0
                 else:
-                    indexedPeaks[hitEvents[_evt]] = _num
+                    indexedPeaks[hitEvents[_evt]] = numPeaks#_num
+        try:
+            f = h5py.File(peakFile, 'r+')
+            if '/entry_1/result_1/index' in f: del f['/entry_1/result_1/index']
+            f['/entry_1/result_1/index'] = indexedPeaks
+            f.close()
+        except:
+            pass
     except:
         indexedPeaks = None
         numProcessed = None
@@ -310,6 +319,7 @@ if hasData:
         try:
             f = h5py.File(peakFile, 'r+')
             if '/entry_1/result_1/index' in f: del f['/entry_1/result_1/index']
+            indexedPeaks[np.where(indexedPeaks==-1)] = -2
             f['/entry_1/result_1/index'] = indexedPeaks
             # Remove large data
             if keepData == False:
