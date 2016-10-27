@@ -154,6 +154,7 @@ class ImageViewer(object):
                     self.parent.firstUpdate = False
                 else:
                     self.minPercentile = np.percentile(self.parent.data, self.displayMinPercentile)
+                    if self.minPercentile < 0: self.minPercentile = 0
                     self.maxPercentile = np.percentile(self.parent.data, self.displayMaxPercentile)
                     self.w1.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
                     self.parent.firstUpdate = False
@@ -164,6 +165,7 @@ class ImageViewer(object):
                 else:
                     if self.minPercentile == 0 and self.maxPercentile == 0:
                         self.minPercentile = np.percentile(self.parent.data, self.displayMinPercentile)
+                        if self.minPercentile < 0: self.minPercentile = 0
                         self.maxPercentile = np.percentile(self.parent.data, self.displayMaxPercentile)
                         self.w1.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
                     else:
