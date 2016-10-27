@@ -1,10 +1,7 @@
 import numpy as np
-from pyqtgraph.Qt import QtCore
 import subprocess
-import pandas as pd
-import h5py, os
+import os
 import psana
-import PSCalib.GlobalUtils as gu
 from LogBook.runtables import RunTables
 import LogbookCrawler
 import Detector.PyDetector
@@ -445,6 +442,8 @@ class ExperimentInfo(object):
         if arg == 'lcls':
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 try:
+                    self.parent.evt = self.run.event(self.times[-1])
+                    epics = self.ds.env().epicsStore()
                     self.parent.clenEpics = str(self.parent.detAlias) + '_z'
                     self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 except:
@@ -457,13 +456,10 @@ class ExperimentInfo(object):
                     else:
                         print "Couldn't handle detector clen"
                         exit()
-                print "#######################"
-                if self.parent.detectorDistance <= 0.01:
-                    print "Det Z0: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
-                    self.parent.detectorDistance = 75000.* 1e-6 #np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                if self.parent.detectorDistance < 0.01:
+                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
                     self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                print "Det Z: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
                     self.parent.clen)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:

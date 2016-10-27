@@ -282,7 +282,6 @@ class DiffractionGeometry(object):
                 self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
-                print "Home to Sample (m): ", self.parent.coffset
                 if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
 
     def updateDetectorDistance(self, data):
