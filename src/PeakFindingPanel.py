@@ -400,16 +400,6 @@ class PeakFinding(object):
         self.updateClassification()
         if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm
 
-    def updateClen(self, arg):
-        if arg == 'lcls':
-            if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                try:
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                except:
-                    self.parent.clen = 0
-                if self.parent.args.v >= 1: print "$ updateClassification clen (m): ", self.parent.clen
-
     def saveCheetahFormat(self, arg):
         if arg == 'lcls':
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
@@ -571,7 +561,7 @@ class PeakFinding(object):
                             cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
                 if self.parent.args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
                 # update clen
-                self.updateClen('lcls')
+                self.parent.geom.updateClen('lcls')
 
                 self.parent.index.clearIndexedPeaks()
 

@@ -274,11 +274,6 @@ class DiffractionGeometry(object):
         if arg == 'lcls':
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                try:
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                except:
-                    print "epics PV for clen is not available"
-                    self.parent.clen = 0
                 self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)

@@ -292,19 +292,6 @@ class ImageViewer(object):
             self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.parent.detectorDistance*1e6) # convert to um
             if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
 
-    def updateClen(self, arg):
-        if arg == 'lcls':
-            if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                try:
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                    if self.parent.args.v >= 1: print "clen from epics (m): ", self.parent.clen
-                except:
-                    print "WARNING: epics PV for clen is not available"
-                    self.parent.clen = 0
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
-
     def updateDetectorCentre(self, arg):
         if arg == 'lcls':
             self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
@@ -431,7 +418,7 @@ class ImageViewer(object):
         self.parent.geom.p1.param(self.parent.geom.geom_grp,
                              self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
         # Update clen
-        self.updateClen('lcls')
+        self.parent.geom.updateClen('lcls')
 
         # Write a temporary geom file
         self.parent.geom.deployCrystfelGeometry('lcls')
