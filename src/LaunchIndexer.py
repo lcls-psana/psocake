@@ -100,6 +100,7 @@ class LaunchIndexer(QtCore.QThread):
                   " --tolerance " + str(self.parent.index.tolerance) + \
                   " --outDir " + self.parent.index.outDir + \
                   " --sample " + self.parent.index.sample + \
+                  " --tag " + self.parent.index.tag + \
                   " --queue " + self.parent.index.queue + \
                   " --chunkSize " + str(self.parent.index.chunkSize) + \
                   " --noe " + str(self.parent.index.noe) + \

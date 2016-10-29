@@ -441,37 +441,17 @@ class ExperimentInfo(object):
     def updateDetectorDistance(self, arg):
         if arg == 'lcls':
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                try:
-                    self.parent.evt = self.run.event(self.times[-1])
-                    epics = self.ds.env().epicsStore()
-                    self.parent.clenEpics = str(self.parent.detAlias) + '_z'
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                except:
-                    if 'ds1' in self.parent.detInfo.lower():
-                        self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
-                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                    elif 'ds2' in self.parent.detInfo.lower():
-                        self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
-                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                    else:
-                        print "Couldn't handle detector clen"
-                        exit()
                 if self.parent.detectorDistance < 0.01:
                     self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
                     self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
-                    self.parent.clen)
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                print "Not implemented yet: updateDetectorDistance"
-                self.parent.clenEpics = 'detector_z'
-                self.parent.clen = -0.582 #self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
-                    self.parent.clen)
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+            else:
+                print "updateDetectorDistance: not implemented for this detector yet"
             if self.parent.args.v >= 1:
-                print "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-                print "clenEpics: ", self.parent.clenEpics
                 print "detectorDistance (m), self.clen (m), self.coffset (m): ", self.parent.detectorDistance, self.parent.clen, self.parent.coffset
 
     def updatePixelSize(self, arg):
@@ -490,6 +470,15 @@ class ExperimentInfo(object):
                 self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
             else:
                 self.parent.photonEnergy = 0.0
+
+    def getClen(self):
+        for i in range(120):  # assume at least 1 second run time
+            evt = self.run.event(self.times[i])
+            self.parent.clen = self.parent.epics.value(self.parent.clenEpics)
+            if i == 0: _temp = self.parent.clen / 1000.  # metres
+            if i > 0:
+                if abs(_temp - self.parent.clen) >= 0.01: break
+                _temp = self.parent.clen / 1000.  # metres
 
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
@@ -553,7 +542,7 @@ class ExperimentInfo(object):
             self.env = self.ds.env()
     
             if self.parent.detInfoList is None:
-                self.parent.evt = self.run.event(self.times[0])
+                self.parent.evt = self.run.event(self.times[-1])
                 myAreaDetectors = []
                 self.parent.detnames = psana.DetNames()
                 for k in self.parent.detnames:
@@ -580,6 +569,31 @@ class ExperimentInfo(object):
             self.parent.det.do_reshape_2d_to_3d(flag=True)
             self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
             self.parent.epics = self.ds.env().epicsStore()
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                try:
+                    self.parent.clenEpics = str(self.parent.detAlias) + '_z'
+                    self.getClen()
+                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                except:
+                    if 'ds1' in self.parent.detInfo.lower():
+                        self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
+                        self.getClen()
+                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                    elif 'ds2' in self.parent.detInfo.lower():
+                        self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
+                        self.getClen()
+                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                    else:
+                        print "Couldn't handle detector clen"
+                        exit()
+            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                print "Not implemented yet: Rayonix clen"
+                self.parent.clenEpics = 'Rayonix_z'
+                self.getClen()
+                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+            else:
+                print "Not implemented yet clen: ", self.parent.detInfo
+
             # detector distance
             self.updateDetectorDistance('lcls')
             # pixel size
@@ -589,7 +603,8 @@ class ExperimentInfo(object):
             # Update geometry panel
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize) # pixel size
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
-    
+
+            # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
             if self.parent.evt is None:
                 self.parent.evt = self.run.event(self.times[0])
             self.detGuaranteed = self.parent.det.calib(self.parent.evt)

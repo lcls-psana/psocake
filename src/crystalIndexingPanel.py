@@ -46,6 +46,7 @@ class CrystalIndexing(object):
         self.outDir_str = 'Output directory'
         self.runs_str = 'Runs(s)'
         self.sample_str = 'Sample name'
+        self.tag_str = 'Tag'
         self.queue_str = 'Queue'
         self.chunkSize_str = 'Chunk size'
         self.keepData_str = 'Keep CXI images'
@@ -57,6 +58,7 @@ class CrystalIndexing(object):
         self.outDir_overridden = False
         self.runs = ''
         self.sample = 'crystal'
+        self.tag = ''
         self.queue = self.psanaq_str
         self.chunkSize = 500
         self.noe = -1
@@ -108,6 +110,7 @@ class CrystalIndexing(object):
                 {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
                 {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
                 {'name': self.sample_str, 'type': 'str', 'value': self.sample, 'tip': "name of the sample saved in the cxidb file, e.g. lysozyme"},
+                {'name': self.tag_str, 'type': 'str', 'value': self.tag, 'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
                 {'name': self.queue_str, 'type': 'list', 'values': {self.psfehhiprioq_str: self.psfehhiprioq_str,
                                                                self.psnehhiprioq_str: self.psnehhiprioq_str,
                                                                self.psfehprioq_str: self.psfehprioq_str,
@@ -224,6 +227,8 @@ class CrystalIndexing(object):
             self.updateRuns(data)
         elif path[1] == self.sample_str:
             self.updateSample(data)
+        elif path[1] == self.tag_str:
+            self.updateTag(data)
         elif path[1] == self.queue_str:
             self.updateQueue(data)
         elif path[1] == self.chunkSize_str:
@@ -296,6 +301,9 @@ class CrystalIndexing(object):
 
     def updateSample(self, data):
         self.sample = data
+
+    def updateTag(self, data):
+        self.tag = data
 
     def updateQueue(self, data):
         self.queue = data
@@ -387,12 +395,12 @@ class CrystalIndexing(object):
             self.batchIndexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                        self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
-                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.chunkSize, self.noe)
+                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.tag, self.queue, self.chunkSize, self.noe)
         else:
             self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
                                   self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                        self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
-                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.queue, self.chunkSize, self.noe)
+                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.tag, self.queue, self.chunkSize, self.noe)
         if self.parent.args.v >= 1: print "Done updateIndex"
 
 class IndexHandler(QtCore.QThread):
@@ -419,6 +427,7 @@ class IndexHandler(QtCore.QThread):
         self.outDir = None
         self.runs = None
         self.sample = None
+        self.tag = None
         self.queue = None
         self.chunkSize = None
         self.noe = None
@@ -429,7 +438,8 @@ class IndexHandler(QtCore.QThread):
         self.wait()
 
     def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod,
-                     minPeaks, maxPeaks, minRes, tolerance, extra, outDir=None, runs=None, sample=None, queue=None, chunkSize=None, noe=None):
+                     minPeaks, maxPeaks, minRes, tolerance, extra, outDir=None, runs=None, sample=None, tag=None, queue=None,
+                     chunkSize=None, noe=None):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
@@ -448,6 +458,7 @@ class IndexHandler(QtCore.QThread):
         self.outDir = outDir
         self.runs = runs
         self.sample = sample
+        self.tag = tag
         self.queue = queue
         self.chunkSize = chunkSize
         self.noe = noe
@@ -513,7 +524,6 @@ class IndexHandler(QtCore.QThread):
     def run(self):
         if self.queue is None: # interactive indexing
             # Check if requirements are met for indexing
-            print "#### self.minPeaks: ", self.minPeaks
             if self.parent.pk.numPeaksFound >= self.minPeaks and \
                 self.parent.pk.numPeaksFound <= self.maxPeaks and \
                 self.parent.pk.peaksMaxRes >= self.minRes:

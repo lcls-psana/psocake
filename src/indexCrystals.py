@@ -21,6 +21,7 @@ parser.add_argument("--maxPeaks", help="",default=0, type=int)
 parser.add_argument("--minRes", help="",default=0, type=int)
 parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("--sample", help="", default=None, type=str)
+parser.add_argument("--tag", help="", default=None, type=str)
 parser.add_argument("--queue", help="", default=None, type=str)
 parser.add_argument("--chunkSize", help="", default=500, type=int)
 parser.add_argument("--noe", help="", default=-1, type=int)
@@ -34,8 +35,7 @@ parser.add_argument("--keepData", help="", default=False, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 args = parser.parse_args()
 
-def str2bool(v):
-    return v.lower() in ("yes", "true", "t", "1")
+def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 # Init experiment parameters
 if args.expRun is not None and ':run=' in args.expRun:
@@ -57,6 +57,7 @@ tolerance = args.tolerance
 extra = args.extra
 outDir = args.outDir
 sample = args.sample
+tag = args.tag
 queue = args.queue
 chunkSize = args.chunkSize
 noe = args.noe
@@ -94,7 +95,10 @@ def writeStatus(fname, d):
 
 def getIndexedPeaks():
     # Merge all stream files into one
-    totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
+    if tag is None:
+        totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
+    else:
+        totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"
     with open(totalStream, 'w') as outfile:
         for fname in myStreamList:
             try:
@@ -128,7 +132,7 @@ def getIndexedPeaks():
                 if 'none' in _ind:
                     indexedPeaks[hitEvents[_evt]] = 0
                 else:
-                    indexedPeaks[hitEvents[_evt]] = numPeaks#_num
+                    indexedPeaks[hitEvents[_evt]] = numPeaks
         try:
             f = h5py.File(peakFile, 'r+')
             if '/entry_1/result_1/index' in f: del f['/entry_1/result_1/index']
@@ -186,7 +190,10 @@ if hasData:
     myStreamList = []
     for rank in range(numWorkers):
         myJobs = getMyChunkSize(numEvents, numWorkers, chunkSize, rank)
-        jobName = experimentName + "_" + str(runNumber) + "_" + str(rank)
+        if tag is None:
+            jobName = experimentName + "_" + str(runNumber) + "_" + str(rank)
+        else:
+            jobName = experimentName + "_" + str(runNumber) + "_" + str(rank) + "_" + tag
         myList = runDir + "/temp_" + jobName + ".lst"
         myStream = runDir + "/temp_" + jobName + ".stream"
         myStreamList.append(myStream)
@@ -306,7 +313,10 @@ if hasData:
 
         if args.v >= 1: print "Merging stream file: ", runNumber
         # Merge all stream files into one
-        totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
+        if tag is None:
+            totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
+        else:
+            totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"
         with open(totalStream, 'w') as outfile:
             for fname in myStreamList:
                 with open(fname) as infile:
