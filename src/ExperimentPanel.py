@@ -471,7 +471,33 @@ class ExperimentInfo(object):
             else:
                 self.parent.photonEnergy = 0.0
 
-    def getClen(self):
+    def setClen(self):
+        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            try:
+                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
+                self.readEpicsClen()
+                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+            except:
+                if 'ds1' in self.parent.detInfo.lower():
+                    self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
+                    self.readEpicsClen()
+                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                elif 'ds2' in self.parent.detInfo.lower():
+                    self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
+                    self.readEpicsClen()
+                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+                else:
+                    print "Couldn't handle detector clen"
+                    exit()
+        elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+            print "Not implemented yet: Rayonix clen"
+            self.parent.clenEpics = 'Rayonix_z'
+            self.readEpicsClen()
+            self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+        else:
+            print "Not implemented yet clen: ", self.parent.detInfo
+
+    def readEpicsClen(self):
         for i in range(120):  # assume at least 1 second run time
             evt = self.run.event(self.times[i])
             self.parent.clen = self.parent.epics.value(self.parent.clenEpics)
@@ -569,30 +595,7 @@ class ExperimentInfo(object):
             self.parent.det.do_reshape_2d_to_3d(flag=True)
             self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
             self.parent.epics = self.ds.env().epicsStore()
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                try:
-                    self.parent.clenEpics = str(self.parent.detAlias) + '_z'
-                    self.getClen()
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                except:
-                    if 'ds1' in self.parent.detInfo.lower():
-                        self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
-                        self.getClen()
-                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                    elif 'ds2' in self.parent.detInfo.lower():
-                        self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
-                        self.getClen()
-                        self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-                    else:
-                        print "Couldn't handle detector clen"
-                        exit()
-            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                print "Not implemented yet: Rayonix clen"
-                self.parent.clenEpics = 'Rayonix_z'
-                self.getClen()
-                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
-            else:
-                print "Not implemented yet clen: ", self.parent.detInfo
+            self.setClen()
 
             # detector distance
             self.updateDetectorDistance('lcls')
