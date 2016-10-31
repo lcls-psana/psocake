@@ -100,7 +100,6 @@ class LaunchIndexer(QtCore.QThread):
                   " --tolerance " + str(self.parent.index.tolerance) + \
                   " --outDir " + self.parent.index.outDir + \
                   " --sample " + self.parent.index.sample + \
-                  " --tag " + self.parent.index.tag + \
                   " --queue " + self.parent.index.queue + \
                   " --chunkSize " + str(self.parent.index.chunkSize) + \
                   " --noe " + str(self.parent.index.noe) + \
@@ -112,6 +111,7 @@ class LaunchIndexer(QtCore.QThread):
                   " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
                   " --keepData " + str(self.parent.index.keepData) + \
                   " -v " + str(self.parent.args.v)
+            if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
             if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
             if self.parent.index.extra: cmd += " " + self.parent.index.extra
             cmd += " --run " + str(run)

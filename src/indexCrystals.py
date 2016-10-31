@@ -21,7 +21,7 @@ parser.add_argument("--maxPeaks", help="",default=0, type=int)
 parser.add_argument("--minRes", help="",default=0, type=int)
 parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("--sample", help="", default=None, type=str)
-parser.add_argument("--tag", help="", default=None, type=str)
+parser.add_argument("--tag", help="", default='', type=str)
 parser.add_argument("--queue", help="", default=None, type=str)
 parser.add_argument("--chunkSize", help="", default=500, type=int)
 parser.add_argument("--noe", help="", default=-1, type=int)
@@ -95,7 +95,7 @@ def writeStatus(fname, d):
 
 def getIndexedPeaks():
     # Merge all stream files into one
-    if tag is None:
+    if not tag:
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
     else:
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"
@@ -190,7 +190,7 @@ if hasData:
     myStreamList = []
     for rank in range(numWorkers):
         myJobs = getMyChunkSize(numEvents, numWorkers, chunkSize, rank)
-        if tag is None:
+        if not tag:
             jobName = experimentName + "_" + str(runNumber) + "_" + str(rank)
         else:
             jobName = experimentName + "_" + str(runNumber) + "_" + str(rank) + "_" + tag
@@ -266,7 +266,7 @@ if hasData:
                                 Done = -1
                     else:  # job is still going, update indexing rate
                         if args.v >= 1: print "indexing hasn't finished yet: ", runNumber, myJobList, haveFinished
-                        indexedPeaks, numProcessed = getIndexedPeaks()
+                        indexedPeaks = None#, numProcessed = getIndexedPeaks()
 
                         if indexedPeaks is not None:
                             numIndexedNow = len(np.where(indexedPeaks > 0)[0])
@@ -284,15 +284,15 @@ if hasData:
                                 print "Couldn't update status"
                                 pass
                         else:
-                            print "getIndexedPeaks returned None"
-                        time.sleep(10)
+                            pass #print "getIndexedPeaks returned None"
+                        time.sleep(30)
             else:
                 if args.v >= 1: print "no such file yet: ", runNumber, myLog
                 nodeFailed = checkJobExit(myJobList[i])
                 if nodeFailed == 1:
                     if args.v >= 0: print "indexing job node failure: ", myLog
                     haveFinished[i] = -1
-                time.sleep(10)
+                time.sleep(30)
 
     if abs(Done) == 1:
         indexedPeaks, numProcessed = getIndexedPeaks()
@@ -313,7 +313,7 @@ if hasData:
 
         if args.v >= 1: print "Merging stream file: ", runNumber
         # Merge all stream files into one
-        if tag is None:
+        if not tag:
             totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + ".stream"
         else:
             totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"

@@ -500,11 +500,12 @@ class ExperimentInfo(object):
     def readEpicsClen(self):
         for i in range(120):  # assume at least 1 second run time
             evt = self.run.event(self.times[i])
-            self.parent.clen = self.parent.epics.value(self.parent.clenEpics)
-            if i == 0: _temp = self.parent.clen / 1000.  # metres
+            self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000. # metres
+            if i == 0: _temp = self.parent.clen
             if i > 0:
                 if abs(_temp - self.parent.clen) >= 0.01: break
-                _temp = self.parent.clen / 1000.  # metres
+                _temp = self.parent.clen
+        if self.parent.args.v >= 1: print "Best guess at clen: ", self.parent.clen
 
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
