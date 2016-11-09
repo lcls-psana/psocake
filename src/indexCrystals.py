@@ -208,7 +208,7 @@ if hasData:
                " -j '`nproc`'" + \
                " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
                " --indexing=" + indexingMethod + " -o " + myStream + \
-               " --temp-dir=/tmp" + \
+               " --temp-dir=/scratch" + \
                " --tolerance=" + tolerance + \
                " --no-revalidate --profile"
         if pdb: cmd += " --pdb=" + pdb

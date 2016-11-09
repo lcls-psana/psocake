@@ -48,6 +48,7 @@ parser.add_argument("--psanaMask_edges",help="psana edges on",default="False", t
 parser.add_argument("--psanaMask_central",help="psana central on",default="False", type=str)
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default="False", type=str)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
+parser.add_argument("--mask",help="static mask",default='', type=str)
 #parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
 parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
 parser.add_argument("--medianBackground",help="subtract median background",default=0, type=int)
@@ -309,6 +310,19 @@ if rank == 0:
 
     data_1 = entry_1.create_group("data_1")
     data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
+
+    # Add x,y,z coordinates
+    cx, cy, cz = ps.det.coords_xyz(ps.evt)
+    data_1["x"] = ps.getCheetahImg(calib=cx)
+    data_1["y"] = ps.getCheetahImg(calib=cy)
+    data_1["z"] = ps.getCheetahImg(calib=cz)
+
+    # Add mask in cheetah format
+    if args.mask is not None:
+        f = h5py.File(args.mask,'r')
+        mask = f['/entry_1/data_1/mask'].value
+        data_1["mask"] = mask
+        f.close()
 
     ds_dist_1 = detector_1.create_dataset("distance",(0,),
                                              maxshape=(None,),

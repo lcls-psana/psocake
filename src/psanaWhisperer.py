@@ -29,10 +29,10 @@ class psanaWhisperer():
         self.updateClen() # Get epics variable, clen
 
     def updateClen(self):
-        if 'cspad' in self.detAlias.lower() and 'cxi' in self.experimentName:
+        if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
             self.epics = self.ds.env().epicsStore()
             self.clen = self.epics.value(self.clen)
-        elif 'rayonix' in self.detAlias.lower() and 'mfx' in self.experimentName:
+        elif 'rayonix' in self.detInfo.lower() and 'mfx' in self.experimentName:
             self.clen = 0
 
     def getDetectorAlias(self, srcOrAlias):
@@ -67,14 +67,14 @@ class psanaWhisperer():
             return img
         return None
 
-    def getCheetahImg(self):
+    def getCheetahImg(self, calib=None):
         """Converts seg, row, col assuming (32,185,388)
            to cheetah 2-d table row and col (8*185, 4*388)
         """
         if 'cspad2x2' in self.detInfo.lower():
             print "Not implemented yet: cspad2x2"
         elif 'cspad' in self.detInfo.lower():
-            calib = self.det.calib(self.evt) # (32,185,388)
+            if calib is None: calib = self.det.calib(self.evt) # (32,185,388)
             img = np.zeros((8 * 185, 4 * 388))
             counter = 0
             for quad in range(4):
@@ -82,8 +82,10 @@ class psanaWhisperer():
                     img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
                     counter += 1
         elif 'rayonix' in self.detInfo.lower():
-            img = self.det.calib(self.evt)  # (1920,1920)
-        print "getCheetahImg shape: ", img.shape
+            if calib is None:
+                img = np.squeeze(self.det.calib(self.evt))  # (1920,1920)
+            else:
+                img = np.squeeze(calib)
         return img
 
     def getCleanAssembledImg(self, backgroundEvent):

@@ -78,7 +78,7 @@ class LaunchIndexer(QtCore.QThread):
                 print "No write access to: ", runDir
 
             # Generate Cheetah mask
-            self.saveCheetahFormatMask(run, 'lcls')
+            #self.saveCheetahFormatMask(run, 'lcls')
 
             # Update elog
             try:

@@ -476,24 +476,25 @@ class ExperimentInfo(object):
             try:
                 self.parent.clenEpics = str(self.parent.detAlias) + '_z'
                 self.readEpicsClen()
-                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
             except:
                 if 'ds1' in self.parent.detInfo.lower():
                     self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
                     self.readEpicsClen()
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 elif 'ds2' in self.parent.detInfo.lower():
                     self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                     self.readEpicsClen()
-                    self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
                 else:
                     print "Couldn't handle detector clen"
                     exit()
         elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-            print "Not implemented yet: Rayonix clen"
-            self.parent.clenEpics = 'Rayonix_z'
-            self.readEpicsClen()
-            self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000.  # metres
+            print "setClen: Not implemented yet"
+            self.parent.clenEpics = 'MFX:DET:MMS:04' #'Rayonix_z'
+            try:
+                self.readEpicsClen()
+            except:
+                print "ERROR: No such epics variable, ", self.parent.clenEpics
+                print "ERROR: setting clen to 1.0 metre"
+                self.parent.clen = 0.0 # metres
         else:
             print "Not implemented yet clen: ", self.parent.detInfo
 
@@ -618,7 +619,7 @@ class ExperimentInfo(object):
                     evt = self.run.event(self.times[i])
                     self.detGuaranteed = self.parent.det.calib(evt)
                     if self.detGuaranteed is not None:
-                        print "Found an event"
+                        print "Found an event with image: ", i
                         break
 
             # Setup pixel indices

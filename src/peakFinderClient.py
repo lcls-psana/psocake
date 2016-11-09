@@ -28,6 +28,7 @@ def runclient(args):
         hasCoffset = True
 
     if hasCoffset:
+        print "@@@@: ", args.coffset, ps.clen
         detectorDistance = args.coffset + ps.clen * 1e-3  # sample to detector in m
     elif hasDetectorDistance:
         detectorDistance = args.detectorDistance

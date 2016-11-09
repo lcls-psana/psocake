@@ -76,8 +76,11 @@ class RoiHistogram(object):
                     self.ret = roi.getArrayRegion(self.parent.data, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
                     self.ret = self.ret[np.where(pixelsExist == 1)]
                 elif roi.name == 'circ':
-                    self.ret = roi.getArrayRegion(self.parent.data, self.parent.img.w1.getImageItem())
-                    self.ret = self.ret[np.where(pixelsExist == 1)]
+                    try:
+                        self.ret = roi.getArrayRegion(self.parent.data, self.parent.img.w1.getImageItem())
+                        self.ret = self.ret[np.where(pixelsExist == 1)]
+                    except:
+                        pass
                 else:
                     self.ret = roi.getArrayRegion(self.parent.data, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
 

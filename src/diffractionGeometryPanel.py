@@ -264,11 +264,10 @@ class DiffractionGeometry(object):
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom"]
-                        print "Not implemented yet, cmd: ", cmd
+                        print "deployCrystfelGeometry: Not implemented yet: ", cmd
                         #p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                         #output = p.communicate()[0]
                         #p.stdout.close()
-                    # TODO: Run psana2crystfel for Rayonix
 
     def updateClen(self, arg):
         if arg == 'lcls':

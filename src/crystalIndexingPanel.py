@@ -359,8 +359,7 @@ class CrystalIndexing(object):
                     yMargin = 400
                     maxX   = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
                     maxY   = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
-                    myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">saturated='+\
-                                str(numSaturatedPeaks) + '<br>lattice='+\
+                    myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">lattice='+\
                                 latticeType +'<br>centering=' + centering + '<br>a='+\
                                 str(round(float(unitCell[0])*10,2))+'A <br>b='+str(round(float(unitCell[1])*10,2))+'A <br>c='+\
                                 str(round(float(unitCell[2])*10,2))+'A <br>&alpha;='+str(round(float(unitCell[3]),2))+\
