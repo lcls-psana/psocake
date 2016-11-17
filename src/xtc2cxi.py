@@ -490,22 +490,6 @@ for i,val in enumerate(myHitInd):
         pulseLength = 0
         numPhotons = 0
 
-    ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-    try:
-        #print "photons!!!"
-        photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
-        pulseEnergy = ebeam.ebeamL3Energy() # MeV
-    except:
-        photonEnergy = 0
-        pulseEnergy = 0
-    #print "photonEnergy: ", photonEnergy
-
-    try:
-        ds_photonEnergy_1[globalInd] = ebeam.ebeamPhotonEnergy()
-    except:
-        ds_photonEnergy_1[globalInd] = 0
-    ds_photonEnergy[globalInd] = photonEnergy
-    ds_pulseEnergy[globalInd] = pulseEnergy
     ds_pulseWidth[globalInd] = pulseLength
     ds_dist_1[globalInd] = detectorDistance
     ds_x_pixel_size_1[globalInd] = x_pixel_size
@@ -579,6 +563,26 @@ for i,val in enumerate(myHitInd):
         ds_wavelengthA_1[globalInd] = ds_wavelength_1[globalInd] * 10.
     except:
         ds_wavelengthA_1[globalInd] = 0
+
+    ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+    try:
+        ds_photonEnergy[globalInd] = ebeam.ebeamPhotonEnergy()
+    except:
+        ds_photonEnergy[globalInd] = 0
+    try:
+        photonEnergy = ebeam.ebeamPhotonEnergy() * 1.60218e-19 # J
+        pulseEnergy = ebeam.ebeamL3Energy() # MeV
+    except:
+        photonEnergy = 0
+        pulseEnergy = 0
+        if ds_wavelengthA_1[globalInd] > 0:
+            h = 6.626070e-34  # J.m
+            c = 2.99792458e8  # m/s
+            joulesPerEv = 1.602176621e-19  # J/eV
+            photonEnergy = (h / joulesPerEv * c) / (ds_wavelengthA_1[globalInd] * 1e-10)
+    ds_photonEnergy_1[globalInd] = photonEnergy
+    ds_pulseEnergy[globalInd] = pulseEnergy
+
     f.flush()
 
     evtId = ps.evt.get(psana.EventId)

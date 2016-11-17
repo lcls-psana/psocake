@@ -252,7 +252,7 @@ class DiffractionGeometry(object):
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                        print "cmd: ", cmd
+                        if self.parent.args.v >= 1: print "cmd: ", cmd
                         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                         output = p.communicate()[0]
                         p.stdout.close()
@@ -264,7 +264,7 @@ class DiffractionGeometry(object):
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                        print "cmd: ", cmd
+                        if self.parent.args.v >= 1: print "cmd: ", cmd
                         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                         output = p.communicate()[0]
                         p.stdout.close()
@@ -276,7 +276,7 @@ class DiffractionGeometry(object):
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                        print "cmd: ", cmd
+                        if self.parent.args.v >= 1: print "cmd: ", cmd
                         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                         output = p.communicate()[0]
                         p.stdout.close()
@@ -310,15 +310,16 @@ class DiffractionGeometry(object):
         if self.parent.args.v >= 1: print "Done updateDetectorDistance"
 
     def updatePhotonEnergy(self, data):
-        self.parent.photonEnergy = data
-        # E = hc/lambda
-        h = 6.626070e-34 # J.m
-        c = 2.99792458e8 # m/s
-        joulesPerEv = 1.602176621e-19 #J/eV
-        if self.parent.photonEnergy > 0:
-            self.parent.wavelength = (h/joulesPerEv*c)/self.parent.photonEnergy
-        else:
-            self.parent.wavelength = 0
+        if data > 0:
+            self.parent.photonEnergy = data
+            # E = hc/lambda
+            h = 6.626070e-34 # J.m
+            c = 2.99792458e8 # m/s
+            joulesPerEv = 1.602176621e-19 #J/eV
+            if self.parent.photonEnergy > 0:
+                self.parent.wavelength = (h/joulesPerEv*c)/self.parent.photonEnergy
+            else:
+                self.parent.wavelength = 0
         self.p1.param(self.geom_grp,self.geom_wavelength_str).setValue(self.parent.wavelength)
         if self.hasGeometryInfo():
             self.updateGeometry()

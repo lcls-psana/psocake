@@ -410,13 +410,8 @@ class ImageViewer(object):
                     self.parent.firstUpdate = True
 
         # Update photon energy
-        self.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-        if self.ebeam:
-            self.parent.photonEnergy = self.ebeam.ebeamPhotonEnergy()
-        else:
-            self.parent.photonEnergy = 0
-        self.parent.geom.p1.param(self.parent.geom.geom_grp,
-                             self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
+        self.parent.exp.updatePhotonEnergy('lcls')
+
         # Update clen
         self.parent.geom.updateClen('lcls')
 

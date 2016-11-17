@@ -468,12 +468,15 @@ class ExperimentInfo(object):
 
     def updatePixelSize(self, arg):
         if arg == 'lcls':
-            if 'cspad' in self.parent.detInfo.lower():  # FIXME: increase pixel size list: epix, rayonix
+            if 'cspad' in self.parent.detInfo.lower():  # TODO: increase pixel size list: epix, rayonix
                 self.parent.pixelSize = 110e-6  # metres
             elif 'pnccd' in self.parent.detInfo.lower():
                 self.parent.pixelSize = 75e-6  # metres
             elif 'rayonix' in self.parent.detInfo.lower():
                 self.parent.pixelSize = 89e-6  # metres
+            # Update geometry panel
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
+                    self.parent.pixelSize)  # pixel size
 
     def updatePhotonEnergy(self, arg):
         if arg == 'lcls':
@@ -481,7 +484,16 @@ class ExperimentInfo(object):
             if self.parent.ebeam:
                 self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
             else:
-                self.parent.photonEnergy = 0.0
+                try:
+                    wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # Angstrom
+                    h = 6.626070e-34  # J.m
+                    c = 2.99792458e8  # m/s
+                    joulesPerEv = 1.602176621e-19  # J/eV
+                    self.parent.photonEnergy = (h / joulesPerEv * c) / (wavelength * 1e-9)
+                except:
+                    self.parent.photonEnergy = 0.0
+            self.parent.geom.p1.param(self.parent.geom.geom_grp,
+                                 self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
 
     def setClen(self):
         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
@@ -625,9 +637,6 @@ class ExperimentInfo(object):
             self.updatePixelSize('lcls')
             # photon energy
             self.updatePhotonEnergy('lcls')
-            # Update geometry panel
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(self.parent.pixelSize) # pixel size
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
 
             # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
             if self.parent.evt is None:

@@ -89,17 +89,6 @@ def runclient(args):
 
         md.small.pulseLength = pulseLength
 
-        ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-        try:
-            photonEnergy = ebeam.ebeamPhotonEnergy()
-            pulseEnergy = ebeam.ebeamL3Energy()  # MeV
-        except:
-            photonEnergy = 0
-            pulseEnergy = 0
-
-        md.small.photonEnergy = photonEnergy
-        md.small.pulseEnergy = pulseEnergy
-
         md.small.detectorDistance = detectorDistance
 
         md.small.pixelSize = args.pixelSize
@@ -166,6 +155,22 @@ def runclient(args):
             md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
         except:
             md.small.wavelength = 0
+
+        ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+        try:
+            photonEnergy = ebeam.ebeamPhotonEnergy()
+            pulseEnergy = ebeam.ebeamL3Energy()  # MeV
+        except:
+            photonEnergy = 0
+            pulseEnergy = 0
+            if md.small.wavelength > 0:
+                h = 6.626070e-34  # J.m
+                c = 2.99792458e8  # m/s
+                joulesPerEv = 1.602176621e-19  # J/eV
+                photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-10)
+
+        md.small.photonEnergy = photonEnergy
+        md.small.pulseEnergy = pulseEnergy
 
         evtId = ps.evt.get(psana.EventId)
         md.small.sec = evtId.time()[0]
