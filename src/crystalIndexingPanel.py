@@ -154,7 +154,8 @@ class CrystalIndexing(object):
                        "-d", str(self.parent.det.name),
                        "--rootDir", '.',
                        "-c", self.geom,
-                       "-p", psanaGeom]
+                       "-p", psanaGeom,
+                       "-z", str(self.parent.clen)]
             else:
                 cmd = ["crystfel2psana",
                        "-e", self.parent.experimentName,
@@ -162,8 +163,9 @@ class CrystalIndexing(object):
                        "-d", str(self.parent.det.name),
                        "--rootDir", self.parent.rootDir,
                        "-c", self.geom,
-                       "-p", psanaGeom]
-            if self.parent.args.v >= 1: print "cmd: ", cmd
+                       "-p", psanaGeom,
+                       "-z", str(self.parent.clen)]
+            if self.parent.args.v >= 0: print "cmd: ", cmd
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             output = p.communicate()[0]
             p.stdout.close()
@@ -570,14 +572,20 @@ class IndexHandler(QtCore.QThread):
                     for i in np.arange(numLines - 1, -1, -1):  # Start from bottom
                         if ';' in geom[i].lstrip(' ')[0]: geom.pop(i)
 
-                    numQuads = 4
-                    numAsics = 16
                     columns = ['min_fs', 'min_ss', 'max_fs', 'max_ss', 'res', 'fs', 'ss', 'corner_x', 'corner_y']
                     columnsScan = ['fsx', 'fsy', 'ssx', 'ssy']
                     indexScan = []
-                    for i in np.arange(numQuads):
-                        for j in np.arange(numAsics):
-                            indexScan.append('q' + str(i) + 'a' + str(j))
+                    if 'cspad' in self.parent.detInfo.lower():
+                        numQuads = 4
+                        numAsics = 16
+                        for i in np.arange(numQuads):
+                            for j in np.arange(numAsics):
+                                indexScan.append('q' + str(i) + 'a' + str(j))
+                    elif 'rayonix' in self.parent.detInfo.lower():
+                        numQuads = 1
+                        numAsics = 1
+                        for i in np.arange(numQuads):
+                                indexScan.append('p' + str(i))
 
                     dfGeom = pd.DataFrame(np.empty((numQuads * numAsics, len(columns))), index=indexScan,
                                           columns=columns)

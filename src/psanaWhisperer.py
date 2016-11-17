@@ -11,7 +11,7 @@ class psanaWhisperer():
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
-        self.clen = clen
+        self.clenStr = clen
         self.aduPerPhoton = aduPerPhoton
         self.localCalib = localCalib
 
@@ -31,9 +31,13 @@ class psanaWhisperer():
     def updateClen(self):
         if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
             self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(self.clen)
+            self.clen = self.epics.value(self.clenStr)
         elif 'rayonix' in self.detInfo.lower() and 'mfx' in self.experimentName:
-            self.clen = 0
+            self.epics = self.ds.env().epicsStore()
+            self.clen = self.epics.value(self.clenStr)
+        elif 'rayonix' in self.detInfo.lower() and 'xpp' in self.experimentName:
+            self.epics = self.ds.env().epicsStore()
+            self.clen = self.epics.value(self.clenStr)
 
     def getDetectorAlias(self, srcOrAlias):
         for i in self.detInfoList:

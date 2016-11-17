@@ -112,8 +112,8 @@ class DiffractionGeometry(object):
 
         self.geom_grp = 'Diffraction geometry'
         self.geom_detectorDistance_str = 'Detector distance'
-        self.geom_clen_str = 'Home to Detector'
-        self.geom_coffset_str = 'Home to Sample'
+        self.geom_clen_str = 'Home to Detector (clen)'
+        self.geom_coffset_str = 'Sample to Home (coffset)'
         self.geom_photonEnergy_str = 'Photon energy'
         self.geom_wavelength_str = "Wavelength"
         self.geom_pixelSize_str = 'Pixel size'
@@ -251,8 +251,8 @@ class DiffractionGeometry(object):
                         self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                               self.parent.psocakeRunDir + "/.temp.geom"]
-                        if self.parent.args.v >= 1: print "@@@@ cmd: ", cmd
+                               self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
+                        print "cmd: ", cmd
                         p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                         output = p.communicate()[0]
                         p.stdout.close()
@@ -263,20 +263,37 @@ class DiffractionGeometry(object):
                                                    self.parent.index.index_geom_str).setValue(
                             self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                               self.parent.psocakeRunDir + "/.temp.geom"]
-                        print "deployCrystfelGeometry: Not implemented yet: ", cmd
-                        #p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                        #output = p.communicate()[0]
-                        #p.stdout.close()
+                               self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
+                        print "cmd: ", cmd
+                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                        output = p.communicate()[0]
+                        p.stdout.close()
+                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                    if '.temp.geom' in self.parent.index.geom:
+                        # Set GUI field to .temp.geom
+                        self.parent.index.p9.param(self.parent.index.index_grp,
+                                                   self.parent.index.index_geom_str).setValue(
+                            self.parent.psocakeRunDir + '/.temp.geom')
+                        cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
+                               self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
+                        print "cmd: ", cmd
+                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                        output = p.communicate()[0]
+                        p.stdout.close()
+                else:
+                    print "deployCrystfelGeometry not implemented", self.parent.detInfo.lower(), self.parent.experimentName
 
     def updateClen(self, arg):
         if arg == 'lcls':
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
+               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
+               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
                 self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
                 if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+            else:
+                print "updateClen not implemented"
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000.  # mm to metres
@@ -322,25 +339,29 @@ class DiffractionGeometry(object):
     def writeCrystfelGeom(self, arg):
         if arg == 'lcls':
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                if os.path.isfile(self.parent.index.hiddenCXI):
-                    f = h5py.File(self.parent.index.hiddenCXI,'r')
-                    encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
-                    f.close()
-                else:
-                    encoderVal = self.parent.clen # metres
+               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
+               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
+                if self.parent.index.hiddenCXI is not None:
+                    if os.path.isfile(self.parent.index.hiddenCXI):
+                        f = h5py.File(self.parent.index.hiddenCXI,'r')
+                        encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
+                        f.close()
+                    else:
+                        encoderVal = self.parent.clen # metres
 
-                coffset = self.parent.detectorDistance - encoderVal
-                if self.parent.args.v >= 1: print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
+                    coffset = self.parent.detectorDistance - encoderVal
+                    if self.parent.args.v >= 1: print "&&&&&& coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
 
-                # Replace coffset value in geometry file
-                if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
-                    for line in fileinput.input(self.parent.index.geom, inplace=True):
-                        if 'coffset' in line and line.strip()[0] is not ';':
-                            coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
-                            print coffsetStr, # comma is required
-                        else:
-                            print line, # comma is required
+                    # Replace coffset value in geometry file
+                    if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
+                        for line in fileinput.input(self.parent.index.geom, inplace=True):
+                            if 'coffset' in line and line.strip()[0] is not ';':
+                                coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
+                                print coffsetStr, # comma is required
+                            else:
+                                print line, # comma is required
+            else:
+                print "writeCrystfelGeom not implemented"
 
     def updateGeometry(self):
         if self.hasUserDefinedResolution:
@@ -487,6 +508,10 @@ class DiffractionGeometry(object):
                 geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                 geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+            else:
+                print "deploy not implemented"
             fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
             geo.save_pars_in_file(fname)
             print "#################################################"
@@ -532,6 +557,10 @@ class DiffractionGeometry(object):
                     geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                    geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+                else:
+                    print "autoDeploy not implemented"
                 fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
                 geo.save_pars_in_file(fname)
                 print "#################################################"

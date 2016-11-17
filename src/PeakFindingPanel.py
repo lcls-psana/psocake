@@ -406,7 +406,10 @@ class PeakFinding(object):
                 dim0 = 8 * 185
                 dim1 = 4 * 388
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                dim0 = 1920
+                dim0 = 1920 #FIXME: rayonix can be binned
+                dim1 = 1920
+            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                dim0 = 1920 #FIXME: rayonix can be binned
                 dim1 = 1920
             else:
                 dim0 = 0
@@ -442,7 +445,11 @@ class PeakFinding(object):
                                 img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.calib[counter, :, :]
                                 counter += 1
                     elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                        img = self.parent.calib[counter, :, :] # psana format
+                        img = self.parent.calib[:, :] # psana format
+                    elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                        img = self.parent.calib[:, :]  # psana format
+                    else:
+                        print "saveCheetahFormat not implemented"
 
                     peaks = self.peaks.copy()
                     nPeaks = peaks.shape[0]
@@ -458,6 +465,10 @@ class PeakFinding(object):
                             myHdf5[grpName + dset_posY][0, i] = cheetahRow
                             myHdf5[grpName + dset_atot][0, i] = atot
                         elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                            myHdf5[grpName + dset_posX][0, i] = col
+                            myHdf5[grpName + dset_posY][0, i] = row
+                            myHdf5[grpName + dset_atot][0, i] = atot
+                        elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
                             myHdf5[grpName + dset_posX][0, i] = col
                             myHdf5[grpName + dset_posY][0, i] = row
                             myHdf5[grpName + dset_atot][0, i] = atot

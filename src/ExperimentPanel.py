@@ -431,11 +431,13 @@ class ExperimentInfo(object):
     def updateHiddenCrystfelFiles(self, arg):
         if arg == 'lcls':
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
+                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
+                ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
                 self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
                 self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
                 self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
             else:
+                print "updateHiddenCrystfelFiles not implemented"
                 self.parent.index.hiddenCXI = None
 
     def updateDetectorDistance(self, arg):
@@ -447,8 +449,18 @@ class ExperimentInfo(object):
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                if self.parent.detectorDistance < 0.01:
+                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                if self.parent.detectorDistance < 0.01:
+                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
+                    self.parent.clen)
             else:
                 print "updateDetectorDistance: not implemented for this detector yet"
             if self.parent.args.v >= 1:
@@ -493,8 +505,16 @@ class ExperimentInfo(object):
                 self.readEpicsClen()
             except:
                 print "ERROR: No such epics variable, ", self.parent.clenEpics
-                print "ERROR: setting clen to 1.0 metre"
+                print "ERROR: setting clen to 0.0 metre"
                 self.parent.clen = 0.0 # metres
+        elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+            self.parent.clenEpics = 'XPP:ROB:POS:Z'
+            try:
+                self.readEpicsClen()
+            except:
+                print "ERROR: No such epics variable, ", self.parent.clenEpics
+                print "ERROR: setting clen to 0.0 metre"
+                self.parent.clen = 0.0  # metres
         else:
             print "Not implemented yet clen: ", self.parent.detInfo
 

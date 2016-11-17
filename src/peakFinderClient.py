@@ -28,8 +28,10 @@ def runclient(args):
         hasCoffset = True
 
     if hasCoffset:
-        print "@@@@: ", args.coffset, ps.clen
-        detectorDistance = args.coffset + ps.clen * 1e-3  # sample to detector in m
+        try:
+            detectorDistance = args.coffset + ps.clen * 1e-3  # sample to detector in m
+        except:
+            detectorDistance = 0
     elif hasDetectorDistance:
         detectorDistance = args.detectorDistance
 
@@ -106,7 +108,9 @@ def runclient(args):
         if "cxi" in args.exp:
             md.small.lclsDet = es.value(args.clen)  # mm
         elif "mfx" in args.exp:
-            md.small.lclsDet = 0  # FIXME
+            md.small.lclsDet = es.value(args.clen)  # mm
+        elif "xpp" in args.exp:
+            md.small.lclsDet = es.value(args.clen)  # mm
 
         try:
             md.small.ebeamCharge = es.value('BEND:DMP1:400:BDES')
@@ -175,7 +179,7 @@ def runclient(args):
             # Write image in cheetah format
             img = ps.getCheetahImg()
             #assert (img is not None)
-            md.addarray('data', img)
+            if img is not None: md.addarray('data', img)
         md.send() # send mpi data object to master when desired
     # At the end of the run, send the powder of hits and misses
     md = mpidata()

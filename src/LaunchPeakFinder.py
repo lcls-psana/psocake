@@ -43,6 +43,11 @@ class LaunchPeakFinder(QtCore.QThread):
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                 dim0 = 1920
                 dim1 = 1920
+            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                dim0 = 1920
+                dim1 = 1920
+            else:
+                print "saveCheetahFormatMask not implemented"
 
             fname = self.parent.pk.hitParam_outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
             print "Saving static mask in Cheetah format: ", fname
@@ -61,7 +66,10 @@ class LaunchPeakFinder(QtCore.QThread):
                             img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.mk.combinedMask[counter, :, :]
                             counter += 1
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    img = self.parent.mk.combinedMask[counter, :, :] # psana format
+                    img = self.parent.mk.combinedMask[:, :] # psana format
+                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                    print self.parent.mk.combinedMask, self.parent.mk.combinedMask.shape
+                    img = self.parent.mk.combinedMask[:, :]  # psana format
             dset[:,:] = img
             myHdf5.close()
 
