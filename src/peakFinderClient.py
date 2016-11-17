@@ -167,7 +167,7 @@ def runclient(args):
                 h = 6.626070e-34  # J.m
                 c = 2.99792458e8  # m/s
                 joulesPerEv = 1.602176621e-19  # J/eV
-                photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-10)
+                photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)
 
         md.small.photonEnergy = photonEnergy
         md.small.pulseEnergy = pulseEnergy

@@ -485,7 +485,7 @@ class ExperimentInfo(object):
                 self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
             else:
                 try:
-                    wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # Angstrom
+                    wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # nanometre
                     h = 6.626070e-34  # J.m
                     c = 2.99792458e8  # m/s
                     joulesPerEv = 1.602176621e-19  # J/eV

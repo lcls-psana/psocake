@@ -579,7 +579,7 @@ for i,val in enumerate(myHitInd):
             h = 6.626070e-34  # J.m
             c = 2.99792458e8  # m/s
             joulesPerEv = 1.602176621e-19  # J/eV
-            photonEnergy = (h / joulesPerEv * c) / (ds_wavelengthA_1[globalInd] * 1e-10)
+            photonEnergy = (h / joulesPerEv * c) / (ds_wavelengthA_1[globalInd] * 1e-9)
     ds_photonEnergy_1[globalInd] = photonEnergy
     ds_pulseEnergy[globalInd] = pulseEnergy
 
