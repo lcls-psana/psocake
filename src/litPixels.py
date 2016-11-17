@@ -50,13 +50,24 @@ def getAveragePhotonEnergy():
     if numSample > eventTotal:
         numSample = eventTotal
     photonEnergySample = np.zeros(numSample)
+    ebeamDet = psana.Detector('EBeam')
+    epics = ds.env().epicsStore()
     counter = 0
     for i,val in enumerate(randomEvents[:numSample]):
         evt = run.event(times[val])
-        ebeam = evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+        ebeam = ebeamDet.get(evt) #ebeam = evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
         if ebeam is not None:
             photonEnergySample[counter] = ebeam.ebeamPhotonEnergy()
             counter += 1
+        else:
+            try:
+                wavelength = epics.value('SIOC:SYS0:ML00:AO192')  # nanometre
+                h = 6.626070e-34  # J.m
+                c = 2.99792458e8  # m/s
+                joulesPerEv = 1.602176621e-19  # J/eV
+                photonEnergySample[counter] = (h / joulesPerEv * c) / (wavelength * 1e-9)
+            except:
+                photonEnergySample[counter] = 0.0
     photonEnergy = np.median(photonEnergySample[:counter])/1000.
     return photonEnergy
 

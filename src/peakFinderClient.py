@@ -20,6 +20,8 @@ def runclient(args):
     ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib)
     ps.setupExperiment()
 
+    ebeamDet = psana.Detector('EBeam')
+
     hasCoffset = False
     hasDetectorDistance = False
     if args.detectorDistance is not 0:
@@ -156,7 +158,7 @@ def runclient(args):
         except:
             md.small.wavelength = 0
 
-        ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+        ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
         try:
             photonEnergy = ebeam.ebeamPhotonEnergy()
             pulseEnergy = ebeam.ebeamL3Energy()  # MeV

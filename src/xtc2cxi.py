@@ -459,6 +459,7 @@ for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
     ds_expId[globalInd] = val
     ps.getEvent(val)
+    ebeamDet = psana.Detector('EBeam')
     # Write image in cheetah format
     if mode == 'sfx' and 'cspad' in ps.detInfo.lower():
         img = ps.getCheetahImg()
@@ -564,7 +565,7 @@ for i,val in enumerate(myHitInd):
     except:
         ds_wavelengthA_1[globalInd] = 0
 
-    ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+    ebeam = ebeamDet.get(ps.evt)  #ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
     try:
         ds_photonEnergy[globalInd] = ebeam.ebeamPhotonEnergy()
     except:
