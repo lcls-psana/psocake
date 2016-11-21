@@ -17,4 +17,7 @@ if 'cspad' in args.det.lower():
     cspad.translate((0,0,args.clen*1e6)) # um
     cspad.to_psana_file(args.psana)
 elif 'rayonix' in args.det.lower():
-    print "Not implemented: Converting Rayonix .geom to .data"
+    #print "Not implemented: Converting Rayonix .geom to .data"
+    rayonix = camera.CompoundAreaCamera.from_crystfel_file(args.crystfel)
+    rayonix.translate((0, 0, args.clen * 1e6))  # um
+    rayonix.to_psana_file(args.psana)

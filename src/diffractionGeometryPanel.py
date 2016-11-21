@@ -508,9 +508,13 @@ class DiffractionGeometry(object):
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+                top = geo.get_top_geo()
+                children = top.get_list_of_children()[0]
+                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
             elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+                top = geo.get_top_geo()
+                children = top.get_list_of_children()[0]
+                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
             else:
                 print "deploy not implemented"
             fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
@@ -557,9 +561,13 @@ class DiffractionGeometry(object):
                 if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                     geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+                    top = geo.get_top_geo()
+                    children = top.get_list_of_children()[0]
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                    geo.move_geo('RAYONIX:V1', 0, dx=dx, dy=dy, dz=0)
+                    top = geo.get_top_geo()
+                    children = top.get_list_of_children()[0]
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
                 else:
                     print "autoDeploy not implemented"
                 fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
