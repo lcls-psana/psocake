@@ -34,11 +34,14 @@ class RoiHistogram(object):
         # Custom ROI for selecting an image region
         self.roi = pg.ROI(pos=[0, -250], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
                           pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
+        self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
+        self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
         self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
         self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
         self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
         self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+        self.roi.addScaleHandle([0, 1], [1, 0])
         self.roi.name = 'rect'
         self.parent.img.w1.getView().addItem(self.roi)
         self.roiPoly = pg.PolyLineROI([[300, -250], [300,-50], [500,-50], [500,-150], [375,-150], [375,-250]],
@@ -48,6 +51,13 @@ class RoiHistogram(object):
         self.parent.img.w1.getView().addItem(self.roiPoly)
         self.roiCircle = pg.CircleROI([600, -250], size=[200, 200], snapSize=0.1, scaleSnap=False, translateSnap=False,
                                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine})
+        self.roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
+        self.roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
+        self.roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
+        self.roiCircle.addScaleHandle([0, 0.5], [0.5, 0.5])
+        self.roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5])
+        self.roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5])
+        self.roiCircle.addScaleHandle([1.0, 0.5], [0.5, 0.5])
         self.roiCircle.name = 'circ'
         self.parent.img.w1.getView().addItem(self.roiCircle)
 

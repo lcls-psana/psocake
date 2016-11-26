@@ -329,7 +329,7 @@ if hasData:
         try:
             f = h5py.File(peakFile, 'r+')
             if '/entry_1/result_1/index' in f: del f['/entry_1/result_1/index']
-            indexedPeaks[np.where(indexedPeaks==-1)] = -2
+            indexedPeaks[np.where(indexedPeaks==-1)] = -2 # This is required to indicate indexing has finished
             f['/entry_1/result_1/index'] = indexedPeaks
             # Remove large data
             if keepData == False:

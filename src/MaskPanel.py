@@ -309,12 +309,25 @@ class MaskMaker(object):
                 # Rect mask
                 self.mask_rect = pg.ROI(pos=[-300, 0], size=[200, 200], snapSize=1.0, scaleSnap=True, translateSnap=True,
                                         pen={'color': 'c', 'width': 4})
+                self.mask_rect.addScaleHandle([1, 0.5], [0.5, 0.5])
+                self.mask_rect.addScaleHandle([0.5, 0], [0.5, 0.5])
                 self.mask_rect.addScaleHandle([0.5, 1], [0.5, 0.5])
                 self.mask_rect.addScaleHandle([0, 0.5], [0.5, 0.5])
+                self.mask_rect.addScaleHandle([0, 0], [1, 1])  # bottom,left handles scaling both vertically and horizontally
+                self.mask_rect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+                self.mask_rect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+                self.mask_rect.addScaleHandle([0, 1], [1, 0])
                 #self.mask_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
                 self.mask_circle = pg.CircleROI([-300, 600], size=[200, 200], snapSize=1.0, scaleSnap=True,
                                                 translateSnap=True, pen={'color': 'c', 'width': 4})
+                self.mask_circle.addScaleHandle([0.1415, 0.707 * 1.2], [0.5, 0.5])
+                self.mask_circle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
+                self.mask_circle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
+                self.mask_circle.addScaleHandle([0, 0.5], [0.5, 0.5])
+                self.mask_circle.addScaleHandle([0.5, 0.0], [0.5, 0.5])
+                self.mask_circle.addScaleHandle([0.5, 1.0], [0.5, 0.5])
+                self.mask_circle.addScaleHandle([1.0, 0.5], [0.5, 0.5])
                 # Polygon mask
                 self.mask_poly = pg.PolyLineROI([[-300, 300], [-300,500], [-100,500], [-100,400], [-225,400], [-225,300]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 

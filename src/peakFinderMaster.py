@@ -144,10 +144,8 @@ def runmaster(args,nClients):
                 updateHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, md.small.nsec)
                 updateHdf5(myHdf5, '/LCLS/fiducial', numHits, md.small.fid)
                 updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.evtNum)
-                updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.evtNum)  # same as /LCLS/eventNumber
+                updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.evtNum) # same as /LCLS/eventNumber
                 # Save images
-                print "md.data: ", numHits, nPeaks, maxRes
-                print "data: ", md.data, md.data.shape
                 myHdf5["/entry_1/data_1/data"].resize((numHits + 1, md.data.shape[0], md.data.shape[1]))
                 myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
                 numHits += 1

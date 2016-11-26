@@ -55,7 +55,6 @@ class psanaWhisperer():
             except ValueError:
                 continue
         self.detInfoList = list(set(myAreaDetectors))
-        print "detInfoList: ", self.detInfoList
 
     def getEvent(self, number):
         self.evt = self.run.event(self.times[number])
