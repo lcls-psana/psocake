@@ -11,6 +11,15 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-50
+2016-12-09 Chunhong Yoon
+- Psocake lite contains peak finder panel
+
+Tag: V00-01-49
+2016-11-21 Chunhong Yoon
+- Better handling of epic variables, such as photon energy
+- Correct handling of Rayonix geometry from psgeom
+
 Tag: V00-01-48
 2016-10-26 Chunhong Yoon
 - Fix cxi file generation
