@@ -549,8 +549,8 @@ class PeakFinding(object):
                     # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                     #                           around pixel with maximal intensity.
                     self.peakRadius = int(self.hitParam_alg1_radius)
-                    self.peaks = self.alg.peak_finder_v1(self.parent.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
-                                                         radius=self.peakRadius,
+                    self.peaks = self.alg.peak_finder_v4r2(self.parent.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
+                                                         r0=self.peakRadius,
                                                          dr=self.hitParam_alg1_dr)
                 elif self.algorithm == 2:
                     # v2 - define peaks for regions of connected pixels above threshold
@@ -566,11 +566,8 @@ class PeakFinding(object):
                                                rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
                 self.numPeaksFound = self.peaks.shape[0]
 
-                for peak in self.peaks :
-                        seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-                        if self.parent.isCspad:
-                            cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg,row,col)
-                if self.parent.args.v >= 1: print "num peaks found: ", self.numPeaksFound, self.peaks.shape
+                if self.parent.args.v >= 1: print "Num peaks found: ", self.numPeaksFound, self.peaks.shape
+
                 # update clen
                 self.parent.geom.updateClen('lcls')
 

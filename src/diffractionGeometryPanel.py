@@ -253,9 +253,12 @@ class DiffractionGeometry(object):
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
                         if self.parent.args.v >= 1: print "cmd: ", cmd
-                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                        output = p.communicate()[0]
-                        p.stdout.close()
+                        try:
+                            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                            p.communicate()[0]
+                            p.stdout.close()
+                        except:
+                            print "Warning! deployCrystfelGeometry() failed."
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     if '.temp.geom' in self.parent.index.geom:
                         # Set GUI field to .temp.geom
@@ -265,9 +268,12 @@ class DiffractionGeometry(object):
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
                         if self.parent.args.v >= 1: print "cmd: ", cmd
-                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                        output = p.communicate()[0]
-                        p.stdout.close()
+                        try:
+                            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                            p.communicate()[0]
+                            p.stdout.close()
+                        except:
+                            print "Warning! deployCrystfelGeometry() failed."
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
                     if '.temp.geom' in self.parent.index.geom:
                         # Set GUI field to .temp.geom
@@ -277,9 +283,12 @@ class DiffractionGeometry(object):
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                                self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
                         if self.parent.args.v >= 1: print "cmd: ", cmd
-                        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                        output = p.communicate()[0]
-                        p.stdout.close()
+                        try:
+                            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                            p.communicate()[0]
+                            p.stdout.close()
+                        except:
+                            print "Warning! deployCrystfelGeometry() failed."
                 else:
                     print "deployCrystfelGeometry not implemented", self.parent.detInfo.lower(), self.parent.experimentName
 
