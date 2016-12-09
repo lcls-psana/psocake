@@ -312,9 +312,12 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.img.d1, 'bottom', self.mouse.d5)  ## place d1 at left edge of dock area
             self.area.moveDock(self.img.d1, 'above', self.stack.d7)
 
-            self.area.addDock(self.exp.d2, 'right')  ## place d2 at right edge of dock area
+            self.area.addDock(self.roi.d4, 'right')
+            self.area.addDock(self.exp.d2, 'above', self.roi.d4)
             self.area.addDock(self.mk.d12, 'bottom', self.exp.d2)
-            self.area.addDock(self.roi.d4, 'bottom', self.exp.d2)  ## place d4 at right edge of dock area
+            self.area.addDock(self.pk.d9, 'above', self.mk.d12)
+
+
 
         ###############
         ### Threads ###
