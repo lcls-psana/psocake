@@ -109,7 +109,8 @@ class LaunchPeakFinder(QtCore.QThread):
                        " --alg_atot_thr "+str(self.parent.pk.hitParam_alg1_atot_thr)+\
                        " --alg_son_min "+str(self.parent.pk.hitParam_alg1_son_min)+\
                        " --alg1_thr_low "+str(self.parent.pk.hitParam_alg1_thr_low)+\
-                       " --alg1_thr_high "+str(self.parent.pk.hitParam_alg1_thr_high)+\
+                       " --alg1_thr_high "+str(self.parent.pk.hitParam_alg1_thr_high)+ \
+                       " --alg1_rank " + str(self.parent.pk.hitParam_alg1_rank) + \
                        " --alg1_radius "+str(self.parent.pk.hitParam_alg1_radius)+\
                        " --alg1_dr "+str(self.parent.pk.hitParam_alg1_dr)
             # elif self.parent.pk.algorithm == 3:
@@ -174,6 +175,7 @@ class LaunchPeakFinder(QtCore.QThread):
             cmd += " --instrument " + str(self.parent.det.instrument())
             cmd += " --pixelSize " + str(self.parent.pixelSize)
 
+            if self.parent.pk.hitParam_extra: cmd += " " + self.parent.pk.hitParam_extra
             cmd += " -r " + str(run)
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

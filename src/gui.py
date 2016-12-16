@@ -8,9 +8,6 @@
 # TODO: Run from ffb
 # TODO: script for histogram of lit pixels, percentile display
 
-# TODO: update ROI on every event, but skip if ROI is outside
-# TODO: update clen
-
 import sys, signal
 import numpy as np
 import pyqtgraph as pg
@@ -316,8 +313,6 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.exp.d2, 'above', self.roi.d4)
             self.area.addDock(self.mk.d12, 'bottom', self.exp.d2)
             self.area.addDock(self.pk.d9, 'above', self.mk.d12)
-
-
 
         ###############
         ### Threads ###

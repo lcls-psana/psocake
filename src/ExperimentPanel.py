@@ -437,7 +437,7 @@ class ExperimentInfo(object):
                 self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
                 self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
             else:
-                print "updateHiddenCrystfelFiles not implemented"
+                if self.parent.args.v >= 1: print "updateHiddenCrystfelFiles not implemented"
                 self.parent.index.hiddenCXI = None
 
     def updateDetectorDistance(self, arg):
@@ -462,7 +462,7 @@ class ExperimentInfo(object):
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
                     self.parent.clen)
             else:
-                print "updateDetectorDistance: not implemented for this detector yet"
+                if self.parent.args.v >= 1: print "updateDetectorDistance: not implemented for this detector yet"
             if self.parent.args.v >= 1:
                 print "detectorDistance (m), self.clen (m), self.coffset (m): ", self.parent.detectorDistance, self.parent.clen, self.parent.coffset
 
@@ -528,7 +528,7 @@ class ExperimentInfo(object):
                 print "ERROR: setting clen to 0.0 metre"
                 self.parent.clen = 0.0  # metres
         else:
-            print "Not implemented yet clen: ", self.parent.detInfo
+            if self.parent.args.v >= 1: print "Not implemented yet clen: ", self.parent.detInfo
 
     def readEpicsClen(self):
         for i in range(120):  # assume at least 1 second run time

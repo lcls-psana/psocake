@@ -27,6 +27,7 @@ parser.add_argument("--alg_atot_thr",help="number of events to process",default=
 parser.add_argument("--alg_son_min",help="number of events to process",default=10., type=float)
 parser.add_argument("--alg1_thr_low",help="number of events to process",default=80., type=float)
 parser.add_argument("--alg1_thr_high",help="number of events to process",default=270., type=float)
+parser.add_argument("--alg1_rank",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg1_radius",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg1_dr",help="number of events to process",default=1., type=float)
 # parser.add_argument("--alg3_rank",help="number of events to process",default=3, type=int)
@@ -65,6 +66,7 @@ parser.add_argument("--minPeaks", help="Index only if above minimum number of pe
 parser.add_argument("--maxPeaks", help="Index only if below maximum number of peaks",default=2048, type=int)
 parser.add_argument("--minRes", help="Index only if above minimum resolution",default=0, type=int)
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
+parser.add_argument("--profile", help="Turn on profiling. Saves timing information for calibration, peak finding, and saving to hdf5", action='store_true')
 parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
 args = parser.parse_args()
 
@@ -230,6 +232,14 @@ if rank == 0:
     myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
     myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs,)*-1, dtype=int)
     myHdf5.flush()
+
+    if args.profile:
+        print "findPeaks: ", args.profile
+        myHdf5.create_dataset("/entry_1/result_1/calibTime", data=np.zeros(numJobs, ), dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/peakTime", data=np.zeros(numJobs, ), dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/saveTime", data=np.zeros(numJobs, ), dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/reshapeTime", (0,), maxshape=(None,), dtype=float)
+        myHdf5.flush()
 
     ds_nPeaks = myHdf5.create_dataset("/entry_1/result_1/nPeaks",(0,),
                                              maxshape=(None,),

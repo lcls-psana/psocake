@@ -3,6 +3,7 @@ import numpy as np
 from mpidata import mpidata 
 import PeakFinder as pf
 import psanaWhisperer
+import time
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -41,7 +42,15 @@ def runclient(args):
         if nevent == args.noe : break
         if nevent%(size-1) != rank-1: continue # different ranks look at different events
         evt = run.event(times[nevent])
+        if args.profile:
+            tic = time.time()
+            print "peakFinderClient: ", args.profile
+
         detarr = d.calib(evt)
+
+        if args.profile:
+            calibTime = time.time() - tic # Time to calibrate per event
+
         if detarr is None: continue
 
         # Initialize hit finding
@@ -51,8 +60,11 @@ def runclient(args):
                                           args.algorithm, args.alg_npix_min,
                                           args.alg_npix_max, args.alg_amax_thr,
                                           args.alg_atot_thr, args.alg_son_min,
-                                          alg1_thr_low=args.alg1_thr_low, alg1_thr_high=args.alg1_thr_high,
-                                          alg1_radius=args.alg1_radius, alg1_dr=args.alg1_dr,
+                                          alg1_thr_low=args.alg1_thr_low,
+                                          alg1_thr_high=args.alg1_thr_high,
+                                          alg1_rank=args.alg1_rank,
+                                          alg1_radius=args.alg1_radius,
+                                          alg1_dr=args.alg1_dr,
                                           streakMask_on=args.streakMask_on,
                                           streakMask_sigma=args.streakMask_sigma,
                                           streakMask_width=args.streakMask_width,
@@ -73,12 +85,21 @@ def runclient(args):
                                           minResCutoff=args.minRes,
                                           clen=args.clen,
                                           localCalib=args.localCalib)
+        if args.profile:
+            tic = time.time()
+
         d.peakFinder.findPeaks(detarr,evt)
+
+        if args.profile:
+            peakTime = time.time() - tic # Time to find the peaks per event
         md=mpidata()
         md.addarray('peaks',d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes
         md.small.powder = 0
+        if args.profile:
+            md.small.calibTime = calibTime
+            md.small.peakTime = peakTime
 
         # other cxidb data
         ps.getEvent(nevent)

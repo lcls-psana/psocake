@@ -238,7 +238,7 @@ class DiffractionGeometry(object):
                         minDiff = diff
                         self.calibFile = fname
         except:
-            print "Couldn't find psana geometry"
+            if self.parent.args.v >= 1: print "Couldn't find psana geometry"
             self.calibFile = None
 
     def deployCrystfelGeometry(self, arg):
@@ -290,7 +290,7 @@ class DiffractionGeometry(object):
                         except:
                             print "Warning! deployCrystfelGeometry() failed."
                 else:
-                    print "deployCrystfelGeometry not implemented", self.parent.detInfo.lower(), self.parent.experimentName
+                    if self.parent.args.v >= 1: print "deployCrystfelGeometry not implemented", self.parent.detInfo.lower(), self.parent.experimentName
 
     def updateClen(self, arg):
         if arg == 'lcls':
@@ -302,7 +302,7 @@ class DiffractionGeometry(object):
                 self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
                 if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
             else:
-                print "updateClen not implemented"
+                if self.parent.args.v >= 1: print "updateClen not implemented"
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000.  # mm to metres
@@ -371,7 +371,7 @@ class DiffractionGeometry(object):
                             else:
                                 print line, # comma is required
             else:
-                print "writeCrystfelGeom not implemented"
+                if self.parent.args.v >= 1: print "writeCrystfelGeom not implemented"
 
     def updateGeometry(self):
         if self.hasUserDefinedResolution:

@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-51
+2016-12-15 Chunhong Yoon
+- Fix bug in peak finding for 2D detectors
+
 Tag: V00-01-50
 2016-12-09 Chunhong Yoon
 - Psocake lite contains peak finder panel

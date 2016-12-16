@@ -193,7 +193,7 @@ class psanaWhisperer():
                         minDiff = diff
                         self.calibFile = fname
         except:
-            print "Couldn't find psana geometry"
+            if self.parent.args.v >= 1: print "Couldn't find psana geometry"
             self.calibFile = None
 
     def setupRadialBackground(self):

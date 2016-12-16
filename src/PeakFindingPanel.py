@@ -41,6 +41,7 @@ class PeakFinding(object):
         self.hitParam_algorithm1_str = 'Droplet'
         self.hitParam_alg1_thr_low_str = 'thr_low'
         self.hitParam_alg1_thr_high_str = 'thr_high'
+        self.hitParam_alg1_rank_str = 'rank'
         self.hitParam_alg1_radius_str = 'radius'
         self.hitParam_alg1_dr_str = 'dr'
         # algorithm 2
@@ -91,6 +92,7 @@ class PeakFinding(object):
         self.hitParam_noe_str = 'Number of events to process'
         self.hitParam_threshold_str = 'Indexable number of peaks'
         self.hitParam_launch_str = 'Launch peak finder'
+        self.hitParam_extra_str = 'Extra parameters'
 
         self.save_minPeaks_str = 'Minimum number of peaks'
         self.save_maxPeaks_str = 'Maximum number of peaks'
@@ -112,6 +114,7 @@ class PeakFinding(object):
         self.hitParam_alg1_son_min = 7.
         self.hitParam_alg1_thr_low = 250.
         self.hitParam_alg1_thr_high = 600.
+        self.hitParam_alg1_rank = 2
         self.hitParam_alg1_radius = 2
         self.hitParam_alg1_dr = 1
         # self.hitParam_alg2_npix_min = 1.
@@ -152,6 +155,8 @@ class PeakFinding(object):
         self.maxPeaks = 2048
         self.minRes = -1
         self.sample = 'sample'
+        self.profile = 0
+        self.hitParam_extra = ''
 
         self.params = [
             {'name': self.hitParam_grp, 'type': 'group', 'children': [
@@ -176,8 +181,10 @@ class PeakFinding(object):
                      'tip': "Grow a seed peak if above this value"},
                     {'name': self.hitParam_alg1_thr_high_str, 'type': 'float', 'value': self.hitParam_alg1_thr_high,
                      'tip': "Start a seed peak if above this value"},
-                    {'name': self.hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius,
+                    {'name': self.hitParam_alg1_rank_str, 'type': 'int', 'value': self.hitParam_alg1_rank,
                      'tip': "region of integration is a square, (2r+1)x(2r+1)"},
+                    {'name': self.hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius,
+                     'tip': "region inside the region of interest"},
                     {'name': self.hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr,
                      'tip': "background region outside the region of interest"},
                 ]},
@@ -203,6 +210,7 @@ class PeakFinding(object):
                 {'name': self.hitParam_cpu_str, 'type': 'int', 'value': self.hitParam_cpus},
                 {'name': self.hitParam_noe_str, 'type': 'int', 'value': self.hitParam_noe,
                  'tip': "number of events to process, default=-1 means process all events"},
+                {'name': self.hitParam_extra_str, 'type': 'str', 'value': self.hitParam_extra, 'tip': "Extra peak finding flags"},
                 {'name': self.hitParam_launch_str, 'type': 'action'},
             ]},
         ]
@@ -237,38 +245,43 @@ class PeakFinding(object):
                         d = json.load(infile)
                         if d[self.hitParam_algorithm_str] == 1:
                             # Update variables
-                            #self.algorithm = d[self.hitParam_algorithm_str]
-                            self.hitParam_alg1_npix_min = d[self.hitParam_alg1_npix_min_str]
-                            self.hitParam_alg1_npix_max = d[self.hitParam_alg1_npix_max_str]
-                            self.hitParam_alg1_amax_thr = d[self.hitParam_alg1_amax_thr_str]
-                            self.hitParam_alg1_atot_thr = d[self.hitParam_alg1_atot_thr_str]
-                            self.hitParam_alg1_son_min = d[self.hitParam_alg1_son_min_str]
-                            self.hitParam_alg1_thr_low = d[self.hitParam_alg1_thr_low_str]
-                            self.hitParam_alg1_thr_high = d[self.hitParam_alg1_thr_high_str]
-                            self.hitParam_alg1_radius = int(d[self.hitParam_alg1_radius_str])
-                            self.hitParam_alg1_dr = d[self.hitParam_alg1_dr_str]
-                            # Update GUI
-                            self.doingUpdate = True
-                            #self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(self.algorithm)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_min_str).setValue(
-                                self.hitParam_alg1_npix_min)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_max_str).setValue(
-                                self.hitParam_alg1_npix_max)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_amax_thr_str).setValue(
-                                self.hitParam_alg1_amax_thr)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_atot_thr_str).setValue(
-                                self.hitParam_alg1_atot_thr)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_son_min_str).setValue(
-                                self.hitParam_alg1_son_min)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_low_str).setValue(
-                                self.hitParam_alg1_thr_low)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_high_str).setValue(
-                                self.hitParam_alg1_thr_high)
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_radius_str).setValue(
-                                self.hitParam_alg1_radius)
-                            self.doingUpdate = False
-                            self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_dr_str).setValue(
-                                self.hitParam_alg1_dr)
+                            try:
+                                self.hitParam_alg1_npix_min = d[self.hitParam_alg1_npix_min_str]
+                                self.hitParam_alg1_npix_max = d[self.hitParam_alg1_npix_max_str]
+                                self.hitParam_alg1_amax_thr = d[self.hitParam_alg1_amax_thr_str]
+                                self.hitParam_alg1_atot_thr = d[self.hitParam_alg1_atot_thr_str]
+                                self.hitParam_alg1_son_min = d[self.hitParam_alg1_son_min_str]
+                                self.hitParam_alg1_thr_low = d[self.hitParam_alg1_thr_low_str]
+                                self.hitParam_alg1_thr_high = d[self.hitParam_alg1_thr_high_str]
+                                self.hitParam_alg1_rank = int(d[self.hitParam_alg1_rank_str])
+                                self.hitParam_alg1_radius = int(d[self.hitParam_alg1_radius_str])
+                                self.hitParam_alg1_dr = d[self.hitParam_alg1_dr_str]
+                                # Update GUI
+                                self.doingUpdate = True
+                                #self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(self.algorithm)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_min_str).setValue(
+                                    self.hitParam_alg1_npix_min)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_max_str).setValue(
+                                    self.hitParam_alg1_npix_max)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_amax_thr_str).setValue(
+                                    self.hitParam_alg1_amax_thr)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_atot_thr_str).setValue(
+                                    self.hitParam_alg1_atot_thr)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_son_min_str).setValue(
+                                    self.hitParam_alg1_son_min)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_low_str).setValue(
+                                    self.hitParam_alg1_thr_low)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_high_str).setValue(
+                                    self.hitParam_alg1_thr_high)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_rank_str).setValue(
+                                    self.hitParam_alg1_rank)
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_radius_str).setValue(
+                                    self.hitParam_alg1_radius)
+                                self.doingUpdate = False
+                                self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_dr_str).setValue(
+                                    self.hitParam_alg1_dr)
+                            except:
+                                pass
 
     def writeStatus(self, fname, d):
         json.dump(d, open(fname, 'w'))
@@ -290,6 +303,7 @@ class PeakFinding(object):
                  self.hitParam_alg1_son_min_str: self.hitParam_alg1_son_min,
                  self.hitParam_alg1_thr_low_str: self.hitParam_alg1_thr_low,
                  self.hitParam_alg1_thr_high_str: self.hitParam_alg1_thr_high,
+                 self.hitParam_alg1_rank_str: self.hitParam_alg1_rank,
                  self.hitParam_alg1_radius_str: self.hitParam_alg1_radius,
                  self.hitParam_alg1_dr_str: self.hitParam_alg1_dr}
             self.writeStatus(peakParamFname, d)
@@ -339,6 +353,8 @@ class PeakFinding(object):
                 self.minRes = data
             elif path[1] == self.save_sample_str:
                 self.sample = data
+            elif path[1] == self.hitParam_extra_str:
+                self.hitParam_extra = data
             elif path[2] == self.hitParam_alg1_npix_min_str and path[1] == self.hitParam_algorithm1_str:
                 self.hitParam_alg1_npix_min = data
                 self.algInitDone = False
@@ -377,6 +393,12 @@ class PeakFinding(object):
                     self.updateClassification()
             elif path[2] == self.hitParam_alg1_thr_high_str and path[1] == self.hitParam_algorithm1_str:
                 self.hitParam_alg1_thr_high = data
+                self.algInitDone = False
+                self.userUpdate = True
+                if self.showPeaks and self.doingUpdate is False:
+                    self.updateClassification()
+            elif path[2] == self.hitParam_alg1_rank_str and path[1] == self.hitParam_algorithm1_str:
+                self.hitParam_alg1_rank = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
@@ -549,9 +571,12 @@ class PeakFinding(object):
                     # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                     #                           around pixel with maximal intensity.
                     self.peakRadius = int(self.hitParam_alg1_radius)
-                    self.peaks = self.alg.peak_finder_v4r2(self.parent.calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
-                                                         r0=self.peakRadius,
-                                                         dr=self.hitParam_alg1_dr)
+                    self.peaks = self.alg.peak_finder_v4r2(self.parent.calib,
+                                                           thr_low=self.hitParam_alg1_thr_low,
+                                                           thr_high=self.hitParam_alg1_thr_high,
+                                                           rank=int(self.hitParam_alg1_rank),
+                                                           r0=self.peakRadius,
+                                                           dr=self.hitParam_alg1_dr)
                 elif self.algorithm == 2:
                     # v2 - define peaks for regions of connected pixels above threshold
                     self.peakRadius = int(self.hitParam_alg2_r0)
@@ -599,36 +624,34 @@ class PeakFinding(object):
         self.parent.img.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
-                if 1:#try:
-                    self.ix = self.parent.det.indexes_x(self.parent.evt)
-                    self.iy = self.parent.det.indexes_y(self.parent.evt)
-                    if self.ix is None:
-                        self.iy = np.tile(np.arange(self.parent.calib.shape[0]),[self.parent.calib.shape[1], 1])
-                        self.ix = np.transpose(self.iy)
-                    self.iX = np.array(self.ix, dtype=np.int64)
-                    self.iY = np.array(self.iy, dtype=np.int64)
-                    if len(self.iX.shape)==2:
-                        self.iX = np.expand_dims(self.iX,axis=0)
-                        self.iY = np.expand_dims(self.iY,axis=0)
-                    cenX = self.iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-                    cenY = self.iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-                    self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
-                    diameter = self.peakRadius*2+1
-                    self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
-                                              size=diameter, brush=(255,255,255,0), \
-                                              pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
-                    # Write number of peaks found
-                    xMargin = 5 # pixels
-                    yMargin = 0  # pixels
-                    maxX = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
-                    maxY = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
-                    myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
-                                str(self.numPeaksFound) + ' <br>Res=' + str(int(self.peaksMaxRes)) + '<br></span></div>'
-                    self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
-                    self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
-                    self.parent.img.peak_text.setPos(maxX, maxY)
-                #except:
-                #    pass
+                self.ix = self.parent.det.indexes_x(self.parent.evt)
+                self.iy = self.parent.det.indexes_y(self.parent.evt)
+                if self.ix is None:
+                    (_, dim0, dim1) = self.parent.calib.shape
+                    self.iy = np.tile(np.arange(dim0),[dim1, 1])
+                    self.ix = np.transpose(self.iy)
+                self.iX = np.array(self.ix, dtype=np.int64)
+                self.iY = np.array(self.iy, dtype=np.int64)
+                if len(self.iX.shape)==2:
+                    self.iX = np.expand_dims(self.iX,axis=0)
+                    self.iY = np.expand_dims(self.iY,axis=0)
+                cenX = self.iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
+                diameter = self.peakRadius*2+1
+                self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
+                # Write number of peaks found
+                xMargin = 5 # pixels
+                yMargin = 0  # pixels
+                maxX = np.max(self.ix) + xMargin
+                maxY = np.max(self.iy) - yMargin
+                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
+                            str(self.numPeaksFound) + ' <br>Res=' + str(int(self.peaksMaxRes)) + '<br></span></div>'
+                self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+                self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
+                self.parent.img.peak_text.setPos(maxX, maxY)
             else:
                 self.parent.img.peak_feature.setData([], [], pxMode=False)
                 self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))

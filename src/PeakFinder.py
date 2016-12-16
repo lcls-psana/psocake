@@ -127,7 +127,7 @@ class PeakFinder:
         self.ix = self.det.indexes_x(self.evt)
         self.iy = self.det.indexes_y(self.evt)
         if self.ix is None:
-            self.iy = np.tile(np.arange(self.userMask.shape[0]), [self.userMask.shape[1], 1])
+            self.iy = np.tile(np.arange(self.userMask.shape[1]), [self.userMask.shape[2], 1])
             self.ix = np.transpose(self.iy)
         self.iX = np.array(self.ix, dtype=np.int64)
         self.iY = np.array(self.iy, dtype=np.int64)
@@ -163,8 +163,11 @@ class PeakFinder:
         if self.algorithm == 1:
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
             #                           around pixel with maximal intensity.
-            self.peaks = self.alg.peak_finder_v4r2(calib, thr_low=self.hitParam_alg1_thr_low, thr_high=self.hitParam_alg1_thr_high, \
-                                   r0=self.hitParam_alg1_radius, dr=self.hitParam_alg1_dr)
+            self.peaks = self.alg.peak_finder_v4r2(calib,
+                                                   thr_low=self.hitParam_alg1_thr_low,
+                                                   thr_high=self.hitParam_alg1_thr_high,
+                                                   r0=self.hitParam_alg1_radius,
+                                                   dr=self.hitParam_alg1_dr)
         elif self.algorithm == 3:
             self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
         elif self.algorithm == 4:

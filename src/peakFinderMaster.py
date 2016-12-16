@@ -36,14 +36,14 @@ def getNoe(args):
             numJobs = len(times)
     return numJobs
 
-def updateHdf5(h5file,dataset,ind,val):
+def updateHdf5(h5file, dataset, ind, val):
     h5file[dataset].resize((ind + 1,))
     try:
         h5file[dataset][ind] = val
     except:
         h5file[dataset][ind] = 0
 
-def runmaster(args,nClients):
+def runmaster(args, nClients):
 
     runStr = "%04d" % args.run
     fname = args.outDir +"/"+ args.exp +"_"+ runStr + ".cxi"
@@ -53,6 +53,9 @@ def runmaster(args,nClients):
     dset_posY = "/peakYPosRawAll"
     dset_atot = "/peakTotalIntensityAll"
     dset_maxRes = "/maxResAll"
+    dset_saveTime = "/saveTime"
+    dset_calibTime = "/calibTime"
+    dset_peakTime = "/peakTime"
     statusFname = args.outDir + "/status_peaks.txt"
 
     powderHits = None
@@ -88,11 +91,17 @@ def runmaster(args,nClients):
             try:
                 nPeaks = md.peaks.shape[0]
                 maxRes = md.small.maxRes
+                if args.profile:
+                    calibTime = md.small.calibTime
+                    peakTime = md.small.peakTime
             except:
                 continue
             if nPeaks > 2048: # only save upto maxNumPeaks
                 md.peaks = md.peaks[:2048]
                 nPeaks = md.peaks.shape[0]
+
+            if args.profile:
+                tic = time.time()
 
             for i,peak in enumerate(md.peaks):
                 seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
@@ -103,13 +112,23 @@ def runmaster(args,nClients):
                 myHdf5.flush()
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
-
             myHdf5.flush()
+
+            if args.profile:
+                print "peakFinderMaster: ", args.profile
+                saveTime = time.time() - tic # Time to save the peaks found per event
+                myHdf5[grpName + dset_calibTime][md.small.eventNum] = calibTime
+                myHdf5[grpName + dset_peakTime][md.small.eventNum] = peakTime
+                myHdf5[grpName + dset_saveTime][md.small.eventNum] = saveTime
+                myHdf5.flush()
+
             # If the event is a hit
             if nPeaks >= args.minPeaks and \
                nPeaks <= args.maxPeaks and \
                maxRes >= args.minRes and \
                hasattr(md, 'data'):
+                if args.profile:
+                    tic = time.time()
                 # Save peak information
                 updateHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits, nPeaks)
                 myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits+1,2048))
@@ -148,8 +167,11 @@ def runmaster(args,nClients):
                 # Save images
                 myHdf5["/entry_1/data_1/data"].resize((numHits + 1, md.data.shape[0], md.data.shape[1]))
                 myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
+                if args.profile:
+                    reshapeTime = time.time() - tic
+                    updateHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numHits, reshapeTime)
                 numHits += 1
-
+                myHdf5.flush()
             numProcessed += 1
             # Update status
             if numProcessed % 120:
