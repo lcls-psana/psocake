@@ -41,15 +41,13 @@ def runclient(args):
     for nevent in np.arange(len(times)):
         if nevent == args.noe : break
         if nevent%(size-1) != rank-1: continue # different ranks look at different events
-        evt = run.event(times[nevent])
-        if args.profile:
-            tic = time.time()
-            print "peakFinderClient: ", args.profile
 
+        if args.profile: tic = time.time()
+
+        evt = run.event(times[nevent])
         detarr = d.calib(evt)
 
-        if args.profile:
-            calibTime = time.time() - tic # Time to calibrate per event
+        if args.profile: calibTime = time.time() - tic # Time to calibrate per event
 
         if detarr is None: continue
 

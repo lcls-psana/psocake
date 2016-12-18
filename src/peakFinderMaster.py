@@ -127,8 +127,7 @@ def runmaster(args, nClients):
                nPeaks <= args.maxPeaks and \
                maxRes >= args.minRes and \
                hasattr(md, 'data'):
-                if args.profile:
-                    tic = time.time()
+                if args.profile: tic = time.time()
                 # Save peak information
                 updateHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits, nPeaks)
                 myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits+1,2048))
