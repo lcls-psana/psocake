@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-52
+2016-12-18 Chunhong Yoon
+- Fix PeakFinder bug by removing set_mask function from PyAlgos
+
 Tag: V00-01-51
 2016-12-15 Chunhong Yoon
 - Fix bug in peak finding for 2D detectors

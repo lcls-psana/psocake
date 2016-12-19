@@ -83,6 +83,7 @@ class PeakFinder:
         if algorithm == 1:
             self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
             self.hitParam_alg1_thr_high = kwargs["alg1_thr_high"]
+            self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
         elif algorithm == 3:
@@ -142,6 +143,10 @@ class PeakFinder:
         self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.distance * 1e6)  # convert to um
 
     def findPeaks(self, calib, evt):
+
+        if self.streakMask_on: # make new streak mask
+            self.streakMask = self.StreakMask.getStreakMaskCalib(evt)
+
         # Apply background correction
         if self.medianFilterOn:
             calib -= median_filter_ndarr(calib, self.medianRank)
@@ -151,14 +156,17 @@ class PeakFinder:
             calib = self.rb.subtract_bkgd(calib * self.pf)
             calib.shape = self.userPsanaMask.shape  # FIXME: shape is 1d
 
-        if self.streakMask_on: # make new streak mask
-            self.streakMask = self.StreakMask.getStreakMaskCalib(evt)
         if self.streakMask is not None:
             self.combinedMask = self.userPsanaMask * self.streakMask
         else:
             self.combinedMask = self.userPsanaMask
         # set new mask
-        self.alg.set_mask(self.combinedMask)
+        self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
+        # set peak-selector parameters:
+        self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                        amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                        son_min=self.son_min)
+        #self.alg.set_mask(self.combinedMask) # This doesn't work reliably
         # set algorithm specific parameters
         if self.algorithm == 1:
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
@@ -166,6 +174,7 @@ class PeakFinder:
             self.peaks = self.alg.peak_finder_v4r2(calib,
                                                    thr_low=self.hitParam_alg1_thr_low,
                                                    thr_high=self.hitParam_alg1_thr_high,
+                                                   rank=self.hitParam_alg1_rank,
                                                    r0=self.hitParam_alg1_radius,
                                                    dr=self.hitParam_alg1_dr)
         elif self.algorithm == 3:

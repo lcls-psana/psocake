@@ -42,12 +42,12 @@ def runclient(args):
         if nevent == args.noe : break
         if nevent%(size-1) != rank-1: continue # different ranks look at different events
 
-        if args.profile: tic = time.time()
+        if args.profile: startTic = time.time()
 
         evt = run.event(times[nevent])
         detarr = d.calib(evt)
 
-        if args.profile: calibTime = time.time() - tic # Time to calibrate per event
+        if args.profile: calibTime = time.time() - startTic # Time to calibrate per event
 
         if detarr is None: continue
 
@@ -83,15 +83,13 @@ def runclient(args):
                                           minResCutoff=args.minRes,
                                           clen=args.clen,
                                           localCalib=args.localCalib)
-        if args.profile:
-            tic = time.time()
+        if args.profile: tic = time.time()
 
-        d.peakFinder.findPeaks(detarr,evt)
+        d.peakFinder.findPeaks(detarr, evt)
 
-        if args.profile:
-            peakTime = time.time() - tic # Time to find the peaks per event
+        if args.profile: peakTime = time.time() - tic # Time to find the peaks per event
         md=mpidata()
-        md.addarray('peaks',d.peakFinder.peaks)
+        md.addarray('peaks', d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes
         md.small.powder = 0
@@ -197,7 +195,6 @@ def runclient(args):
         md.small.sec = evtId.time()[0]
         md.small.nsec = evtId.time()[1]
         md.small.fid = evtId.fiducials()
-        md.small.evtNum = nevent
 
         if len(d.peakFinder.peaks) >= args.minPeaks and \
            len(d.peakFinder.peaks) <= args.maxPeaks and \
@@ -206,6 +203,11 @@ def runclient(args):
             img = ps.getCheetahImg()
             #assert (img is not None)
             if img is not None: md.addarray('data', img)
+
+        if args.profile:
+            totalTime = time.time() - startTic
+            md.small.totalTime = totalTime
+            md.small.rankID = rank
         md.send() # send mpi data object to master when desired
     # At the end of the run, send the powder of hits and misses
     md = mpidata()

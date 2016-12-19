@@ -234,11 +234,12 @@ if rank == 0:
     myHdf5.flush()
 
     if args.profile:
-        print "findPeaks: ", args.profile
         myHdf5.create_dataset("/entry_1/result_1/calibTime", data=np.zeros(numJobs, ), dtype=float)
         myHdf5.create_dataset("/entry_1/result_1/peakTime", data=np.zeros(numJobs, ), dtype=float)
         myHdf5.create_dataset("/entry_1/result_1/saveTime", data=np.zeros(numJobs, ), dtype=float)
         myHdf5.create_dataset("/entry_1/result_1/reshapeTime", (0,), maxshape=(None,), dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/totalTime", data=np.zeros(numJobs, ), dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/rankID", data=np.zeros(numJobs, ), dtype=int)
         myHdf5.flush()
 
     ds_nPeaks = myHdf5.create_dataset("/entry_1/result_1/nPeaks",(0,),

@@ -36,8 +36,13 @@ def getNoe(args):
             numJobs = len(times)
     return numJobs
 
+def reshapeHdf5(h5file, dataset, ind, numAppend):
+    h5file[dataset].resize((ind + numAppend,))
+
+def cropHdf5(h5file, dataset, ind):
+    h5file[dataset].resize((ind,))
+
 def updateHdf5(h5file, dataset, ind, val):
-    h5file[dataset].resize((ind + 1,))
     try:
         h5file[dataset][ind] = val
     except:
@@ -56,11 +61,17 @@ def runmaster(args, nClients):
     dset_saveTime = "/saveTime"
     dset_calibTime = "/calibTime"
     dset_peakTime = "/peakTime"
+    dset_totalTime = "/totalTime"
+    dset_rankID = "/rankID"
     statusFname = args.outDir + "/status_peaks.txt"
 
     powderHits = None
     powderMisses = None
 
+    maxSize = 0
+    numInc = 0
+    inc = 100
+    dataShape = (0,0)
     numProcessed = 0
     numHits = 0
     hitRate = 0.0
@@ -94,14 +105,18 @@ def runmaster(args, nClients):
                 if args.profile:
                     calibTime = md.small.calibTime
                     peakTime = md.small.peakTime
+                    totalTime = md.small.totalTime
+                    rankID = md.small.rankID
             except:
+                nPeaks = 0
+                maxRes = 0
                 continue
+
             if nPeaks > 2048: # only save upto maxNumPeaks
                 md.peaks = md.peaks[:2048]
                 nPeaks = md.peaks.shape[0]
 
-            if args.profile:
-                tic = time.time()
+            if args.profile: tic = time.time()
 
             for i,peak in enumerate(md.peaks):
                 seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
@@ -115,11 +130,12 @@ def runmaster(args, nClients):
             myHdf5.flush()
 
             if args.profile:
-                print "peakFinderMaster: ", args.profile
                 saveTime = time.time() - tic # Time to save the peaks found per event
                 myHdf5[grpName + dset_calibTime][md.small.eventNum] = calibTime
                 myHdf5[grpName + dset_peakTime][md.small.eventNum] = peakTime
                 myHdf5[grpName + dset_saveTime][md.small.eventNum] = saveTime
+                myHdf5[grpName + dset_totalTime][md.small.eventNum] = totalTime
+                myHdf5[grpName + dset_rankID][md.small.eventNum] = rankID
                 myHdf5.flush()
 
             # If the event is a hit
@@ -127,14 +143,52 @@ def runmaster(args, nClients):
                nPeaks <= args.maxPeaks and \
                maxRes >= args.minRes and \
                hasattr(md, 'data'):
-                if args.profile: tic = time.time()
+                # Assign a bigger array
+                if maxSize == numHits:
+                    if args.profile: tic = time.time()
+                    reshapeHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits, inc)
+                    myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits + inc, 2048))
+                    myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits + inc, 2048))
+                    myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits + inc, 2048))
+                    reshapeHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, inc)
+                    reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, inc)
+                    reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, inc) # J
+                    reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_energy', numHits, inc)
+                    reshapeHdf5(myHdf5, '/entry_1/instrument_1/detector_1/distance', numHits, inc)
+                    reshapeHdf5(myHdf5, '/entry_1/instrument_1/detector_1/x_pixel_size', numHits, inc)
+                    reshapeHdf5(myHdf5, '/entry_1/instrument_1/detector_1/y_pixel_size', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/detector_1/EncoderValue', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/eVernier', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/charge', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/peakCurrentAfterSecondBunchCompressor', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/pulseLength', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/ebeamEnergyLossConvertedToPhoton_mJ', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/calculatedNumberOfPhotons', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/photonBeamEnergy', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/wavelength', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/photon_wavelength_A', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/machineTime', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/fiducial', numHits, inc)
+                    reshapeHdf5(myHdf5, '/LCLS/eventNumber', numHits, inc)
+                    reshapeHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, inc) # same as /LCLS/eventNumber
+                    dataShape = md.data.shape
+                    myHdf5["/entry_1/data_1/data"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
+                    if args.profile:
+                        reshapeHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, 1)
+                        reshapeTime = time.time() - tic
+                        updateHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, reshapeTime)
+                    maxSize += inc
+                    numInc += 1
+
                 # Save peak information
                 updateHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits, nPeaks)
-                myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits+1,2048))
                 myHdf5["/entry_1/result_1/peakXPosRaw"][numHits,:] = myHdf5[grpName+dset_posX][md.small.eventNum,:]
-                myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits+1,2048))
                 myHdf5["/entry_1/result_1/peakYPosRaw"][numHits,:] = myHdf5[grpName+dset_posY][md.small.eventNum,:]
-                myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits+1,2048))
                 myHdf5["/entry_1/result_1/peakTotalIntensity"][numHits,:] = myHdf5[grpName+dset_atot][md.small.eventNum,:]
                 updateHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, maxRes)
                 # Save epics
@@ -161,14 +215,10 @@ def runmaster(args, nClients):
                 updateHdf5(myHdf5, '/LCLS/machineTime', numHits, md.small.sec)
                 updateHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, md.small.nsec)
                 updateHdf5(myHdf5, '/LCLS/fiducial', numHits, md.small.fid)
-                updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.evtNum)
-                updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.evtNum) # same as /LCLS/eventNumber
+                updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.eventNum)
+                updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.eventNum) # same as /LCLS/eventNumber
                 # Save images
-                myHdf5["/entry_1/data_1/data"].resize((numHits + 1, md.data.shape[0], md.data.shape[1]))
                 myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
-                if args.profile:
-                    reshapeTime = time.time() - tic
-                    updateHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numHits, reshapeTime)
                 numHits += 1
                 myHdf5.flush()
             numProcessed += 1
@@ -183,6 +233,42 @@ def runmaster(args, nClients):
                     print "Couldn't update status"
                     pass
 
+    # Crop back to the correct size
+    cropHdf5(myHdf5, '/entry_1/result_1/nPeaks', numHits)
+    myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits, 2048))
+    myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits, 2048))
+    myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits, 2048))
+    cropHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits)
+    cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits)
+    cropHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits)
+    cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits)
+    cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_energy', numHits)
+    cropHdf5(myHdf5, '/entry_1/instrument_1/detector_1/distance', numHits)
+    cropHdf5(myHdf5, '/entry_1/instrument_1/detector_1/x_pixel_size', numHits)
+    cropHdf5(myHdf5, '/entry_1/instrument_1/detector_1/y_pixel_size', numHits)
+    cropHdf5(myHdf5, '/LCLS/detector_1/EncoderValue', numHits)
+    cropHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits)
+    cropHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits)
+    cropHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits)
+    cropHdf5(myHdf5, '/LCLS/eVernier', numHits)
+    cropHdf5(myHdf5, '/LCLS/charge', numHits)
+    cropHdf5(myHdf5, '/LCLS/peakCurrentAfterSecondBunchCompressor', numHits)
+    cropHdf5(myHdf5, '/LCLS/pulseLength', numHits)
+    cropHdf5(myHdf5, '/LCLS/ebeamEnergyLossConvertedToPhoton_mJ', numHits)
+    cropHdf5(myHdf5, '/LCLS/calculatedNumberOfPhotons', numHits)
+    cropHdf5(myHdf5, '/LCLS/photonBeamEnergy', numHits)
+    cropHdf5(myHdf5, '/LCLS/wavelength', numHits)
+    cropHdf5(myHdf5, '/LCLS/photon_wavelength_A', numHits)
+    cropHdf5(myHdf5, '/LCLS/machineTime', numHits)
+    cropHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits)
+    cropHdf5(myHdf5, '/LCLS/fiducial', numHits)
+    cropHdf5(myHdf5, '/LCLS/eventNumber', numHits)
+    cropHdf5(myHdf5, '/entry_1/experimental_identifier', numHits)  # same as /LCLS/eventNumber
+    myHdf5["/entry_1/data_1/data"].resize((numHits, dataShape[0], dataShape[1]))
+    if args.profile:
+        cropHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc)
+
+    # Save attributes
     myHdf5["LCLS/detector_1/EncoderValue"].attrs["numEvents"] = numHits
     myHdf5["LCLS/detector_1/electronBeamEnergy"].attrs["numEvents"] = numHits
     myHdf5["LCLS/detector_1/beamRepRate"].attrs["numEvents"] = numHits
