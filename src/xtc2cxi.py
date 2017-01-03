@@ -84,7 +84,7 @@ else:
     backgroundThreshMax = float(args.backgroundThresh)
 
 # Set up psana
-ps = psanaWhisperer.psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton=aduPerPhoton)
+ps = psanaWhisperer.psanaWhisperer(experimentName, runNumber, detInfo, args.clen, aduPerPhoton=aduPerPhoton)
 ps.setupExperiment()
 
 # Read list of files
@@ -175,7 +175,7 @@ if args.detectorDistance is not 0:
 if args.coffset is not 0:
     hasCoffset = True
 
-ps = psanaWhisperer(experimentName, runNumber, detInfo, aduPerPhoton)#, backgroundThreshMin, backgroundThreshMax)
+ps = psanaWhisperer.psanaWhisperer(experimentName, runNumber, detInfo, args.clen, aduPerPhoton)#, backgroundThreshMin, backgroundThreshMax)
 ps.setupExperiment()
 startTime = ps.getStartTime()
 numEvents = ps.eventTotal
