@@ -225,20 +225,14 @@ class Window(QtGui.QWidget):
     def textLabels(self, idx):
         global propLabels
         global userLabels
-        userLabel = "None"
-        propLabel = "None"
-        if userLabels[idx] == 1:
-            userLabel = "Single"
-        elif userLabels[idx] == 2:
-            userLabel = "Multi"
-        elif userLabels[idx] == 3:
-            userLabel = "Dunno"
-        if propLabels[idx] == 1:
-            propLabel = "Single"
-        elif propLabels[idx] == 2:
-            propLabel = "Multi"
-        elif propLabels[idx] == 3:
-            propLabel = "Dunno"
+        if userLabels[idx] == 0:
+            userLabel = "None"
+        else:
+            userLabel = self.labelTypes[int(userLabels[idx]-1)]
+        if propLabels[idx] == 0:
+            propLabel = "None"
+        else:
+            propLabel = self.labelTypes[int(propLabels[idx]-1)]
         return userLabel, propLabel
 
     # Select all the images
