@@ -161,11 +161,11 @@ class PeakFinder:
         else:
             self.combinedMask = self.userPsanaMask
         # set new mask
-        self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
+        #self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
         # set peak-selector parameters:
-        self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-                                        amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-                                        son_min=self.son_min)
+        #self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+        #                                amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+        #                                son_min=self.son_min)
         #self.alg.set_mask(self.combinedMask) # This doesn't work reliably
         # set algorithm specific parameters
         if self.algorithm == 1:
