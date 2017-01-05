@@ -2,8 +2,13 @@ import numpy as np
 import subprocess
 import os
 import psana
-from LogBook.runtables import RunTables
-import LogbookCrawler
+try:
+    logbook_present = True
+    from LogBook.runtables import RunTables
+except ImportError:
+    logbook_present = False
+if logbook_present:
+    import LogbookCrawler
 import Detector.PyDetector
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
@@ -243,13 +248,14 @@ class ExperimentInfo(object):
         self.resetVariables()
     
         # Setup elog
-        self.rt = RunTables(**{'web-service-url': 'https://pswww.slac.stanford.edu/ws-kerb'})
-        try:
-            self.table = self.rt.findUserTable(exper_name=self.parent.experimentName, table_name='Run summary')
-        except:
-            print "Your experiment may not exist"
-            print "Or you need a kerberos ticket. Type: kinit"
-            exit()
+        if logbook_present:
+            self.rt = RunTables(**{'web-service-url': 'https://pswww.slac.stanford.edu/ws-kerb'})
+            try:
+                self.table = self.rt.findUserTable(exper_name=self.parent.experimentName, table_name='Run summary')
+            except:
+                print "Your experiment may not exist"
+                print "Or you need a kerberos ticket. Type: kinit"
+                exit()
     
         self.setupExperiment()
     
@@ -392,8 +398,11 @@ class ExperimentInfo(object):
             with open(self.loggerFile, "r") as myfile:
                 content = myfile.readlines()
                 if content[0].strip() == self.username:
-                    self.logger = True
-                    if self.parent.args.v >= 1: print "I'm an elogger"
+                    if logbook_present:
+                        self.logger = True
+                    else:
+                        print "WARNING: logbook not present"
+                    if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
                 else:
                     self.logger = False
                     if self.parent.args.v >= 1: print "I'm not an elogger"

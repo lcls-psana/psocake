@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-53
+2017-1-5 David Schneider
+- conditional import on logbook to get psocake to run against conda
+	
 Tag: V00-01-52
 2016-12-18 Chunhong Yoon
 - Fix PeakFinder bug by removing set_mask function from PyAlgos
