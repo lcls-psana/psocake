@@ -35,9 +35,9 @@ parser.add_argument("--hitThresh", help="hit only if above minimum number of pix
 parser.add_argument("--backgroundThresh", help="use as miss if below maximum number of pixels, or a range specified by a colon (SPI)",default='-1', type=str)
 parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, type=float)
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
+parser.add_argument("--saveADU", help="Save assembled images in ADU.", action='store_true')
+parser.add_argument("--savePhot", help="Save assembled images in photons.", action='store_true')
 args = parser.parse_args()
-
-print "xtc2cxi args: ", args
 
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
@@ -124,7 +124,6 @@ while notDone:
             hitInd = ((nHits >= hitThreshMin) & (nHits <= hitThreshMax)).nonzero()[0]
             if backgroundThreshMax > -1:
                 missInd = ((nHits >= backgroundThreshMin) & (nHits <= backgroundThreshMax)).nonzero()[0]
-                print "missInd: ", missInd
             numHits = len(hitInd)
         f.close()
         notDone = 0
@@ -382,20 +381,23 @@ if rank == 0:
         data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
         source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
     elif mode == 'spi':
-        dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
-        # chunks=(1,dim0,dim1),dtype=float)#,
-        # compression='gzip',
-        # compression_opts=9)
-        dset_1.attrs["axes"] = "experiment_identifier:y:x"
-        dset_1.attrs["numEvents"] = numHits
-        dset_2 = detector_1.create_dataset("photons", (numHits, dim0, dim1), dtype=int)
-        dset_2.attrs["axes"] = "experiment_identifier:y:x"
-        dset_2.attrs["numEvents"] = numHits
+        if args.saveADU:
+            dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
+            # chunks=(1,dim0,dim1),dtype=float)#,
+            # compression='gzip',
+            # compression_opts=9)
+            dset_1.attrs["axes"] = "experiment_identifier:y:x"
+            dset_1.attrs["numEvents"] = numHits
+        if args.savePhot:
+            dset_2 = detector_1.create_dataset("photons", (numHits, dim0, dim1), dtype=int)
+            dset_2.attrs["axes"] = "experiment_identifier:y:x"
+            dset_2.attrs["numEvents"] = numHits
         # Soft links
         if "data_1" in entry_1:
             del entry_1["data_1"]
-        data_1 = entry_1.create_group("data_1")
-        data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
+        if args.saveADU:
+            data_1 = entry_1.create_group("data_1")
+            data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
         source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
     f.flush()
     f.close()
@@ -444,10 +446,12 @@ if mode == 'sfx':
     ds_atot = f.require_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
     ds_maxRes = f.require_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
 elif mode == 'spi':
-    dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
-                               dtype=float)  # ,chunks=(1,dim0,dim1))
-    dset_2 = f.require_dataset("entry_1/instrument_1/detector_1/photons", (numHits, dim0, dim1),
-                               dtype=int)
+    if args.saveADU:
+        dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
+                                   dtype=float)  # ,chunks=(1,dim0,dim1))
+    if args.savePhot:
+        dset_2 = f.require_dataset("entry_1/instrument_1/detector_1/photons", (numHits, dim0, dim1),
+                                   dtype=int)
     ds_nHits = f.require_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
 
 if rank == 0:
@@ -476,14 +480,14 @@ for i,val in enumerate(myHitInd):
             ind = abs(missInd - val)
             backgroundEvent = missInd[np.argmin(ind)]
             print "background: ", val, backgroundEvent
-            img = ps.getCleanAssembledImg(backgroundEvent)
-            phot = ps.getCleanAssembledPhotons(backgroundEvent)
+            if args.saveADU: img = ps.getCleanAssembledImg(backgroundEvent)
+            if args.savePhot: phot = ps.getCleanAssembledPhotons(backgroundEvent)
         else:
-            img = ps.getAssembledImg()
+            if args.saveADU: img = ps.getAssembledImg()
             assert (img is not None)
-            phot = ps.getAssembledPhotons()
-        dset_1[globalInd, :, :] = img
-        dset_2[globalInd, :, :] = phot
+            if args.savePhot: phot = ps.getAssembledPhotons()
+            if args.saveADU: dset_1[globalInd, :, :] = img
+            if args.savePhot: dset_2[globalInd, :, :] = phot
 
     es = ps.ds.env().epicsStore()
     try:

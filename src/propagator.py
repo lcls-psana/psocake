@@ -32,11 +32,15 @@ p = subprocess.Popen(['whoami'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 out, err = p.communicate()
 user = out[:len(out)-1]
 
+global minIntensity, maxIntensity
+minIntensity = "-1"
+maxIntensity = "-1"
+
 global autoPropagate
 autoPropagate = True
 
 global maxEvents
-maxEvents = "20"
+maxEvents = "8"
 
 global dialogVisible
 dialogVisible = True
@@ -87,6 +91,8 @@ class Window(QtGui.QWidget):
         self.lineEdit_2 = QtGui.QLineEdit(self.centralwidget)
         self.lineEdit_2.setGeometry(QtCore.QRect(40, py, 60, dh))
         self.lineEdit_2.setObjectName(_fromUtf8("lineEdit_2"))
+        self.lineEdit_2.setText(minIntensity)
+        self.lineEdit_2.textChanged[str].connect(self.onMinChanged)
         # Max text
         self.l2 = QtGui.QLabel(self)
         self.l2.setText("Max:")
@@ -96,6 +102,8 @@ class Window(QtGui.QWidget):
         self.lineEdit_3 = QtGui.QLineEdit(self.centralwidget)
         self.lineEdit_3.setGeometry(QtCore.QRect(140, py, 60, dh))
         self.lineEdit_3.setObjectName(_fromUtf8("lineEdit_3"))
+        self.lineEdit_3.setText(maxIntensity)
+        self.lineEdit_3.textChanged[str].connect(self.onMaxChanged)
         # Change contrast button
         self.pushButton = QtGui.QPushButton(self.centralwidget)
         self.pushButton.setGeometry(QtCore.QRect(210, py, 120, dh))
@@ -155,6 +163,16 @@ class Window(QtGui.QWidget):
         for i in _types:
             if i.strip(): self.labelTypes.append(i.strip())
         self.numLabelTypes = len(self.labelTypes)
+
+    def onMinChanged(self, text):
+        global minIntensity
+        self.lineEdit_2.setText(text)
+        minIntensity = self.lineEdit_2.text()
+
+    def onMaxChanged(self, text):
+        global maxIntensity
+        self.lineEdit_3.setText(text)
+        maxIntensity = self.lineEdit_3.text()
 
     def onChanged(self, text):
         global maxEvents  
@@ -260,10 +278,12 @@ class Window(QtGui.QWidget):
 
     # Adjust image display
     def adjust(self):
+        global minIntensity, maxIntensity
         for val in self.selected:
             idx = self.ind.index(val)
             img = self.gridLayout.itemAt(idx).widget().getItem(0,0).allChildren()[1]
-            img.setLevels([float(self.lineEdit_2.text()), float(self.lineEdit_3.text())])
+            if int(minIntensity) is not -1 and int(maxIntensity) is not -1:
+                img.setLevels([float(self.lineEdit_2.text()), float(self.lineEdit_3.text())])
 
     def pop(self, arr, h, w, ind):
         self.gridLayoutWidget = QtGui.QWidget(self.centralwidget)
@@ -280,7 +300,7 @@ class Window(QtGui.QWidget):
         if int(num) != num: num = int(num + 1)
         else: num = int(num)
         #self.layout.setSpacing(25)
-        global ir
+        global ir, minIntensity, maxIntensity
         for row in range(num):
             for column in range(4):
                 if(row*4+column < len(arr)):
@@ -295,7 +315,12 @@ class Window(QtGui.QWidget):
                     userColor, propColor = self.defaultBackground(idx)
                     img = pg.ImageItem()
                     img.setImage(arr[row*4+column])
-                    img.setLevels([0,55])
+
+                    if int(minIntensity) is not -1 and int(maxIntensity) is not -1:
+                        img.setLevels([float(minIntensity), float(maxIntensity)])
+                    #else:
+                    #    img.setLevels([0,55])
+
                     vb.addItem(img)
                     origX = img.image.shape[0]/10.0
                     origY = img.image.shape[1]-img.image.shape[1]/10.0
