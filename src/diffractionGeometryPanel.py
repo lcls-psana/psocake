@@ -513,17 +513,18 @@ class DiffractionGeometry(object):
             # Calculate detector translation in x and y
             dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreX)  # microns
             dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreY)  # microns
+            dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance*1e6 # microns
             geo = self.parent.det.geometry(self.parent.evt)
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
+                geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                 top = geo.get_top_geo()
                 children = top.get_list_of_children()[0]
-                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
+                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
             elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
                 top = geo.get_top_geo()
                 children = top.get_list_of_children()[0]
-                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
+                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
             else:
                 print "deploy not implemented"
             fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
@@ -566,17 +567,18 @@ class DiffractionGeometry(object):
                 # Calculate detector translation in x and y
                 dx = self.parent.pixelSize * 1e6 * (self.parent.cx - centreRow)  # microns
                 dy = self.parent.pixelSize * 1e6 * (self.parent.cy - centreCol)  # microns
+                dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
                 geo = self.parent.det.geometry(self.parent.evt)
                 if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                    geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=0)
+                    geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     top = geo.get_top_geo()
                     children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
                     top = geo.get_top_geo()
                     children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=0)
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
                 else:
                     print "autoDeploy not implemented"
                 fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'

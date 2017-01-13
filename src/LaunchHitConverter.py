@@ -61,6 +61,7 @@ class LaunchHitConverter(QtCore.QThread):
                   " -i " + runDir + \
                   " --sample " + self.parent.hf.hitParam_sample + \
                   " --instrument " + self.parent.det.instrument() + \
+                  " --clen " + str(self.parent.clenEpics) + \
                   " --pixelSize " + str(self.parent.pixelSize) + \
                   " --detectorDistance " + str(self.parent.detectorDistance) + \
                   " --hitThresh " + str(self.parent.hf.hitParam_hitThresh) + \

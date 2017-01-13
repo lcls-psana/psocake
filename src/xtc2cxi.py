@@ -37,6 +37,8 @@ parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, typ
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 args = parser.parse_args()
 
+print "xtc2cxi args: ", args
+
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
 
