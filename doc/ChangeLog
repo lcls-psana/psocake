@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-54
+2017-1-12 Chunhong Yoon
+- Deploy detector distance when manually deploy button is used
+
 Tag: V00-01-53
 2017-1-5 David Schneider
 - conditional import on logbook to get psocake to run against conda
