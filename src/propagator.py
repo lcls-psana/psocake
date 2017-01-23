@@ -510,7 +510,7 @@ def diffusionKernel(X, eps, knn, D=None):
     P = G/deg
     return P, D
 
-def propagate(matrix):#, list):
+def propagate(matrix, list):
     for i in np.arange(X[:,0].size):
         label = np.amax(matrix[:,i])
         if label != 0:
@@ -523,21 +523,21 @@ def propagate(matrix):#, list):
 def fillProp():
     global propLabels
     global userLabels
-    #num = 0
-    #while 1:
-    #    list = []
-    #    for i in np.arange(X[:,0].size):
-    #        if propLabels[i] != 0 :
-    #            list.append(i)
-    #    matrix = P[list,:]
-    #    if num == matrix.shape[0]:
-    #        num = matrix.shape[0]
-    #        break
-    #    num = matrix.shape[0]
-    #    print "propagate"
-    #    propagate(matrix, list)
+    num = 0
+    while 1:
+        list = []
+        for i in np.arange(X[:,0].size):
+            if propLabels[i] != 0 :
+                list.append(i)
+        matrix = P[list,:]
+        if num == matrix.shape[0]:
+            num = matrix.shape[0]
+            break
+        num = matrix.shape[0]
+        print "propagate"
+        propagate(matrix, list)
     #print "###: ", userLabels, len(userLabels)
-    propagate(P)#,np.arange(X[:,0].size))
+    #propagate(P,np.arange(X[:,0].size))
     ##Update the dataset
     files = {}
     filePath = "/reg/d/psdm/" + expName[:3] + "/" + expName + "/scratch/" + user + "/psocake"
@@ -563,14 +563,14 @@ def fillProp():
 
 ## Propagate Button ##
 def onClick(event):
-    #list = []
-    #for i in np.arange(X[:,0].size):
-    #    if propLabels[i] != 0 :
-    #        list.append(i)
-    #matrix = P[list,:]
+    list = []
+    for i in np.arange(X[:,0].size):
+        if propLabels[i] != 0 :
+            list.append(i)
+    matrix = P[list,:]
     #print matrix.shape
-    #propagate(matrix, list)
-    propagate(P)#,np.arange(X[:,0].size))
+    propagate(matrix, list)
+    #propagate(P,np.arange(X[:,0].size))
     ax.clear()
     colors = ['red' if propLabels[idx] == 1 else 'green' if propLabels[idx] == 2 else 'blue' if propLabels[idx] == 3 else 'black' for idx, val in enumerate(X[:,1])]
     ax.scatter(X[:,0],X[:,1],X[:,2], color = colors, picker=5, alpha=0.1)
