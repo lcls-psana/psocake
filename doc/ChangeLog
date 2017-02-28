@@ -11,6 +11,10 @@ Package author: Chunhong "Chuck" Yoon
 Please describe any modifications that you made to the package in the
 reverse time order.
 
+Tag: V00-01-55
+2017-2-27 Chunhong Yoon
+- Disable logbook
+
 Tag: V00-01-54
 2017-1-12 Chunhong Yoon
 - Deploy detector distance when manually deploy button is used

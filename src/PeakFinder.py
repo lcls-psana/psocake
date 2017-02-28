@@ -166,7 +166,7 @@ class PeakFinder:
         #self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
         #                                amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
         #                                son_min=self.son_min)
-        #self.alg.set_mask(self.combinedMask) # This doesn't work reliably
+        self.alg.set_mask(self.combinedMask) # This doesn't work reliably
         # set algorithm specific parameters
         if self.algorithm == 1:
             # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region

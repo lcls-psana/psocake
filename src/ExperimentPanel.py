@@ -253,10 +253,12 @@ class ExperimentInfo(object):
             try:
                 self.table = self.rt.findUserTable(exper_name=self.parent.experimentName, table_name='Run summary')
             except:
-                print "Your experiment may not exist"
-                print "Or you need a kerberos ticket. Type: kinit"
-                exit()
-    
+                self.table = None
+                #print "Your experiment may not exist"
+                #print "Or you need a kerberos ticket. Type: kinit"
+                #exit()
+                #exit()
+
         self.setupExperiment()
     
         self.parent.img.updateImage()
@@ -303,7 +305,7 @@ class ExperimentInfo(object):
         return _sec, _nsec
 
     def convertSecNanosec(self, sec, nsec):
-        _timestamp64 = int(sec >> 32 | nsec)
+        _timestamp64 = int(sec << 32 | nsec)
         return _timestamp64
 
     def getEvt(self, evtNumber):
@@ -398,7 +400,7 @@ class ExperimentInfo(object):
             with open(self.loggerFile, "r") as myfile:
                 content = myfile.readlines()
                 if content[0].strip() == self.username:
-                    if logbook_present:
+                    if logbook_present and self.table is not None:
                         self.logger = True
                     else:
                         print "WARNING: logbook not present"

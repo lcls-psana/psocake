@@ -79,9 +79,15 @@ class Window(QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self,parent)
         self.centralwidget = QtGui.QWidget(self)
+        # Read label types
+        labelTypesFile = args.filepath+'/labels.txt'
+        try:
+            self.readLabelTypes(labelTypesFile)
+        except:
+            self.createLabelTypes(labelTypesFile)
+            self.readLabelTypes(labelTypesFile)
         py = 10
         dh = 25
-        self.readLabelTypes('/reg/d/psdm/amo/amo86615/scratch/yoon82/psocake/amo86615_labels.txt')
         # Min text
         self.l1 = QtGui.QLabel(self)
         self.l1.setText("Min:")
@@ -163,6 +169,13 @@ class Window(QtGui.QWidget):
         for i in _types:
             if i.strip(): self.labelTypes.append(i.strip())
         self.numLabelTypes = len(self.labelTypes)
+
+    def createLabelTypes(self, fname):
+        f = open(fname, 'w')
+        f.write('A\n')
+        f.write('B\n')
+        f.write('None\n')
+        f.close()
 
     def onMinChanged(self, text):
         global minIntensity
@@ -534,7 +547,6 @@ def fillProp():
             num = matrix.shape[0]
             break
         num = matrix.shape[0]
-        print "propagate"
         propagate(matrix, list)
     #print "###: ", userLabels, len(userLabels)
     #propagate(P,np.arange(X[:,0].size))
