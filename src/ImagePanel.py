@@ -1,9 +1,15 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
-import time, psana, datetime
-from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
-from pyimgalgos.MedianFilter import median_filter_ndarr
+import time
+import os
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    import psana
+    from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
+    from pyimgalgos.MedianFilter import median_filter_ndarr
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
+import datetime
 
 class FriedelSym(object):
     def __init__(self, dim, centre):

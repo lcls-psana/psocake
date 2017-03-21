@@ -3,7 +3,11 @@ import pyqtgraph as pg
 import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 import matplotlib.pyplot as plt
-from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
+import os
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 
 class ImageControl(object):
     def __init__(self, parent = None):

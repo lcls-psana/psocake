@@ -6,11 +6,15 @@ import os
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.Qt import QtCore, QtGui
-import Detector.PyDetector
-import PSCalib.GlobalUtils as gu
 import subprocess
 import scipy.spatial.distance as sd
-from PSCalib.CalibFileFinder import deploy_calib_file
+
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    import Detector.PyDetector
+    import PSCalib.GlobalUtils as gu
+    from PSCalib.CalibFileFinder import deploy_calib_file
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 
 # Return two equal sized halves of the input image
 # If axis is None, halve along the first axis
@@ -91,6 +95,7 @@ def findDetectorCentre(I,guessRow=None,guessCol=None,range=0):
 class DiffractionGeometry(object):
     def __init__(self, parent = None):
         self.parent = parent
+
 
         #############################
         ## Dock 3: Diffraction geometry

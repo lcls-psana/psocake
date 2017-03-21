@@ -3,7 +3,7 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
-import pandas as pd
+#import pandas as pd
 import h5py, os
 import pyqtgraph as pg
 

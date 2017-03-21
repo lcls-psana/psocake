@@ -1,5 +1,4 @@
 import numpy as np
-from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import pyqtgraph as pg
 import h5py
 from pyqtgraph.dockarea import *
@@ -7,6 +6,10 @@ from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
 import json, os
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    from ImgAlgos.PyAlgos import PyAlgos # peak finding
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 
 class PeakFinding(object):
     def __init__(self, parent = None):

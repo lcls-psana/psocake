@@ -4,13 +4,18 @@
 import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
-import pandas as pd
 import h5py
 import pyqtgraph as pg
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchIndexer
-from PSCalib.CalibFileFinder import deploy_calib_file
+import os
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    from PSCalib.CalibFileFinder import deploy_calib_file
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
+
+#import pandas as pd
 
 class CrystalIndexing(object):
     def __init__(self, parent = None):

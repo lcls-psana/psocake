@@ -2,7 +2,11 @@ import numpy as np
 import myskbeam
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-from PSCalib.GeometryObject import two2x1ToData2x2
+import os
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    from PSCalib.GeometryObject import two2x1ToData2x2
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 import _colorScheme as color
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *

@@ -1,7 +1,11 @@
 import numpy as np
-from ImgAlgos.PyAlgos import PyAlgos # peak finding
 import myskbeam
 import time
+
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    from ImgAlgos.PyAlgos import PyAlgos # peak finding
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")

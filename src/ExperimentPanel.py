@@ -1,7 +1,6 @@
 import numpy as np
 import subprocess
 import os
-import psana
 try:
     logbook_present = True
     from LogBook.runtables import RunTables
@@ -9,9 +8,14 @@ except ImportError:
     logbook_present = False
 if logbook_present:
     import LogbookCrawler
-import Detector.PyDetector
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
+
+if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    import psana
+    import Detector.PyDetector
+elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 
 class ExperimentInfo(object):
     def __init__(self, parent = None):
