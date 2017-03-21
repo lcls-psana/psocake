@@ -519,7 +519,7 @@ class ExperimentInfo(object):
                     self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                     self.readEpicsClen()
                 else:
-                    print "Couldn't handle detector clen"
+                    print "Couldn't handle detector clen. Try using the full detector name."
                     exit()
         elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
             print "setClen: Not implemented yet"
