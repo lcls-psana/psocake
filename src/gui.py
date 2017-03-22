@@ -169,8 +169,8 @@ class MainFrame(QtGui.QWidget):
         self.cy = 0 # detector centre y
 
         ## Switch to using white background and black foreground
-        pg.setConfigOption('background', color.grayLite_hex)
-        pg.setConfigOption('foreground', color.darkRed_hex)
+        pg.setConfigOption('background', color.background)
+        pg.setConfigOption('foreground', color.foreground)
 
         ########################################
         # Instantiate panels
@@ -202,8 +202,8 @@ class MainFrame(QtGui.QWidget):
         # Set the color scheme
         def updateStylePatched(self):
             r = '3px'
-            fg = color.cardinalRed_hex
-            bg = color.sandstone100_rgb
+            fg = color.plotForeground
+            bg = color.plotBackground
             border = "k"
 
             if self.orientation == 'vertical':
@@ -379,7 +379,7 @@ class MainFrame(QtGui.QWidget):
                             modeInfo = self.mk.masking_mode_message
                         else:
                             modeInfo = ""
-                        pixelInfo = "<span style='color: " + color.cardinalRed_hex + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
+                        pixelInfo = "<span style='color: " + color.pixelInfo + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
                         self.label.setText(modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX,indexY]))
 
         def mouseClicked(evt):

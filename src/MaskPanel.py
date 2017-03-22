@@ -66,7 +66,7 @@ class MaskMaker(object):
         self.powder_cpu_str = 'CPUs'
         self.powder_noe_str = 'Number of events to process'
         self.powder_threshold_str = 'Threshold'
-        self.masking_mode_message = "<span style='color: " + color.black_hex + "; font-size: 24pt;'>Masking mode <br> </span>"
+        self.masking_mode_message = "<span style='color: " + color.maskInfo + "; font-size: 24pt;'>Masking mode <br> </span>"
 
         ######################
         # Mask

@@ -12,5 +12,5 @@ class Mouse(object):
         self.d5 = Dock("Mouse", size=(500, 75), closable=False)
         ## Dock 5 - mouse intensity display
         #self.d5.hideTitleBar()
-        self.w5 = pg.GraphicsView(background=pg.mkColor(color.sandstone100_rgb))
+        self.w5 = pg.GraphicsView(background=pg.mkColor(color.mouseBackground))
         self.d5.addWidget(self.w5)
