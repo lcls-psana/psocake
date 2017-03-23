@@ -9,11 +9,11 @@ if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     maskInfo = black_hex = str("#2e2d29") # black
     mouseBackground = sandstone100_rgb
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    plotForeground = cardinalRed_hex = str("#8C1515") # Cardinal red
+    plotForeground = blue = str("#0000ff") # blue
     plotBackground = gray_hex = str("#3f3c30") # gray
     foreground = darkRed_hex = str("#820000") # dark red
     background = beige_hex = ("#9d9573") # beige
-    pixelInfo = cardinalRed_hex
+    pixelInfo = blue
     maskInfo = black80_hex = str("#585754") # black 80%
     mouseBackground = beige_hex
 
