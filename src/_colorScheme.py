@@ -17,6 +17,7 @@ elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     maskInfo = black80_hex = str("#585754") # black 80%
     mouseBackground = beige_hex
 
+# Extra
 #    black80_hex = str("#585754") # black 80%
 #    gray_hex = str("#3f3c30") # gray
 #    gray90_hex = str("#565347") # gray 90%
