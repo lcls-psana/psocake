@@ -34,8 +34,9 @@ else:
 
 # Panel modules
 import diffractionGeometryPanel, crystalIndexingPanel, SmallDataPanel, ExperimentPanel
-import PeakFindingPanel, HitFinderPanel, MaskPanel, LabelPanel, ImagePanel, RoiPanel
+import PeakFindingPanel, HitFinderPanel, MaskPanel, ImagePanel, RoiPanel
 import ImageControlPanel, MousePanel, ImageStackPanel
+#import LabelPanel
 import _colorScheme as color
 from _version import __version__
 
@@ -178,7 +179,7 @@ class MainFrame(QtGui.QWidget):
         self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
         self.index = crystalIndexingPanel.CrystalIndexing(self)
         self.small = SmallDataPanel.SmallData(self)
-        self.evtLabels = LabelPanel.Labels(self)
+        #self.evtLabels = LabelPanel.Labels(self)
         self.pk = PeakFindingPanel.PeakFinding(self)
         self.hf = HitFinderPanel.HitFinder(self)
         self.mk = MaskPanel.MaskMaker(self)
@@ -310,7 +311,7 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.small.dSmall, 'right')  # , self.exp.d2)
             self.area.moveDock(self.exp.d2, 'above', self.geom.d3)
 
-            self.area.addDock(self.evtLabels.dLabels, 'bottom', self.small.dSmall)
+            #self.area.addDock(self.evtLabels.dLabels, 'bottom', self.small.dSmall)
         else: # lite
             # Dock positions on the main frame
             self.area.addDock(self.mouse.d5, 'left')  ## place d5 at left edge of d1
