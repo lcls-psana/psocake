@@ -3,7 +3,6 @@
 # TODO: Multiple subplots or grid of images
 # TODO: dropdown menu for available detectors, dropdown menu for small data
 # TODO: When front and back detectors given, display both
-# TODO: Display acqiris
 # TODO: Downsampler
 # TODO: Run from ffb
 # TODO: script for histogram of lit pixels, percentile display
