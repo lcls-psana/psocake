@@ -141,7 +141,6 @@ class MainFrame(QtGui.QWidget):
         self.det = None
         self.detnames = None
         self.detInfoList = None
-        self.isCspad = False
         self.evt = None
         self.eventID = ""
         self.hasExperimentName = False

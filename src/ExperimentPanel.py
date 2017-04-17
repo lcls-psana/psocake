@@ -291,9 +291,6 @@ class ExperimentInfo(object):
             self.parent.firstUpdate = True
     
         self.parent.detInfo = data
-        if data == 'DscCsPad' or data == 'DsdCsPad' or data == 'DsaCsPad':
-            self.parent.isCspad = True
-    
         self.parent.hasDetInfo = True
         self.setupExperiment()
         self.parent.img.updateImage()
