@@ -118,6 +118,17 @@ class MainFrame(QtGui.QWidget):
         self.firstUpdate = True
         self.operationModeChoices = ['none','masking']
         self.operationMode =  self.operationModeChoices[0] # Masking mode, Peak finding mode
+
+        # Supported facilities keywords
+        self.facilityLCLS = 'lcls'
+        self.facilityPAL = 'pal'
+        if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+            self.facility = self.facilityLCLS
+            self.dir = '/reg/d/psdm'
+        elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
+            self.facility = self.facilityPAL
+            self.dir = '/reg/d/psdm/cxi/cxitut13/res/yoon82/pohang/kihyun' # TEMPORARY
+
         # Init experiment parameters from args
         if args.expRun is not None and ':run=' in args.expRun:
             self.experimentName = args.expRun.split('exp=')[-1].split(':')[0]
