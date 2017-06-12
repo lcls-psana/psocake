@@ -194,7 +194,10 @@ def runmaster(args, nClients):
                 # Save epics
                 updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, md.small.pulseLength)
                 updateHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, md.small.photonEnergy)
-                updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, md.small.photonEnergy * 1.60218e-19) # J
+                if md.small.photonEnergy is not None:
+                    updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, md.small.photonEnergy * 1.60218e-19) # J
+                else:
+                    updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, 0.)
                 updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_energy', numHits, md.small.pulseEnergy)
                 updateHdf5(myHdf5, '/entry_1/instrument_1/detector_1/distance', numHits, md.small.detectorDistance)
                 updateHdf5(myHdf5, '/entry_1/instrument_1/detector_1/x_pixel_size', numHits, args.pixelSize)
@@ -211,7 +214,10 @@ def runmaster(args, nClients):
                 updateHdf5(myHdf5, '/LCLS/calculatedNumberOfPhotons', numHits, md.small.calculatedNumberOfPhotons)
                 updateHdf5(myHdf5, '/LCLS/photonBeamEnergy', numHits, md.small.photonBeamEnergy)
                 updateHdf5(myHdf5, '/LCLS/wavelength', numHits, md.small.wavelength)
-                updateHdf5(myHdf5, '/LCLS/photon_wavelength_A', numHits, md.small.wavelength * 10.)
+                if md.small.wavelength is not None:
+                    updateHdf5(myHdf5, '/LCLS/photon_wavelength_A', numHits, md.small.wavelength * 10.)
+                else:
+                    updateHdf5(myHdf5, '/LCLS/photon_wavelength_A', numHits, 0.)
                 updateHdf5(myHdf5, '/LCLS/machineTime', numHits, md.small.sec)
                 updateHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, md.small.nsec)
                 updateHdf5(myHdf5, '/LCLS/fiducial', numHits, md.small.fid)
