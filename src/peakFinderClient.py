@@ -20,7 +20,6 @@ def runclient(args):
     if facility == 'LCLS':
         ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':idx')
         run = ds.runs().next()
-        print "&&&& run: ", run
         env = ds.env()
         times = run.times()
         d = psana.Detector(args.det)
@@ -39,8 +38,6 @@ def runclient(args):
 
         class Object(object): pass
         d = Object()
-        print "PAL times: ", times, args.noe, numEvents
-
 
     hasCoffset = False
     hasDetectorDistance = False
@@ -65,7 +62,6 @@ def runclient(args):
         if args.profile: startTic = time.time()
 
         if facility == 'LCLS':
-            print "&&&&1 run: ", run, times
             evt = run.event(times[nevent])
             detarr = d.calib(evt)
             exp = env.experiment()
