@@ -2,8 +2,8 @@ from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
-import matplotlib.pyplot as plt
 import os
+
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -13,22 +13,23 @@ class ImageControl(object):
     def __init__(self, parent = None):
         self.parent = parent
 
-        ## Dock 6: Image Control
+        ## Dock: Image Control
         self.nextBtn = QtGui.QPushButton('Next evt')
         self.prevBtn = QtGui.QPushButton('Prev evt')
         self.saveBtn = QtGui.QPushButton('Save evt')
         self.loadBtn = QtGui.QPushButton('Load image')
 
         #############################
-        # Dock 6: Image Control
+        # Dock: Image Control
         #############################
-        self.d6 = Dock("Image Control", size=(1, 1))
-        self.w6 = pg.LayoutWidget()
-        self.w6.addWidget(self.prevBtn, row=0, col=0)
-        self.w6.addWidget(self.nextBtn, row=0, col=1)
-        self.w6.addWidget(self.saveBtn, row=1, col=0)
-        self.w6.addWidget(self.loadBtn, row=1, col=1)
-        self.d6.addWidget(self.w6)
+        self.dock = Dock("Image Control", size=(1, 1))
+        self.dock.hideTitleBar()
+        self.win = pg.LayoutWidget()
+        self.win.addWidget(self.prevBtn, row=0, col=0)
+        self.win.addWidget(self.nextBtn, row=0, col=1)
+        self.win.addWidget(self.saveBtn, row=1, col=0)
+        self.win.addWidget(self.loadBtn, row=1, col=1)
+        self.dock.addWidget(self.win)
 
         self.nextBtn.clicked.connect(self.nextEvt)
         self.prevBtn.clicked.connect(self.prevEvt)
@@ -41,7 +42,7 @@ class ImageControl(object):
             self.parent.eventNumber = self.parent.exp.eventTotal-1
         else:
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
-            self.parent.img.w1.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
 
     def prevEvt(self):
@@ -50,7 +51,7 @@ class ImageControl(object):
             self.parent.eventNumber = 0
         else:
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
-            self.parent.img.w1.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+            self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
 
     def save(self):

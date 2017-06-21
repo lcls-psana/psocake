@@ -3,6 +3,8 @@ import myskbeam
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import os
+import h5py
+
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     from PSCalib.GeometryObject import two2x1ToData2x2
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -16,31 +18,31 @@ class MaskMaker(object):
     def __init__(self, parent = None):
         self.parent = parent
 
-        self.d12 = Dock("Mask Panel", size=(1, 1))
-        ## Dock 12: Mask Panel
-        self.w17 = ParameterTree()
-        self.d12.addWidget(self.w17)
-        self.w18 = pg.LayoutWidget()
+        ## Dock: Mask Panel
+        self.dock = Dock("Mask Panel", size=(1, 1))
+        self.win = ParameterTree()
+        self.dock.addWidget(self.win)
+        self.winL = pg.LayoutWidget()
         self.maskRectBtn = QtGui.QPushButton('Stamp rectangular mask')
-        self.w18.addWidget(self.maskRectBtn, row=0, col=0)#, colspan=2)
+        self.winL.addWidget(self.maskRectBtn, row=0, col=0)#, colspan=2)
         self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
-        self.w18.addWidget(self.maskCircleBtn, row=0, col=1)#, colspan=2)
+        self.winL.addWidget(self.maskCircleBtn, row=0, col=1)#, colspan=2)
         self.maskThreshBtn = QtGui.QPushButton('Mask outside histogram')
-        self.w18.addWidget(self.maskThreshBtn, row=1, col=1)#, colspan=2)
+        self.winL.addWidget(self.maskThreshBtn, row=1, col=1)#, colspan=2)
         self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
-        self.w18.addWidget(self.maskPolyBtn, row=1, col=0)#, colspan=2)
+        self.winL.addWidget(self.maskPolyBtn, row=1, col=0)#, colspan=2)
         self.deployMaskBtn = QtGui.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.deployMaskBtn.setText('Save static mask')
-        self.w18.addWidget(self.deployMaskBtn, row=2, col=0)
+        self.winL.addWidget(self.deployMaskBtn, row=2, col=0)
         self.loadMaskBtn = QtGui.QPushButton()
         self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.loadMaskBtn.setText('Load mask')
-        self.w18.addWidget(self.loadMaskBtn, row=2, col=1)
+        self.winL.addWidget(self.loadMaskBtn, row=2, col=1)
         self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
-        self.w18.addWidget(self.generatePowderBtn, row=3, col=0, colspan=2)
+        self.winL.addWidget(self.generatePowderBtn, row=3, col=0, colspan=2)
         # Connect listeners to functions
-        self.d12.addWidget(self.w18)
+        self.dock.addWidget(self.winL)
 
         self.mask_grp = 'Mask'
         self.mask_mode_str = 'Masking mode'
@@ -105,6 +107,7 @@ class MaskMaker(object):
         self.StreakMask = None # streak mask class
         self.streakMaskAssem = None
         self.combinedMask = None # combined mask
+        self.gapAssemInd = None
 
         self.params = [
             {'name': self.mask_grp, 'type': 'group', 'children': [
@@ -150,7 +153,7 @@ class MaskMaker(object):
 
         self.p6 = Parameter.create(name='paramsMask', type='group', \
                                    children=self.params, expanded=True)
-        self.w17.setParameters(self.p6, showTop=False)
+        self.win.setParameters(self.p6, showTop=False)
         self.p6.sigTreeStateChanged.connect(self.change)
 
         self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
@@ -163,9 +166,12 @@ class MaskMaker(object):
         self.parent.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePowder)
 
     def makePowder(self):
-        self.parent.thread.append(LaunchPowderProducer.PowderProducer(self.parent))  # send parent parameters with self
-        self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
-        self.parent.threadCounter += 1
+        if self.parent.facility == self.parent.facilityLCLS:
+            self.parent.thread.append(LaunchPowderProducer.PowderProducer(self.parent))  # send parent parameters with self
+            self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
+            self.parent.threadCounter += 1
+        elif self.parent.facility == self.parent.facilityPAL:
+            print "makePowder is not implemented for PAL"
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
@@ -300,9 +306,9 @@ class MaskMaker(object):
             # do not display user mask
             self.displayMask()
             # remove ROIs
-            self.parent.img.w1.getView().removeItem(self.mask_rect)
-            self.parent.img.w1.getView().removeItem(self.mask_circle)
-            self.parent.img.w1.getView().removeItem(self.mask_poly)
+            self.parent.img.win.getView().removeItem(self.mask_rect)
+            self.parent.img.win.getView().removeItem(self.mask_circle)
+            self.parent.img.win.getView().removeItem(self.mask_poly)
         else:
             # display text
             self.parent.label.setText(self.masking_mode_message)
@@ -321,24 +327,23 @@ class MaskMaker(object):
                 self.mask_rect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
                 self.mask_rect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
                 self.mask_rect.addScaleHandle([0, 1], [1, 0])
-                #self.mask_rect.addRotateHandle([0.5, 0.5], [1, 1])
                 # Circular mask
                 self.mask_circle = pg.CircleROI([-300, 600], size=[200, 200], snapSize=1.0, scaleSnap=True,
                                                 translateSnap=True, pen={'color': 'c', 'width': 4})
                 self.mask_circle.addScaleHandle([0.1415, 0.707 * 1.2], [0.5, 0.5])
                 self.mask_circle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
                 self.mask_circle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
-                self.mask_circle.addScaleHandle([0, 0.5], [0.5, 0.5])
-                self.mask_circle.addScaleHandle([0.5, 0.0], [0.5, 0.5])
-                self.mask_circle.addScaleHandle([0.5, 1.0], [0.5, 0.5])
-                self.mask_circle.addScaleHandle([1.0, 0.5], [0.5, 0.5])
+                #self.mask_circle.addScaleHandle([0, 0.5], [0.5, 0.5]) # west: pyqtgraph error
+                self.mask_circle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
+                self.mask_circle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
+                #self.mask_circle.addScaleHandle([1.0, 0.5], [0.5, 0.5]) # east: pyqtgraph error
                 # Polygon mask
                 self.mask_poly = pg.PolyLineROI([[-300, 300], [-300,500], [-100,500], [-100,400], [-225,400], [-225,300]], closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True, pen={'color': 'c', 'width': 4})
 
             # add ROIs
-            self.parent.img.w1.getView().addItem(self.mask_rect)
-            self.parent.img.w1.getView().addItem(self.mask_circle)
-            self.parent.img.w1.getView().addItem(self.mask_poly)
+            self.parent.img.win.getView().addItem(self.mask_rect)
+            self.parent.img.win.getView().addItem(self.mask_circle)
+            self.parent.img.win.getView().addItem(self.mask_poly)
         if self.parent.args.v >= 1: print "Done updateMaskingMode: ", self.maskingMode
 
     def updatePsanaMaskFlag(self, flag, data):
@@ -369,17 +374,26 @@ class MaskMaker(object):
             self.parent.pk.updateClassification()
 
     def initMask(self):
-        if self.parent.det is not None:
-            if self.gapAssemInd is None:
-                self.gapAssem = self.parent.det.image(self.parent.evt, np.ones_like(self.parent.exp.detGuaranteed,dtype='int'))
-                self.gapAssemInd = np.where(self.gapAssem==0)
+        if self.parent.facility == self.parent.facilityLCLS:
+            if self.parent.det is not None:
+                if self.gapAssemInd is None:
+                    self.gapAssem = self.parent.det.image(self.parent.evt, np.ones_like(self.parent.exp.detGuaranteed,dtype='int'))
+                    self.gapAssemInd = np.where(self.gapAssem==0)
+                if self.userMask is None and self.parent.data is not None:
+                    # initialize
+                    self.userMaskAssem = np.ones_like(self.parent.data,dtype='int')
+                    self.userMask = self.parent.det.ndarray_from_image(self.parent.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
+                if self.streakMask is None:
+                    self.StreakMask = myskbeam.StreakMask(self.parent.det, self.parent.evt, width=self.streak_width, sigma=self.streak_sigma)
+        elif self.parent.facility == self.parent.facilityPAL:
+            if self.gapAssemInd is None and self.parent.data is not None:
+                self.gapAssem = np.ones_like(self.parent.data, dtype='int')
+                self.gapAssemInd = np.where(self.gapAssem == 0)
             if self.userMask is None and self.parent.data is not None:
                 # initialize
-                self.userMaskAssem = np.ones_like(self.parent.data,dtype='int')
-                self.userMask = self.parent.det.ndarray_from_image(self.parent.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
-            if self.streakMask is None:
-                self.StreakMask = myskbeam.StreakMask(self.parent.det, self.parent.evt, width=self.streak_width, sigma=self.streak_sigma)
-            if self.parent.args.v >= 1: print "Done initMask"
+                self.userMaskAssem = np.ones_like(self.parent.data, dtype='int')
+                self.userMask = self.userMaskAssem
+        if self.parent.args.v >= 1: print "Done initMask"
 
     def displayMask(self):
         # convert to RGB
@@ -414,22 +428,23 @@ class MaskMaker(object):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 1] = self.parent.data[_userMaskInd] * self.userMaskAssem[_userMaskInd]
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 2] = self.parent.data[_userMaskInd] + (np.max(self.parent.data) - self.parent.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
         if self.display_data is not None:
-            self.parent.img.w1.setImage(self.display_data, autoRange=False, autoLevels=False, autoHistogramRange=False)
+            self.parent.img.win.setImage(self.display_data, autoRange=False, autoLevels=False, autoHistogramRange=False)
         if self.parent.args.v >= 1: print "Done displayMask"
 
     # mask
     def makeMaskRect(self):
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
-            selected, coord = self.mask_rect.getArrayRegion(self.parent.data, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
+            selected, coord = self.mask_rect.getArrayRegion(self.parent.data, self.parent.img.win.getImageItem(), returnMappedCoords=True)
             # Remove mask elements outside data
             coord_row = coord[0, (coord[0] >= 0) & (coord[0] < self.parent.data.shape[0]) & (coord[1] >= 0) & (
             coord[1] < self.parent.data.shape[1])].ravel()
             coord_col = coord[1, (coord[0] >= 0) & (coord[0] < self.parent.data.shape[0]) & (coord[1] >= 0) & (
             coord[1] < self.parent.data.shape[1])].ravel()
-            _mask = np.ones_like(self.parent.data)
+            _mask = np.ones_like(self.parent.data, dtype='int')
             _mask[coord_row.astype('int'), coord_col.astype('int')] = 0
             if self.maskingMode == 1:  # masking mode
+                print "userMaskAssem and mask: ", self.userMaskAssem.dtype, _mask.dtype
                 self.userMaskAssem *= _mask
             elif self.maskingMode == 2:  # unmasking mode
                 self.userMaskAssem[coord_row.astype('int'), coord_col.astype('int')] = 1
@@ -438,9 +453,11 @@ class MaskMaker(object):
                 1 - self.userMaskAssem[coord_row.astype('int'), coord_col.astype('int')])
 
             # update userMask
-            self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
-                                                        xy0_off_pix=None)
-
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
+                                                                    xy0_off_pix=None)
+            elif self.parent.facility == self.parent.facilityPAL:
+                self.userMask = self.userMaskAssem
             self.displayMask()
             self.parent.pk.algInitDone = False
             self.parent.pk.updateClassification()
@@ -460,7 +477,7 @@ class MaskMaker(object):
             i01 = i0[(i0 >= 0) & (i0 < self.parent.data.shape[1]) & (j0 >= 0) & (j0 < self.parent.data.shape[0])]
             j01 = j0[(i0 >= 0) & (i0 < self.parent.data.shape[1]) & (j0 >= 0) & (j0 < self.parent.data.shape[0])]
 
-            _mask = np.ones_like(self.parent.data)
+            _mask = np.ones_like(self.parent.data, dtype='int')
             _mask[j01, i01] = 0
             if self.maskingMode == 1:  # masking mode
                 self.userMaskAssem *= _mask
@@ -470,8 +487,11 @@ class MaskMaker(object):
                 self.userMaskAssem[j01, i01] = (1 - self.userMaskAssem[j01, i01])
 
             # update userMask
-            self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
-                                                        xy0_off_pix=None)
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
+                                                                    xy0_off_pix=None)
+            elif self.parent.facility == self.parent.facilityPAL:
+                self.userMask = self.userMaskAssem
 
             self.displayMask()
             self.parent.pk.algInitDone = False
@@ -481,8 +501,8 @@ class MaskMaker(object):
     def makeMaskThresh(self):
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
-            histLevels = self.parent.img.w1.getHistogramWidget().item.getLevels()
-            _mask = np.ones_like(self.parent.data)
+            histLevels = self.parent.img.win.getHistogramWidget().item.getLevels()
+            _mask = np.ones_like(self.parent.data, dtype='int')
             _mask[np.where(self.parent.data < histLevels[0])] = 0
             _mask[np.where(self.parent.data > histLevels[1])] = 0
             if self.maskingMode == 1:  # masking mode
@@ -493,8 +513,11 @@ class MaskMaker(object):
                 print "You can only mask/unmask based on threshold "
 
             # update userMask
-            self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
-                                                        xy0_off_pix=None)
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
+                                                                    xy0_off_pix=None)
+            elif self.parent.facility == self.parent.facilityPAL:
+                self.userMask = self.userMaskAssem
 
             self.displayMask()
             self.parent.pk.algInitDone = False
@@ -502,16 +525,18 @@ class MaskMaker(object):
         if self.parent.args.v >= 1: print "done makeMaskThresh!!!!!!"
 
     def makeMaskPoly(self):
+        print "Warning: pyqtgraph polyROI.getArrayRegion doesn't work. Temporariliy disable this function"
+        return
+
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
             calib = np.ones_like(self.parent.calib)
-            img = self.parent.det.image(self.parent.evt, calib)
+            if self.parent.facility == self.parent.facilityLCLS:
+                img = self.parent.det.image(self.parent.evt, calib)
+            elif self.parent.facility == self.parent.facilityPAL:
+                img = np.ones_like(calib)
             # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
-            self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.w1.getImageItem(), returnMappedCoords=True)
-
-            #import matplotlib.pyplot as plt
-            #plt.imshow(self.selected, vmax=1, vmin=0)
-            #plt.show()
+            self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.win.getImageItem(), returnMappedCoords=True)
 
             self.selected = 1 - self.selected
 
@@ -521,7 +546,7 @@ class MaskMaker(object):
             #sy = self.mask_poly.parentBounds().size().width()
             #print "x,y: ", x, y, self.selected.shape#, sx, sy#, self.parent.data.shape[0], self.parent.data.shape[1]
 
-            _mask = np.ones_like(img)
+            _mask = np.ones_like(img, dtype='int')
             if x >= 0 and y >= 0:
                 _mask[x:x+self.selected.shape[0],y:y+self.selected.shape[1]] = self.selected
             else:
@@ -533,8 +558,11 @@ class MaskMaker(object):
                 self.userMaskAssem *= _mask
 
             # update userMask
-            self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
-                                                        xy0_off_pix=None)
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
+                                                                    xy0_off_pix=None)
+            elif self.parent.facility == self.parent.facilityPAL:
+                self.userMask = self.userMaskAssem
             #
             self.displayMask()
             self.parent.pk.algInitDone = False
@@ -548,6 +576,58 @@ class MaskMaker(object):
         if self.psanaMask is not None and self.psanaMaskOn is True:
             combinedStaticMask *= self.psanaMask
         return combinedStaticMask
+
+    def saveCheetahStaticMask(self):
+        # Save cheetah format mask
+        if self.parent.facility == self.parent.facilityLCLS:
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                dim0 = 8 * 185
+                dim1 = 4 * 388
+            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                dim0 = 1920
+                dim1 = 1920
+            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                dim0 = 1920
+                dim1 = 1920
+            else:
+                print "saveCheetahFormatMask not implemented"
+            fname = self.parent.psocakeRunDir + "/staticMask.h5"
+            print "Saving static mask in Cheetah format: ", fname
+            myHdf5 = h5py.File(fname, 'w')
+            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
+
+            # Convert calib image to cheetah image
+            if self.parent.mk.combinedMask is None:
+                img = np.ones((dim0, dim1))
+            else:
+                img = np.zeros((dim0, dim1))
+                counter = 0
+                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                    for quad in range(4):
+                        for seg in range(8):
+                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = \
+                                self.parent.mk.combinedMask[counter, :, :]
+                            counter += 1
+                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                    img = self.parent.mk.combinedMask[counter, :, :]  # psana format
+                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                    img = self.parent.mk.combinedMask[counter, :, :]  # psana format
+            dset[:, :] = img
+            myHdf5.close()
+        elif self.parent.facility == self.parent.facilityLCLS:
+            (dim0, dim1) = self.parent.calib.shape
+            fname = self.parent.psocakeRunDir + "/staticMask.h5"
+            print "Saving static mask in Cheetah format: ", fname
+            myHdf5 = h5py.File(fname, 'w')
+            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
+
+            # Convert calib image to cheetah image
+            if self.parent.mk.combinedMask is None:
+                img = np.ones((dim0, dim1))
+            else:
+                img = self.parent.mk.combinedMask
+            dset[:, :] = img
+            myHdf5.close()
 
     def deployMask(self):
         print "*** deploy user-defined mask as mask.txt and mask.npy as DAQ shape ***"
@@ -569,6 +649,7 @@ class MaskMaker(object):
             np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask)
             np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
                        combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
+        self.saveCheetahStaticMask()
 
     def loadMask(self):
         fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
@@ -578,7 +659,10 @@ class MaskMaker(object):
         if self.userMask.shape != self.parent.calib.shape:
             self.userMask = None
         if self.userMask is not None:
-            self.userMaskAssem = self.parent.det.image(self.parent.evt, self.userMask)
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.userMaskAssem = self.parent.det.image(self.parent.evt, self.userMask)
+            elif self.parent.facility == self.parent.facilityPAL:
+                self.userMaskAssem = self.userMask
         else:
             self.userMaskAssem = None
         self.userMaskOn = True

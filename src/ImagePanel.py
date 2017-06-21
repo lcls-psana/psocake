@@ -3,13 +3,14 @@ import pyqtgraph as pg
 import numpy as np
 import time
 import os
+import datetime
+
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
     from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
     from pyimgalgos.MedianFilter import median_filter_ndarr
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-import datetime
+    import glob, h5py
 
 class FriedelSym(object):
     def __init__(self, dim, centre):
@@ -62,28 +63,28 @@ class ImageViewer(object):
 
         self.rb = None
 
-        ## Dock 1: Image Panel
-        self.d1 = Dock("Image Panel", size=(500, 400))
-        self.w1 = pg.ImageView(view=pg.PlotItem())
-        self.w1.getView().invertY(False)
+        ## Dock 2: Image Panel
+        self.dock = Dock("Image Panel", size=(500, 400))
+        self.win = pg.ImageView(view=pg.PlotItem())
+        self.win.getView().invertY(False)
         self.img_feature = pg.ImageItem()
-        self.w1.getView().addItem(self.img_feature)
+        self.win.getView().addItem(self.img_feature)
         self.ring_feature = pg.ScatterPlotItem()
         self.centre_feature = pg.ScatterPlotItem()
         self.peak_feature = pg.ScatterPlotItem()
         self.indexedPeak_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
         self.z_direction1 = pg.ScatterPlotItem()
-        self.w1.getView().addItem(self.ring_feature)
-        self.w1.getView().addItem(self.centre_feature)
-        self.w1.getView().addItem(self.peak_feature)
-        self.w1.getView().addItem(self.indexedPeak_feature)
-        self.w1.getView().addItem(self.z_direction)
-        self.w1.getView().addItem(self.z_direction1)
+        self.win.getView().addItem(self.ring_feature)
+        self.win.getView().addItem(self.centre_feature)
+        self.win.getView().addItem(self.peak_feature)
+        self.win.getView().addItem(self.indexedPeak_feature)
+        self.win.getView().addItem(self.z_direction)
+        self.win.getView().addItem(self.z_direction1)
         self.abc_text = pg.TextItem(html='', anchor=(0,0)) # unit cell display
-        self.w1.getView().addItem(self.abc_text)
+        self.win.getView().addItem(self.abc_text)
         self.peak_text = pg.TextItem(html='', anchor=(0,0)) # peak display
-        self.w1.getView().addItem(self.peak_text)
+        self.win.getView().addItem(self.peak_text)
 
         # # Isocurve drawing
         # self.iso = pg.IsocurveItem(level=0.8, pen='r')
@@ -92,7 +93,7 @@ class ImageViewer(object):
         # # Contrast/color control
         # self.hist = pg.HistogramLUTItem()
         # self.hist.setImageItem(self.img_feature)
-        # self.w1.getView().addItem(self.hist)
+        # self.win.getView().addItem(self.hist)
         # # Draggable line for setting isocurve level
         # self.isoLine = pg.InfiniteLine(angle=0, movable=True, pen='g')
         # self.hist.vb.addItem(self.isoLine)
@@ -100,12 +101,12 @@ class ImageViewer(object):
         # self.isoLine.setValue(1.8)
         # self.isoLine.setZValue(1000)  # bring iso line above contrast controls
 
-        self.d1.addWidget(self.w1)
+        self.dock.addWidget(self.win)
 
         self.drawLabCoordinates()  # FIXME: This does not match the lab coordinates yet!
 
     def clearPeakMessage(self):
-        self.w1.getView().removeItem(self.peak_text)
+        self.win.getView().removeItem(self.peak_text)
         self.peak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearPeakMessage"
 
@@ -118,10 +119,10 @@ class ImageViewer(object):
         tailLen=30-cutoff
         xArrow = pg.ArrowItem(angle=180, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='b', pxMode=False)
         xArrow.setPos(2*headLen+cenX, 0+cenY)
-        self.w1.getView().addItem(xArrow)
+        self.win.getView().addItem(xArrow)
         yArrow = pg.ArrowItem(angle=-90, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='r', pxMode=False)
         yArrow.setPos(0+cenX, 2*headLen+cenY)
-        self.w1.getView().addItem(yArrow)
+        self.win.getView().addItem(yArrow)
 
         # Lab coordinates: Add z-direction
         self.z_direction.setData([0+cenX], [0+cenY], symbol='o', \
@@ -132,41 +133,32 @@ class ImageViewer(object):
                                  pen={'color': 'k', 'width': 4}, pxMode=False)
         # Lab coordinates: Add xyz text
         self.x_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #0000FF; font-size: 16pt;">x</span></div>', anchor=(0,0))
-        self.w1.getView().addItem(self.x_text)
+        self.win.getView().addItem(self.x_text)
         self.x_text.setPos(2*headLen+cenX, 0+cenY)
         self.y_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FF0000; font-size: 16pt;">y</span></div>', anchor=(1,1))
-        self.w1.getView().addItem(self.y_text)
+        self.win.getView().addItem(self.y_text)
         self.y_text.setPos(0+cenX, 2*headLen+cenY)
         self.z_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFFFFF; font-size: 16pt;">z</span></div>', anchor=(1,0))
-        self.w1.getView().addItem(self.z_text)
+        self.win.getView().addItem(self.z_text)
         self.z_text.setPos(-headLen+cenX, 0+cenY)
 
         # Label xy axes
-        self.x_axis = self.w1.getView().getAxis('bottom')
+        self.x_axis = self.win.getView().getAxis('bottom')
         self.x_axis.setLabel('X-axis (pixels)')
-        self.y_axis = self.w1.getView().getAxis('left')
+        self.y_axis = self.win.getView().getAxis('left')
         self.y_axis.setLabel('Y-axis (pixels)')
 
     def updateImage(self, calib=None):
+        tic = time.time()
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
             if self.parent.facility == self.parent.facilityLCLS:
                 if calib is None:
+                    tic = time.time()
                     self.parent.calib, self.parent.data = self.getDetImage(self.parent.eventNumber)
+                    print "*** updateImage0: ", time.time() - tic
                 else:
                     _, self.parent.data = self.getDetImage(self.parent.eventNumber, calib=calib)
-
-                try:
-                    fname = self.parent.dir + "/cxi/cxitut13/res/psocake/log/" + \
-                            self.parent.exp.username + "_" + self.parent.experimentName + "_" \
-                            + str(self.parent.runNumber) + "_" + self.parent.detInfo + ".txt"
-                    with open(fname, "a") as myfile:
-                        date = datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
-                        myStr = date + ": " + str(self.parent.eventNumber) + '\n'
-                        myfile.write(myStr)
-                except:
-                    pass
             elif self.parent.facility == self.parent.facilityPAL:
-                print "updateImage: get calib and data"
                 if calib is None:
                     self.parent.calib, self.parent.data = self.getDetImage(self.parent.eventNumber)
                 else:
@@ -174,37 +166,39 @@ class ImageViewer(object):
 
             if self.parent.firstUpdate:
                 if self.parent.exp.logscaleOn:
-                    self.w1.setImage(np.log10(abs(self.parent.data) + self.parent.eps))
+                    self.win.setImage(np.log10(abs(self.parent.data) + self.parent.eps))
                     self.parent.firstUpdate = False
                 else:
                     self.minPercentile = np.percentile(self.parent.data, self.displayMinPercentile)
                     if self.minPercentile < 0: self.minPercentile = 0
                     self.maxPercentile = np.percentile(self.parent.data, self.displayMaxPercentile)
-                    self.w1.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
+                    self.win.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
                     self.parent.firstUpdate = False
             else:
                 if self.parent.exp.logscaleOn:
-                    self.w1.setImage(np.log10(abs(self.parent.data) + self.parent.eps),
+                    self.win.setImage(np.log10(abs(self.parent.data) + self.parent.eps),
                                      autoRange=False, autoLevels=False, autoHistogramRange=False)
                 else:
                     if self.minPercentile == 0 and self.maxPercentile == 0:
                         self.minPercentile = np.percentile(self.parent.data, self.displayMinPercentile)
                         if self.minPercentile < 0: self.minPercentile = 0
                         self.maxPercentile = np.percentile(self.parent.data, self.displayMaxPercentile)
-                        self.w1.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
+                        self.win.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
                     else:
-                        self.w1.setImage(self.parent.data, autoRange=False, autoLevels=False,
+                        self.win.setImage(self.parent.data, autoRange=False, autoLevels=False,
                                          autoHistogramRange=False)
 
         # Load peak parameters if exists
         if 'sfx' in self.parent.args.mode and self.parent.pk.userUpdate is None:
             self.parent.pk.updateParam()
 
+        print "*** updateImage1: ", time.time() - tic
+
         if self.parent.args.v >= 1: print "Done updateImage"
 
     def getCalib(self, evtNumber):
-        #print "Got to getCalib: ", self.parent.exp.run
         if self.parent.facility == self.parent.facilityLCLS:
+            tic = time.time()
             if self.parent.exp.run is not None:
                 self.parent.evt = self.parent.exp.getEvt(evtNumber)
                 if self.parent.exp.applyCommonMode: # play with different common mode
@@ -218,15 +212,16 @@ class ImageViewer(object):
                                                               self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
                 else:
                     calib = self.parent.det.calib(self.parent.evt)
+                print "**** getCalib: ", time.time() - tic
                 return calib
         elif self.parent.facility == self.parent.facilityPAL:
-            import glob, h5py
-            temp = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/data/run' + str(self.parent.runNumber).zfill(4) + '/*.h5'
+            temp = self.parent.rootDir + '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
             _files = glob.glob(temp)
-            #print "_path: ", temp, _files
             f = h5py.File(_files[evtNumber],'r')
             calib = f['/data'].value
-            #print "size: ", calib.shape
+            #calib = np.rot90(f['/data'].value, -1) # rotate 90
+            #calib = np.rot90(f['/data'].value, 3) # rotate 270
+            f.close()
             return calib
         else:
             return None
@@ -320,17 +315,19 @@ class ImageViewer(object):
             if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
 
     def updateDetectorCentre(self, arg):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
             if self.parent.cx is None:
                 data = self.parent.det.image(self.parent.evt, self.parent.exp.detGuaranteed)
                 self.parent.cx, self.parent.cy = self.getCentre(data.shape)
-            if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+        elif arg == self.parent.facilityPAL:
+            # TODO: return cx, cy which are the matrix index corresponding to beam centre
+            self.parent.exp.readCrystfelGeometry(self.parent.facility) # this updates cx and cy
+        if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+
 
     def getDetImage(self, evtNumber, calib=None):
-        print "getDetImage"
         if calib is None:
-            print "HERE!!!"
             if self.parent.facility == self.parent.facilityLCLS:
                 if self.parent.exp.image_property == self.parent.exp.disp_medianCorrection:  # median subtraction
                     calib = self.getCalib(evtNumber)
@@ -343,8 +340,10 @@ class ImageViewer(object):
                     calib = self.rb.subtract_bkgd(calib * self.pf)
                     calib.shape = self.parent.calib.shape # FIXME: shape is 1d
                 elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
+                    tic = time.time()
                     calib = self.getCalib(evtNumber)
                     if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                    print "**** getDetImage0: ", time.time() - tic
                 elif self.parent.exp.image_property == self.parent.exp.disp_commonModeCorrected: # common mode corrected
                     calib = self.getCommonModeCorrected(evtNumber)
                     if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
@@ -389,10 +388,9 @@ class ImageViewer(object):
                     calib = self.parent.det.coords_y(self.parent.evt)
                     self.parent.firstUpdate = True
             elif self.parent.facility == self.parent.facilityPAL:
-                print "GOT HERE"
                 calib = self.getCalib(evtNumber)
-                print "#####: ", calib
 
+            tic = time.time()
             if self.parent.facility == self.parent.facilityLCLS:
                 shape = self.parent.det.shape(self.parent.evt)
                 if len(shape) == 3:
@@ -443,28 +441,40 @@ class ImageViewer(object):
                             for i in range(512):
                                 calib[:,:,i] = i
                         self.parent.firstUpdate = True
+            print "** getDetImage1: ", time.time() - tic
 
+        tic = time.time()
         # Update photon energy
         self.parent.exp.updatePhotonEnergy(self.parent.facility)
+        print "** getDetImage2a: ", time.time() - tic
 
+        tic = time.time()
         # Update clen
         self.parent.geom.updateClen(self.parent.facility)
+        print "** getDetImage2b: ", time.time() - tic
 
+        tic = time.time()
         # Write a temporary geom file
-        self.parent.geom.deployCrystfelGeometry(self.parent.facility)
-        self.parent.geom.writeCrystfelGeom(self.parent.facility) # Hack to override coffset
+        #self.parent.geom.deployCrystfelGeometry(self.parent.facility)
+        #self.parent.geom.writeCrystfelGeom(self.parent.facility) # Hack to override coffset
+        print "** getDetImage2c: ", time.time() - tic
 
+        tic = time.time()
         # Get assembled image
         if calib is not None:
             data = self.getAssembledImage(self.parent.facility, calib)
-            print "HERE DATA@@@: ", data
         else:
             calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
             data = self.getAssembledImage(self.parent.facility, calib)
 
-        # Update detector centre
-        self.updateDetectorCentre(self.parent.facility)
+        print "** getDetImage3: ", time.time() - tic
 
+        tic = time.time()
+        # Update detector centre
+        #self.updateDetectorCentre(self.parent.facility)
+        print "*** getDetImage4: ", time.time() - tic
+
+        tic = time.time()
         # Update ROI histogram
         if self.parent.roi.roiCurrent == 'rect':
             self.parent.roi.updateRoi(self.parent.roi.roi)
@@ -472,6 +482,7 @@ class ImageViewer(object):
             self.parent.roi.updateRoi(self.parent.roi.roiPoly)
         elif self.parent.roi.roiCurrent == 'circ':
             self.parent.roi.updateRoi(self.parent.roi.roiCircle)
+        print "*** getDetImage5: ", time.time() - tic
 
         return calib, data
 

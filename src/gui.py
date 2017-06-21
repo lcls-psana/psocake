@@ -11,14 +11,9 @@ import sys, signal
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-import pyqtgraph.console
 from pyqtgraph.dockarea import *
 from pyqtgraph.dockarea.Dock import DockLabel
-from pyqtgraph.parametertree import Parameter, ParameterTree#, ParameterItem, registerParameterType
-import h5py
 import argparse
-import time
-import subprocess
 import os
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
