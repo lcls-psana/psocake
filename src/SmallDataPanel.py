@@ -1,4 +1,5 @@
 import numpy as np
+from PyQt5.QtWidgets import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
@@ -48,7 +49,7 @@ class SmallData(object):
                                        children=self.params, expanded=True)
         self.w8.setParameters(self.pSmall, showTop=False)
         self.pSmall.sigTreeStateChanged.connect(self.change)
-        self.parent.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.reloadQuantifier)
+        self.refreshBtn.clicked.connect(self.reloadQuantifier)
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):

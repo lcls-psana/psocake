@@ -1,4 +1,5 @@
 from pyqtgraph.dockarea import *
+from PyQt5.QtWidgets import *
 import pyqtgraph as pg
 import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
@@ -35,8 +36,8 @@ class ImageStack(object):
         self.d7.addWidget(self.w7L)
 
         self.threadpool = LaunchStackProducer.StackProducer(self.parent) # send parent parameters
-        self.parent.connect(self.threadpool, QtCore.SIGNAL("finished()"), self.displayImageStack)
-        self.parent.connect(self.startBtn, QtCore.SIGNAL("clicked()"), self.loadStack)
+        self.threadpool.finished.connect(self.displayImageStack)
+        self.startBtn.clicked.connect(self.loadStack)
 
     # Loading image stack
     def displayImageStack(self):

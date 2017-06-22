@@ -1,4 +1,5 @@
 import numpy as np
+from PyQt5.QtWidgets import *
 import myskbeam
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
@@ -153,14 +154,14 @@ class MaskMaker(object):
         self.w17.setParameters(self.p6, showTop=False)
         self.p6.sigTreeStateChanged.connect(self.change)
 
-        self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
-        self.parent.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.makeMaskCircle)
-        self.parent.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.makeMaskThresh)
-        self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
-        self.parent.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.deployMask)
-        self.parent.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.loadMask)
+        self.maskRectBtn.clicked.connect(self.makeMaskRect)
+        self.maskCircleBtn.clicked.connect(self.makeMaskCircle)
+        self.maskThreshBtn.clicked.connect(self.makeMaskThresh)
+        self.maskPolyBtn.clicked.connect(self.makeMaskPoly)
+        self.deployMaskBtn.clicked.connect(self.deployMask)
+        self.loadMaskBtn.clicked.connect(self.loadMask)
 
-        self.parent.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePowder)
+        self.generatePowderBtn.clicked.connect(self.makePowder)
 
     def makePowder(self):
         self.parent.thread.append(LaunchPowderProducer.PowderProducer(self.parent))  # send parent parameters with self
@@ -571,7 +572,7 @@ class MaskMaker(object):
                        combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
 
     def loadMask(self):
-        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
+        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))[0]
         print "fname: ", fname
         self.initMask()
         self.userMask = np.load(fname)

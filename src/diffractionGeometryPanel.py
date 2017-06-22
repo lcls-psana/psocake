@@ -1,4 +1,5 @@
 import numpy as np
+from PyQt5.QtWidgets import *
 import fileinput
 import pyqtgraph as pg
 import h5py
@@ -165,9 +166,9 @@ class DiffractionGeometry(object):
                                    children=self.params, expanded=True)
         self.p1.sigTreeStateChanged.connect(self.change)
         self.w3.setParameters(self.p1, showTop=False)
-
-        self.parent.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.deploy)
-        self.parent.connect(self.deployAutoGeomBtn, QtCore.SIGNAL("clicked()"), self.autoDeploy)
+       
+        self.deployGeomBtn.clicked.connect(self.deploy)
+        self.deployAutoGeomBtn.clicked.connect(self.autoDeploy)
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):

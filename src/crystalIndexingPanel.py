@@ -2,6 +2,7 @@
 # Interactive mode: temporary list, cxi, geom files are written per update
 # Batch mode: Creates a CXIDB file containing hits, turbo index the file, save single stream and delete CXIDB
 import numpy as np
+from PyQt5.QtWidgets import *
 from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
 import h5py
@@ -135,8 +136,8 @@ class CrystalIndexing(object):
         self.w21.setParameters(self.p9, showTop=False)
         self.p9.sigTreeStateChanged.connect(self.change)
 
-        self.parent.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), self.indexPeaks)
-        self.parent.connect(self.synchBtn, QtCore.SIGNAL("clicked()"), self.syncGeom)
+        self.launchIndexBtn.clicked.connect(self.indexPeaks)
+        self.synchBtn.clicked.connect(self.syncGeom)
 
     # Launch indexing
     def indexPeaks(self):
