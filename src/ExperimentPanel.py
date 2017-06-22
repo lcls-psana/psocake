@@ -720,8 +720,6 @@ class ExperimentInfo(object):
             self.parent.elogDir = self.parent.rootDir + '/psocake'
             self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
-        print "$$$ rootDir: ", self.parent.rootDir
-        print "$$$ psocakeRunDir: ", self.parent.psocakeRunDir
 
     def updatePanels(self):
         # Update peak finder outdir and run number
@@ -740,6 +738,8 @@ class ExperimentInfo(object):
         self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_runs_str).setValue(
             self.parent.runNumber)
         # Update indexing outdir, run number
+        self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+            self.parent.psocakeRunDir+'/.temp.geom')
         self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(
             self.parent.psocakeDir)
         self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(
