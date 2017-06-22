@@ -131,9 +131,6 @@ class PeakFinder:
                     self.cy = -1 * float(line.split('=')[-1])
                 elif 'p0/corner_y' in line:
                     self.cx = float(line.split('=')[-1])
-            #(dim0, dim1) = (2880,2880) # FIXME: get it from geom
-            #self.cx, self.cy = (1428,1451) # FIXME: get it from geom
-            print "####: ", dim0, dim1, self.cx, self.cy
             self.iy = np.tile(np.arange(dim0), [dim1, 1])
             self.ix = np.transpose(self.iy)
             self.iX = np.array(self.ix, dtype=np.int64)

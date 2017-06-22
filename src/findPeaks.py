@@ -123,7 +123,6 @@ if rank == 0:
         f.close()
         numEvents = len(_files)
     (dim0, dim1) = img.shape
-    print "numEvents, dim0, dim1: ", numEvents, dim0, dim1
 
     runStr = "%04d" % args.run
     fname = args.outDir + '/' + args.exp +"_"+ runStr + ".cxi"

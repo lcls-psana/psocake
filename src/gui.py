@@ -1,7 +1,7 @@
 import os
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    import psana
+    pass
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 else:
@@ -130,7 +130,6 @@ class MainFrame(QtGui.QWidget):
         self.detInfo = args.det
         self.detAlias = None
         self.eventNumber = int(args.evt)
-        print "$$$$$ exp,run,det,evt=", self.experimentName, self.runNumber, self.detInfo, self.eventNumber
 
         # Directories
         self.psocakeDir = None
@@ -193,8 +192,6 @@ class MainFrame(QtGui.QWidget):
         self.small = SmallDataPanel.SmallData(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.hf = HitFinderPanel.HitFinder(self)
-
-        print "$ exp,run,det,evt=", self.experimentName, self.runNumber, self.detInfo, self.eventNumber
 
         self.initUI()
 
@@ -361,23 +358,18 @@ class MainFrame(QtGui.QWidget):
         self.thread = []
         self.threadCounter = 0
 
-        print "##### initializing: ", self.hasExperimentName, self.hasRunNumber, self.hasDetInfo
         # Initial setup of input parameters
         if self.experimentName is not "":
             self.exp.p.param(self.exp.exp_grp, self.exp.exp_name_str).setValue(self.experimentName)
             self.exp.updateExpName(self.experimentName)
-            print "status0: ", self.hasExperimentName, self.hasRunNumber, self.hasDetInfo
         if self.runNumber is not 0:
             self.exp.p.param(self.exp.exp_grp, self.exp.exp_run_str).setValue(self.runNumber)
             self.exp.updateRunNumber(self.runNumber)
-            print "status1: ", self.hasExperimentName, self.hasRunNumber, self.hasDetInfo
         if self.detInfo is not "":
             self.exp.p.param(self.exp.exp_grp, self.exp.exp_detInfo_str).setValue(self.detInfo)
             self.exp.updateDetInfo(self.detInfo)
-            print "status2: ", self.hasExperimentName, self.hasRunNumber, self.hasDetInfo
         self.exp.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
         self.exp.updateEventNumber(self.eventNumber)
-        print "status3: ", self.hasExperimentName, self.hasRunNumber, self.hasDetInfo
 
         if self.exp.hasExpRunInfo():
             # Setup elog

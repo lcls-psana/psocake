@@ -45,7 +45,6 @@ def donutMask(N,M,R,r,centreRow=0,centreCol=0):
 def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
               son_min=0, hvalue=0, r0=0, dr=0, mask=None):
     hmax = h_maxima(calib, hvalue)
-    print "findPeaks: ", npix_min, npix_max, atot_thr, son_min, hvalue, r0, dr
     if mask is not None: hmax = np.multiply(hmax, mask)
 
     ll = label(hmax)
@@ -74,7 +73,6 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
     numInner = len(np.where(inner == 1)[0])
     for i in range(numPeaks):
         d = calib[x[i] - lh:x[i] + rh, y[i] - lh:y[i] + rh]
-        #print "peaks: ", d, d.shape
         try:
             meanSig = np.mean(d[np.where(inner == 1)])
             stdNoise = np.std(d[np.where(outer == 1)])
@@ -101,7 +99,6 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
         peaks[:,2] = npix.T
         peaks[:,3] = atot.T
         peaks[:,4] = son.T
-    #print "peaks: ", peaks
     return peaks
 
 def getStreakMask(det,evt):
