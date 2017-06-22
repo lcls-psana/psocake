@@ -280,8 +280,12 @@ class ExperimentInfo(object):
             self.parent.pk.userUpdate = None
 
             self.setupDetGeom()
+            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
             # update image
             self.getEventAndDisplay()
+            # Indicate centre of detector
+            self.parent.geom.drawCentre()
 
         #self.parent.detInfoList = None
 
@@ -325,8 +329,12 @@ class ExperimentInfo(object):
                 self.parent.pk.userUpdate = None
 
                 self.setupDetGeom()
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
                 # update image
                 self.getEventAndDisplay()
+                # Indicate centre of detector
+                self.parent.geom.drawCentre()
 
         if self.hasExpRunDetInfo(): print "starting setup"
 
@@ -362,15 +370,18 @@ class ExperimentInfo(object):
             self.parent.pk.userUpdate = None
 
             self.setupDetGeom()
+            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+            print "~~~~~~~~cxcy: ", self.parent.cx, self.parent.cy
+
             # update image
             self.getEventAndDisplay()
+            # Indicate centre of detector
+            self.parent.geom.drawCentre()
 
         #if self.parent.doneInit:
         #    self.setupDetGeom()
         #    self.parent.img.updateImage()
         #    self.parent.geom.drawCentre()
-
-        if self.hasExpRunDetInfo(): print "starting setup"
 
         if self.parent.args.v >= 1: print "Done updateDetInfo: ", self.parent.detInfo
 
@@ -426,9 +437,8 @@ class ExperimentInfo(object):
             self.parent.eventNumber = self.eventTotal - 1
 
         if self.parent.doneInit and self.hasExpRunDetInfo():
-            tic = time.time()
             self.getEventAndDisplay()
-            print "*** time to display: ", time.time() - tic
+
         #if self.hasExpRunDetInfo():
         #    if self.parent.facility == self.parent.facilityLCLS:
         #        # update timestamps and fiducial
@@ -447,7 +457,7 @@ class ExperimentInfo(object):
 
         # update labels
         #if self.parent.args.mode == "all": if self.parent.evtLabels is not None: self.parent.evtLabels.refresh()
-        if self.hasExpRunDetInfo(): print "starting setup"
+
         if self.parent.args.v >= 1: print "Done updateEventNumber: ", self.parent.eventNumber
 
     def hasExpRunInfo(self):
@@ -888,7 +898,16 @@ class ExperimentInfo(object):
 
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
+
+
+
         if self.hasExpRunInfo() and not self.hasExpRunDetInfo():
+            # Setup elog
+            self.setupRunTable()
+            self.getDatasource()
+            self.setupRunDir()
+            self.setupTotalEvents()
+            self.printDetectorNames()
             # Update paths in all the panels
             self.exp.updatePanels()
             # setup psocake-relate paths
@@ -902,6 +921,12 @@ class ExperimentInfo(object):
         if self.hasExpRunDetInfo():
             # Set up detector and geometry
             self.setupDetGeom()
+            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
+            # update image
+            self.getEventAndDisplay()
+            # Indicate centre of detector
+            self.parent.geom.drawCentre()
 
         if self.parent.args.v >= 1: print "Done setupExperiment"
 

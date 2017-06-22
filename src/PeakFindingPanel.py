@@ -861,3 +861,4 @@ class PeakFinding(object):
         else:
             self.parent.img.peak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done drawPeaks"
+        self.parent.geom.drawCentre()

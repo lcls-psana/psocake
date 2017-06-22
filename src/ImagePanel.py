@@ -149,13 +149,10 @@ class ImageViewer(object):
         self.y_axis.setLabel('Y-axis (pixels)')
 
     def updateImage(self, calib=None):
-        tic = time.time()
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
             if self.parent.facility == self.parent.facilityLCLS:
                 if calib is None:
-                    tic = time.time()
                     self.parent.calib, self.parent.data = self.getDetImage(self.parent.eventNumber)
-                    print "*** updateImage0: ", time.time() - tic
                 else:
                     _, self.parent.data = self.getDetImage(self.parent.eventNumber, calib=calib)
             elif self.parent.facility == self.parent.facilityPAL:
@@ -191,8 +188,6 @@ class ImageViewer(object):
         # Load peak parameters if exists
         if 'sfx' in self.parent.args.mode and self.parent.pk.userUpdate is None:
             self.parent.pk.updateParam()
-
-        print "*** updateImage1: ", time.time() - tic
 
         if self.parent.args.v >= 1: print "Done updateImage"
 
