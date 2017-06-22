@@ -280,7 +280,8 @@ class ExperimentInfo(object):
             self.parent.pk.userUpdate = None
 
             self.setupDetGeom()
-            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
 
             # update image
             self.getEventAndDisplay()
@@ -307,34 +308,38 @@ class ExperimentInfo(object):
             self.parent.runNumber = data
             self.parent.hasRunNumber = True
 
-            if self.parent.doneInit and self.hasExpRunDetInfo():
-                # Setup elog
-                self.setupRunTable()
-                self.getDatasource()
-                self.setupRunDir()
-                self.setupTotalEvents()
+            if self.parent.doneInit and self.hasExpRunInfo():
                 self.printDetectorNames()
-                # Update paths in all the panels
-                self.updatePanels()
-                self.setupPsocake()
-                # Update hidden CrystFEL files
-                self.updateHiddenCrystfelFiles(self.parent.facility)
-                # Optionally use local calib directory
-                self.setupLocalCalib()
-                # Launch e-log crawler
-                self.setupCrawler()
-                # reset masks when run number is changed
-                self.parent.mk.resetMasks()
-                self.resetVariables()
-                self.parent.pk.userUpdate = None
 
-                self.setupDetGeom()
-                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+                if self.hasExpRunDetInfo():
+                    # Setup elog
+                    self.setupRunTable()
+                    self.getDatasource()
+                    self.setupRunDir()
+                    self.setupTotalEvents()
 
-                # update image
-                self.getEventAndDisplay()
-                # Indicate centre of detector
-                self.parent.geom.drawCentre()
+                    # Update paths in all the panels
+                    self.updatePanels()
+                    self.setupPsocake()
+                    # Update hidden CrystFEL files
+                    self.updateHiddenCrystfelFiles(self.parent.facility)
+                    # Optionally use local calib directory
+                    self.setupLocalCalib()
+                    # Launch e-log crawler
+                    self.setupCrawler()
+                    # reset masks when run number is changed
+                    self.parent.mk.resetMasks()
+                    self.resetVariables()
+                    self.parent.pk.userUpdate = None
+
+                    self.setupDetGeom()
+                    if self.parent.facility == self.parent.facilityLCLS:
+                        self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
+                    # update image
+                    self.getEventAndDisplay()
+                    # Indicate centre of detector
+                    self.parent.geom.drawCentre()
 
         if self.hasExpRunDetInfo(): print "starting setup"
 
@@ -370,8 +375,8 @@ class ExperimentInfo(object):
             self.parent.pk.userUpdate = None
 
             self.setupDetGeom()
-            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-            print "~~~~~~~~cxcy: ", self.parent.cx, self.parent.cy
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
 
             # update image
             self.getEventAndDisplay()
@@ -899,8 +904,6 @@ class ExperimentInfo(object):
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
 
-
-
         if self.hasExpRunInfo() and not self.hasExpRunDetInfo():
             # Setup elog
             self.setupRunTable()
@@ -921,7 +924,8 @@ class ExperimentInfo(object):
         if self.hasExpRunDetInfo():
             # Set up detector and geometry
             self.setupDetGeom()
-            self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
 
             # update image
             self.getEventAndDisplay()
