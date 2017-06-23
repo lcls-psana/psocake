@@ -2,6 +2,7 @@ from pyqtgraph.Qt import QtCore
 import subprocess
 import os, shlex
 import numpy as np
+import h5py
 
 class LaunchIndexer(QtCore.QThread):
     def __init__(self, parent = None):
@@ -35,8 +36,7 @@ class LaunchIndexer(QtCore.QThread):
         return runsToDo
 
     def saveCheetahFormatMask(self, run, arg):
-        import h5py
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 dim0 = 8 * 185
                 dim1 = 4 * 388
@@ -71,6 +71,16 @@ class LaunchIndexer(QtCore.QThread):
                     img = self.parent.mk.combinedMask[counter, :, :] # psana format
             dset[:,:] = img
             myHdf5.close()
+        elif arg == self.parent.facilityPAL:
+            print "static mask not implemented for PAL"
+            (dim0,dim1) = (2880,2880) # FIXME: read from geom file
+            fname = self.parent.index.outDir + '/r' + str(run).zfill(4) + '/staticMask.h5'
+            print "Saving static mask in Cheetah format: ", fname
+            myHdf5 = h5py.File(fname, 'w')
+            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
+            img = np.ones((dim0, dim1))
+            dset[:, :] = img
+            myHdf5.close()
 
     def run(self):
         # Digest the run list
@@ -85,7 +95,7 @@ class LaunchIndexer(QtCore.QThread):
                 print "No write access to: ", runDir
 
             # Generate Cheetah mask
-            #self.saveCheetahFormatMask(run, 'lcls')
+            self.saveCheetahFormatMask(run, self.parent.facility)
 
             # Update elog
             try:
@@ -94,33 +104,69 @@ class LaunchIndexer(QtCore.QThread):
             except AttributeError:
                 print "e-Log table does not exist"
 
-            cmd = "indexCrystals" + \
-                  " -e " + self.parent.experimentName + \
-                  " -d " + self.parent.detInfo + \
-                  " --geom " + self.parent.index.geom + \
-                  " --peakMethod " + self.parent.index.peakMethod + \
-                  " --integrationRadius " + self.parent.index.intRadius + \
-                  " --indexingMethod " + self.parent.index.indexingMethod + \
-                  " --minPeaks " + str(self.parent.pk.minPeaks) + \
-                  " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
-                  " --minRes " + str(self.parent.pk.minRes) + \
-                  " --tolerance " + str(self.parent.index.tolerance) + \
-                  " --outDir " + self.parent.index.outDir + \
-                  " --sample " + self.parent.index.sample + \
-                  " --queue " + self.parent.index.queue + \
-                  " --chunkSize " + str(self.parent.index.chunkSize) + \
-                  " --noe " + str(self.parent.index.noe) + \
-                  " --instrument " + self.parent.det.instrument() + \
-                  " --pixelSize " + str(self.parent.pixelSize) + \
-                  " --coffset " + str(self.parent.coffset) + \
-                  " --clenEpics " + self.parent.clenEpics + \
-                  " --logger " + str(self.parent.exp.logger) + \
-                  " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
-                  " --keepData " + str(self.parent.index.keepData) + \
-                  " -v " + str(self.parent.args.v)
-            if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
-            if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
-            if self.parent.index.extra: cmd += " " + self.parent.index.extra
-            cmd += " --run " + str(run)
+            if self.parent.facility == self.parent.facilityLCLS:
+                cmd = "indexCrystals" + \
+                      " -e " + self.parent.experimentName + \
+                      " -d " + self.parent.detInfo + \
+                      " --geom " + self.parent.index.geom + \
+                      " --peakMethod " + self.parent.index.peakMethod + \
+                      " --integrationRadius " + self.parent.index.intRadius + \
+                      " --indexingMethod " + self.parent.index.indexingMethod + \
+                      " --minPeaks " + str(self.parent.pk.minPeaks) + \
+                      " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
+                      " --minRes " + str(self.parent.pk.minRes) + \
+                      " --tolerance " + str(self.parent.index.tolerance) + \
+                      " --outDir " + self.parent.index.outDir + \
+                      " --sample " + self.parent.index.sample + \
+                      " --queue " + self.parent.index.queue + \
+                      " --chunkSize " + str(self.parent.index.chunkSize) + \
+                      " --noe " + str(self.parent.index.noe) + \
+                      " --instrument " + self.parent.det.instrument() + \
+                      " --pixelSize " + str(self.parent.pixelSize) + \
+                      " --coffset " + str(self.parent.coffset) + \
+                      " --clenEpics " + self.parent.clenEpics + \
+                      " --logger " + str(self.parent.exp.logger) + \
+                      " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
+                      " --keepData " + str(self.parent.index.keepData) + \
+                      " -v " + str(self.parent.args.v)
+                if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
+                if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
+                if self.parent.index.extra: cmd += " " + self.parent.index.extra
+                cmd += " --run " + str(run)
+            elif self.parent.facility == self.parent.facilityPAL:
+                cmd = "indexCrystals" + \
+                      " -e " + self.parent.experimentName + \
+                      " -d " + self.parent.detInfo + \
+                      " --geom " + self.parent.index.geom + \
+                      " --peakMethod " + self.parent.index.peakMethod + \
+                      " --integrationRadius " + self.parent.index.intRadius + \
+                      " --indexingMethod " + self.parent.index.indexingMethod + \
+                      " --minPeaks " + str(self.parent.pk.minPeaks) + \
+                      " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
+                      " --minRes " + str(self.parent.pk.minRes) + \
+                      " --tolerance " + str(self.parent.index.tolerance) + \
+                      " --outDir " + self.parent.index.outDir + \
+                      " --sample " + self.parent.index.sample + \
+                      " --cpu " + str(self.parent.index.cpu) + \
+                      " --noe " + str(self.parent.index.noe) + \
+                      " --pixelSize " + str(self.parent.pixelSize) + \
+                      " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
+                      " --keepData " + str(self.parent.index.keepData) + \
+                      " -v " + str(self.parent.args.v) + \
+                      " --dir " + str(self.parent.dir)
+                # " --coffset " + str(self.parent.coffset) + \
+                # " --instrument " + self.parent.det.instrument() + \
+                # " --clenEpics " + self.parent.clenEpics + \
+                # " --queue " + self.parent.index.queue + \
+                # " --keepData " + str(self.parent.index.keepData) + \
+                # " --logger " + str(self.parent.exp.logger) + \
+                if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
+                if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
+                if self.parent.index.extra: cmd += " " + self.parent.index.extra
+                cmd += " --run " + str(run)
+            # Launch indexing job
             print "Launch indexing job: ", cmd
             p = subprocess.Popen(shlex.split(cmd))
+            #p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            #out, err = p.communicate()
+            #print "out,err: ", out, err

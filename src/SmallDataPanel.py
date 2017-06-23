@@ -11,17 +11,17 @@ class SmallData(object):
     def __init__(self, parent = None):
         self.parent = parent
 
-        ## Dock 8: Quantifier
-        self.dSmall = Dock("Small Data", size=(100, 100))
-        self.w8 = ParameterTree()
-        self.dSmall.addWidget(self.w8)
-        self.w11a = pg.LayoutWidget()
+        ## Dock: Quantifier
+        self.dock = Dock("Small Data", size=(100, 100))
+        self.win = ParameterTree()
+        self.dock.addWidget(self.win)
+        self.winL = pg.LayoutWidget()
         self.refreshBtn = QtGui.QPushButton('Refresh')
-        self.w11a.addWidget(self.refreshBtn, row=0, col=0)
-        self.dSmall.addWidget(self.w11a)
+        self.winL.addWidget(self.refreshBtn, row=0, col=0)
+        self.dock.addWidget(self.winL)
         # Add plot
-        self.w9 = pg.PlotWidget(title="Metric")
-        self.dSmall.addWidget(self.w9)
+        self.winP = pg.PlotWidget(title="Metric")
+        self.dock.addWidget(self.winP)
 
         # Quantifier parameter tree
         self.quantifier_grp = 'Small data'
@@ -46,7 +46,7 @@ class SmallData(object):
 
         self.pSmall = Parameter.create(name='paramsQuantifier', type='group', \
                                        children=self.params, expanded=True)
-        self.w8.setParameters(self.pSmall, showTop=False)
+        self.win.setParameters(self.pSmall, showTop=False)
         self.pSmall.sigTreeStateChanged.connect(self.change)
         self.parent.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.reloadQuantifier)
 
@@ -122,16 +122,16 @@ class SmallData(object):
             pass
 
     def updateQuantifierPlot(self, metric):
-        self.w9.getPlotItem().clear()
+        self.winP.getPlotItem().clear()
         if len(np.where(metric==-1)[0]) > 0:
-            self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='k') # red
+            self.curve = self.winP.plot(metric, pen=(200, 200, 200), symbolBrush=(255, 0, 0), symbolPen='k') # red
         else: # Every event was processed
-            self.curve = self.w9.plot(metric, pen=(200, 200, 200), symbolBrush=(0, 0, 255), symbolPen='k') # blue
-        self.w9.setLabel('left', "Small data")
+            self.curve = self.winP.plot(metric, pen=(200, 200, 200), symbolBrush=(0, 0, 255), symbolPen='k') # blue
+        self.winP.setLabel('left', "Small data")
         if self.quantifier_sort:
-            self.w9.setLabel('bottom', "Sorted Event Index")
+            self.winP.setLabel('bottom', "Sorted Event Index")
         else:
-            self.w9.setLabel('bottom', "Event Index")
+            self.winP.setLabel('bottom', "Event Index")
         self.curve.curve.setClickable(True)
         self.curve.sigClicked.connect(self.clicked)
 
@@ -155,5 +155,5 @@ class SmallData(object):
             self.parent.eventNumber = self.quantifierEvent[ind]
 
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
-            self.parent.img.w1.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
+            self.parent.img.win.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)

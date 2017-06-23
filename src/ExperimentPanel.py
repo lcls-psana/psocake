@@ -1,6 +1,7 @@
 import numpy as np
 import subprocess
 import os
+import glob
 try:
     logbook_present = True
     from LogBook.runtables import RunTables
@@ -10,6 +11,7 @@ if logbook_present:
     import LogbookCrawler
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
+import time
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
@@ -22,12 +24,12 @@ class ExperimentInfo(object):
         self.parent = parent
 
         #############################
-        ## Dock 2: parameter
+        ## Dock: parameter
         #############################
-        self.d2 = Dock("Experiment Parameters", size=(1, 1))
-        self.w2 = ParameterTree()
-        self.w2.setWindowTitle('Parameters')
-        self.d2.addWidget(self.w2)
+        self.dock = Dock("Experiment Parameters", size=(1, 1))
+        self.win = ParameterTree()
+        self.win.setWindowTitle('Parameters')
+        self.dock.addWidget(self.win)
 
         self.exp_grp = 'Experiment information'
         self.exp_name_str = 'Experiment Name'
@@ -118,7 +120,6 @@ class ExperimentInfo(object):
         self.logger = False
         self.loggerFile = None
         self.crawlerRunning = False
-        self.username = None
         self.rt = None
         self.table = None
 
@@ -129,7 +130,7 @@ class ExperimentInfo(object):
                 {'name': self.exp_run_str, 'type': 'int', 'value': self.parent.runNumber, 'tip': "Run number, e.g. 15"},
                 {'name': self.exp_detInfo_str, 'type': 'str', 'value': self.parent.detInfo,
                  'tip': "Detector ID. Look at the terminal for available area detectors, e.g. DscCsPad"},
-                {'name': self.exp_evt_str, 'type': 'int', 'value': self.parent.eventNumber, 'tip': "Event number, first event is 0",
+                {'name': self.exp_evt_str, 'type': 'int', 'value': self.parent.eventNumber, 'decimals': 7, 'tip': "Event number, first event is 0",
                  'children': [
                      # {'name': exp_eventID_str, 'type': 'str', 'value': self.eventID},#, 'readonly': False},
                      {'name': self.exp_second_str, 'type': 'str', 'value': self.eventSeconds, 'readonly': True},
@@ -177,7 +178,7 @@ class ExperimentInfo(object):
         ]
 
         self.p = Parameter.create(name='params', type='group', children=self.params, expanded=True)
-        self.w2.setParameters(self.p, showTop=False)
+        self.win.setParameters(self.p, showTop=False)
         self.p.sigTreeStateChanged.connect(self.change)
 
     # If anything changes in the parameter tree, print a message
@@ -198,16 +199,14 @@ class ExperimentInfo(object):
         if path[0] == self.exp_grp:
             if path[1] == self.exp_name_str:
                 self.updateExpName(data)
-                if self.parent.pk.showPeaks:
-                    self.parent.pk.updateClassification()
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
             elif path[1] == self.exp_run_str:
                 self.updateRunNumber(data)
-                if self.parent.pk.showPeaks:
-                    self.parent.pk.updateClassification()
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
+                self.parent.small.reloadQuantifier()
             elif path[1] == self.exp_detInfo_str:
                 self.updateDetInfo(data)
-                if self.parent.pk.showPeaks:
-                    self.parent.pk.updateClassification()
+                if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
             elif path[1] == self.exp_evt_str and len(path) == 2 and change is 'value':
                 self.updateEventNumber(data)
                 if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
@@ -244,28 +243,61 @@ class ExperimentInfo(object):
         self.secList = None
         self.nsecList = None
         self.fidList = None
-        
-    def updateExpName(self, data):
-        self.parent.experimentName = data
-        self.parent.hasExperimentName = True
-        self.parent.detInfoList = None
-        self.resetVariables()
-    
-        # Setup elog
+
+    def setupRunTable(self):
         if logbook_present:
             self.rt = RunTables(**{'web-service-url': 'https://pswww.slac.stanford.edu/ws-kerb'})
             try:
                 self.table = self.rt.findUserTable(exper_name=self.parent.experimentName, table_name='Run summary')
             except:
                 self.table = None
-                #print "Your experiment may not exist"
-                #print "Or you need a kerberos ticket. Type: kinit"
-                #exit()
-                #exit()
 
-        self.setupExperiment()
+    def updateExpName(self, data):
+        self.parent.experimentName = data
+        self.parent.hasExperimentName = True
+        self.parent.detInfoList = None
+        self.resetVariables()
+
+        if self.parent.doneInit and self.hasExpRunDetInfo():
+            # Setup elog
+            self.setupRunTable()
+            self.getDatasource()
+            self.setupRunDir()
+            self.setupTotalEvents()
+            self.printDetectorNames()
+            # Update paths in all the panels
+            self.updatePanels()
+            self.setupPsocake()
+            # Update hidden CrystFEL files
+            self.updateHiddenCrystfelFiles(self.parent.facility)
+            # Optionally use local calib directory
+            self.setupLocalCalib()
+            # Launch e-log crawler
+            self.setupCrawler()
+            # reset masks when run number is changed
+            self.parent.mk.resetMasks()
+            self.resetVariables()
+            self.parent.pk.userUpdate = None
+
+            self.setupDetGeom()
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
+            # update image
+            self.getEventAndDisplay()
+            # Indicate centre of detector
+            self.parent.geom.drawCentre()
+
+        #self.parent.detInfoList = None
+
+        #self.resetVariables()
+        # Setup elog
+        #self.setupRunTable()
+
+        #self.setupExperiment()
+        if self.hasExpRunDetInfo(): print "starting setup"
     
-        self.parent.img.updateImage()
+        #self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateExperimentName:", self.parent.experimentName
     
     def updateRunNumber(self, data):
@@ -275,28 +307,85 @@ class ExperimentInfo(object):
         else:
             self.parent.runNumber = data
             self.parent.hasRunNumber = True
-            self.parent.detInfoList = None
-            self.setupExperiment()
-            self.parent.mk.resetMasks()
-            self.resetVariables()
-            self.parent.pk.userUpdate = None
-            self.parent.img.updateImage()
+
+            if self.parent.doneInit and self.hasExpRunInfo():
+                self.printDetectorNames()
+
+                if self.hasExpRunDetInfo():
+                    # Setup elog
+                    self.setupRunTable()
+                    self.getDatasource()
+                    self.setupRunDir()
+                    self.setupTotalEvents()
+
+                    # Update paths in all the panels
+                    self.updatePanels()
+                    self.setupPsocake()
+                    # Update hidden CrystFEL files
+                    self.updateHiddenCrystfelFiles(self.parent.facility)
+                    # Optionally use local calib directory
+                    self.setupLocalCalib()
+                    # Launch e-log crawler
+                    self.setupCrawler()
+                    # reset masks when run number is changed
+                    self.parent.mk.resetMasks()
+                    self.resetVariables()
+                    self.parent.pk.userUpdate = None
+
+                    self.setupDetGeom()
+                    if self.parent.facility == self.parent.facilityLCLS:
+                        self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
+                    # update image
+                    self.getEventAndDisplay()
+                    # Indicate centre of detector
+                    self.parent.geom.drawCentre()
+
         if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
 
     def updateDetInfo(self, data):
-        if self.parent.hasDetInfo is False or self.parent.detInfo is not data:
+        if data == '':
+            self.parent.detInfo = data
+            self.parent.hasDetInfo = False
+        else:
+            self.parent.detInfo = data
+            self.parent.hasDetInfo = True
+
+        if self.parent.doneInit and self.hasExpRunDetInfo():
+            # Setup elog
+            self.setupRunTable()
+            self.getDatasource()
+            self.setupRunDir()
+            self.setupTotalEvents()
+            self.printDetectorNames()
+            # Update paths in all the panels
+            self.updatePanels()
+            self.setupPsocake()
+            # Update hidden CrystFEL files
+            self.updateHiddenCrystfelFiles(self.parent.facility)
+            # Optionally use local calib directory
+            self.setupLocalCalib()
+            # Launch e-log crawler
+            self.setupCrawler()
+            # reset masks when run number is changed
             self.parent.mk.resetMasks()
-            self.parent.calib = None
-            self.parent.data = None
-            self.parent.firstUpdate = True
-    
-        self.parent.detInfo = data
-        if data == 'DscCsPad' or data == 'DsdCsPad' or data == 'DsaCsPad':
-            self.parent.isCspad = True
-    
-        self.parent.hasDetInfo = True
-        self.setupExperiment()
-        self.parent.img.updateImage()
+            self.resetVariables()
+            self.parent.pk.userUpdate = None
+
+            self.setupDetGeom()
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
+            # update image
+            self.getEventAndDisplay()
+            # Indicate centre of detector
+            self.parent.geom.drawCentre()
+
+        #if self.parent.doneInit:
+        #    self.setupDetGeom()
+        #    self.parent.img.updateImage()
+        #    self.parent.geom.drawCentre()
+
         if self.parent.args.v >= 1: print "Done updateDetInfo: ", self.parent.detInfo
 
     def findEventFromTimestamp(self, secList, nsecList, fidList, sec, nsec, fid):
@@ -313,11 +402,13 @@ class ExperimentInfo(object):
         return _timestamp64
 
     def getEvt(self, evtNumber):
-        if self.parent.hasRunNumber:
-            _evt = self.run.event(self.times[evtNumber])
-            return _evt
-        else:
-            return None
+        if self.hasExpRunDetInfo():
+            if self.parent.hasRunNumber:
+                _evt = self.run.event(self.times[evtNumber])
+                return _evt
+            else:
+                return None
+        return None
 
     def getEventID(self, evt):
         if evt is not None:
@@ -327,37 +418,66 @@ class ExperimentInfo(object):
             _fiducials = _evtid.fiducials()
             return _seconds, _nanoseconds, _fiducials
 
+    def getEventAndDisplay(self):
+        if self.parent.facility == self.parent.facilityLCLS:
+           # update timestamps and fiducial
+           self.parent.evt = self.getEvt(self.parent.eventNumber)
+           if self.parent.evt is not None:
+               sec, nanosec, fid = self.getEventID(self.parent.evt)
+               self.eventSeconds = str(sec)
+               self.eventNanoseconds = str(nanosec)
+               self.eventFiducial = str(fid)
+               self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+               self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
+               self.parent.img.updateImage()
+        elif self.parent.facility == self.parent.facilityPAL:
+           self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
+           self.parent.img.updateImage()
+
     def updateEventNumber(self, data):
         self.parent.eventNumber = data
-        if self.parent.eventNumber >= self.eventTotal:
+        if self.parent.eventNumber >= self.eventTotal and self.eventTotal > 0:
             self.parent.eventNumber = self.eventTotal - 1
-        # update timestamps and fiducial
-        self.parent.evt = self.getEvt(self.parent.eventNumber)
-        if self.parent.evt is not None:
-            sec, nanosec, fid = self.getEventID(self.parent.evt)
-            self.eventSeconds = str(sec)
-            self.eventNanoseconds = str(nanosec)
-            self.eventFiducial = str(fid)
-            self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
-            self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
-            self.parent.img.updateImage()
+
+        if self.parent.doneInit and self.hasExpRunDetInfo():
+            self.getEventAndDisplay()
+
+        #if self.hasExpRunDetInfo():
+        #    if self.parent.facility == self.parent.facilityLCLS:
+        #        # update timestamps and fiducial
+        #        self.parent.evt = self.getEvt(self.parent.eventNumber)
+        #        if self.parent.evt is not None:
+        #            sec, nanosec, fid = self.getEventID(self.parent.evt)
+        #            self.eventSeconds = str(sec)
+        #            self.eventNanoseconds = str(nanosec)
+        #            self.eventFiducial = str(fid)
+        #            self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+        #            self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
+        #            self.parent.img.updateImage()
+        #    elif self.parent.facility == self.parent.facilityPAL:
+        #        self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
+        #        self.parent.img.updateImage()
+
         # update labels
-        if self.parent.args.mode == "all":
-            if self.parent.evtLabels is not None: self.parent.evtLabels.refresh()
+        #if self.parent.args.mode == "all": if self.parent.evtLabels is not None: self.parent.evtLabels.refresh()
+
         if self.parent.args.v >= 1: print "Done updateEventNumber: ", self.parent.eventNumber
 
     def hasExpRunInfo(self):
         if self.parent.hasExperimentName and self.parent.hasRunNumber:
             # Check such a run exists
-            import glob
-            xtcs = glob.glob('/reg/d/psdm/' + self.parent.experimentName[0:3] + '/' + self.parent.experimentName + '/xtc/*-r' + str(
-                self.parent.runNumber).zfill(4) + '-*.xtc')
-            if len(xtcs) > 0:
+            if self.parent.facility == self.parent.facilityLCLS:
+                _numData = len(glob.glob(self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
+                                         self.parent.experimentName + '/xtc/*-r' + str(self.parent.runNumber).zfill(4) + '-*.xtc'))
+            elif self.parent.facility == self.parent.facilityPAL:
+                _numData = self.getNumberOfEvents(self.parent.facilityPAL)
+                if self.parent.args.v >= 1: print "hasExpRunInfo::_numData: ", _numData
+            if _numData > 0:
                 return True
             else:
                 # reset run number
                 if self.parent.runNumber > 0:
-                    print "No such run exists in: ", self.parent.experimentName
+                    print "WARNING: No such run exists in ", self.parent.experimentName
                     self.parent.runNumber = 0
                     self.updateRunNumber(self.parent.runNumber)
                     self.p.param(self.exp_grp, self.exp_run_str).setValue(self.parent.runNumber)
@@ -372,12 +492,7 @@ class ExperimentInfo(object):
         else:
             if self.parent.args.v >= 1: print "hasExpRunDetInfo: False ", self.parent.runNumber
             return False
-    
-    def getUsername(self):
-        process = subprocess.Popen('whoami', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, err = process.communicate()
-        self.username = out.strip()
-    
+
     def setupPsocake(self):
         self.loggerFile = self.parent.elogDir + '/logger.data'
         if os.path.exists(self.parent.elogDir) is False:
@@ -394,24 +509,27 @@ class ExperimentInfo(object):
                 # create logger
                 with open(self.loggerFile, "w") as myfile:
                     if self.parent.args.outDir is None:
-                        myfile.write(self.username)
+                        myfile.write(self.parent.username)
                     else:
                         myfile.write("NOONE")
             except:
                 print "No write access: ", self.parent.elogDir
         else:
             # check if I'm a logger
-            with open(self.loggerFile, "r") as myfile:
-                content = myfile.readlines()
-                if content[0].strip() == self.username:
-                    if logbook_present and self.table is not None:
-                        self.logger = True
+            if os.path.exists(self.loggerFile):
+                with open(self.loggerFile, "r") as myfile:
+                    content = myfile.readlines()
+                    if content[0].strip() == self.parent.username:
+                        if logbook_present and self.table is not None:
+                            self.logger = True
+                        else:
+                            print "WARNING: logbook not present"
+                        if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
                     else:
-                        print "WARNING: logbook not present"
-                    if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
-                else:
-                    self.logger = False
-                    if self.parent.args.v >= 1: print "I'm not an elogger"
+                        self.logger = False
+                        if self.parent.args.v >= 1: print "I'm not an elogger"
+            else:
+                self.logger = False
         # Make run folder
         try:
             if os.path.exists(self.parent.psocakeRunDir) is False:
@@ -444,7 +562,7 @@ class ExperimentInfo(object):
                 return alias
 
     def updateHiddenCrystfelFiles(self, arg):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
                 ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
                 ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
@@ -454,9 +572,43 @@ class ExperimentInfo(object):
             else:
                 if self.parent.args.v >= 1: print "updateHiddenCrystfelFiles not implemented"
                 self.parent.index.hiddenCXI = None
+        elif arg == self.parent.facilityPAL:
+            self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
+            self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
+            self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
+
+    def findGeometry(self):
+        geomFiles = glob.glob(self.parent.rootDir + '/calib/' + self.parent.detInfo + '/geometry/*.geom')
+        geomRun = 0
+        minDiff = 0
+        for f in geomFiles:
+            startRun = int(f.split('/')[-1].split('-')[0])
+            diff = self.parent.runNumber - startRun
+            if diff < minDiff and diff >= 0:
+                minDiff = diff
+                geomRun = startRun
+        return str(geomRun) + '-end.geom'
+
+    def readCrystfelGeometry(self, arg):
+        if arg == self.parent.facilityPAL:
+            _geomFile = self.parent.geom.getClosestGeom()
+            with open(_geomFile, 'r') as f:
+                lines = f.readlines()
+            for i, line in enumerate(lines):
+                if 'clen' in line:
+                    if self.parent.detectorDistance == 0.0: # don't read from crystfel geometry if we have a detector distance
+                        self.parent.detectorDistance = float(line.split('=')[-1])
+                elif 'photon_energy' in line:
+                    self.parent.photonEnergy = float(line.split('=')[-1])
+                elif 'p0/res' in line:
+                    self.parent.pixelSize = 1./float(line.split('=')[-1])
+                elif 'p0/corner_x' in line:
+                    self.parent.cy = -1 * float(line.split('=')[-1])
+                elif 'p0/corner_y' in line:
+                    self.parent.cx = float(line.split('=')[-1])
 
     def updateDetectorDistance(self, arg):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 if self.parent.detectorDistance < 0.01:
                     self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
@@ -478,11 +630,16 @@ class ExperimentInfo(object):
                     self.parent.clen)
             else:
                 if self.parent.args.v >= 1: print "updateDetectorDistance: not implemented for this detector yet"
-            if self.parent.args.v >= 1:
-                print "detectorDistance (m), self.clen (m), self.coffset (m): ", self.parent.detectorDistance, self.parent.clen, self.parent.coffset
+        elif arg == self.parent.facilityPAL:
+            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(
+                self.parent.detectorDistance * 1e3)  # mm
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+        if self.parent.args.v >= 1: print "updateDetectorDistance::detectorDistance (m), self.clen (m), self.coffset (m): ", \
+            self.parent.detectorDistance, self.parent.clen, self.parent.coffset
 
     def updatePixelSize(self, arg):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             if 'cspad' in self.parent.detInfo.lower():  # TODO: increase pixel size list: epix, rayonix
                 self.parent.pixelSize = 110e-6  # metres
             elif 'pnccd' in self.parent.detInfo.lower():
@@ -492,9 +649,13 @@ class ExperimentInfo(object):
             # Update geometry panel
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
                     self.parent.pixelSize)  # pixel size
+        elif arg == self.parent.facilityPAL:
+            # Update geometry panel
+            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
+                    self.parent.pixelSize)  # pixel size
 
     def updatePhotonEnergy(self, arg):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
             if self.parent.ebeam:
                 self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
@@ -509,41 +670,47 @@ class ExperimentInfo(object):
                     self.parent.photonEnergy = 0.0
             self.parent.geom.p1.param(self.parent.geom.geom_grp,
                                  self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
+        elif arg == self.parent.facilityPAL:
+            self.parent.geom.p1.param(self.parent.geom.geom_grp,
+                                      self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
 
     def setClen(self):
-        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-            try:
-                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
-                self.readEpicsClen()
-            except:
-                if 'ds1' in self.parent.detInfo.lower():
-                    self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
+        if self.parent.facility == self.parent.facilityLCLS:
+            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                try:
+                    self.parent.clenEpics = str(self.parent.detAlias) + '_z'
                     self.readEpicsClen()
-                elif 'ds2' in self.parent.detInfo.lower():
-                    self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
+                except:
+                    if 'ds1' in self.parent.detInfo.lower():
+                        self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
+                        self.readEpicsClen()
+                    elif 'ds2' in self.parent.detInfo.lower():
+                        self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
+                        self.readEpicsClen()
+                    else:
+                        print "Couldn't handle detector clen. Try using the full detector name."
+                        exit()
+            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                print "setClen: Not implemented yet"
+                self.parent.clenEpics = 'MFX:DET:MMS:04' #'Rayonix_z'
+                try:
                     self.readEpicsClen()
-                else:
-                    print "Couldn't handle detector clen. Try using the full detector name."
-                    exit()
-        elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-            print "setClen: Not implemented yet"
-            self.parent.clenEpics = 'MFX:DET:MMS:04' #'Rayonix_z'
-            try:
-                self.readEpicsClen()
-            except:
-                print "ERROR: No such epics variable, ", self.parent.clenEpics
-                print "ERROR: setting clen to 0.0 metre"
-                self.parent.clen = 0.0 # metres
-        elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-            self.parent.clenEpics = 'XPP:ROB:POS:Z'
-            try:
-                self.readEpicsClen()
-            except:
-                print "ERROR: No such epics variable, ", self.parent.clenEpics
-                print "ERROR: setting clen to 0.0 metre"
-                self.parent.clen = 0.0  # metres
-        else:
-            if self.parent.args.v >= 1: print "Not implemented yet clen: ", self.parent.detInfo
+                except:
+                    print "ERROR: No such epics variable, ", self.parent.clenEpics
+                    print "ERROR: setting clen to 0.0 metre"
+                    self.parent.clen = 0.0 # metres
+            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                self.parent.clenEpics = 'XPP:ROB:POS:Z'
+                try:
+                    self.readEpicsClen()
+                except:
+                    print "ERROR: No such epics variable, ", self.parent.clenEpics
+                    print "ERROR: setting clen to 0.0 metre"
+                    self.parent.clen = 0.0  # metres
+            else:
+                if self.parent.args.v >= 1: print "Not implemented yet clen: ", self.parent.detInfo
+        elif self.parent.facility == self.parent.facilityPAL:
+            self.parent.clen = self.parent.detectorDistance # metres
 
     def readEpicsClen(self):
         for i in range(120):  # assume at least 1 second run time
@@ -555,68 +722,87 @@ class ExperimentInfo(object):
                 _temp = self.parent.clen
         if self.parent.args.v >= 1: print "Best guess at clen: ", self.parent.clen
 
-    def setupExperiment(self):
-        if self.parent.args.v >= 1: print "Doing setupExperiment"
-        if self.hasExpRunInfo():
-            self.getUsername()
-            # Set up psocake directory in scratch
-            if self.parent.args.outDir is None:
-                self.parent.rootDir = '/reg/d/psdm/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
-                self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
-                self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.username + '/psocake'
-            else:
-                self.parent.rootDir = self.parent.args.outDir
-                self.parent.elogDir = self.parent.rootDir + '/psocake'
-                self.parent.psocakeDir = self.parent.rootDir + '/' + self.username + '/psocake'
-            self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
+    def setupRunDir(self):
+        # Set up psocake directory in scratch
+        if self.parent.args.outDir is None:
+            self.parent.rootDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
+            self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.parent.username + '/psocake'
+        else:
+            self.parent.rootDir = self.parent.args.outDir
+            self.parent.elogDir = self.parent.rootDir + '/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.username + '/psocake'
+        self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-            if self.parent.args.v >= 1: print "psocakeDir: ", self.parent.psocakeDir
+    def updatePanels(self):
+        # Update peak finder outdir and run number
+        self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_outDir_str).setValue(
+            self.parent.psocakeDir)
+        self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_runs_str).setValue(
+            self.parent.runNumber)
+        # Update powder outdir and run number
+        self.parent.mk.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_outDir_str).setValue(
+            self.parent.psocakeDir)
+        self.parent.mk.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_runs_str).setValue(
+            self.parent.runNumber)
+        # Update hit finding outdir, run number
+        self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_outDir_str).setValue(
+            self.parent.psocakeDir)
+        self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_runs_str).setValue(
+            self.parent.runNumber)
+        # Update indexing outdir, run number
+        self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+            self.parent.psocakeRunDir+'/.temp.geom')
+        self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(
+            self.parent.psocakeDir)
+        self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(
+            self.parent.runNumber)
+        # Update quantifier filename
+        fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
+        if self.parent.args.mode == 'sfx':
+            dsetname = '/entry_1/result_1/nPeaksAll'
+        elif self.parent.args.mode == 'spi':
+            dsetname = '/entry_1/result_1/nHitsAll'
+        else:
+            dsetname = '/entry_1/result_1/'
+        self.parent.small.pSmall.param(self.parent.small.quantifier_grp,
+                                       self.parent.small.quantifier_filename_str).setValue(fname)
+        self.parent.small.pSmall.param(self.parent.small.quantifier_grp,
+                                       self.parent.small.quantifier_dataset_str).setValue(dsetname)
 
-            # Update peak finder outdir and run number
-            self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.pk.p3.param(self.parent.pk.hitParam_grp, self.parent.pk.hitParam_runs_str).setValue(self.parent.runNumber)
-            # Update powder outdir and run number
-            self.parent.mk.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.mk.p6.param(self.parent.mk.powder_grp, self.parent.mk.powder_runs_str).setValue(self.parent.runNumber)
-            # Update hit finding outdir, run number
-            self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.hf.p8.param(self.parent.hf.spiParam_grp, self.parent.hf.spiParam_runs_str).setValue(self.parent.runNumber)
-            # Update indexing outdir, run number
-            self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.outDir_str).setValue(self.parent.psocakeDir)
-            self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(self.parent.runNumber)
-            # Update quantifier filename
-            fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
-            if self.parent.args.mode == 'sfx':
-                dsetname = '/entry_1/result_1/nPeaksAll'
-            elif self.parent.args.mode == 'spi':
-                dsetname = '/entry_1/result_1/nHitsAll'
-            else:
-                dsetname = '/entry_1/result_1/'
-            self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(fname)
-            self.parent.small.pSmall.param(self.parent.small.quantifier_grp,  self.parent.small.quantifier_dataset_str).setValue(dsetname)
-            self.setupPsocake()
-    
-            # Update hidden CrystFEL files
-            self.updateHiddenCrystfelFiles('lcls')
-    
+    def setupLocalCalib(self):
+        if self.parent.facility == self.parent.facilityLCLS:
             if self.parent.args.localCalib:
-                if self.parent.args.v >= 1: print "Using local calib directory"
                 psana.setOption('psana.calib-dir', './calib')
-    
+                if self.parent.args.v >= 1: print "Using local calib directory"
+
+    def getDatasource(self):
+        if self.parent.facility == self.parent.facilityLCLS:
             try:
-                self.ds = psana.DataSource('exp=' + str(self.parent.experimentName) + ':run=' + str(
-                    self.parent.runNumber) + ':idx')
+                self.ds = psana.DataSource('exp=' + str(self.parent.experimentName) +
+                                           ':run=' + str(self.parent.runNumber) + ':idx')
+                self.run = self.ds.runs().next()
+                self.times = self.run.times()
             except:
                 print "############# No such datasource exists ###############"
-            self.run = self.ds.runs().next()
-            self.times = self.run.times()
+
+    def setupTotalEvents(self):
+        if self.parent.facility == self.parent.facilityLCLS:
             self.eventTotal = len(self.times)
             self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
             self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
             self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
             self.env = self.ds.env()
-    
-            if self.parent.detInfoList is None:
+        elif self.parent.facility == self.parent.facilityPAL:
+            self.eventTotal = self.getNumberOfEvents(self.parent.facilityPAL)
+            self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
+            self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
+            self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
+
+    def printDetectorNames(self):
+        # Print list of available detectors
+        if self.parent.detInfoList is None:
+            if self.parent.facility == self.parent.facilityLCLS:
                 self.parent.evt = self.run.event(self.times[-1])
                 myAreaDetectors = []
                 self.parent.detnames = psana.DetNames()
@@ -632,14 +818,23 @@ class ExperimentInfo(object):
                 for k in self.parent.detInfoList:
                     print "#", k
                 print "#######################################"
-    
-            # Launch e-log crawler
+            elif self.parent.facility == self.parent.facilityPAL:
+                self.parent.detInfoList = ['MX225-HS']  # PAL does not provide detectors available, so hard-code
+                print "#######################################"
+                print "# Available area detectors: "
+                for k in self.parent.detInfoList:
+                    print "#", k
+                print "#######################################"
+
+    def setupCrawler(self):
+        if self.parent.facility == self.parent.facilityLCLS:
             if self.logger and self.crawlerRunning == False:
                 if self.parent.args.v >= 1: print "Launching crawler"
                 self.launchCrawler()
                 self.crawlerRunning = True
-    
-        if self.hasExpRunDetInfo():
+
+    def setupDetGeom(self):
+        if self.parent.facility == self.parent.facilityLCLS:
             self.parent.det = psana.Detector(str(self.parent.detInfo), self.env)
             self.parent.det.do_reshape_2d_to_3d(flag=True)
             self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
@@ -647,11 +842,11 @@ class ExperimentInfo(object):
             self.setClen()
 
             # detector distance
-            self.updateDetectorDistance('lcls')
+            self.updateDetectorDistance(self.parent.facility)
             # pixel size
-            self.updatePixelSize('lcls')
+            self.updatePixelSize(self.parent.facility)
             # photon energy
-            self.updatePhotonEnergy('lcls')
+            self.updatePhotonEnergy(self.parent.facility)
 
             # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
             if self.parent.evt is None:
@@ -669,20 +864,85 @@ class ExperimentInfo(object):
             # Setup pixel indices
             if self.detGuaranteed is not None:
                 self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
-                self.parent.pixelIndAssem = self.parent.img.getAssembledImage('lcls', self.parent.pixelInd)
+                self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.facilityLCLS, self.parent.pixelInd)
                 self.parent.pixelIndAssem -= 1  # First pixel is 0
                 # Get detector shape
                 self.detGuaranteedData = self.parent.det.image(self.parent.evt, self.detGuaranteed)
 
             # Write a temporary geom file
-            self.parent.geom.deployCrystfelGeometry('lcls')
-            self.parent.geom.writeCrystfelGeom('lcls')
+            self.parent.geom.deployCrystfelGeometry(self.parent.facility)
+            self.parent.geom.writeCrystfelGeom(self.parent.facility)
+
+            self.parent.img.setupRadialBackground()
+            self.parent.img.updatePolarizationFactor()
+        elif self.parent.facility == self.parent.facilityPAL:
+            # read geometry
+            self.readCrystfelGeometry(self.parent.facility)
+            # detector distance
+            self.updateDetectorDistance(self.parent.facility)
+            # pixel size
+            self.updatePixelSize(self.parent.facility)
+            # photon energy
+            self.updatePhotonEnergy(self.parent.facility)
+            self.detGuaranteed, self.detGuaranteedData = self.parent.img.getDetImage(0)
+            # Setup pixel indices
+            if self.detGuaranteed is not None:
+                self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
+                self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.facility,
+                                                                              self.parent.pixelInd)
+                self.parent.pixelIndAssem -= 1  # First pixel is 0
+
+            # Write a temporary geom file
+            # self.parent.geom.deployCrystfelGeometry(self.parent.facility)
+            self.parent.geom.writeCrystfelGeom(self.parent.facility)
 
             self.parent.img.setupRadialBackground()
             self.parent.img.updatePolarizationFactor()
 
+    def setupExperiment(self):
+        if self.parent.args.v >= 1: print "Doing setupExperiment"
+
+        if self.hasExpRunInfo() and not self.hasExpRunDetInfo():
+            # Setup elog
+            self.setupRunTable()
+            self.getDatasource()
+            self.setupRunDir()
+            self.setupTotalEvents()
+            self.printDetectorNames()
+            # Update paths in all the panels
+            self.exp.updatePanels()
+            # setup psocake-relate paths
+            self.setupPsocake()
+            # Update hidden CrystFEL files
+            self.updateHiddenCrystfelFiles(self.parent.facility)
+            # Optionally use local calib directory
+            self.setupLocalCalib()
+            # Launch e-log crawler
+            self.setupCrawler()
+        if self.hasExpRunDetInfo():
+            # Set up detector and geometry
+            self.setupDetGeom()
+            if self.parent.facility == self.parent.facilityLCLS:
+                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+
+            # update image
+            self.getEventAndDisplay()
+            # Indicate centre of detector
+            self.parent.geom.drawCentre()
+
         if self.parent.args.v >= 1: print "Done setupExperiment"
-    
+
+    def getNumberOfEvents(self, facility):
+        try:
+            if facility == self.parent.facilityPAL:
+                _path = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + \
+                        '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
+                _data = glob.glob(_path)
+            if self.parent.args.v >= 1: print "Done getNumberOfEvents: ", _path, len(_data)
+            return len(_data)
+        except:
+            return 0
+
     def updateLogscale(self, data):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():

@@ -17,12 +17,12 @@ class HitFinder(object):
     def __init__(self, parent = None):
         self.parent = parent
 
-        ## Dock 13: Hit finder
-        self.d13 = Dock("Hit Finder", size=(1, 1))
-        self.w19 = ParameterTree()
-        self.d13.addWidget(self.w19)
-        self.w20 = pg.LayoutWidget()
-        self.d13.addWidget(self.w20)
+        ## Dock: Hit finder
+        self.dock = Dock("Hit Finder", size=(1, 1))
+        self.win = ParameterTree()
+        self.dock.addWidget(self.win)
+        self.winL = pg.LayoutWidget()
+        self.dock.addWidget(self.winL)
 
         # Hit finding
         self.spiParam_grp = 'Hit finder'
@@ -111,7 +111,7 @@ class HitFinder(object):
         ]
         self.p8 = Parameter.create(name='paramsHitFinder', type='group', \
                                    children=self.params, expanded=True)
-        self.w19.setParameters(self.p8, showTop=False)
+        self.win.setParameters(self.p8, showTop=False)
         self.p8.sigTreeStateChanged.connect(self.change)
 
     # Launch hit finding

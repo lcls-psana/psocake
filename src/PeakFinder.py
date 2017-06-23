@@ -1,23 +1,23 @@
 import numpy as np
 import myskbeam
-import time
+import os
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+    facility = 'LCLS'
     import psana
     from ImgAlgos.PyAlgos import PyAlgos # peak finding
     from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
     from pyimgalgos.MedianFilter import median_filter_ndarr
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
+    facility = 'PAL'
 
-def str2bool(v):
-    return v.lower() in ("yes", "true", "t", "1")
+def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 class PeakFinder:
-    def __init__(self,exp,run,detname,evt,detector,algorithm,hitParam_alg_npix_min,hitParam_alg_npix_max,
-                 hitParam_alg_amax_thr,hitParam_alg_atot_thr,hitParam_alg_son_min,
-                 streakMask_on,streakMask_sigma,streakMask_width,userMask_path,psanaMask_on,psanaMask_calib,
-                 psanaMask_status,psanaMask_edges,psanaMask_central,psanaMask_unbond,psanaMask_unbondnrs,
+    def __init__(self, exp, run, detname, evt, detector, algorithm, hitParam_alg_npix_min, hitParam_alg_npix_max,
+                 hitParam_alg_amax_thr, hitParam_alg_atot_thr, hitParam_alg_son_min,
+                 streakMask_on, streakMask_sigma, streakMask_width, userMask_path, psanaMask_on, psanaMask_calib,
+                 psanaMask_status, psanaMask_edges, psanaMask_central, psanaMask_unbond, psanaMask_unbondnrs,
                  medianFilterOn=0, medianRank=5, radialFilterOn=0, distance=0.0, windows=None, **kwargs):
         self.exp = exp
         self.run = run
@@ -26,11 +26,11 @@ class PeakFinder:
         self.algorithm = algorithm
         self.maxRes = 0
 
-        self.npix_min=hitParam_alg_npix_min
-        self.npix_max=hitParam_alg_npix_max
-        self.amax_thr=hitParam_alg_amax_thr
-        self.atot_thr=hitParam_alg_atot_thr
-        self.son_min=hitParam_alg_son_min
+        self.npix_min = hitParam_alg_npix_min
+        self.npix_max = hitParam_alg_npix_max
+        self.amax_thr = hitParam_alg_amax_thr
+        self.atot_thr = hitParam_alg_atot_thr
+        self.son_min = hitParam_alg_son_min
 
         self.streakMask_on = str2bool(streakMask_on)
         self.streakMask_sigma = streakMask_sigma
@@ -61,28 +61,33 @@ class PeakFinder:
         if self.userMask_path is not None:
             self.userMask = np.load(self.userMask_path)
 
-        # Make psana mask
-        if self.psanaMask_on:
-            self.psanaMask = detector.mask(evt, calib=self.psanaMask_calib, status=self.psanaMask_status,
-                                           edges=self.psanaMask_edges, central=self.psanaMask_central,
-                                           unbond=self.psanaMask_unbond, unbondnbrs=self.psanaMask_unbondnrs)
+        if facility == 'LCLS':
+            # Make psana mask
+            if self.psanaMask_on:
+                self.psanaMask = detector.mask(evt, calib=self.psanaMask_calib, status=self.psanaMask_status,
+                                               edges=self.psanaMask_edges, central=self.psanaMask_central,
+                                               unbond=self.psanaMask_unbond, unbondnbrs=self.psanaMask_unbondnrs)
 
-        # Combine userMask and psanaMask
-        self.userPsanaMask = np.ones_like(self.det.calib(evt))
-        if self.userMask is not None:
-            self.userPsanaMask *= self.userMask
-        if self.psanaMask is not None:
-            self.userPsanaMask *= self.psanaMask
+            # Combine userMask and psanaMask
+            self.userPsanaMask = np.ones_like(self.det.calib(evt))
+            if self.userMask is not None:
+                self.userPsanaMask *= self.userMask
+            if self.psanaMask is not None:
+                self.userPsanaMask *= self.psanaMask
+        elif facility == 'PAL':
+            self.userPsanaMask = self.userMask
 
         # Powder of hits and misses
         self.powderHits = np.zeros_like(self.userPsanaMask)
         self.powderMisses = np.zeros_like(self.userPsanaMask)
 
-        self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
-        # set peak-selector parameters:
-        self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-                                        amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-                                        son_min=self.son_min)
+        if facility == 'LCLS':
+            self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
+            # set peak-selector parameters:
+            self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                            amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                            son_min=self.son_min)
+
         # set algorithm specific parameters
         if algorithm == 1:
             self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
@@ -101,20 +106,35 @@ class PeakFinder:
             self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
-        self.maxNumPeaks = 2048
-        self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
-        self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
-        self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
-        self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
-        if len(self.iX.shape) == 2:
-            self.iX = np.expand_dims(self.iX, axis=0)
-            self.iY = np.expand_dims(self.iY, axis=0)
-
-        # Initialize radial background subtraction
-        self.setupExperiment()
-        if self.radialFilterOn:
-            self.setupRadialBackground()
-            self.updatePolarizationFactor()
+        if facility == 'LCLS':
+            self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
+            self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
+            self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
+            self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
+            if len(self.iX.shape) == 2:
+                self.iX = np.expand_dims(self.iX, axis=0)
+                self.iY = np.expand_dims(self.iY, axis=0)
+            # Initialize radial background subtraction
+            self.setupExperiment()
+            if self.radialFilterOn:
+                self.setupRadialBackground()
+                self.updatePolarizationFactor()
+        elif facility == 'PAL':
+            self.geom = kwargs["geom"]
+            with open(self.geom, 'r') as f: lines = f.readlines()
+            for i, line in enumerate(lines):
+                if 'p0/max_ss' in line:
+                    dim0 = int(line.split('=')[-1]) + 1
+                elif 'p0/max_fs' in line:
+                    dim1 = int(line.split('=')[-1]) + 1
+                elif 'p0/corner_x' in line:
+                    self.cy = -1 * float(line.split('=')[-1])
+                elif 'p0/corner_y' in line:
+                    self.cx = float(line.split('=')[-1])
+            self.iy = np.tile(np.arange(dim0), [dim1, 1])
+            self.ix = np.transpose(self.iy)
+            self.iX = np.array(self.ix, dtype=np.int64)
+            self.iY = np.array(self.iy, dtype=np.int64)
 
     def setupExperiment(self):
         self.ds = psana.DataSource('exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx')
@@ -148,39 +168,55 @@ class PeakFinder:
 
     def findPeaks(self, calib, evt):
 
-        if self.streakMask_on: # make new streak mask
-            self.streakMask = self.StreakMask.getStreakMaskCalib(evt)
+        if facility == 'LCLS':
+            if self.streakMask_on: # make new streak mask
+                self.streakMask = self.StreakMask.getStreakMaskCalib(evt)
 
-        # Apply background correction
-        if self.medianFilterOn:
-            calib -= median_filter_ndarr(calib, self.medianRank)
+            # Apply background correction
+            if self.medianFilterOn:
+                calib -= median_filter_ndarr(calib, self.medianRank)
 
-        if self.radialFilterOn:
-            self.pf.shape = calib.shape  # FIXME: shape is 1d
-            calib = self.rb.subtract_bkgd(calib * self.pf)
-            calib.shape = self.userPsanaMask.shape  # FIXME: shape is 1d
+            if self.radialFilterOn:
+                self.pf.shape = calib.shape  # FIXME: shape is 1d
+                calib = self.rb.subtract_bkgd(calib * self.pf)
+                calib.shape = self.userPsanaMask.shape  # FIXME: shape is 1d
 
-        if self.streakMask is not None:
-            self.combinedMask = self.userPsanaMask * self.streakMask
-        else:
-            self.combinedMask = self.userPsanaMask
-        # set new mask
-        #self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
-        # set peak-selector parameters:
-        #self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-        #                                amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-        #                                son_min=self.son_min)
-        self.alg.set_mask(self.combinedMask) # This doesn't work reliably
+            if self.streakMask is not None:
+                self.combinedMask = self.userPsanaMask * self.streakMask
+            else:
+                self.combinedMask = self.userPsanaMask
+            # set new mask
+            #self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
+            # set peak-selector parameters:
+            #self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+            #                                amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+            #                                son_min=self.son_min)
+            self.alg.set_mask(self.combinedMask) # This doesn't work reliably
+        elif facility == 'PAL':
+            self.combinedMask = self.userMask
+
         # set algorithm specific parameters
         if self.algorithm == 1:
-            # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
-            #                           around pixel with maximal intensity.
-            self.peaks = self.alg.peak_finder_v4r2(calib,
-                                                   thr_low=self.hitParam_alg1_thr_low,
-                                                   thr_high=self.hitParam_alg1_thr_high,
-                                                   rank=self.hitParam_alg1_rank,
-                                                   r0=self.hitParam_alg1_radius,
-                                                   dr=self.hitParam_alg1_dr)
+            if facility == 'LCLS':
+                # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
+                #                           around pixel with maximal intensity.
+                self.peaks = self.alg.peak_finder_v4r2(calib,
+                                                       thr_low=self.hitParam_alg1_thr_low,
+                                                       thr_high=self.hitParam_alg1_thr_high,
+                                                       rank=self.hitParam_alg1_rank,
+                                                       r0=self.hitParam_alg1_radius,
+                                                       dr=self.hitParam_alg1_dr)
+            elif facility == 'PAL':
+                self.peakRadius = int(self.hitParam_alg1_radius)
+                self.peaks = myskbeam.findPeaks(calib,
+                                                npix_min = self.npix_min,
+                                                npix_max = self.npix_max,
+                                                son_min = self.son_min,
+                                                hvalue = self.hitParam_alg1_thr_low,
+                                                atot_thr = self.atot_thr,
+                                                r0 = self.peakRadius,
+                                                dr = int(self.hitParam_alg1_dr),
+                                                mask = self.combinedMask)
         elif self.algorithm == 3:
             self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
         elif self.algorithm == 4:
@@ -191,10 +227,14 @@ class PeakFinder:
         self.numPeaksFound = self.peaks.shape[0]
 
         if self.numPeaksFound > 0:
-            cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
-                self.peaks[:, 2], dtype=np.int64)] + 0.5
-            cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
-                self.peaks[:, 2], dtype=np.int64)] + 0.5
+            if facility == 'LCLS':
+                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
+                    self.peaks[:, 2], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
+                    self.peaks[:, 2], dtype=np.int64)] + 0.5
+            elif facility == 'PAL':
+                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
             self.maxRes = getMaxRes(cenX, cenY, self.cx, self.cy)
         else:
             self.maxRes = 0

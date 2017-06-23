@@ -1,7 +1,105 @@
 from scipy import signal as sg
 import numpy as np
-from skimage.measure import label
+from skimage.morphology import h_maxima
+from skimage.measure import label, regionprops
 import time
+
+# Donut mask
+# Returns a donut mask with inner radius r and outer radius R in NxM image
+# Good = 1
+# Background = 0
+def donutMask(N,M,R,r,centreRow=0,centreCol=0):
+    """
+    Calculate a donut mask.
+
+    N,M - The height and width of the image
+    R   - Maximum radius from center
+    r   - Minimum radius from center
+    centreRow  - center in y
+    centreCol  - center in x
+    """
+    if centreRow == 0:
+        centerY = N/2.-0.5
+    if centreCol == 0:
+        centerX = M/2.-0.5
+    mask = np.zeros((N,M))
+    radialDistRow = np.zeros((N,M))
+    radialDistCol = np.zeros((N,M))
+    myN = np.zeros((N,M))
+    myM = np.zeros((N,M))
+    for i in range(N):
+        xDist = i-centerY
+        xDistSq = xDist**2
+        for j in range(M):
+            yDist = j-centerX
+            yDistSq = yDist**2
+            rSq = xDistSq+yDistSq
+            if rSq < R**2 and rSq >= r**2:
+                mask[i,j] = 1
+                radialDistRow[i,j] = xDist
+                radialDistCol[i,j] = yDist
+                myN[i,j] = i
+                myM[i,j] = j
+    return mask, radialDistRow, radialDistCol, myN, myM
+
+def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
+              son_min=0, hvalue=0, r0=0, dr=0, mask=None):
+    hmax = h_maxima(calib, hvalue)
+    if mask is not None: hmax = np.multiply(hmax, mask)
+
+    ll = label(hmax)
+    regions = regionprops(ll)
+    numPeaks = len(regions)
+    x = np.zeros((numPeaks,))
+    y = np.zeros((numPeaks,))
+    for i, p in enumerate(regions):
+        x[i], y[i] = p.centroid
+
+    innerRing = r0
+    outerRing = dr
+    width = int(outerRing * 2 + 1)
+
+    outer, rr, rc, n, m = donutMask(width, width, outerRing, innerRing, centreRow=0, centreCol=0)
+    inner, rr, rc, n, m = donutMask(width, width, innerRing, 0, centreRow=0, centreCol=0)
+    if width % 2 == 0:
+        lh = rh = int(width / 2)
+    else:
+        lh = int(width / 2)
+        rh = int(width / 2) + 1
+
+    snr = np.zeros_like(x)
+    tot = np.zeros_like(x)
+    numPix = np.zeros_like(x)
+    numInner = len(np.where(inner == 1)[0])
+    for i in range(numPeaks):
+        d = calib[x[i] - lh:x[i] + rh, y[i] - lh:y[i] + rh]
+        try:
+            meanSig = np.mean(d[np.where(inner == 1)])
+            stdNoise = np.std(d[np.where(outer == 1)])
+            meanBackground = np.mean(d[np.where(outer == 1)])
+            tot[i] = np.sum(d[np.where(inner == 1)]) - numInner * meanBackground
+            numPix[i] = len(np.where(d[np.where(inner == 1)] >= hvalue)[0])
+            if stdNoise == 0:
+                snr[i] = -1
+            else:
+                snr[i] = meanSig / stdNoise
+        except:
+            snr[i] = 0
+    ind= (snr >= son_min) & (tot >= atot_thr) & (numPix >= npix_min) & (numPix < npix_max)
+    x = x[ind]
+    y = y[ind]
+    npix = numPix[ind]
+    atot = tot[ind]
+    son = snr[ind]
+
+    peaks = np.zeros((len(x), 5))
+    if len(x) > 0:
+        peaks[:,0] = x.T
+        peaks[:,1] = y.T
+        peaks[:,2] = npix.T
+        peaks[:,3] = atot.T
+        peaks[:,4] = son.T
+    return peaks
 
 def getStreakMask(det,evt):
     calib = det.calib(evt)

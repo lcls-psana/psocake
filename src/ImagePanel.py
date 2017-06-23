@@ -3,13 +3,14 @@ import pyqtgraph as pg
 import numpy as np
 import time
 import os
+import datetime
+
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
     from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
     from pyimgalgos.MedianFilter import median_filter_ndarr
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-import datetime
+    import glob, h5py
 
 class FriedelSym(object):
     def __init__(self, dim, centre):
@@ -62,28 +63,28 @@ class ImageViewer(object):
 
         self.rb = None
 
-        ## Dock 1: Image Panel
-        self.d1 = Dock("Image Panel", size=(500, 400))
-        self.w1 = pg.ImageView(view=pg.PlotItem())
-        self.w1.getView().invertY(False)
+        ## Dock 2: Image Panel
+        self.dock = Dock("Image Panel", size=(500, 400))
+        self.win = pg.ImageView(view=pg.PlotItem())
+        self.win.getView().invertY(False)
         self.img_feature = pg.ImageItem()
-        self.w1.getView().addItem(self.img_feature)
+        self.win.getView().addItem(self.img_feature)
         self.ring_feature = pg.ScatterPlotItem()
         self.centre_feature = pg.ScatterPlotItem()
         self.peak_feature = pg.ScatterPlotItem()
         self.indexedPeak_feature = pg.ScatterPlotItem()
         self.z_direction = pg.ScatterPlotItem()
         self.z_direction1 = pg.ScatterPlotItem()
-        self.w1.getView().addItem(self.ring_feature)
-        self.w1.getView().addItem(self.centre_feature)
-        self.w1.getView().addItem(self.peak_feature)
-        self.w1.getView().addItem(self.indexedPeak_feature)
-        self.w1.getView().addItem(self.z_direction)
-        self.w1.getView().addItem(self.z_direction1)
+        self.win.getView().addItem(self.ring_feature)
+        self.win.getView().addItem(self.centre_feature)
+        self.win.getView().addItem(self.peak_feature)
+        self.win.getView().addItem(self.indexedPeak_feature)
+        self.win.getView().addItem(self.z_direction)
+        self.win.getView().addItem(self.z_direction1)
         self.abc_text = pg.TextItem(html='', anchor=(0,0)) # unit cell display
-        self.w1.getView().addItem(self.abc_text)
+        self.win.getView().addItem(self.abc_text)
         self.peak_text = pg.TextItem(html='', anchor=(0,0)) # peak display
-        self.w1.getView().addItem(self.peak_text)
+        self.win.getView().addItem(self.peak_text)
 
         # # Isocurve drawing
         # self.iso = pg.IsocurveItem(level=0.8, pen='r')
@@ -92,7 +93,7 @@ class ImageViewer(object):
         # # Contrast/color control
         # self.hist = pg.HistogramLUTItem()
         # self.hist.setImageItem(self.img_feature)
-        # self.w1.getView().addItem(self.hist)
+        # self.win.getView().addItem(self.hist)
         # # Draggable line for setting isocurve level
         # self.isoLine = pg.InfiniteLine(angle=0, movable=True, pen='g')
         # self.hist.vb.addItem(self.isoLine)
@@ -100,12 +101,12 @@ class ImageViewer(object):
         # self.isoLine.setValue(1.8)
         # self.isoLine.setZValue(1000)  # bring iso line above contrast controls
 
-        self.d1.addWidget(self.w1)
+        self.dock.addWidget(self.win)
 
         self.drawLabCoordinates()  # FIXME: This does not match the lab coordinates yet!
 
     def clearPeakMessage(self):
-        self.w1.getView().removeItem(self.peak_text)
+        self.win.getView().removeItem(self.peak_text)
         self.peak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done clearPeakMessage"
 
@@ -118,10 +119,10 @@ class ImageViewer(object):
         tailLen=30-cutoff
         xArrow = pg.ArrowItem(angle=180, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='b', pxMode=False)
         xArrow.setPos(2*headLen+cenX, 0+cenY)
-        self.w1.getView().addItem(xArrow)
+        self.win.getView().addItem(xArrow)
         yArrow = pg.ArrowItem(angle=-90, tipAngle=30, baseAngle=20, headLen=headLen, tailLen=tailLen, tailWidth=8, pen=None, brush='r', pxMode=False)
         yArrow.setPos(0+cenX, 2*headLen+cenY)
-        self.w1.getView().addItem(yArrow)
+        self.win.getView().addItem(yArrow)
 
         # Lab coordinates: Add z-direction
         self.z_direction.setData([0+cenX], [0+cenY], symbol='o', \
@@ -132,61 +133,57 @@ class ImageViewer(object):
                                  pen={'color': 'k', 'width': 4}, pxMode=False)
         # Lab coordinates: Add xyz text
         self.x_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #0000FF; font-size: 16pt;">x</span></div>', anchor=(0,0))
-        self.w1.getView().addItem(self.x_text)
+        self.win.getView().addItem(self.x_text)
         self.x_text.setPos(2*headLen+cenX, 0+cenY)
         self.y_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FF0000; font-size: 16pt;">y</span></div>', anchor=(1,1))
-        self.w1.getView().addItem(self.y_text)
+        self.win.getView().addItem(self.y_text)
         self.y_text.setPos(0+cenX, 2*headLen+cenY)
         self.z_text = pg.TextItem(html='<div style="text-align: center"><span style="color: #FFFFFF; font-size: 16pt;">z</span></div>', anchor=(1,0))
-        self.w1.getView().addItem(self.z_text)
+        self.win.getView().addItem(self.z_text)
         self.z_text.setPos(-headLen+cenX, 0+cenY)
 
         # Label xy axes
-        self.x_axis = self.w1.getView().getAxis('bottom')
+        self.x_axis = self.win.getView().getAxis('bottom')
         self.x_axis.setLabel('X-axis (pixels)')
-        self.y_axis = self.w1.getView().getAxis('left')
+        self.y_axis = self.win.getView().getAxis('left')
         self.y_axis.setLabel('Y-axis (pixels)')
 
-    def updateImage(self,calib=None):
+    def updateImage(self, calib=None):
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
-            if calib is None:
-                self.parent.calib, self.parent.data = self.getDetImage(self.parent.eventNumber)
-            else:
-                _, self.parent.data = self.getDetImage(self.parent.eventNumber, calib=calib)
+            if self.parent.facility == self.parent.facilityLCLS:
+                if calib is None:
+                    self.parent.calib, self.parent.data = self.getDetImage(self.parent.eventNumber)
+                else:
+                    _, self.parent.data = self.getDetImage(self.parent.eventNumber, calib=calib)
+            elif self.parent.facility == self.parent.facilityPAL:
+                if calib is None:
+                    self.parent.calib, self.parent.data = self.getDetImage(self.parent.eventNumber)
+                else:
+                    _, self.parent.data = self.getDetImage(self.parent.eventNumber, calib=calib)
 
             if self.parent.firstUpdate:
                 if self.parent.exp.logscaleOn:
-                    self.w1.setImage(np.log10(abs(self.parent.data) + self.parent.eps))
+                    self.win.setImage(np.log10(abs(self.parent.data) + self.parent.eps))
                     self.parent.firstUpdate = False
                 else:
                     self.minPercentile = np.percentile(self.parent.data, self.displayMinPercentile)
                     if self.minPercentile < 0: self.minPercentile = 0
                     self.maxPercentile = np.percentile(self.parent.data, self.displayMaxPercentile)
-                    self.w1.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
+                    self.win.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
                     self.parent.firstUpdate = False
             else:
                 if self.parent.exp.logscaleOn:
-                    self.w1.setImage(np.log10(abs(self.parent.data) + self.parent.eps),
+                    self.win.setImage(np.log10(abs(self.parent.data) + self.parent.eps),
                                      autoRange=False, autoLevels=False, autoHistogramRange=False)
                 else:
                     if self.minPercentile == 0 and self.maxPercentile == 0:
                         self.minPercentile = np.percentile(self.parent.data, self.displayMinPercentile)
                         if self.minPercentile < 0: self.minPercentile = 0
                         self.maxPercentile = np.percentile(self.parent.data, self.displayMaxPercentile)
-                        self.w1.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
+                        self.win.setImage(self.parent.data, levels=(self.minPercentile, self.maxPercentile))
                     else:
-                        self.w1.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
-
-            try:
-                fname = "/reg/d/psdm/cxi/cxitut13/res/psocake/log/" + \
-                        self.parent.exp.username + "_" + self.parent.experimentName + "_" \
-                        + str(self.parent.runNumber) + "_" + self.parent.detInfo + ".txt"
-                with open(fname, "a") as myfile:
-                    date = datetime.datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
-                    myStr = date + ": " + str(self.parent.eventNumber) + '\n'
-                    myfile.write(myStr)
-            except:
-                pass
+                        self.win.setImage(self.parent.data, autoRange=False, autoLevels=False,
+                                         autoHistogramRange=False)
 
         # Load peak parameters if exists
         if 'sfx' in self.parent.args.mode and self.parent.pk.userUpdate is None:
@@ -195,19 +192,31 @@ class ImageViewer(object):
         if self.parent.args.v >= 1: print "Done updateImage"
 
     def getCalib(self, evtNumber):
-        if self.parent.exp.run is not None:
-            self.parent.evt = self.parent.exp.getEvt(evtNumber)
-            if self.parent.exp.applyCommonMode: # play with different common mode
-                if self.parent.exp.commonMode[0] == 5: # Algorithm 5
-                    calib = self.parent.det.calib(self.parent.evt,
-                                                  cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1]))
-                else: # Algorithms 1 to 4
-                    print "### Overriding common mode: ", self.parent.exp.commonMode
-                    calib = self.parent.det.calib(self.parent.evt,
-                                                  cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
-                                                          self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
-            else:
-                calib = self.parent.det.calib(self.parent.evt)
+        if self.parent.facility == self.parent.facilityLCLS:
+            tic = time.time()
+            if self.parent.exp.run is not None:
+                self.parent.evt = self.parent.exp.getEvt(evtNumber)
+                if self.parent.exp.applyCommonMode: # play with different common mode
+                    if self.parent.exp.commonMode[0] == 5: # Algorithm 5
+                        calib = self.parent.det.calib(self.parent.evt,
+                                                      cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1]))
+                    else: # Algorithms 1 to 4
+                        print "### Overriding common mode: ", self.parent.exp.commonMode
+                        calib = self.parent.det.calib(self.parent.evt,
+                                                      cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
+                                                              self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
+                else:
+                    calib = self.parent.det.calib(self.parent.evt)
+                print "**** getCalib: ", time.time() - tic
+                return calib
+        elif self.parent.facility == self.parent.facilityPAL:
+            temp = self.parent.rootDir + '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
+            _files = glob.glob(temp)
+            f = h5py.File(_files[evtNumber],'r')
+            calib = f['/data'].value
+            #calib = np.rot90(f['/data'].value, -1) # rotate 90
+            #calib = np.rot90(f['/data'].value, 3) # rotate 270
+            f.close()
             return calib
         else:
             return None
@@ -261,7 +270,7 @@ class ImageViewer(object):
             return None
 
     def getAssembledImage(self, arg, calib):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             _calib = calib.copy() # this is important
             tic = time.time()
             if self.parent.exp.applyFriedel: # Apply Friedel symmetry
@@ -279,6 +288,8 @@ class ImageViewer(object):
             toc = time.time()
             if self.parent.args.v >= 1: print "time assemble: ", toc-tic
             return data
+        elif arg == self.parent.facilityPAL:
+            return calib
 
     def setupRadialBackground(self):
         self.parent.geom.findPsanaGeometry()
@@ -299,142 +310,166 @@ class ImageViewer(object):
             if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
 
     def updateDetectorCentre(self, arg):
-        if arg == 'lcls':
+        if arg == self.parent.facilityLCLS:
             self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
             if self.parent.cx is None:
                 data = self.parent.det.image(self.parent.evt, self.parent.exp.detGuaranteed)
                 self.parent.cx, self.parent.cy = self.getCentre(data.shape)
-            if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+        elif arg == self.parent.facilityPAL:
+            # TODO: return cx, cy which are the matrix index corresponding to beam centre
+            self.parent.exp.readCrystfelGeometry(self.parent.facility) # this updates cx and cy
+        if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+
 
     def getDetImage(self, evtNumber, calib=None):
         if calib is None:
-            if self.parent.exp.image_property == self.parent.exp.disp_medianCorrection:  # median subtraction
+            if self.parent.facility == self.parent.facilityLCLS:
+                if self.parent.exp.image_property == self.parent.exp.disp_medianCorrection:  # median subtraction
+                    calib = self.getCalib(evtNumber)
+                    if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                    calib -= median_filter_ndarr(calib, self.parent.exp.medianFilterRank)
+                elif self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:  # radial subtraction + polarization corrected
+                    calib = self.getCalib(evtNumber)
+                    if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                    self.pf.shape = calib.shape # FIXME: shape is 1d
+                    calib = self.rb.subtract_bkgd(calib * self.pf)
+                    calib.shape = self.parent.calib.shape # FIXME: shape is 1d
+                elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
+                    tic = time.time()
+                    calib = self.getCalib(evtNumber)
+                    if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                    print "**** getDetImage0: ", time.time() - tic
+                elif self.parent.exp.image_property == self.parent.exp.disp_commonModeCorrected: # common mode corrected
+                    calib = self.getCommonModeCorrected(evtNumber)
+                    if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                elif self.parent.exp.image_property == self.parent.exp.disp_pedestalCorrected: # pedestal corrected
+                    calib = self.parent.det.raw(self.parent.evt).astype('float32')
+                    if calib is None:
+                        calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                    else:
+                        calib -= self.parent.det.pedestals(self.parent.evt)
+                elif self.parent.exp.image_property == self.parent.exp.disp_raw: # raw
+                    calib = self.parent.det.raw(self.parent.evt)
+                    if calib is None:
+                        calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_photons: # photon counts
+                    calib = self.parent.det.photons(self.parent.evt, mask=self.parent.mk.userMask, adu_per_photon=self.parent.exp.aduPerPhoton)
+                    if calib is None:
+                        calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='int32')
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_pedestal: # pedestal
+                    calib = self.parent.det.pedestals(self.parent.evt)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_status: # status
+                    calib = self.parent.det.status(self.parent.evt)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_rms: # rms
+                    calib = self.parent.det.rms(self.parent.evt)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_commonMode: # common mode
+                    calib = self.getCommonMode(evtNumber)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_gain: # gain
+                    calib = self.parent.det.gain(self.parent.evt)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_gainMask: # gain_mask
+                    calib = self.parent.det.gain_mask(self.parent.evt)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_coordx: # coords_x
+                    calib = self.parent.det.coords_x(self.parent.evt)
+                    self.parent.firstUpdate = True
+                elif self.parent.exp.image_property == self.parent.exp.disp_coordy: # coords_y
+                    calib = self.parent.det.coords_y(self.parent.evt)
+                    self.parent.firstUpdate = True
+            elif self.parent.facility == self.parent.facilityPAL:
                 calib = self.getCalib(evtNumber)
-                if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-                calib -= median_filter_ndarr(calib, self.parent.exp.medianFilterRank)
-            elif self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:  # radial subtraction + polarization corrected
-                calib = self.getCalib(evtNumber)
-                if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-                self.pf.shape = calib.shape # FIXME: shape is 1d
-                calib = self.rb.subtract_bkgd(calib * self.pf)
-                calib.shape = self.parent.calib.shape # FIXME: shape is 1d
-            elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
-                calib = self.getCalib(evtNumber)
-                if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            elif self.parent.exp.image_property == self.parent.exp.disp_commonModeCorrected: # common mode corrected
-                calib = self.getCommonModeCorrected(evtNumber)
-                if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            elif self.parent.exp.image_property == self.parent.exp.disp_pedestalCorrected: # pedestal corrected
-                calib = self.parent.det.raw(self.parent.evt).astype('float32')
-                if calib is None:
-                    calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-                else:
-                    calib -= self.parent.det.pedestals(self.parent.evt)
-            elif self.parent.exp.image_property == self.parent.exp.disp_raw: # raw
-                calib = self.parent.det.raw(self.parent.evt)
-                if calib is None:
-                    calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_photons: # photon counts
-                calib = self.parent.det.photons(self.parent.evt, mask=self.parent.mk.userMask, adu_per_photon=self.parent.exp.aduPerPhoton)
-                if calib is None:
-                    calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='int32')
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_pedestal: # pedestal
-                calib = self.parent.det.pedestals(self.parent.evt)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_status: # status
-                calib = self.parent.det.status(self.parent.evt)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_rms: # rms
-                calib = self.parent.det.rms(self.parent.evt)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_commonMode: # common mode
-                calib = self.getCommonMode(evtNumber)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_gain: # gain
-                calib = self.parent.det.gain(self.parent.evt)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_gainMask: # gain_mask
-                calib = self.parent.det.gain_mask(self.parent.evt)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_coordx: # coords_x
-                calib = self.parent.det.coords_x(self.parent.evt)
-                self.parent.firstUpdate = True
-            elif self.parent.exp.image_property == self.parent.exp.disp_coordy: # coords_y
-                calib = self.parent.det.coords_y(self.parent.evt)
-                self.parent.firstUpdate = True
 
-            shape = self.parent.det.shape(self.parent.evt)
-            if len(shape) == 3:
-                if self.parent.exp.image_property == self.parent.exp.disp_quad: # quad ind
-                    calib = np.zeros(shape)
-                    for i in range(shape[0]):
-                        # TODO: handle detectors properly
+            tic = time.time()
+            if self.parent.facility == self.parent.facilityLCLS:
+                shape = self.parent.det.shape(self.parent.evt)
+                if len(shape) == 3:
+                    if self.parent.exp.image_property == self.parent.exp.disp_quad: # quad ind
+                        calib = np.zeros(shape)
+                        for i in range(shape[0]):
+                            # TODO: handle detectors properly
+                            if shape[0] == 32: # cspad
+                                calib[i,:,:] = int(i)%8
+                            elif shape[0] == 2: # cspad2x2
+                                calib[i,:,:] = int(i)%2
+                            elif shape[0] == 4: # pnccd
+                                calib[i,:,:] = int(i)%4
+                        self.parent.firstUpdate = True
+                    elif self.parent.exp.image_property == self.parent.exp.disp_seg: # seg ind
+                        calib = np.zeros(shape)
                         if shape[0] == 32: # cspad
-                            calib[i,:,:] = int(i)%8
+                            for i in range(32):
+                                calib[i,:,:] = int(i)/8
                         elif shape[0] == 2: # cspad2x2
-                            calib[i,:,:] = int(i)%2
+                            for i in range(2):
+                                calib[i,:,:] = int(i)
                         elif shape[0] == 4: # pnccd
-                            calib[i,:,:] = int(i)%4
-                    self.parent.firstUpdate = True
-                elif self.parent.exp.image_property == self.parent.exp.disp_seg: # seg ind
-                    calib = np.zeros(shape)
-                    if shape[0] == 32: # cspad
-                        for i in range(32):
-                            calib[i,:,:] = int(i)/8
-                    elif shape[0] == 2: # cspad2x2
-                        for i in range(2):
-                            calib[i,:,:] = int(i)
-                    elif shape[0] == 4: # pnccd
-                        for i in range(4):
-                            calib[i,:,:] = int(i)
-                    self.parent.firstUpdate = True
-                elif self.parent.exp.image_property == self.parent.exp.disp_row: # row ind
-                    calib = np.zeros(shape)
-                    if shape[0] == 32: # cspad
-                        for i in range(185):
-                            calib[:,i,:] = i
-                    elif shape[0] == 2: # cspad2x2
-                        for i in range(185):
-                            calib[:,i,:] = i
-                    elif shape[0] == 4: # pnccd
-                        for i in range(512):
-                            calib[:,i,:] = i
-                    self.parent.firstUpdate = True
-                elif self.parent.exp.image_property == self.parent.exp.disp_col: # col ind
-                    calib = np.zeros(shape)
-                    if shape[0] == 32: # cspad
-                        for i in range(388):
-                            calib[:,:,i] = i
-                    elif shape[0] == 2: # cspad2x2
-                        for i in range(388):
-                            calib[:,:,i] = i
-                    elif shape[0] == 4: # pnccd
-                        for i in range(512):
-                            calib[:,:,i] = i
-                    self.parent.firstUpdate = True
+                            for i in range(4):
+                                calib[i,:,:] = int(i)
+                        self.parent.firstUpdate = True
+                    elif self.parent.exp.image_property == self.parent.exp.disp_row: # row ind
+                        calib = np.zeros(shape)
+                        if shape[0] == 32: # cspad
+                            for i in range(185):
+                                calib[:,i,:] = i
+                        elif shape[0] == 2: # cspad2x2
+                            for i in range(185):
+                                calib[:,i,:] = i
+                        elif shape[0] == 4: # pnccd
+                            for i in range(512):
+                                calib[:,i,:] = i
+                        self.parent.firstUpdate = True
+                    elif self.parent.exp.image_property == self.parent.exp.disp_col: # col ind
+                        calib = np.zeros(shape)
+                        if shape[0] == 32: # cspad
+                            for i in range(388):
+                                calib[:,:,i] = i
+                        elif shape[0] == 2: # cspad2x2
+                            for i in range(388):
+                                calib[:,:,i] = i
+                        elif shape[0] == 4: # pnccd
+                            for i in range(512):
+                                calib[:,:,i] = i
+                        self.parent.firstUpdate = True
+            print "** getDetImage1: ", time.time() - tic
 
+        tic = time.time()
         # Update photon energy
-        self.parent.exp.updatePhotonEnergy('lcls')
+        self.parent.exp.updatePhotonEnergy(self.parent.facility)
+        print "** getDetImage2a: ", time.time() - tic
 
+        tic = time.time()
         # Update clen
-        self.parent.geom.updateClen('lcls')
+        self.parent.geom.updateClen(self.parent.facility)
+        print "** getDetImage2b: ", time.time() - tic
 
+        tic = time.time()
         # Write a temporary geom file
-        self.parent.geom.deployCrystfelGeometry('lcls')
-        self.parent.geom.writeCrystfelGeom('lcls') # Hack to override coffset
+        #self.parent.geom.deployCrystfelGeometry(self.parent.facility)
+        #self.parent.geom.writeCrystfelGeom(self.parent.facility) # Hack to override coffset
+        print "** getDetImage2c: ", time.time() - tic
 
+        tic = time.time()
         # Get assembled image
         if calib is not None:
-            data = self.getAssembledImage('lcls', calib)
+            data = self.getAssembledImage(self.parent.facility, calib)
         else:
             calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-            data = self.getAssembledImage('lcls', calib)
+            data = self.getAssembledImage(self.parent.facility, calib)
 
+        print "** getDetImage3: ", time.time() - tic
+
+        tic = time.time()
         # Update detector centre
-        self.updateDetectorCentre('lcls')
+        #self.updateDetectorCentre(self.parent.facility)
+        print "*** getDetImage4: ", time.time() - tic
 
+        tic = time.time()
         # Update ROI histogram
         if self.parent.roi.roiCurrent == 'rect':
             self.parent.roi.updateRoi(self.parent.roi.roi)
@@ -442,6 +477,7 @@ class ImageViewer(object):
             self.parent.roi.updateRoi(self.parent.roi.roiPoly)
         elif self.parent.roi.roiCurrent == 'circ':
             self.parent.roi.updateRoi(self.parent.roi.roiCircle)
+        print "*** getDetImage5: ", time.time() - tic
 
         return calib, data
 

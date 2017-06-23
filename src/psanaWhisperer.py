@@ -157,8 +157,7 @@ class psanaWhisperer():
     #####################################################################
     def findPsanaGeometry(self):
         try:
-            self.source = psana.Detector.PyDetector.map_alias_to_source(self.detInfo,
-                                                                  self.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
+            self.source = psana.Detector.PyDetector.map_alias_to_source(self.detInfo, self.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
             self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
             self.detectorType = gu.det_type_from_source(self.source)  # 1
             self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
@@ -172,6 +171,7 @@ class psanaWhisperer():
 
             # Determine which calib file to use
             geometryFiles = os.listdir(self.calibPath)
+            print "geometry: ", geometryFiles
             self.calibFile = None
             minDiff = -1e6
             for fname in geometryFiles:
