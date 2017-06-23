@@ -341,8 +341,6 @@ class ExperimentInfo(object):
                     # Indicate centre of detector
                     self.parent.geom.drawCentre()
 
-        if self.hasExpRunDetInfo(): print "starting setup"
-
         if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
 
     def updateDetInfo(self, data):
@@ -580,7 +578,7 @@ class ExperimentInfo(object):
             self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
 
     def findGeometry(self):
-        geomFiles = glob.glob(self.parent.rootDir + '/calib/' + self.parent.detInfo + '/*.geom')
+        geomFiles = glob.glob(self.parent.rootDir + '/calib/' + self.parent.detInfo + '/geometry/*.geom')
         geomRun = 0
         minDiff = 0
         for f in geomFiles:

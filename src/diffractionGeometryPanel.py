@@ -206,24 +206,20 @@ class DiffractionGeometry(object):
 
     def findPsanaGeometry(self):
         try:
-            print "#### findPsanaGeometry"
             self.source = Detector.PyDetector.map_alias_to_source(self.parent.detInfo,
                                                                   self.parent.exp.ds.env())  # 'DetInfo(CxiDs2.0:Cspad.0)'
             self.calibSource = self.source.split('(')[-1].split(')')[0]  # 'CxiDs2.0:Cspad.0'
             self.detectorType = gu.det_type_from_source(self.source)  # 1
             self.calibGroup = gu.dic_det_type_to_calib_group[self.detectorType]  # 'CsPad::CalibV1'
             self.detectorName = gu.dic_det_type_to_name[self.detectorType].upper()  # 'CSPAD'
-            print "### detname: ", self.detectorName
 
             if self.parent.args.localCalib:
                 self.calibPath = "./calib/" + self.calibGroup + "/" + self.calibSource + "/geometry"
             else:
-                print "### calibPath: ", self.parent.dir, self.parent.experimentName
                 self.calibPath = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
                                  self.parent.experimentName + "/calib/" + self.calibGroup + '/' + \
                                  self.calibSource + "/geometry"
             if self.parent.args.v >= 1: print "### calibPath: ", self.calibPath
-            print "### calibPath: ", self.calibPath
 
             # Determine which calib file to use
             geometryFiles = os.listdir(self.calibPath)
@@ -446,7 +442,7 @@ class DiffractionGeometry(object):
 
     def getClosestGeom(self):
         # Search for the correct geom file to use
-        calibDir = self.parent.rootDir + '/calib/' + self.parent.detInfo
+        calibDir = self.parent.rootDir + '/calib/' + self.parent.detInfo + '/geometry'
         _geomFiles = glob.glob(calibDir + '/*.geom')
         _runWithGeom = np.array([int(a.split('/')[-1].split('-')[0]) for a in _geomFiles])
         diff = _runWithGeom - self.parent.runNumber
@@ -648,7 +644,7 @@ class DiffractionGeometry(object):
                             lines[i] = 'p0/corner_y = ' + str(self.parent.roi.centreX) + '\n'
                     except:
                         pass
-                fname = self.parent.rootDir + '/calib/' + self.parent.detInfo + '/' + \
+                fname = self.parent.rootDir + '/calib/' + self.parent.detInfo + '/geometry/' + \
                                   str(self.parent.runNumber) + '-end.geom'
                 # Make a backup of existing geometry
                 if os.path.exists(fname):
