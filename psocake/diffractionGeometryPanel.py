@@ -446,7 +446,7 @@ class DiffractionGeometry(object):
         _geomFiles = glob.glob(calibDir + '/*.geom')
         _runWithGeom = np.array([int(a.split('/')[-1].split('-')[0]) for a in _geomFiles])
         diff = _runWithGeom - self.parent.runNumber
-        geomFile = _geomFiles[np.where(diff == np.max(diff[np.where(diff <= 0)]))[0]]
+        geomFile = _geomFiles[np.where(diff == np.max(diff[np.where(diff <= 0)[0]]))[0]]
         if self.parent.args.v >= 1: print "getClosestGeom::Choosing this geom file: ", geomFile
         return geomFile
 
