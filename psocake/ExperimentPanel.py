@@ -309,12 +309,16 @@ class ExperimentInfo(object):
             self.parent.hasRunNumber = True
 
             if self.parent.doneInit and self.hasExpRunInfo():
+                self.getDatasource()
+
+
+
+
                 self.printDetectorNames()
 
                 if self.hasExpRunDetInfo():
                     # Setup elog
                     self.setupRunTable()
-                    self.getDatasource()
                     self.setupRunDir()
                     self.setupTotalEvents()
 
@@ -783,6 +787,7 @@ class ExperimentInfo(object):
                                            ':run=' + str(self.parent.runNumber) + ':idx')
                 self.run = self.ds.runs().next()
                 self.times = self.run.times()
+                self.env = self.ds.env()
             except:
                 print "############# No such datasource exists ###############"
 
@@ -792,7 +797,6 @@ class ExperimentInfo(object):
             self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
             self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
             self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
-            self.env = self.ds.env()
         elif self.parent.facility == self.parent.facilityPAL:
             self.eventTotal = self.getNumberOfEvents(self.parent.facilityPAL)
             self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
@@ -808,6 +812,7 @@ class ExperimentInfo(object):
                 self.parent.detnames = psana.DetNames()
                 for k in self.parent.detnames:
                     try:
+                        print "k: ", k[0], self.env
                         if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
                             myAreaDetectors.append(k)
                     except ValueError:
