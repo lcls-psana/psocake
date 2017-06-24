@@ -193,7 +193,6 @@ class ImageViewer(object):
 
     def getCalib(self, evtNumber):
         if self.parent.facility == self.parent.facilityLCLS:
-            tic = time.time()
             if self.parent.exp.run is not None:
                 self.parent.evt = self.parent.exp.getEvt(evtNumber)
                 if self.parent.exp.applyCommonMode: # play with different common mode
@@ -207,7 +206,6 @@ class ImageViewer(object):
                                                               self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
                 else:
                     calib = self.parent.det.calib(self.parent.evt)
-                print "**** getCalib: ", time.time() - tic
                 return calib
         elif self.parent.facility == self.parent.facilityPAL:
             temp = self.parent.rootDir + '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
@@ -335,10 +333,8 @@ class ImageViewer(object):
                     calib = self.rb.subtract_bkgd(calib * self.pf)
                     calib.shape = self.parent.calib.shape # FIXME: shape is 1d
                 elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
-                    tic = time.time()
                     calib = self.getCalib(evtNumber)
                     if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
-                    print "**** getDetImage0: ", time.time() - tic
                 elif self.parent.exp.image_property == self.parent.exp.disp_commonModeCorrected: # common mode corrected
                     calib = self.getCommonModeCorrected(evtNumber)
                     if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
@@ -385,7 +381,6 @@ class ImageViewer(object):
             elif self.parent.facility == self.parent.facilityPAL:
                 calib = self.getCalib(evtNumber)
 
-            tic = time.time()
             if self.parent.facility == self.parent.facilityLCLS:
                 shape = self.parent.det.shape(self.parent.evt)
                 if len(shape) == 3:
@@ -436,25 +431,17 @@ class ImageViewer(object):
                             for i in range(512):
                                 calib[:,:,i] = i
                         self.parent.firstUpdate = True
-            print "** getDetImage1: ", time.time() - tic
 
-        tic = time.time()
         # Update photon energy
         self.parent.exp.updatePhotonEnergy(self.parent.facility)
-        print "** getDetImage2a: ", time.time() - tic
 
-        tic = time.time()
         # Update clen
         self.parent.geom.updateClen(self.parent.facility)
-        print "** getDetImage2b: ", time.time() - tic
 
-        tic = time.time()
         # Write a temporary geom file
         #self.parent.geom.deployCrystfelGeometry(self.parent.facility)
         #self.parent.geom.writeCrystfelGeom(self.parent.facility) # Hack to override coffset
-        print "** getDetImage2c: ", time.time() - tic
 
-        tic = time.time()
         # Get assembled image
         if calib is not None:
             data = self.getAssembledImage(self.parent.facility, calib)
@@ -462,14 +449,9 @@ class ImageViewer(object):
             calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
             data = self.getAssembledImage(self.parent.facility, calib)
 
-        print "** getDetImage3: ", time.time() - tic
-
-        tic = time.time()
         # Update detector centre
         #self.updateDetectorCentre(self.parent.facility)
-        print "*** getDetImage4: ", time.time() - tic
 
-        tic = time.time()
         # Update ROI histogram
         if self.parent.roi.roiCurrent == 'rect':
             self.parent.roi.updateRoi(self.parent.roi.roi)
@@ -477,7 +459,6 @@ class ImageViewer(object):
             self.parent.roi.updateRoi(self.parent.roi.roiPoly)
         elif self.parent.roi.roiCurrent == 'circ':
             self.parent.roi.updateRoi(self.parent.roi.roiCircle)
-        print "*** getDetImage5: ", time.time() - tic
 
         return calib, data
 
