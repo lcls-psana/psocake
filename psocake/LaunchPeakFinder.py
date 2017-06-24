@@ -193,7 +193,7 @@ class LaunchPeakFinder(QtCore.QThread):
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "mpirun" + \
                   " -n "+str(self.parent.pk.hitParam_cpus) + \
-                  " --output-filename "+runDir+"/.log" + \
+                  " -outfile-pattern "+runDir+"/$$.log" + \
                   " findPeaks" + \
                   " -e " + self.experimentName+\
                   " -d " + self.detInfo+\
