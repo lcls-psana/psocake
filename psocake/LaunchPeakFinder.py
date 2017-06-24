@@ -191,7 +191,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 if self.parent.pk.hitParam_extra: cmd += " " + self.parent.pk.hitParam_extra
                 cmd += " -r " + str(run)
             elif self.parent.facility == self.parent.facilityPAL:
-                cmd = "mpirun" + \
+                cmd = "nohup mpirun" + \
                   " -n "+str(self.parent.pk.hitParam_cpus) + \
                   " -outfile-pattern "+runDir+"/$$.log" + \
                   " findPeaks" + \

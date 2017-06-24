@@ -89,7 +89,6 @@ def runmaster(args, nClients):
     try:
         writeStatus(statusFname, d)
     except:
-        print "Couldn't update status"
         pass
 
     myHdf5 = h5py.File(fname, 'r+')
@@ -99,7 +98,6 @@ def runmaster(args, nClients):
         md.recv()
         if md.small.endrun:
             nClients -= 1
-            print "nClients: ", nClients
         elif md.small.powder == 1:
             if powderHits is None:
                 powderHits = md.powderHits
@@ -343,7 +341,6 @@ def runmaster(args, nClients):
                     d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
                     writeStatus(statusFname, d)
                 except:
-                    print "Couldn't update status"
                     pass
 
     # Crop back to the correct size
@@ -488,14 +485,12 @@ def runmaster(args, nClients):
     myHdf5['/status/findPeaks'] = 'success'
     myHdf5.flush()
     myHdf5.close()
-    print "CLOSE HDF5 FILE"
 
     try:
         hitRate = numHits * 100. / numProcessed
         d = {"numHits": numHits, "hitRate": hitRate, "fracDone": 100.}
         writeStatus(statusFname, d)
     except:
-        print "Couldn't update status"
         pass
 
     # Save powder patterns
