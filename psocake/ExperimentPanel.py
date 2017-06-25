@@ -812,7 +812,6 @@ class ExperimentInfo(object):
                 self.parent.detnames = psana.DetNames()
                 for k in self.parent.detnames:
                     try:
-                        print "k: ", k[0], self.env
                         if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
                             myAreaDetectors.append(k)
                     except ValueError:

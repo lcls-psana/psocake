@@ -301,6 +301,9 @@ class CrystalIndexing(object):
                                       self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
                                       self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
                                       self.tolerance, self.extra, self.outDir, queue=None)
+        else:
+            # do not display predicted spots
+            self.parent.index.clearIndexedPeaks()
 
     def updateOutputDir(self, data):
         self.outDir = data

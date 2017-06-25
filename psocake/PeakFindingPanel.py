@@ -444,7 +444,6 @@ class PeakFinding(object):
     # Mandatory parameter update #
     ##############################
     def paramUpdate(self, path, change, data):
-        print "%%%%%% ", path[0], path[1], self.hitParam_alg1_thr_high_str, self.hitParam_algorithm1_str
         if path[0] == self.hitParam_grp:
             if path[1] == self.hitParam_algorithm_str:
                 self.algInitDone = False
