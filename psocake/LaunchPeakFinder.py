@@ -194,7 +194,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 print "Submitting batch job: ", cmd
                 subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             elif self.parent.facility == self.parent.facilityPAL:
-                cmd = "nohup mpirun" + \
+                cmd = "mpirun" + \
                   " -n "+str(self.parent.pk.hitParam_cpus) + \
                   " -outfile-pattern "+runDir+"/$$.log" + \
                   " findPeaks" + \

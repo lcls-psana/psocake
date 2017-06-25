@@ -49,6 +49,7 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
 
     ll = label(hmax)
     regions = regionprops(ll)
+
     numPeaks = len(regions)
     x = np.zeros((numPeaks,))
     y = np.zeros((numPeaks,))
@@ -72,7 +73,7 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
     numPix = np.zeros_like(x)
     numInner = len(np.where(inner == 1)[0])
     for i in range(numPeaks):
-        d = calib[x[i] - lh:x[i] + rh, y[i] - lh:y[i] + rh]
+        d = calib[int(x[i]) - lh:int(x[i]) + rh, int(y[i]) - lh:int(y[i]) + rh]
         try:
             meanSig = np.mean(d[np.where(inner == 1)])
             stdNoise = np.std(d[np.where(outer == 1)])
@@ -85,6 +86,7 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
                 snr[i] = meanSig / stdNoise
         except:
             snr[i] = 0
+
     ind= (snr >= son_min) & (tot >= atot_thr) & (numPix >= npix_min) & (numPix < npix_max)
     x = x[ind]
     y = y[ind]
@@ -99,6 +101,7 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
         peaks[:,2] = npix.T
         peaks[:,3] = atot.T
         peaks[:,4] = son.T
+
     return peaks
 
 def getStreakMask(det,evt):

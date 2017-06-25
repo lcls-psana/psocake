@@ -767,7 +767,6 @@ class PeakFinding(object):
                                                    rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
                     self.numPeaksFound = self.peaks.shape[0]
                 elif self.parent.facility == self.parent.facilityPAL:
-                    print "calling findPeaks", self.hitParam_alg1_thr_low
                     self.peakRadius = int(self.hitParam_alg1_radius)
                     self.peaks = myskbeam.findPeaks(self.parent.calib,
                                                     npix_min=self.hitParam_alg1_npix_min,

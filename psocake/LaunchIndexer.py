@@ -135,7 +135,7 @@ class LaunchIndexer(QtCore.QThread):
                 cmd += " --run " + str(run)
                 # Launch indexing job
                 print "Launch indexing job: ", cmd
-                subprocess.Popen(shlex.split(cmd)
+                subprocess.Popen(shlex.split(cmd))
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "indexCrystals" + \
                       " -e " + self.parent.experimentName + \
