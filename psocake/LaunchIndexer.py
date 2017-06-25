@@ -133,6 +133,9 @@ class LaunchIndexer(QtCore.QThread):
                 if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
                 if self.parent.index.extra: cmd += " " + self.parent.index.extra
                 cmd += " --run " + str(run)
+                # Launch indexing job
+                print "Launch indexing job: ", cmd
+                subprocess.Popen(shlex.split(cmd)
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "indexCrystals" + \
                       " -e " + self.parent.experimentName + \
@@ -164,9 +167,7 @@ class LaunchIndexer(QtCore.QThread):
                 if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
                 if self.parent.index.extra: cmd += " " + self.parent.index.extra
                 cmd += " --run " + str(run)
-            # Launch indexing job
-            print "Launch indexing job: ", cmd
-            p = subprocess.Popen(shlex.split(cmd))
-            #p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            #out, err = p.communicate()
-            #print "out,err: ", out, err
+                cmd += " &"
+                # Launch indexing job
+                print "Launch indexing job: ", cmd
+                os.system(cmd)
