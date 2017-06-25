@@ -45,6 +45,8 @@ class ImageControl(object):
             self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
 
+
+
     def prevEvt(self):
         self.parent.eventNumber -= 1
         if self.parent.eventNumber < 0:

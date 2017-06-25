@@ -858,5 +858,9 @@ class PeakFinding(object):
                 self.parent.img.peak_text.setPos(0,0)
         else:
             self.parent.img.peak_feature.setData([], [], pxMode=False)
+            #self.parent.index.indexedPeaks = None
+            #self.parent.index.numIndexedPeaksFound = 0
+            #self.parent.index.clearIndexedPeaks()
+            #if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
         if self.parent.args.v >= 1: print "Done drawPeaks"
         self.parent.geom.drawCentre()

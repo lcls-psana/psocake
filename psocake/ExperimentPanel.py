@@ -440,12 +440,19 @@ class ExperimentInfo(object):
 
     def updateEventNumber(self, data):
         self.parent.eventNumber = data
+
+        self.parent.pk.peaks = None
+        self.parent.pk.numPeaksFound = 0
+        self.parent.pk.numPeaksFound = 0
+        self.parent.pk.peaksMaxRes = 0
+
         if self.parent.eventNumber >= self.eventTotal and self.eventTotal > 0:
             self.parent.eventNumber = self.eventTotal - 1
 
         if self.parent.doneInit and self.hasExpRunDetInfo():
             self.getEventAndDisplay()
 
+        if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
         #if self.hasExpRunDetInfo():
         #    if self.parent.facility == self.parent.facilityLCLS:
         #        # update timestamps and fiducial

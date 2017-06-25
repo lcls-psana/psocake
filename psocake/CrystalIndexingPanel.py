@@ -296,11 +296,14 @@ class CrystalIndexing(object):
 
     def updateIndex(self):
         if self.indexingOn:
-            self.indexer = IndexHandler(parent=self.parent)
-            self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
-                                      self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                      self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
-                                      self.tolerance, self.extra, self.outDir, queue=None)
+            if self.parent.pk.peaks is None:
+                self.parent.index.clearIndexedPeaks()
+            else:
+                self.indexer = IndexHandler(parent=self.parent)
+                self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
+                                          self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
+                                          self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
+                                          self.tolerance, self.extra, self.outDir, queue=None)
         else:
             # do not display predicted spots
             self.parent.index.clearIndexedPeaks()
