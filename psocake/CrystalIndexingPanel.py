@@ -583,7 +583,6 @@ class IndexHandler(QtCore.QThread):
 
                 # Write list of files to index
                 with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
-                    print "hiddenCXI: ", self.parent.index.hiddenCXI
                     text_file.write("{} //0".format(self.parent.index.hiddenCXI))
 
                 # Generate a static mask of bad pixels for indexing
@@ -686,9 +685,6 @@ class IndexHandler(QtCore.QThread):
 
                 # Read CrystFEL indexed peaks
                 if mySuccessString in err:  # success
-
-                    tic = time.time()
-
                     f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     for i, val in enumerate(content):
@@ -713,14 +709,8 @@ class IndexHandler(QtCore.QThread):
                             endReflectionLine = i-1
                         elif '   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in val:
                             startReflectionLine = i+1
-
                     numPeaks = endLine-startLine
                     numReflections = endReflectionLine-startReflectionLine
-
-                    toc = time.time()
-                    print "##### numReflections: ", toc-tic, numPeaks, numReflections
-
-                    tic = time.time()
 
                     columns = ['fs', 'ss', 'res', 'intensity', 'asic']
                     peaks = content[startLine:endLine + 1]
@@ -728,11 +718,6 @@ class IndexHandler(QtCore.QThread):
                     for line in peaks:
                         myPeaks.append(line.split())
                     df = pd.DataFrame(myPeaks, columns=columns, dtype=float)
-
-                    toc = time.time()
-                    print "#### df: ", toc - tic
-
-                    tic = time.time()
                     if numReflections > 0:
                         columns = ['h', 'k', 'l', 'I', 'sigma', 'peak', 'background', 'fs', 'ss', 'panel']
                         reflections = content[startReflectionLine:endReflectionLine + 1]
@@ -740,18 +725,10 @@ class IndexHandler(QtCore.QThread):
                         for line in reflections:
                             myReflections.append(line.split())
                         dfRefl = pd.DataFrame(myReflections, columns=columns, dtype=float)
-
-                    toc = time.time()
-
                     f.close()
-                    print "##### dfRefl: ", toc - tic
-
-                    print "Results: ", df, dfRefl
 
                     # Convert predicted spots to CrystFEL coordinates
                     if self.parent.facility == self.parent.facilityLCLS:
-                        tic = time.time()
-
                         columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
                         dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
                         for i in np.arange(numReflections):
@@ -764,12 +741,6 @@ class IndexHandler(QtCore.QThread):
                             y += dfGeom.loc[myAsic, 'corner_y']
                             dfPeaks['x'][i] = x
                             dfPeaks['y'][i] = y
-                        toc = time.time()
-                        print "##### predicted spots: ", toc - tic
-
-                        print "dfPeaks: ", dfPeaks
-
-                        tic = time.time()
                         # Convert to psocake coordinates
                         for i in np.arange(numReflections):
                             dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
@@ -781,7 +752,6 @@ class IndexHandler(QtCore.QThread):
                         for i in np.arange(numReflections):
                             dfPeaks['psocakeX'][i] = dfRefl['ss'][i]
                             dfPeaks['psocakeY'][i] = dfRefl['fs'][i]
-
                     if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
                         self.parent.index.numIndexedPeaksFound = numReflections
                         self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
@@ -800,8 +770,6 @@ class IndexHandler(QtCore.QThread):
                             print "####################"
                         except:
                             print "Could not print unit cell"
-                    toc = time.time()
-                    print "##### psocake coord: ", toc - tic
             else:
                 print "Indexing requirement not met."
                 if self.parent.pk.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"

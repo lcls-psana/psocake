@@ -83,7 +83,10 @@ class ImageControl(object):
             self.parent.calib = temp['max']
         else:
             self.parent.calib = np.load(fname)
+        self.parent.firstUpdate = True
+        #self.parent.pk.userUpdate = None
         self.parent.img.updateImage(self.parent.calib)
+        self.parent.pk.updateClassification()
 
 
 
