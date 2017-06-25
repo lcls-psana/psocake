@@ -190,6 +190,9 @@ class LaunchPeakFinder(QtCore.QThread):
 
                 if self.parent.pk.hitParam_extra: cmd += " " + self.parent.pk.hitParam_extra
                 cmd += " -r " + str(run)
+                # Launch peak finding
+                print "Submitting batch job: ", cmd
+                subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "nohup mpirun" + \
                   " -n "+str(self.parent.pk.hitParam_cpus) + \
@@ -255,7 +258,9 @@ class LaunchPeakFinder(QtCore.QThread):
 
                 if self.parent.pk.hitParam_extra: cmd += " " + self.parent.pk.hitParam_extra
                 cmd += " -r " + str(run)
-            # Launch peak finding
-            print "Submitting batch job: ", cmd
-            subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            #out, err = process.communicate()
+                cmd += " &"
+                # Launch peak finding
+                print "Submitting job: ", cmd
+                os.system(cmd)
+                #subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                #out, err = process.communicate()
