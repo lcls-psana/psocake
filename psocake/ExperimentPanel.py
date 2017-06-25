@@ -527,7 +527,8 @@ class ExperimentInfo(object):
                         if logbook_present and self.table is not None:
                             self.logger = True
                         else:
-                            print "WARNING: logbook not present"
+                            if self.parent.facility == self.parent.facilityLCLS:
+                                print "WARNING: logbook not present"
                         if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
                     else:
                         self.logger = False
