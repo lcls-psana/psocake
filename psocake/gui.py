@@ -22,7 +22,7 @@ import sys
 
 # Panel modules
 import MousePanel, ImagePanel, ImageStackPanel
-import ExperimentPanel, diffractionGeometryPanel, RoiPanel
+import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
 import HitFinderPanel
@@ -184,7 +184,7 @@ class MainFrame(QtGui.QWidget):
         self.img = ImagePanel.ImageViewer(self)
         self.stack = ImageStackPanel.ImageStack(self)
         self.exp = ExperimentPanel.ExperimentInfo(self)
-        self.geom = diffractionGeometryPanel.DiffractionGeometry(self)
+        self.geom = DiffractionGeometryPanel.DiffractionGeometry(self)
         self.roi = RoiPanel.RoiHistogram(self)
         self.pk = PeakFindingPanel.PeakFinding(self)
         self.index = CrystalIndexingPanel.CrystalIndexing(self)
