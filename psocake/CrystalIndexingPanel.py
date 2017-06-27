@@ -11,6 +11,10 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchIndexer
 import os, time
 import pandas as pd
+try:
+    from PyQt5.QtWidgets import *
+except ImportError:
+    pass
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     from PSCalib.CalibFileFinder import deploy_calib_file

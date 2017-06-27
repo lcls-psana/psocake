@@ -9,6 +9,10 @@ from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
 import scipy.spatial.distance as sd
 import glob
+try:
+    from PyQt5.QtWidgets import *
+except ImportError:
+    pass
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import Detector.PyDetector

@@ -2,8 +2,11 @@ import numpy as np
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
+try:
+    from PyQt5.QtWidgets import *
+except ImportError:
+    pass
 import subprocess
-#import pandas as pd
 import h5py, os
 import pyqtgraph as pg
 

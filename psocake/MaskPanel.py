@@ -4,6 +4,10 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import os
 import h5py
+try:
+    from PyQt5.QtWidgets import *
+except ImportError:
+    pass
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     from PSCalib.GeometryObject import two2x1ToData2x2
