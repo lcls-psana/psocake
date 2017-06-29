@@ -5,6 +5,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 try:
     from PyQt5.QtWidgets import *
 except ImportError:
+    using_pyqt4 = True
     pass
 import subprocess
 import h5py, os
@@ -51,8 +52,10 @@ class SmallData(object):
                                        children=self.params, expanded=True)
         self.win.setParameters(self.pSmall, showTop=False)
         self.pSmall.sigTreeStateChanged.connect(self.change)
-        self.parent.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.reloadQuantifier)
-
+        if using_pyqt4:
+            self.parent.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.reloadQuantifier)
+        else:
+            self.refreshBtn.clicked.connect(self.reloadQuantifier)
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
         for param, change, data in changes:
