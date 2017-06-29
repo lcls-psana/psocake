@@ -4,6 +4,7 @@ import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 try:
     from PyQt5.QtWidgets import *
+    using_pyqt4 = False
 except ImportError:
     using_pyqt4 = True
     pass

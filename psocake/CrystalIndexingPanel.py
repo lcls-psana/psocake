@@ -13,6 +13,7 @@ import os, time
 import pandas as pd
 try:
     from PyQt5.QtWidgets import *
+    using_pyqt4 = False
 except ImportError:
     using_pyqt4 = True
     pass
