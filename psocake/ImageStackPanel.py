@@ -4,7 +4,9 @@ import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 try:
     from PyQt5.QtWidgets import *
+    using_pyqt4 = False
 except ImportError:
+    using_pyqt4 = True
     pass
 
 import LaunchStackProducer
@@ -40,8 +42,12 @@ class ImageStack(object):
         self.dock.addWidget(self.winL)
 
         self.threadpool = LaunchStackProducer.StackProducer(self.parent) # send parent parameters
-        self.parent.connect(self.threadpool, QtCore.SIGNAL("finished()"), self.displayImageStack)
-        self.parent.connect(self.startBtn, QtCore.SIGNAL("clicked()"), self.loadStack)
+        if using_pyqt4:
+            self.parent.connect(self.threadpool, QtCore.SIGNAL("finished()"), self.displayImageStack)
+            self.parent.connect(self.startBtn, QtCore.SIGNAL("clicked()"), self.loadStack)
+        else:
+            self.threadpool.finished.connect(self.displayImageStack)
+            self.startBtn.clicked.connect(self.loadStack)
 
     # Loading image stack
     def displayImageStack(self):

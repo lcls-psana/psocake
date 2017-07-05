@@ -13,7 +13,9 @@ import os, time
 import pandas as pd
 try:
     from PyQt5.QtWidgets import *
+    using_pyqt4 = False
 except ImportError:
+    using_pyqt4 = True
     pass
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -155,8 +157,12 @@ class CrystalIndexing(object):
         self.win.setParameters(self.p9, showTop=False)
         self.p9.sigTreeStateChanged.connect(self.change)
 
-        self.parent.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), self.indexPeaks)
-        self.parent.connect(self.synchBtn, QtCore.SIGNAL("clicked()"), self.syncGeom)
+        if using_pyqt4:
+            self.parent.connect(self.launchIndexBtn, QtCore.SIGNAL("clicked()"), self.indexPeaks)
+            self.parent.connect(self.synchBtn, QtCore.SIGNAL("clicked()"), self.syncGeom)
+        else:
+            self.launchIndexBtn.clicked.connect(self.indexPeaks)
+            self.synchBtn.clicked.connect(self.syncGeom)
 
     # Launch indexing
     def indexPeaks(self):

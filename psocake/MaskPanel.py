@@ -6,7 +6,9 @@ import os
 import h5py
 try:
     from PyQt5.QtWidgets import *
+    using_pyqt4 = False
 except ImportError:
+    using_pyqt4 = True
     pass
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -160,14 +162,22 @@ class MaskMaker(object):
         self.win.setParameters(self.p6, showTop=False)
         self.p6.sigTreeStateChanged.connect(self.change)
 
-        self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
-        self.parent.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.makeMaskCircle)
-        self.parent.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.makeMaskThresh)
-        self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
-        self.parent.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.deployMask)
-        self.parent.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.loadMask)
-
-        self.parent.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePowder)
+        if using_pyqt4:
+            self.parent.connect(self.maskRectBtn, QtCore.SIGNAL("clicked()"), self.makeMaskRect)
+            self.parent.connect(self.maskCircleBtn, QtCore.SIGNAL("clicked()"), self.makeMaskCircle)
+            self.parent.connect(self.maskThreshBtn, QtCore.SIGNAL("clicked()"), self.makeMaskThresh)
+            self.parent.connect(self.maskPolyBtn, QtCore.SIGNAL("clicked()"), self.makeMaskPoly)
+            self.parent.connect(self.deployMaskBtn, QtCore.SIGNAL("clicked()"), self.deployMask)
+            self.parent.connect(self.loadMaskBtn, QtCore.SIGNAL("clicked()"), self.loadMask)
+            self.parent.connect(self.generatePowderBtn, QtCore.SIGNAL("clicked()"), self.makePowder)
+        else:
+            self.maskRectBtn.clicked.connect(self.makeMaskRect)
+            self.maskCircleBtn.clicked.connect(self.makeMaskCircle)
+            self.maskThreshBtn.clicked.connect(self.makeMaskThresh)
+            self.maskPolyBtn.clicked.connect(self.makeMaskPoly)
+            self.deployMaskBtn.clicked.connect(self.deployMask)
+            self.loadMaskBtn.clicked.connect(self.loadMask)
+            self.generatePowderBtn.clicked.connect(self.makePowder)
 
     def makePowder(self):
         if self.parent.facility == self.parent.facilityLCLS:
@@ -656,8 +666,12 @@ class MaskMaker(object):
         self.saveCheetahStaticMask()
 
     def loadMask(self):
-        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
-        print "fname: ", fname
+        if using_pyqt4:
+            fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
+                                                          'ndarray image (*.npy *.npz)'))
+        else:
+            fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
+                                                          'ndarray image (*.npy *.npz)'))[0]
         self.initMask()
         self.userMask = np.load(fname)
         if self.userMask.shape != self.parent.calib.shape:

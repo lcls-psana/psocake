@@ -11,7 +11,9 @@ import scipy.spatial.distance as sd
 import glob
 try:
     from PyQt5.QtWidgets import *
+    using_pyqt4 = False
 except ImportError:
+    using_pyqt4 = True
     pass
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -171,8 +173,12 @@ class DiffractionGeometry(object):
         self.p1.sigTreeStateChanged.connect(self.change)
         self.win.setParameters(self.p1, showTop=False)
 
-        self.parent.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.deploy)
-        self.parent.connect(self.deployAutoGeomBtn, QtCore.SIGNAL("clicked()"), self.autoDeploy)
+        if using_pyqt4:
+            self.parent.connect(self.deployGeomBtn, QtCore.SIGNAL("clicked()"), self.deploy)
+            self.parent.connect(self.deployAutoGeomBtn, QtCore.SIGNAL("clicked()"), self.autoDeploy)
+        else:
+            self.deployGeomBtn.clicked.connect(self.deploy)
+            self.deployAutoGeomBtn.clicked.connect(self.autoDeploy)
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
