@@ -5,7 +5,6 @@ from pyqtgraph.Qt import QtCore, QtGui
 try:
     from PyQt5.QtWidgets import *
 except ImportError:
-    print "PyQt5 not found"
     pass
 
 import LaunchStackProducer
