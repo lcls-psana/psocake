@@ -126,7 +126,7 @@ class LaunchIndexer(QtCore.QThread):
                       " --coffset " + str(self.parent.coffset) + \
                       " --clenEpics " + self.parent.clenEpics + \
                       " --logger " + str(self.parent.exp.logger) + \
-                      " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
+                      " --hitParam_threshold " + str(self.parent.pk.minPeaks) + \
                       " --keepData " + str(self.parent.index.keepData) + \
                       " -v " + str(self.parent.args.v)
                 if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
@@ -153,7 +153,7 @@ class LaunchIndexer(QtCore.QThread):
                       " --cpu " + str(self.parent.index.cpu) + \
                       " --noe " + str(self.parent.index.noe) + \
                       " --pixelSize " + str(self.parent.pixelSize) + \
-                      " --hitParam_threshold " + str(self.parent.pk.hitParam_threshold) + \
+                      " --hitParam_threshold " + str(self.parent.pk.minPeaks) + \
                       " --keepData " + str(self.parent.index.keepData) + \
                       " -v " + str(self.parent.args.v) + \
                       " --dir " + str(self.parent.dir)
