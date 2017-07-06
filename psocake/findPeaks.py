@@ -72,6 +72,7 @@ parser.add_argument("--profile", help="Turn on profiling. Saves timing informati
 parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
+parser.add_argument("--currentRun", help="current run number", type=int)
 args = parser.parse_args()
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():

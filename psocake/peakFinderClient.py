@@ -112,7 +112,7 @@ def runclient(args):
                                               localCalib=args.localCalib)
                 elif facility == 'PAL':
                     _geom = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/scratch/' + os.environ['USER'] + \
-                            '/psocake/r' + str(run).zfill(4) + '/.temp.geom'
+                            '/psocake/r' + str(args.currentRun).zfill(4) + '/.temp.geom'
                     (detectorDistance, photonEnergy, _, _, _) = readCrystfelGeometry(_geom, facility)
                     evt = None
                     d.peakFinder = pf.PeakFinder(exp, run, args.det, evt, d,
