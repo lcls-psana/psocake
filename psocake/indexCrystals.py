@@ -96,7 +96,6 @@ def checkJobExit(jobID):
 
 def getMyChunkSize(numJobs, numWorkers, chunkSize, rank):
     """Returns number of events assigned to the slave calling this function."""
-    print "numJobs, numWorkers, chunkSize: ", numJobs, numWorkers, chunkSize
     assert(numJobs >= numWorkers)
     allJobs = np.arange(numJobs)
     startInd = (np.arange(numWorkers)) * chunkSize
@@ -116,7 +115,6 @@ def getIndexedPeaks():
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"
     with open(totalStream, 'w') as outfile:
         for fname in myStreamList:
-            print "$$ getIndexedPeaks: ", fname
             try:
                 with open(fname) as infile:
                     outfile.write(infile.read())
@@ -169,16 +167,10 @@ peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '.cxi
 #indexingFile = runDir + '/.' + experimentName + '_' + str(runNumber).zfill(4) + '.txt'
 fnameIndex = runDir+"/status_index.txt"
 
-print "runDir: ", runDir
-print "peakFile: ", peakFile
-#print "indexingFile: ", indexingFile
-print "fnameIndex: ", fnameIndex
-
 if facility == 'PAL':
     temp = dir + '/' + experimentName[:3] + '/' + experimentName + \
     '/data/r' + str(runNumber).zfill(4) + '/*.h5'
     fileList = glob.glob(temp)
-    print "fileList: ", fileList
 
 try:
     if facility == 'LCLS':
@@ -221,7 +213,6 @@ if hasData:
             eventList = f['/PAL/eventNumber'].value
             numEvents = len(eventList)
             f.close()
-            print "## eventList: ", eventList
     except:
         print "Couldn't read file: ", peakFile
         exit()
@@ -241,6 +232,34 @@ if hasData:
             myList = runDir + "/temp_" + jobName + ".lst"
             myStream = runDir + "/temp_" + jobName + ".stream"
             myStreamList.append(myStream)
+
+            # Write list
+            with open(myList, "w") as text_file:
+                for i, val in enumerate(myJobs):
+                    text_file.write("{} //{}\n".format(peakFile, val))
+
+            # Submit job
+            cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
+            cmd += " indexamajig -i " + myList + \
+                   " -j '`nproc`'" + \
+                   " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
+                   " --indexing=" + indexingMethod + " -o " + myStream + \
+                   " --temp-dir=/scratch" + \
+                   " --tolerance=" + tolerance + \
+                   " --no-revalidate --profile"
+            if pdb: cmd += " --pdb=" + pdb
+            if extra: cmd += " " + extra
+            print "Submitting job: ", cmd
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            out, err = process.communicate()
+
+            # Keep list
+            jobID = out.split("<")[1].split(">")[0]
+            myLog = runDir + "/." + jobID + ".log"
+            myJobList.append(jobID)
+            myLogList.append(myLog)
+            print "bsub log filename: ", myLog
+
     elif facility == 'PAL':
         numWorkers = cpu
         if tag is '':
@@ -252,50 +271,28 @@ if hasData:
         myStream = runDir + "/temp_" + jobName + ".stream"
         myStreamList.append(myStream)
 
-    # Write list
-    if facility == 'LCLS':
-        with open(myList, "w") as text_file:
-            for i, val in enumerate(myJobs):
-                text_file.write("{} //{}\n".format(peakFile, val))
-    elif facility == 'PAL':
+        # Write list
         with open(myList, "w") as text_file:
             for i, val in enumerate(eventList):
                 text_file.write("{} //{}\n".format(peakFile, i))
 
-    if facility == 'LCLS':
-        cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
-        cmd += " indexamajig -i " + myList + \
-               " -j '`nproc`'" + \
-               " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
-               " --indexing=" + indexingMethod + " -o " + myStream + \
-               " --temp-dir=/scratch" + \
-               " --tolerance=" + tolerance + \
-               " --no-revalidate --profile"
-        if pdb: cmd += " --pdb=" + pdb
-        if extra: cmd += " " + extra
-    elif facility == 'PAL':
+        # Submit job
         cmd = " indexamajig -i " + myList + \
-               " -j " + str(numWorkers) + \
-               " -g " + geom + \
-               " --peaks=" + peakMethod + \
-               " --int-radius=" + integrationRadius + \
-               " --indexing=" + indexingMethod + \
-               " -o " + myStream + \
-               " --temp-dir=" + runDir + \
-               " --tolerance=" + tolerance + \
-               " --no-revalidate --profile"
+              " -j " + str(numWorkers) + \
+              " -g " + geom + \
+              " --peaks=" + peakMethod + \
+              " --int-radius=" + integrationRadius + \
+              " --indexing=" + indexingMethod + \
+              " -o " + myStream + \
+              " --temp-dir=" + runDir + \
+              " --tolerance=" + tolerance + \
+              " --no-revalidate --profile"
         if pdb: cmd += " --pdb=" + pdb
         if extra: cmd += " " + extra
-    print "Submitting job: ", cmd
+        print "Submitting job: ", cmd
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
 
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    out, err = process.communicate()
-    if facility == 'LCLS':
-        jobID = out.split("<")[1].split(">")[0]
-        myLog = runDir + "/." + jobID + ".log"
-        myJobList.append(jobID)
-        myLogList.append(myLog)
-        print "bsub log filename: ", myLog
 
     if facility == 'LCLS':
         myKeyString = "The output (if any) is above this job summary."
@@ -367,7 +364,7 @@ if hasData:
                     if nodeFailed == 1:
                         if args.v >= 0: print "indexing job node failure: ", myLog
                         haveFinished[i] = -1
-                    time.sleep(30)
+                    time.sleep(10)
     elif facility == 'PAL':
         try:
             f = h5py.File(peakFile, 'r')
@@ -416,10 +413,8 @@ if hasData:
 
         # Write number of indexed
         try:
-            print "### indexCrystals"
             f = h5py.File(peakFile, 'r+')
             if '/entry_1/result_1/index' in f: del f['/entry_1/result_1/index']
-            print "### indexCrystals::indexed=",indexedPeaks
             indexedPeaks[np.where(indexedPeaks==-1)] = -2 # This is required to indicate indexing has finished
             f['/entry_1/result_1/index'] = indexedPeaks
             # Remove large data
@@ -435,7 +430,7 @@ if hasData:
         for fname in myStreamList:
             os.remove(fname)
 
-print "Done indexCrystals: ", runNumber
+print "Done indexing run: ", runNumber
 
 
 
