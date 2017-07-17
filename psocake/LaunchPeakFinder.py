@@ -194,9 +194,11 @@ class LaunchPeakFinder(QtCore.QThread):
                 print "Submitting batch job: ", cmd
                 subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             elif self.parent.facility == self.parent.facilityPAL:
-                cmd = "mpirun" + \
-                  " -n "+str(self.parent.pk.hitParam_cpus) + \
-                  " -outfile-pattern "+runDir+"/$$.log"                 # This is PAL mpi
+                cmd = "mpirun -n "+str(self.parent.pk.hitParam_cpus)
+                if self.parent.debug:
+                    cmd += " -output-filename "+runDir+"/$$.log"                 # This is LCLS mpi
+                else:
+                    cmd += " -outfile-pattern "+runDir+"/$$.log"                 # This is PAL mpi
                 cmd += " findPeaks" + \
                   " -e " + self.experimentName+\
                   " -d " + self.detInfo+\

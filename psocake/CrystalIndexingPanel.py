@@ -75,22 +75,38 @@ class CrystalIndexing(object):
         self.noe = -1
 
         # Indexing
-        self.showIndexedPeaks = False
-        self.indexedPeaks = None
-        self.hiddenCXI = '.temp.cxi'
-        self.hiddenCrystfelStream = '.temp.stream'
-        self.hiddenCrystfelList = '.temp.lst'
-
-        self.indexingOn = False
-        self.numIndexedPeaksFound = 0
-        self.geom = '.temp.geom'
-        self.peakMethod = 'cxi'
-        self.intRadius = '2,3,4'
-        self.pdb = ''
-        self.indexingMethod = 'mosflm-noretry,dirax'
-        self.tolerance = '5,5,5,1.5'
-        self.extra = ''
-        self.keepData = True
+        if self.parent.facility == self.parent.facilityLCLS:
+            self.showIndexedPeaks = False
+            self.indexedPeaks = None
+            self.hiddenCXI = '.temp.cxi'
+            self.hiddenCrystfelStream = '.temp.stream'
+            self.hiddenCrystfelList = '.temp.lst'
+            self.indexingOn = False
+            self.numIndexedPeaksFound = 0
+            self.geom = '.temp.geom'
+            self.peakMethod = 'cxi'
+            self.intRadius = '3,4,5'
+            self.pdb = ''
+            self.indexingMethod = ',dirax,mosflm-noretry'
+            self.tolerance = '5,5,5,1.5'
+            self.extra = ''
+            self.keepData = True
+        elif self.parent.facility == self.parent.facilityPAL:
+            self.showIndexedPeaks = False
+            self.indexedPeaks = None
+            self.hiddenCXI = '.temp.cxi'
+            self.hiddenCrystfelStream = '.temp.stream'
+            self.hiddenCrystfelList = '.temp.lst'
+            self.indexingOn = False
+            self.numIndexedPeaksFound = 0
+            self.geom = '.temp.geom'
+            self.peakMethod = 'cxi'
+            self.intRadius = '4,5,6'
+            self.pdb = ''
+            self.indexingMethod = 'dirax,mosflm-noretry'
+            self.tolerance = '5,5,5,1.5'
+            self.extra = ''
+            self.keepData = True
 
         #######################
         # Mandatory parameter #

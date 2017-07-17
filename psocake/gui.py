@@ -39,6 +39,8 @@ parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
 parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
+# PAL specific
+parser.add_argument("--debug", help="Debug mode of PAL at LCLS.", action='store_true')
 args = parser.parse_args()
 
 class Window(QtGui.QMainWindow):
@@ -118,7 +120,10 @@ class MainFrame(QtGui.QWidget):
             self.dir = '/reg/d/psdm'
         elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityPAL
-            self.dir = '/palxfel/u/home/yoon82/sfx' # FIXME: TEMPORARY
+            if args.debug:
+                self.dir = '/reg/d/psdm/cxi/cxitut13/res/yoon82/pohang/kihyun'
+            else:
+                self.dir = '/home/eh2adm/sfx' # FIXME: TEMPORARY
 
         # Init experiment parameters from args
         if args.expRun is not None and ':run=' in args.expRun:
