@@ -195,7 +195,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "mpirun -n "+str(self.parent.pk.hitParam_cpus)
-                if self.parent.debug:
+                if self.parent.args.debug:
                     cmd += " -output-filename "+runDir+"/$$.log"                 # This is LCLS mpi
                 else:
                     cmd += " -outfile-pattern "+runDir+"/$$.log"                 # This is PAL mpi
