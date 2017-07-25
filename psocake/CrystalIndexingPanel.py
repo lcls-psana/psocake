@@ -87,7 +87,7 @@ class CrystalIndexing(object):
             self.peakMethod = 'cxi'
             self.intRadius = '3,4,5'
             self.pdb = ''
-            self.indexingMethod = ',dirax,mosflm-noretry'
+            self.indexingMethod = 'mosflm-noretry,dirax'
             self.tolerance = '5,5,5,1.5'
             self.extra = ''
             self.keepData = True
@@ -103,7 +103,7 @@ class CrystalIndexing(object):
             self.peakMethod = 'cxi'
             self.intRadius = '4,5,6'
             self.pdb = ''
-            self.indexingMethod = 'dirax,mosflm-noretry'
+            self.indexingMethod = 'mosflm-noretry,dirax'
             self.tolerance = '5,5,5,1.5'
             self.extra = ''
             self.keepData = True
