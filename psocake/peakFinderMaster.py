@@ -82,7 +82,7 @@ def runmaster(args, nClients):
 
     maxSize = 0
     numInc = 0
-    inc = 100
+    inc = 1200
     dataShape = (0,0)
     numProcessed = 0
     numHits = 0
