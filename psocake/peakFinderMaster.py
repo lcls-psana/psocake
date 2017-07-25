@@ -96,6 +96,14 @@ def runmaster(args, nClients):
     except:
         pass
 
+    # Init mask
+    mask = None
+    if args.mask is not None:
+        f = h5py.File(args.mask, 'r')
+        mask = f['/entry_1/data_1/mask'].value
+        f.close()
+        mask = -1*(mask-1)
+
     myHdf5 = h5py.File(fname, 'r+')
     while nClients > 0:
         # Remove client if the run ended
@@ -204,6 +212,8 @@ def runmaster(args, nClients):
                         reshapeHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, inc) # same as /LCLS/eventNumber
                         dataShape = md.data.shape
                         myHdf5["/entry_1/data_1/data"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
+                        if args.mask is not None:
+                            myHdf5["/entry_1/data_1/mask"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
                         if args.profile:
                             reshapeHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, 1)
                             reshapeTime = time.time() - tic
@@ -252,6 +262,8 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.eventNum) # same as /LCLS/eventNumber
                     # Save images
                     myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
+                    if mask is not None:
+                        myHdf5["/entry_1/data_1/mask"][numHits, :, :] = mask
                     numHits += 1
                     myHdf5.flush()
                 elif facility == 'PAL':
@@ -290,6 +302,8 @@ def runmaster(args, nClients):
                         reshapeHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, inc)  # same as /LCLS/eventNumber
                         dataShape = md.data.shape
                         myHdf5["/entry_1/data_1/data"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
+                        if args.mask is not None:
+                            myHdf5["/entry_1/data_1/mask"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
                         if args.profile:
                             reshapeHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, 1)
                             reshapeTime = time.time() - tic
@@ -343,6 +357,8 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.eventNum)  # same as /LCLS/eventNumber
                     # Save images
                     myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
+                    if mask is not None:
+                        myHdf5["/entry_1/data_1/mask"][numHits, :, :] = mask
                     numHits += 1
                     myHdf5.flush()
             numProcessed += 1
@@ -390,6 +406,8 @@ def runmaster(args, nClients):
         cropHdf5(myHdf5, '/LCLS/eventNumber', numHits)
         cropHdf5(myHdf5, '/entry_1/experimental_identifier', numHits)  # same as /LCLS/eventNumber
         myHdf5["/entry_1/data_1/data"].resize((numHits, dataShape[0], dataShape[1]))
+        if args.mask is not None:
+            myHdf5["/entry_1/data_1/mask"].resize((numHits, dataShape[0], dataShape[1]))
         if args.profile:
             cropHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc)
 
@@ -459,6 +477,8 @@ def runmaster(args, nClients):
         cropHdf5(myHdf5, '/PAL/eventNumber', numHits)
         cropHdf5(myHdf5, '/entry_1/experimental_identifier', numHits)  # same as /LCLS/eventNumber
         myHdf5["/entry_1/data_1/data"].resize((numHits, dataShape[0], dataShape[1]))
+        if args.mask is not None:
+            myHdf5["/entry_1/data_1/mask"].resize((numHits, dataShape[0], dataShape[1]))
         if args.profile:
             cropHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc)
 

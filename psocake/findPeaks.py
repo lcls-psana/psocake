@@ -389,10 +389,17 @@ if rank == 0:
 
         # Add mask in cheetah format
         if args.mask is not None:
-            f = h5py.File(args.mask,'r')
-            mask = f['/entry_1/data_1/mask'].value
-            data_1["mask"] = mask
-            f.close()
+            #f = h5py.File(args.mask,'r')
+            #mask = f['/entry_1/data_1/mask'].value
+            #data_1["mask"] = mask
+            #f.close()
+
+            ds_mask_1 = data_1.create_dataset("mask", (0, dim0, dim1),
+                                        chunks=(1, dim0, dim1),
+                                        maxshape=(None, dim0, dim1),
+                                        compression='gzip',
+                                        compression_opts=1,
+                                        dtype=int)
 
         ds_dist_1 = detector_1.create_dataset("distance",(0,),
                                                  maxshape=(None,),
@@ -522,10 +529,17 @@ if rank == 0:
 
         # Add mask in cheetah format
         if args.mask is not None:
-            f = h5py.File(args.mask, 'r')
-            mask = f['/entry_1/data_1/mask'].value
-            data_1["mask"] = mask
-            f.close()
+            #f = h5py.File(args.mask,'r')
+            #mask = f['/entry_1/data_1/mask'].value
+            #data_1["mask"] = mask
+            #f.close()
+
+            ds_mask_1 = data_1.create_dataset("mask", (0, dim0, dim1),
+                                        chunks=(1, dim0, dim1),
+                                        maxshape=(None, dim0, dim1),
+                                        compression='gzip',
+                                        compression_opts=1,
+                                        dtype=int)
 
         ds_dist_1 = detector_1.create_dataset("distance", (0,),
                                               maxshape=(None,),
