@@ -604,7 +604,9 @@ class DiffractionGeometry(object):
                 dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6 # microns
                 geo = self.parent.det.geometry(self.parent.evt)
                 if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                    geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
+                    top = geo.get_top_geo()
+                    children = top.get_list_of_children()[0]
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     top = geo.get_top_geo()
                     children = top.get_list_of_children()[0]
@@ -631,11 +633,8 @@ class DiffractionGeometry(object):
                 deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
                                   run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
                 # Reload new psana geometry
-                print "### deploy: ", self.parent.evt,self.parent.eventNumber,self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
                 self.parent.exp.setupExperiment()
-                print "### deploy1: ", self.parent.evt,self.parent.eventNumber,self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
                 self.parent.img.getDetImage(self.parent.eventNumber)
-                print "### deploy2: ", self.parent.evt,self.parent.eventNumber,self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
                 self.updateRings()
                 self.parent.index.updateIndex()
                 self.drawCentre()

@@ -1,5 +1,6 @@
 # Find Bragg peaks
 from peakFinderMaster import runmaster
+from peakFinderClientAuto import runclient as runclientAuto
 from peakFinderClient import runclient
 import h5py
 import glob
@@ -70,10 +71,13 @@ parser.add_argument("--minRes", help="Index only if above minimum resolution",de
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 parser.add_argument("--profile", help="Turn on profiling. Saves timing information for calibration, peak finding, and saving to hdf5", action='store_true')
 parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
+parser.add_argument("--auto", help="automatically determine peak finding parameter per event", default="False", type=str)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)
 args = parser.parse_args()
+
+def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'LCLS'
@@ -280,6 +284,7 @@ if rank == 0:
         myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs,2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs,)*-1, dtype=int)
+        myHdf5.create_dataset("/entry_1/result_1/likelihoodAll", data=np.ones(numJobs, ) * -1, dtype=float)
         myHdf5.flush()
 
         if args.profile:
@@ -327,6 +332,11 @@ if rank == 0:
                                                  maxshape=(None,),
                                                  dtype=int)
         ds_maxRes.attrs["axes"] = "experiment_identifier:peaks"
+
+        ds_likelihood = myHdf5.create_dataset("/entry_1/result_1/likelihood",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_likelihood.attrs["axes"] = "experiment_identifier"
 
         myHdf5.flush()
 
@@ -533,6 +543,10 @@ comm.Barrier()
 if rank==0:
     runmaster(args, numClients)
 else:
-    runclient(args)
+    print "args.auto: ", str2bool(args.auto)
+    if str2bool(args.auto):
+        runclientAuto(args)
+    else:
+        runclient(args)
 
 MPI.Finalize()

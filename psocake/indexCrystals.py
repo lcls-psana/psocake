@@ -5,6 +5,7 @@ import subprocess
 import numpy as np
 import glob
 
+if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")
 parser.add_argument("-e","--exp", help="Experiment name (e.g. cxis0813 ). This option is ignored if expRun option is used.", default="", type=str)
@@ -35,6 +36,7 @@ parser.add_argument("--logger", help="", default=False, type=bool)
 parser.add_argument("--hitParam_threshold", help="", default=0, type=int)
 parser.add_argument("--keepData", help="", default=False, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
+parser.add_argument("--likelihood", help="index hits with likelihood higher than this value", default=0, type=float)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 args = parser.parse_args()
@@ -206,6 +208,8 @@ if hasData:
         if facility == 'LCLS':
             f = h5py.File(peakFile, 'r')
             eventList = f['/LCLS/eventNumber'].value
+            if args.likelihood > 0:
+                likelihood = f['/entry_1/result_1/likelihood'].value
             numEvents = len(eventList)
             f.close()
         elif facility == 'PAL':
@@ -215,7 +219,6 @@ if hasData:
             f.close()
     except:
         print "Couldn't read file: ", peakFile
-        exit()
 
     if facility == 'LCLS':
         # Split into chunks for faster indexing
@@ -234,15 +237,24 @@ if hasData:
             myStreamList.append(myStream)
 
             # Write list
+            checkEnoughLikes = 0
             with open(myList, "w") as text_file:
                 for i, val in enumerate(myJobs):
-                    text_file.write("{} //{}\n".format(peakFile, val))
+                    if args.likelihood > 0:
+                        if likelihood[val] >= args.likelihood:
+                            text_file.write("{} //{}\n".format(peakFile, val))
+                            checkEnoughLikes += 1
+                    else:
+                        text_file.write("{} //{}\n".format(peakFile, val))
 
             # Submit job
             cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
-            cmd += " indexamajig -i " + myList + \
-                   " -j '`nproc`'" + \
-                   " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
+            cmd += " indexamajig -i " + myList
+            if args.likelihood > 0 and checkEnoughLikes > 0 and checkEnoughLikes <= 16:
+                cmd += " -j 1"
+            else:
+                cmd += " -j '`nproc`'"
+            cmd += " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
                    " --indexing=" + indexingMethod + " -o " + myStream + \
                    " --temp-dir=/scratch" + \
                    " --tolerance=" + tolerance + \

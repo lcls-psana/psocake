@@ -189,6 +189,10 @@ class LaunchPeakFinder(QtCore.QThread):
                 cmd += " --pixelSize " + str(self.parent.pixelSize)
 
                 if self.parent.pk.hitParam_extra: cmd += " " + self.parent.pk.hitParam_extra
+
+                cmd += " --auto " + str(self.parent.autoPeakFinding) + \
+                       " --detectorDistance " + str(self.parent.detectorDistance)
+
                 cmd += " -r " + str(run)
                 # Launch peak finding
                 print "Submitting batch job: ", cmd

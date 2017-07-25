@@ -9,6 +9,7 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
+if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'LCLS'
     from PSCalib.GeometryObject import two2x1ToData2x2
@@ -16,6 +17,8 @@ if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'PAL'
     import glob
+
+def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
@@ -66,6 +69,7 @@ def runmaster(args, nClients):
     dset_posY = "/peakYPosRawAll"
     dset_atot = "/peakTotalIntensityAll"
     dset_maxRes = "/maxResAll"
+    dset_likelihood = "/likelihoodAll"
     dset_saveTime = "/saveTime"
     dset_calibTime = "/calibTime"
     dset_peakTime = "/peakTime"
@@ -84,6 +88,7 @@ def runmaster(args, nClients):
     numHits = 0
     hitRate = 0.0
     fracDone = 0.0
+    likelihood = 0.0
     numEvents = getNoe(args)
     d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
     try:
@@ -140,6 +145,11 @@ def runmaster(args, nClients):
                     myHdf5.flush()
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
+            if str2bool(args.auto):
+                likelihood = md.small.likelihood
+                myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood
+            else:
+                likelihood = 0
             myHdf5.flush()
 
             if args.profile and facility == 'LCLS':
@@ -156,6 +166,7 @@ def runmaster(args, nClients):
                nPeaks <= args.maxPeaks and \
                maxRes >= args.minRes and \
                hasattr(md, 'data'):
+                #((args.auto and likelihood >= 0.3) or (not args.auto)) and \
                 if facility == 'LCLS':
                     # Assign a bigger array
                     if maxSize == numHits:
@@ -165,6 +176,7 @@ def runmaster(args, nClients):
                         myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits + inc, 2048))
                         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits + inc, 2048))
                         reshapeHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, inc)
+                        reshapeHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits, inc)
                         reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, inc)
                         reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, inc) # J
@@ -205,6 +217,7 @@ def runmaster(args, nClients):
                     myHdf5["/entry_1/result_1/peakYPosRaw"][numHits,:] = myHdf5[grpName+dset_posY][md.small.eventNum,:]
                     myHdf5["/entry_1/result_1/peakTotalIntensity"][numHits,:] = myHdf5[grpName+dset_atot][md.small.eventNum,:]
                     updateHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, maxRes)
+                    updateHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits, likelihood)
                     # Save epics
                     updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, md.small.pulseLength)
                     updateHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, md.small.photonEnergy)
@@ -350,6 +363,7 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits, 2048))
         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits, 2048))
         cropHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits)
+        cropHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits)
         cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits)
         cropHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits)
         cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits)
@@ -404,6 +418,7 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakYPosRaw"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/peakTotalIntensity"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/maxRes"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/likelihood"].attrs["numEvents"] = numHits
         myHdf5["entry_1/instrument_1/source_1/energy"].attrs["numEvents"] = numHits
         myHdf5["entry_1/instrument_1/source_1/pulse_energy"].attrs["numEvents"] = numHits
         myHdf5["entry_1/instrument_1/source_1/pulse_width"].attrs["numEvents"] = numHits

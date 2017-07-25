@@ -785,8 +785,11 @@ class ExperimentInfo(object):
     def setupLocalCalib(self):
         if self.parent.facility == self.parent.facilityLCLS:
             if self.parent.args.localCalib:
-                psana.setOption('psana.calib-dir', './calib')
-                if self.parent.args.v >= 1: print "Using local calib directory"
+                if os.path.exists('calib'):
+                    psana.setOption('psana.calib-dir', './calib')
+                    if self.parent.args.v >= 1: print "Using local calib directory"
+                else:
+                    print "./calib directory does not exist in the present working directory"
 
     def getDatasource(self):
         if self.parent.facility == self.parent.facilityLCLS:

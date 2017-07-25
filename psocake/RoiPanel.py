@@ -90,7 +90,6 @@ class RoiHistogram(object):
                 elif roi.name == 'circ':
                     try:
                         self.ret = roi.getArrayRegion(self.parent.data, self.parent.img.win.getImageItem())
-                        print "ret: ", self.ret, self.ret.dtype, self.ret.shape
                         self.ret = self.ret[np.where(pixelsExist == 1)]
                     except:
                         pass

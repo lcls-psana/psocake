@@ -34,7 +34,7 @@ class Stats:
             self.variance[self.variance < 0] = 0
             self.stddev = np.sqrt(self.variance)
             file = '%s/%s_%4.4d_%s'%(args.outDir,self.exp,self.run,self.detname)
-            print 'writing file',file
+            print 'writing files: ',file, '_(mean,std,max,sum).npy'
             #np.savez(file,mean=self.mean,stddev=self.stddev,max=self.maximum)
             np.save(file+"_mean",self.mean)
             np.save(file+"_std",self.stddev)
@@ -70,10 +70,9 @@ parser.add_argument('-d','--detList', help="list of detectors separated with com
 parser.add_argument("-n","--noe",help="number of events to process",default=0, type=int)
 parser.add_argument('-o','--outDir', help="output directory where .cxi will be saved (e.g. /reg/d/psdm/cxi/cxic0415/scratch)", type=str)
 parser.add_argument("-t","--threshold",help="ignore ADUs below threshold",default=None, type=float)
+parser.add_argument("--random", help="select random events for powder sum. Default: False", action='store_true')
 parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
 args = parser.parse_args()
-
-print args.exprun, args.detList, args.noe, args.outDir
 
 if args.localCalib: setOption('psana.calib-dir', './calib')
 
@@ -107,12 +106,16 @@ for run in ds.runs():
             numJobs = len(times)
 
     ind = getMyUnfairShare(numJobs,size,rank)
-    mytimes = times[ind[0]:ind[-1]+1]
+    mytimes = times[ind[0]:ind[-1] + 1]
+    if args.random:
+        import numpy.random
+        numpy.random.seed(seed=1234)
+        ind = numpy.random.permutation(len(ind))
 
     for d in detlist:
-        for i,time in enumerate(mytimes):
-            if i%100==0: print 'Rank',rank,'processing event', i,'of',len(mytimes)
-            evt = run.event(time)
+        for i,time in enumerate(ind):
+            if i%100==0 and i > 99: print 'Rank',rank,'processing event', i,'of',len(mytimes)
+            evt = run.event(mytimes[time])
             try:
                 detarr = d.calib(evt)
             except ValueError:

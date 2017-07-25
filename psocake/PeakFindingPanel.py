@@ -6,6 +6,10 @@ from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
 import json, os
+from scipy.spatial.distance import cdist
+from scipy.spatial import distance
+import subprocess
+
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     from ImgAlgos.PyAlgos import PyAlgos # peak finding
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -32,6 +36,7 @@ class PeakFinding(object):
         # Peak finding
         self.hitParam_grp = 'Peak finder'
         self.hitParam_showPeaks_str = 'Show peaks found'
+        self.hitParam_autoPeaks_str = 'Auto peak finder'
         self.hitParam_algorithm_str = 'Algorithm'
         # algorithm 0
         self.hitParam_algorithm0_str = 'None'
@@ -109,6 +114,7 @@ class PeakFinding(object):
         self.hitParam_noe_str = 'Number of events to process'
         self.hitParam_threshold_str = 'Indexable number of peaks'
         self.hitParam_launch_str = 'Launch peak finder'
+        #self.hitParam_launchAuto_str = 'Launch auto peak finder'
         self.hitParam_extra_str = 'Extra parameters'
 
         self.save_minPeaks_str = 'Minimum number of peaks'
@@ -117,6 +123,9 @@ class PeakFinding(object):
         self.save_sample_str = 'Sample name'
 
         self.showPeaks = True
+        self.turnOnAutoPeaks = False
+        self.ind = None
+        self.pairsFoundPerSpot = 0
         self.peaks = None
         self.numPeaksFound = 0
         self.algorithm = 0
@@ -200,6 +209,8 @@ class PeakFinding(object):
                 {'name': self.hitParam_grp, 'type': 'group', 'children': [
                     {'name': self.hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks,
                      'tip': "Show peaks found shot-to-shot"},
+                    {'name': self.hitParam_autoPeaks_str, 'type': 'bool', 'value': self.turnOnAutoPeaks,
+                     'tip': "Automatically find peaks"},
                     {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm1_str: 1,
                                                                                      self.hitParam_algorithm0_str: 0},
                      'value': self.algorithm},
@@ -245,11 +256,12 @@ class PeakFinding(object):
                                                                                  self.hitParam_psanaq_str: 'psanaq',
                                                                                  self.hitParam_psdebugq_str: 'psdebugq'},
                      'value': self.hitParam_queue, 'tip': "Choose queue"},
-                    {'name': self.hitParam_cpu_str, 'type': 'int', 'value': self.hitParam_cpus},
-                    {'name': self.hitParam_noe_str, 'type': 'int', 'value': self.hitParam_noe,
+                    {'name': self.hitParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_cpus},
+                    {'name': self.hitParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
                     {'name': self.hitParam_extra_str, 'type': 'str', 'value': self.hitParam_extra, 'tip': "Extra peak finding flags"},
                     {'name': self.hitParam_launch_str, 'type': 'action'},
+                    #{'name': self.hitParam_launchAuto_str, 'type': 'action'},
                 ]},
             ]
         elif self.parent.facility == self.parent.facilityPAL:
@@ -291,8 +303,8 @@ class PeakFinding(object):
                     {'name': self.hitParam_queue_str, 'type': 'list',
                      'values': {self.hitParam_noQueue_str: 'None'},
                      'value': self.hitParam_queue, 'tip': "Choose queue"},
-                    {'name': self.hitParam_cpu_str, 'type': 'int', 'value': self.hitParam_cpus},
-                    {'name': self.hitParam_noe_str, 'type': 'int', 'value': self.hitParam_noe,
+                    {'name': self.hitParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_cpus},
+                    {'name': self.hitParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
                     {'name': self.hitParam_extra_str, 'type': 'str', 'value': self.hitParam_extra,
                      'tip': "Extra peak finding flags"},
@@ -399,6 +411,7 @@ class PeakFinding(object):
 
     # Launch peak finding
     def findPeaks(self):
+        self.parent.autoPeakFinding = self.turnOnAutoPeaks
         self.parent.thread.append(LaunchPeakFinder.LaunchPeakFinder(self.parent)) # send parent parameters with self
         self.parent.thread[self.parent.threadCounter].launch(self.parent.experimentName, self.parent.detInfo)
         self.parent.threadCounter+=1
@@ -451,6 +464,12 @@ class PeakFinding(object):
             elif path[1] == self.hitParam_showPeaks_str:
                 self.showPeaks = data
                 self.drawPeaks()
+            elif path[1] == self.hitParam_autoPeaks_str:
+                ###########################
+                self.turnOnAutoPeaks = data
+                if self.showPeaks and self.doingUpdate is False:
+                    self.updateClassification()
+                ###########################
             elif path[1] == self.hitParam_outDir_str:
                 self.hitParam_outDir = data
                 self.hitParam_outDir_overridden = True
@@ -466,6 +485,8 @@ class PeakFinding(object):
                 self.hitParam_threshold = data
             elif path[1] == self.hitParam_launch_str:
                 self.findPeaks()
+            #elif path[1] == self.hitParam_launchAuto_str:
+            #    self.findPeaks()
             elif path[1] == self.save_minPeaks_str:
                 self.minPeaks = data
             elif path[1] == self.save_maxPeaks_str:
@@ -725,9 +746,16 @@ class PeakFinding(object):
 
                         # set peak-selector parameters:
                         if self.algorithm == 1:
-                            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
-                                                    amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
-                                                    son_min=self.hitParam_alg1_son_min)
+                            if not self.turnOnAutoPeaks:
+                                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
+                                                        amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
+                                                        son_min=self.hitParam_alg1_son_min)
+                            else:
+                                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min,
+                                                                 npix_max=self.hitParam_alg1_npix_max,
+                                                                 amax_thr=self.hitParam_alg1_amax_thr,
+                                                                 atot_thr=0,
+                                                                 son_min=self.hitParam_alg1_son_min)
                         elif self.algorithm == 2:
                             self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg2_npix_min, npix_max=self.hitParam_alg2_npix_max, \
                                                     amax_thr=self.hitParam_alg2_amax_thr, atot_thr=self.hitParam_alg2_atot_thr, \
@@ -747,12 +775,70 @@ class PeakFinding(object):
                         # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                         #                           around pixel with maximal intensity.
                         self.peakRadius = int(self.hitParam_alg1_radius)
-                        self.peaks = self.alg.peak_finder_v4r2(self.parent.calib,
-                                                               thr_low=self.hitParam_alg1_thr_low,
-                                                               thr_high=self.hitParam_alg1_thr_high,
-                                                               rank=int(self.hitParam_alg1_rank),
-                                                               r0=self.peakRadius,
-                                                               dr=self.hitParam_alg1_dr)
+                        if not self.turnOnAutoPeaks:
+                            self.peaks = self.alg.peak_finder_v4r2(self.parent.calib,
+                                                                   thr_low=self.hitParam_alg1_thr_low,
+                                                                   thr_high=self.hitParam_alg1_thr_high,
+                                                                   rank=int(self.hitParam_alg1_rank),
+                                                                   r0=self.peakRadius,
+                                                                   dr=self.hitParam_alg1_dr)
+                        else:
+                            ################################
+                            # Determine thr_high and thr_low
+                            if self.ind is None:
+                                with pg.BusyCursor():
+                                    powderSumFname = self.parent.psocakeRunDir + '/' + \
+                                                self.parent.experimentName + '_' + \
+                                                str(self.parent.runNumber).zfill(4) + '_' + \
+                                                self.parent.detInfo + '_mean.npy'
+                                    if not os.path.exists(powderSumFname):
+                                        # Generate powder
+                                        cmd = "mpirun -n `nproc` generatePowder exp=" + self.parent.experimentName + \
+                                              ":run=" + str(self.parent.runNumber) + " -d " + self.parent.detInfo + \
+                                              " -o " + self.parent.psocakeRunDir
+                                        cmd += " -n " + str(32)
+                                        cmd += " --random"
+                                        print "Running on local machine: ", cmd
+                                        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                                   shell=True)
+                                        out, err = process.communicate()
+
+                                    # Read in powder pattern and calculate pixel indices
+                                    powderSum = np.load(powderSumFname)
+                                    powderSum1D = powderSum.ravel()
+                                    cx, cy = self.parent.det.indexes_xy(self.parent.evt)
+                                    ipx, ipy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+                                    r = np.sqrt((cx - ipx) ** 2 + (cy - ipy) ** 2).ravel().astype(int)
+                                    startR = 0
+                                    endR = np.max(r)
+                                    profile = np.zeros(endR - startR, )
+                                    for i, val in enumerate(np.arange(startR, endR)):
+                                        ind = np.where(r == val)[0].astype(int)
+                                        if len(ind) > 0:
+                                            profile[i] = np.mean(powderSum1D[ind])
+                                    myThreshInd = np.argmax(profile)
+                                    print "Solution scattering radius (pixels): ", myThreshInd
+                                    thickness = 10
+                                    indLo = np.where(r >= myThreshInd - thickness / 2.)[0].astype(int)
+                                    indHi = np.where(r <= myThreshInd + thickness / 2.)[0].astype(int)
+                                    self.ind = np.intersect1d(indLo, indHi)
+
+                                    ix = self.parent.det.indexes_x(self.parent.evt)
+                                    iy = self.parent.det.indexes_y(self.parent.evt)
+                                    self.iX = np.array(ix, dtype=np.int64)
+                                    self.iY = np.array(iy, dtype=np.int64)
+
+                            calib1D = self.parent.calib.ravel()
+                            mean = np.mean(calib1D[self.ind])
+                            spread = np.std(calib1D[self.ind])
+                            thr_high = int(mean + 3. * spread + 50)
+                            thr_low = int(mean + 2. * spread + 50)
+                            self.peaks = self.alg.peak_finder_v4r2(self.parent.calib,
+                                                                   thr_low=thr_low,
+                                                                   thr_high=thr_high,
+                                                                   rank=int(self.hitParam_alg1_rank),
+                                                                   r0=self.peakRadius,
+                                                                   dr=self.hitParam_alg1_dr)
                     elif self.algorithm == 2:
                         # v2 - define peaks for regions of connected pixels above threshold
                         self.peakRadius = int(self.hitParam_alg2_r0)
@@ -779,7 +865,27 @@ class PeakFinding(object):
                                                     mask=self.parent.mk.combinedMask)
                     self.numPeaksFound = self.peaks.shape[0]
 
-                if self.parent.args.v >= 1: print "Num peaks found: ", self.numPeaksFound, self.peaks.shape
+                if self.numPeaksFound > self.minPeaks and self.numPeaksFound < self.maxPeaks and self.turnOnAutoPeaks:
+                    cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64),
+                                   np.array(self.peaks[:, 1], dtype=np.int64),
+                                   np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+                    cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64),
+                                   np.array(self.peaks[:, 1], dtype=np.int64),
+                                   np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+
+                    x = cenX - self.parent.cx # args.center[0]
+                    y = cenY - self.parent.cy # args.center[1]
+
+                    pixSize = float(self.parent.det.pixel_size(self.parent.evt))
+                    detdis = float(self.parent.detectorDistance)
+                    z = detdis / pixSize * np.ones(x.shape)  # pixels
+                    wavelength = 12.407002 / float(self.parent.photonEnergy)  # Angstrom
+                    norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+                    qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+                    [meanClosestNeighborDist, self.pairsFoundPerSpot] = self.calculate_likelihood(qPeaks)
+                else:
+                    self.pairsFoundPerSpot = 0
+                if self.parent.args.v >= 1: print "Num peaks found: ", self.numPeaksFound, self.peaks.shape, self.pairsFoundPerSpot
 
                 # update clen
                 self.parent.geom.updateClen(self.parent.facility)
@@ -793,6 +899,38 @@ class PeakFinding(object):
 
                 self.drawPeaks()
             if self.parent.args.v >= 1: print "Done updateClassification"
+
+    def calculate_likelihood(self, qPeaks):
+
+        nPeaks = int(qPeaks.shape[1])
+        selfD = distance.cdist(qPeaks.transpose(), qPeaks.transpose(), 'euclidean')
+        # sortedIndexD = np.argsort(selfD, axis = 1)
+        sortedSelfD = np.sort(selfD)
+        closestNeighborDist = sortedSelfD[:, 1]
+        meanClosestNeighborDist = np.median(closestNeighborDist)
+        numclosest = [0] * nPeaks
+        closestPeaks = [None] * nPeaks
+        coords = qPeaks.transpose()
+        pairsFound = 0.
+
+        for ii in range(nPeaks):
+            index = np.where(selfD[ii, :] == closestNeighborDist[ii])
+            # numclosest[ii] = index[0].shape[0]
+            closestPeaks[ii] = coords[list(index[0]), :].copy()
+            p = coords[ii, :]
+            flip = 2 * p - closestPeaks[ii]
+            d = distance.cdist(coords, flip, 'euclidean')
+            sigma = closestNeighborDist[ii] / 4.
+            mu = 0.
+            bins = d
+            vals = np.exp(-(bins - mu) ** 2 / (2. * sigma ** 2))
+            weight = np.sum(vals)
+            pairsFound += weight
+
+        pairsFound = pairsFound / 2.
+        pairsFoundPerSpot = pairsFound / float(nPeaks)
+
+        return [meanClosestNeighborDist, pairsFoundPerSpot]
 
     def convert_peaks_to_cheetah(self, s, r, c) :
         """Converts seg, row, col assuming (32,185,388)
@@ -847,6 +985,7 @@ class PeakFinding(object):
                 myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Peaks=' + \
                             str(self.numPeaksFound) + \
                             ' <br>Res=' + str(int(self.peaksMaxRes)) + \
+                            ' <br>Like=' + str(round(self.pairsFoundPerSpot,3)) + \
                             '<br></span></div>'
                 self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
                 self.parent.img.win.getView().addItem(self.parent.img.peak_text)

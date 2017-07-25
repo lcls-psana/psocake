@@ -118,7 +118,7 @@ class MainFrame(QtGui.QWidget):
             self.dir = '/reg/d/psdm'
         elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityPAL
-            self.dir = '/palxfel/u/home/yoon82/sfx' # FIXME: TEMPORARY
+            self.dir = '/reg/d/psdm/cxi/cxitut13/res/yoon82/pohang/kihyun'#'/palxfel/u/home/yoon82/sfx' # FIXME: TEMPORARY
 
         # Init experiment parameters from args
         if args.expRun is not None and ':run=' in args.expRun:
