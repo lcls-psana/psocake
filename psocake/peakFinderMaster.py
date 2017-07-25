@@ -105,7 +105,8 @@ def runmaster(args, nClients):
         mask = -1*(mask-1)
 
     myHdf5 = h5py.File(fname, 'r+')
-    while nClients > 0:
+    numLeft = 1
+    while nClients > 0 or numLeft > 0:
         # Remove client if the run ended
         md = mpidata()
         md.recv()
@@ -128,6 +129,8 @@ def runmaster(args, nClients):
                     totalTime = md.small.totalTime
                     rankID = md.small.rankID
             except:
+                myHdf5[grpName + dset_nPeaks][md.small.eventNum] = -2
+                numLeft = len(np.where(myHdf5[grpName + dset_nPeaks].value == -1)[0])
                 continue
 
             if nPeaks > 2048: # only save upto maxNumPeaks
@@ -153,6 +156,9 @@ def runmaster(args, nClients):
                     myHdf5.flush()
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
+
+            numLeft = len(np.where(myHdf5[grpName + dset_nPeaks].value == -1)[0])
+
             if str2bool(args.auto):
                 likelihood = md.small.likelihood
                 myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood
@@ -516,6 +522,8 @@ def runmaster(args, nClients):
         #myHdf5["entry_1/instrument_1/detector_1/y_pixel_size"].attrs["numEvents"] = numHits
         myHdf5.flush()
 
+    print "Writing out cxi file"
+
     if '/status/findPeaks' in myHdf5: del myHdf5['/status/findPeaks']
     myHdf5['/status/findPeaks'] = 'success'
     myHdf5.flush()
@@ -557,3 +565,12 @@ def runmaster(args, nClients):
             np.savetxt(fnameMissesTxt, powderMisses.reshape((-1, powderMisses.shape[-1])), fmt='%0.18e')
     elif facility == 'PAL':
         print "powder not implemented for PAL"
+
+    while nClients > 0:
+        # Remove client if the run ended
+        md = mpidata()
+        md.recv()
+        if md.small.endrun:
+            nClients -= 1
+        else:
+            pass

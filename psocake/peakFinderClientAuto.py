@@ -67,6 +67,8 @@ def runclient(args):
 
         if args.profile: startTic = time.time()
 
+        #print "rank, event: ", rank, nevent
+
         if facility == 'LCLS':
             evt = run.event(times[nevent])
             detarr = d.calib(evt)
@@ -400,7 +402,234 @@ def runclient(args):
             md.small.detectorDistance = detectorDistance
             md.small.photonEnergy = photonEnergy
             md.send()
-        
+
+    ###############################
+    # Help your neighbor find peaks
+    ###############################
+    import h5py
+    runStr = "%04d" % args.run
+    fname = args.outDir + "/" + args.exp + "_" + runStr + ".cxi"
+    dset_nPeaks = "/nPeaksAll"
+    grpName = "/entry_1/result_1"
+    myHdf5 = h5py.File(fname, 'r')
+    nPeaksAll = myHdf5[grpName + dset_nPeaks].value
+    myHdf5.close()
+    ind = np.where(nPeaksAll == -1)[0]
+    numLeft = len(ind)
+    print "helper: ", ind, numLeft, rank
+
+    if numLeft > 0:
+        import numpy.random
+        ind = numpy.random.permutation(ind)
+
+        for nevent in ind:
+            #print "rank, event: ", rank, nevent
+            if facility == 'LCLS':
+                evt = run.event(times[nevent])
+                detarr = d.calib(evt)
+                exp = env.experiment()
+                # run = evt.run()
+            elif facility == 'PAL':
+                f = h5py.File(_files[nevent], 'r')
+                detarr = f['/data'].value
+                f.close()
+                exp = args.exp
+                run = args.run
+
+            if detarr is None:
+                md = mpidata()
+                md.small.eventNum = nevent
+                md.send()
+                continue
+
+            if not str2bool(args.auto):
+                if args.profile: tic = time.time()
+
+                d.peakFinder.findPeaks(detarr, evt)
+
+                if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
+            else:
+                ################################
+                # Determine thr_high and thr_low
+                if args.profile: tic = time.time()
+
+                calib1D = detarr.ravel()
+                mean = np.mean(calib1D[d.ind])
+                spread = np.std(calib1D[d.ind])
+                thr_high = int(mean + 3. * spread + 50)
+                thr_low = int(mean + 2. * spread + 50)
+                d.peakFinder.findPeaks(detarr, evt, thr_high, thr_low)
+
+                if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
+
+                # Likelihood
+                numPeaksFound = d.peakFinder.peaks.shape[0]
+                if numPeaksFound >= args.minPeaks and \
+                   numPeaksFound <= args.maxPeaks and \
+                   d.peakFinder.maxRes >= args.minRes:
+                    cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                                   np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                                   np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+                    cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                                   np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                                   np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+
+                    x = cenX - d.ipx  # args.center[0]
+                    y = cenY - d.ipy  # args.center[1]
+
+                    pixSize = float(d.pixel_size(evt))
+                    detdis = float(args.detectorDistance)
+                    z = detdis / pixSize * np.ones(x.shape)  # pixels
+
+                    ebeam = ebeamDet.get(evt)
+                    try:
+                        photonEnergy = ebeam.ebeamPhotonEnergy()
+                    except:
+                        photonEnergy = 1
+
+                    wavelength = 12.407002 / float(photonEnergy)  # Angstrom
+                    norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+                    qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+                    [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
+                else:
+                    pairsFoundPerSpot = 0.0
+
+            md = mpidata()
+            md.addarray('peaks', d.peakFinder.peaks)
+            md.small.eventNum = nevent
+            md.small.maxRes = d.peakFinder.maxRes
+            md.small.powder = 0
+            if str2bool(args.auto):
+                md.small.likelihood = pairsFoundPerSpot
+
+            if args.profile:
+                md.small.calibTime = calibTime
+                md.small.peakTime = peakTime
+
+            if facility == 'LCLS':
+                # other cxidb data
+                ps.getEvent(nevent)
+
+                es = ps.ds.env().epicsStore()
+                try:
+                    pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
+                except:
+                    pulseLength = 0
+
+                md.small.pulseLength = pulseLength
+
+                md.small.detectorDistance = detectorDistance
+
+                md.small.pixelSize = args.pixelSize
+
+                # LCLS
+                if "cxi" in args.exp:
+                    md.small.lclsDet = es.value(args.clen)  # mm
+                elif "mfx" in args.exp:
+                    md.small.lclsDet = es.value(args.clen)  # mm
+                elif "xpp" in args.exp:
+                    md.small.lclsDet = es.value(args.clen)  # mm
+
+                try:
+                    md.small.ebeamCharge = es.value('BEND:DMP1:400:BDES')
+                except:
+                    md.small.ebeamCharge = 0
+
+                try:
+                    md.small.beamRepRate = es.value('EVNT:SYS0:1:LCLSBEAMRATE')
+                except:
+                    md.small.beamRepRate = 0
+
+                try:
+                    md.small.particleN_electrons = es.value('BPMS:DMP1:199:TMIT1H')
+                except:
+                    md.small.particleN_electrons = 0
+
+                try:
+                    md.small.eVernier = es.value('SIOC:SYS0:ML00:AO289')
+                except:
+                    md.small.eVernier = 0
+
+                try:
+                    md.small.charge = es.value('BEAM:LCLS:ELEC:Q')
+                except:
+                    md.small.charge = 0
+
+                try:
+                    md.small.peakCurrentAfterSecondBunchCompressor = es.value('SIOC:SYS0:ML00:AO195')
+                except:
+                    md.small.peakCurrentAfterSecondBunchCompressor = 0
+
+                try:
+                    md.small.pulseLength = es.value('SIOC:SYS0:ML00:AO820')
+                except:
+                    md.small.pulseLength = 0
+
+                try:
+                    md.small.ebeamEnergyLossConvertedToPhoton_mJ = es.value('SIOC:SYS0:ML00:AO569')
+                except:
+                    md.small.ebeamEnergyLossConvertedToPhoton_mJ = 0
+
+                try:
+                    md.small.calculatedNumberOfPhotons = es.value('SIOC:SYS0:ML00:AO580') * 1e12  # number of photons
+                except:
+                    md.small.calculatedNumberOfPhotons = 0
+
+                try:
+                    md.small.photonBeamEnergy = es.value('SIOC:SYS0:ML00:AO541')
+                except:
+                    md.small.photonBeamEnergy = 0
+
+                try:
+                    md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
+                except:
+                    md.small.wavelength = 0
+
+                ebeam = ebeamDet.get(ps.evt)  # .get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+                try:
+                    photonEnergy = ebeam.ebeamPhotonEnergy()
+                    pulseEnergy = ebeam.ebeamL3Energy()  # MeV
+                except:
+                    photonEnergy = 0
+                    pulseEnergy = 0
+                    if md.small.wavelength > 0:
+                        h = 6.626070e-34  # J.m
+                        c = 2.99792458e8  # m/s
+                        joulesPerEv = 1.602176621e-19  # J/eV
+                        photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)
+
+                md.small.photonEnergy = photonEnergy
+                md.small.pulseEnergy = pulseEnergy
+
+                evtId = ps.evt.get(psana.EventId)
+                md.small.sec = evtId.time()[0]
+                md.small.nsec = evtId.time()[1]
+                md.small.fid = evtId.fiducials()
+
+                if len(d.peakFinder.peaks) >= args.minPeaks and \
+                                len(d.peakFinder.peaks) <= args.maxPeaks and \
+                                d.peakFinder.maxRes >= args.minRes and \
+                                pairsFoundPerSpot >= likelihoodThresh:
+                    # Write image in cheetah format
+                    img = ps.getCheetahImg()
+                    if img is not None:
+                        md.addarray('data', img)
+
+                if args.profile:
+                    totalTime = time.time() - startTic
+                    md.small.totalTime = totalTime
+                    md.small.rankID = rank
+                md.send()  # send mpi data object to master when desired
+            elif facility == 'PAL':
+                if len(d.peakFinder.peaks) >= args.minPeaks and \
+                                len(d.peakFinder.peaks) <= args.maxPeaks and \
+                                d.peakFinder.maxRes >= args.minRes:
+                    # Write image in cheetah format
+                    if detarr is not None: md.addarray('data', detarr)
+                md.small.detectorDistance = detectorDistance
+                md.small.photonEnergy = photonEnergy
+                md.send()
+
     # At the end of the run, send the powder of hits and misses
     if facility == 'LCLS':
         md = mpidata()
@@ -409,10 +638,12 @@ def runclient(args):
         md.addarray('powderMisses', d.peakFinder.powderMisses)
         md.send()
         md.endrun()
+        print "Done: ", rank
     elif facility == 'PAL':
         print "powder hits and misses not implemented for PAL"
         md = mpidata()
         md.endrun()
+        print "Done: ", rank
 
 def calculate_likelihood(qPeaks):
 
