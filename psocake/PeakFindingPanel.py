@@ -5,7 +5,7 @@ from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
-import json, os
+import json, os, time
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import subprocess
@@ -59,7 +59,7 @@ class PeakFinding(object):
             self.hitParam_alg1_amax_thr_str = 'amax_thr'
             self.hitParam_alg1_atot_thr_str = 'atot_thr'
             self.hitParam_alg1_son_min_str = 'snr_min'
-            self.hitParam_algorithm1_str = 'H-dome'
+            self.hitParam_algorithm1_str = 'Droplet'
             self.hitParam_alg1_thr_low_str = 'thr_low'
             self.hitParam_alg1_thr_high_str = 'thr_high'
             self.hitParam_alg1_rank_str = 'rank'
@@ -146,13 +146,13 @@ class PeakFinding(object):
             self.hitParam_alg1_dr = 1
         elif self.parent.facility == self.parent.facilityPAL:
             self.hitParam_alg1_npix_min = 2.
-            self.hitParam_alg1_npix_max = 20.
+            self.hitParam_alg1_npix_max = 30.
             self.hitParam_alg1_amax_thr = 0.
             self.hitParam_alg1_atot_thr = 1000.
-            self.hitParam_alg1_son_min = 3.
-            self.hitParam_alg1_thr_low = 250.
-            self.hitParam_alg1_thr_high = 450.
-            self.hitParam_alg1_rank = 2
+            self.hitParam_alg1_son_min = 7.
+            self.hitParam_alg1_thr_low = 200.
+            self.hitParam_alg1_thr_high = 350.
+            self.hitParam_alg1_rank = 3
             self.hitParam_alg1_radius = 3
             self.hitParam_alg1_dr = 5
         # self.hitParam_alg2_npix_min = 1.
@@ -194,7 +194,7 @@ class PeakFinding(object):
             self.hitParam_outDir_overridden = False
             self.hitParam_runs = ''
             self.hitParam_queue = self.hitParam_noQueue_str
-            self.hitParam_cpus = 3
+            self.hitParam_cpus = 6
             self.hitParam_noe = -1
             self.hitParam_threshold = 15 # usually crystals with less than 15 peaks are not indexable
         self.minPeaks = 15
@@ -285,6 +285,8 @@ class PeakFinding(object):
                          'tip': "Only keep the peak if signal-over-noise is above this value"},
                         {'name': self.hitParam_alg1_thr_low_str, 'type': 'float', 'decimals': 7, 'value': self.hitParam_alg1_thr_low,
                          'tip': "Peak height"},
+                        {'name': self.hitParam_alg1_thr_high_str, 'type': 'float', 'decimals': 7, 'value': self.hitParam_alg1_thr_high,
+                         'tip': "Start a seed peak if above this value"},
                         {'name': self.hitParam_alg1_radius_str, 'type': 'int', 'value': self.hitParam_alg1_radius,
                          'tip': "sinal inside the region of interest radius"},
                         {'name': self.hitParam_alg1_dr_str, 'type': 'float', 'value': self.hitParam_alg1_dr,
@@ -438,6 +440,7 @@ class PeakFinding(object):
                      self.hitParam_alg1_atot_thr_str: self.hitParam_alg1_atot_thr,
                      self.hitParam_alg1_son_min_str: self.hitParam_alg1_son_min,
                      self.hitParam_alg1_thr_low_str: self.hitParam_alg1_thr_low,
+                     self.hitParam_alg1_thr_high_str: self.hitParam_alg1_thr_high,
                      self.hitParam_alg1_radius_str: self.hitParam_alg1_radius,
                      self.hitParam_alg1_dr_str: self.hitParam_alg1_dr}
             self.writeStatus(peakParamFname, d)
@@ -853,16 +856,23 @@ class PeakFinding(object):
                                                    rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
                     self.numPeaksFound = self.peaks.shape[0]
                 elif self.parent.facility == self.parent.facilityPAL:
+                    # Only initialize the hit finder algorithm once
                     self.peakRadius = int(self.hitParam_alg1_radius)
-                    self.peaks = myskbeam.findPeaks(self.parent.calib,
+                    if self.algInitDone is False:
+                        self.alg = myskbeam.Droplet(self.peakRadius, self.hitParam_alg1_dr)
+                        self.algInitDone = True
+                    if self.parent.args.v >= 1: tic = time.time()
+                    self.peaks = self.alg.findPeaks(self.parent.calib,
                                                     npix_min=self.hitParam_alg1_npix_min,
                                                     npix_max=self.hitParam_alg1_npix_max,
                                                     son_min=self.hitParam_alg1_son_min,
-                                                    hvalue=self.hitParam_alg1_thr_low,
+                                                    thr_low=self.hitParam_alg1_thr_low,
+                                                    thr_high=self.hitParam_alg1_thr_high,
                                                     atot_thr=self.hitParam_alg1_atot_thr,
                                                     r0=self.peakRadius,
                                                     dr=self.hitParam_alg1_dr,
                                                     mask=self.parent.mk.combinedMask)
+                    if self.parent.args.v >= 1: print "time: ", time.time() - tic
                     self.numPeaksFound = self.peaks.shape[0]
 
                 if self.numPeaksFound > self.minPeaks and self.numPeaksFound < self.maxPeaks and self.turnOnAutoPeaks:

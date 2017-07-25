@@ -152,7 +152,7 @@ def runmaster(args, nClients):
                 likelihood = 0
             myHdf5.flush()
 
-            if args.profile and facility == 'LCLS':
+            if args.profile:
                 saveTime = time.time() - tic # Time to save the peaks found per event
                 myHdf5[grpName + dset_calibTime][md.small.eventNum] = calibTime
                 myHdf5[grpName + dset_peakTime][md.small.eventNum] = peakTime
@@ -290,10 +290,10 @@ def runmaster(args, nClients):
                         reshapeHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, inc)  # same as /LCLS/eventNumber
                         dataShape = md.data.shape
                         myHdf5["/entry_1/data_1/data"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
-                        #if args.profile:
-                        #    reshapeHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, 1)
-                        #    reshapeTime = time.time() - tic
-                        #    updateHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, reshapeTime)
+                        if args.profile:
+                            reshapeHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, 1)
+                            reshapeTime = time.time() - tic
+                            updateHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc, reshapeTime)
                         maxSize += inc
                         numInc += 1
 
@@ -459,8 +459,8 @@ def runmaster(args, nClients):
         cropHdf5(myHdf5, '/PAL/eventNumber', numHits)
         cropHdf5(myHdf5, '/entry_1/experimental_identifier', numHits)  # same as /LCLS/eventNumber
         myHdf5["/entry_1/data_1/data"].resize((numHits, dataShape[0], dataShape[1]))
-        #if args.profile:
-        #    cropHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc)
+        if args.profile:
+            cropHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc)
 
         # Save attributes
         #myHdf5["LCLS/detector_1/EncoderValue"].attrs["numEvents"] = numHits

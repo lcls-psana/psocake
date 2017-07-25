@@ -280,6 +280,10 @@ def runclient(args):
                 if detarr is not None: md.addarray('data', detarr)
             md.small.detectorDistance = detectorDistance
             md.small.photonEnergy = photonEnergy
+            if args.profile:
+                totalTime = time.time() - startTic
+                md.small.totalTime = totalTime
+                md.small.rankID = rank
             md.send()
         
     # At the end of the run, send the powder of hits and misses

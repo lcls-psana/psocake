@@ -42,7 +42,7 @@ def donutMask(N,M,R,r,centreRow=0,centreCol=0):
                 myM[i,j] = j
     return mask, radialDistRow, radialDistCol, myN, myM
 
-def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
+def findPeaks_hdome(calib, npix_min=0, npix_max=0, atot_thr=0,
               son_min=0, hvalue=0, r0=0, dr=0, mask=None):
     hmax = h_maxima(calib, hvalue)
     if mask is not None: hmax = np.multiply(hmax, mask)
@@ -80,6 +80,135 @@ def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
             meanBackground = np.mean(d[np.where(outer == 1)])
             tot[i] = np.sum(d[np.where(inner == 1)]) - numInner * meanBackground
             numPix[i] = len(np.where(d[np.where(inner == 1)] >= hvalue)[0])
+            if stdNoise == 0:
+                snr[i] = -1
+            else:
+                snr[i] = meanSig / stdNoise
+        except:
+            snr[i] = 0
+
+    ind= (snr >= son_min) & (tot >= atot_thr) & (numPix >= npix_min) & (numPix < npix_max)
+    x = x[ind]
+    y = y[ind]
+    npix = numPix[ind]
+    atot = tot[ind]
+    son = snr[ind]
+
+    peaks = np.zeros((len(x), 5))
+    if len(x) > 0:
+        peaks[:,0] = x.T
+        peaks[:,1] = y.T
+        peaks[:,2] = npix.T
+        peaks[:,3] = atot.T
+        peaks[:,4] = son.T
+
+    return peaks
+
+class Droplet:
+    def __init__(self, innerRing, outerRing):
+        self.innerRing = innerRing
+        self.outerRing = outerRing
+        width = int(self.outerRing * 2 + 1)
+
+        outer, rr, rc, n, m = donutMask(width, width, self.outerRing, self.innerRing, centreRow=0, centreCol=0)
+        inner, rr, rc, n, m = donutMask(width, width, self.innerRing, 0, centreRow=0, centreCol=0)
+        if width % 2 == 0:
+            self.lh = self.rh = int(width / 2)
+        else:
+            self.lh = int(width / 2)
+            self.rh = int(width / 2) + 1
+
+        self.fgInd = np.where(inner == 1)
+        self.bgInd = np.where(outer == 1)
+
+    def findPeaks(self, calib, npix_min=0, npix_max=0, atot_thr=0, son_min=0, thr_low=0, thr_high=0, r0=0, dr=0, mask=None):
+        hmax = np.zeros_like(calib)
+        hmax[np.where(calib>=thr_high)] = 1
+        if mask is not None: hmax = np.multiply(hmax, mask)
+
+        ll = label(hmax)
+        regions = regionprops(ll)
+
+        numPeaks = len(regions)
+        x = np.zeros((numPeaks,))
+        y = np.zeros((numPeaks,))
+        for i, p in enumerate(regions):
+            x[i], y[i] = p.centroid
+
+        snr = np.zeros_like(x)
+        tot = np.zeros_like(x)
+        numPix = np.zeros_like(x)
+        numInner = len(self.fgInd[0])
+        for i in range(numPeaks):
+            try:
+                d = calib[int(x[i]) - self.lh:int(x[i]) + self.rh, int(y[i]) - self.lh:int(y[i]) + self.rh]
+                meanSig = np.mean(d[self.fgInd])
+                stdNoise = np.std(d[self.bgInd])
+                meanBackground = np.mean(d[self.bgInd])
+                tot[i] = np.sum(d[self.fgInd]) - numInner * meanBackground
+                numPix[i] = len(np.where(d[self.fgInd] >= thr_low)[0])
+                if stdNoise == 0:
+                    snr[i] = -1
+                else:
+                    snr[i] = meanSig / stdNoise
+            except:
+                snr[i] = 0
+
+        ind= (snr >= son_min) & (tot >= atot_thr) & (numPix >= npix_min) & (numPix < npix_max)
+        x = x[ind]
+        y = y[ind]
+        npix = numPix[ind]
+        atot = tot[ind]
+        son = snr[ind]
+
+        peaks = np.zeros((len(x), 5))
+        if len(x) > 0:
+            peaks[:,0] = x.T
+            peaks[:,1] = y.T
+            peaks[:,2] = npix.T
+            peaks[:,3] = atot.T
+            peaks[:,4] = son.T
+        return peaks
+
+def findPeaks(calib, npix_min=0, npix_max=0, atot_thr=0,
+              son_min=0, pmax=0, pmin=0, r0=0, dr=0, mask=None):
+    hmax = np.zeros_like(calib)
+    hmax[np.where(calib>=pmax)] = 1
+    if mask is not None: hmax = np.multiply(hmax, mask)
+
+    ll = label(hmax)
+    regions = regionprops(ll)
+
+    numPeaks = len(regions)
+    x = np.zeros((numPeaks,))
+    y = np.zeros((numPeaks,))
+    for i, p in enumerate(regions):
+        x[i], y[i] = p.centroid
+
+    innerRing = r0
+    outerRing = dr
+    width = int(outerRing * 2 + 1)
+
+    outer, rr, rc, n, m = donutMask(width, width, outerRing, innerRing, centreRow=0, centreCol=0)
+    inner, rr, rc, n, m = donutMask(width, width, innerRing, 0, centreRow=0, centreCol=0)
+    if width % 2 == 0:
+        lh = rh = int(width / 2)
+    else:
+        lh = int(width / 2)
+        rh = int(width / 2) + 1
+
+    snr = np.zeros_like(x)
+    tot = np.zeros_like(x)
+    numPix = np.zeros_like(x)
+    numInner = len(np.where(inner == 1)[0])
+    for i in range(numPeaks):
+        d = calib[int(x[i]) - lh:int(x[i]) + rh, int(y[i]) - lh:int(y[i]) + rh]
+        try:
+            meanSig = np.mean(d[np.where(inner == 1)])
+            stdNoise = np.std(d[np.where(outer == 1)])
+            meanBackground = np.mean(d[np.where(outer == 1)])
+            tot[i] = np.sum(d[np.where(inner == 1)]) - numInner * meanBackground
+            numPix[i] = len(np.where(d[np.where(inner == 1)] >= pmin)[0])
             if stdNoise == 0:
                 snr[i] = -1
             else:

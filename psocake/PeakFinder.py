@@ -110,6 +110,16 @@ class PeakFinder:
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
         if facility == 'LCLS':
+            self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
+            # set peak-selector parameters:
+            self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                            amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                            son_min=self.son_min)
+        elif facility == 'PAL':
+            self.peakRadius = int(self.hitParam_alg1_radius)
+            self.alg = myskbeam.Droplet(self.peakRadius, self.hitParam_alg1_dr)
+
+        if facility == 'LCLS':
             self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
             self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
             self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
@@ -199,11 +209,6 @@ class PeakFinder:
             else:
                 self.combinedMask = self.userPsanaMask
             # set new mask
-            #self.alg = PyAlgos(windows=self.windows, mask=self.combinedMask, pbits=0)
-            # set peak-selector parameters:
-            #self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-            #                                amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-            #                                son_min=self.son_min)
             self.alg.set_mask(self.combinedMask) # This doesn't work reliably
         elif facility == 'PAL':
             self.combinedMask = self.userMask
@@ -229,11 +234,12 @@ class PeakFinder:
                                                            dr=self.hitParam_alg1_dr)
             elif facility == 'PAL':
                 self.peakRadius = int(self.hitParam_alg1_radius)
-                self.peaks = myskbeam.findPeaks(calib,
+                self.peaks = self.alg.findPeaks(calib,
                                                 npix_min = self.npix_min,
                                                 npix_max = self.npix_max,
                                                 son_min = self.son_min,
-                                                hvalue = self.hitParam_alg1_thr_low,
+                                                thr_low = self.hitParam_alg1_thr_low,
+                                                thr_high=self.hitParam_alg1_thr_high,
                                                 atot_thr = self.atot_thr,
                                                 r0 = self.peakRadius,
                                                 dr = int(self.hitParam_alg1_dr),
