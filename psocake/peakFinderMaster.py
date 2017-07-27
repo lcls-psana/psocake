@@ -70,6 +70,10 @@ def runmaster(args, nClients):
     dset_atot = "/peakTotalIntensityAll"
     dset_maxRes = "/maxResAll"
     dset_likelihood = "/likelihoodAll"
+    dset_timeToolDelay = "/timeToolDelayAll"
+    dset_laserTimeZero = "/laserTimeZeroAll"
+    dset_laserTimeDelay = "/laserTimeDelayAll"
+    dset_laserTimePhaseLocked = "/laserTimePhaseLockedAll"
     dset_saveTime = "/saveTime"
     dset_calibTime = "/calibTime"
     dset_peakTime = "/peakTime"
@@ -89,6 +93,10 @@ def runmaster(args, nClients):
     hitRate = 0.0
     fracDone = 0.0
     likelihood = 0.0
+    timeToolDelay = 0.0
+    laserTimeZero = 0.0
+    laserTimeDelay = 0.0
+    laserTimePhaseLocked = 0.0
     numEvents = getNoe(args)
     d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
     try:
@@ -164,6 +172,11 @@ def runmaster(args, nClients):
                 myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood
             else:
                 likelihood = 0
+
+            myHdf5[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay
+            myHdf5[grpName + dset_laserTimeZero][md.small.eventNum] = md.small.laserTimeZero
+            myHdf5[grpName + dset_laserTimeDelay][md.small.eventNum] = md.small.laserTimeDelay
+            myHdf5[grpName + dset_laserTimePhaseLocked][md.small.eventNum] = md.small.laserTimePhaseLocked
             myHdf5.flush()
 
             if args.profile:
@@ -180,7 +193,6 @@ def runmaster(args, nClients):
                nPeaks <= args.maxPeaks and \
                maxRes >= args.minRes and \
                hasattr(md, 'data'):
-                #((args.auto and likelihood >= 0.3) or (not args.auto)) and \
                 if facility == 'LCLS':
                     # Assign a bigger array
                     if maxSize == numHits:
@@ -191,6 +203,12 @@ def runmaster(args, nClients):
                         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits + inc, 2048))
                         reshapeHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, inc)
                         reshapeHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits, inc)
+
+                        reshapeHdf5(myHdf5, '/entry_1/result_1/timeToolDelay', numHits, inc)
+                        reshapeHdf5(myHdf5, '/entry_1/result_1/laserTimeZero', numHits, inc)
+                        reshapeHdf5(myHdf5, '/entry_1/result_1/laserTimeDelay', numHits, inc)
+                        reshapeHdf5(myHdf5, '/entry_1/result_1/laserTimePhaseLocked', numHits, inc)
+
                         reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, inc)
                         reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits, inc) # J
@@ -235,6 +253,10 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, maxRes)
                     updateHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits, likelihood)
                     # Save epics
+                    updateHdf5(myHdf5, '/entry_1/result_1/timeToolDelay', numHits, md.small.timeToolDelay)
+                    updateHdf5(myHdf5, '/entry_1/result_1/laserTimeZero', numHits, md.small.laserTimeZero)
+                    updateHdf5(myHdf5, '/entry_1/result_1/laserTimeDelay', numHits, md.small.laserTimeDelay)
+                    updateHdf5(myHdf5, '/entry_1/result_1/laserTimePhaseLocked', numHits, md.small.laserTimePhaseLocked)
                     updateHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, md.small.pulseLength)
                     updateHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits, md.small.photonEnergy)
                     if md.small.photonEnergy is not None:
@@ -386,6 +408,10 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits, 2048))
         cropHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits)
         cropHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits)
+        cropHdf5(myHdf5, '/entry_1/result_1/timeToolDelay', numHits)
+        cropHdf5(myHdf5, '/entry_1/result_1/laserTimeZero', numHits)
+        cropHdf5(myHdf5, '/entry_1/result_1/laserTimeDelay', numHits)
+        cropHdf5(myHdf5, '/entry_1/result_1/laserTimePhaseLocked', numHits)
         cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits)
         cropHdf5(myHdf5, '/LCLS/photon_energy_eV', numHits)
         cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/energy', numHits)
@@ -443,6 +469,10 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakTotalIntensity"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/maxRes"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/likelihood"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/timeToolDelay"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/laserTimeZero"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/laserTimeDelay"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/laserTimePhaseLocked"].attrs["numEvents"] = numHits
         myHdf5["entry_1/instrument_1/source_1/energy"].attrs["numEvents"] = numHits
         myHdf5["entry_1/instrument_1/source_1/pulse_energy"].attrs["numEvents"] = numHits
         myHdf5["entry_1/instrument_1/source_1/pulse_width"].attrs["numEvents"] = numHits

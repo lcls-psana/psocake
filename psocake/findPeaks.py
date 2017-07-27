@@ -285,6 +285,11 @@ if rank == 0:
         myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs,)*-1, dtype=int)
         myHdf5.create_dataset("/entry_1/result_1/likelihoodAll", data=np.ones(numJobs, ) * -1, dtype=float)
+
+        myHdf5.create_dataset("/entry_1/result_1/timeToolDelayAll", data=np.ones(numJobs, ) * -1, dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/laserTimeZeroAll", data=np.ones(numJobs, ) * -1, dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/laserTimeDelayAll", data=np.ones(numJobs, ) * -1, dtype=float)
+        myHdf5.create_dataset("/entry_1/result_1/laserTimePhaseLockedAll", data=np.ones(numJobs, ) * -1, dtype=float)
         myHdf5.flush()
 
         if args.profile:
@@ -337,6 +342,23 @@ if rank == 0:
                                                  maxshape=(None,),
                                                  dtype=float)
         ds_likelihood.attrs["axes"] = "experiment_identifier"
+
+        ds_timeToolDelay = myHdf5.create_dataset("/entry_1/result_1/timeToolDelay",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_timeToolDelay.attrs["axes"] = "experiment_identifier"
+        ds_laserTimeZero = myHdf5.create_dataset("/entry_1/result_1/laserTimeZero",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_laserTimeZero.attrs["axes"] = "experiment_identifier"
+        ds_laserTimeDelay = myHdf5.create_dataset("/entry_1/result_1/laserTimeDelay",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_laserTimeDelay.attrs["axes"] = "experiment_identifier"
+        ds_laserTimePhaseLocked = myHdf5.create_dataset("/entry_1/result_1/laserTimePhaseLocked",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_laserTimePhaseLocked.attrs["axes"] = "experiment_identifier"
 
         myHdf5.flush()
 
@@ -567,9 +589,9 @@ if rank==0:
     runmaster(args, numClients)
 else:
     print "args.auto: ", str2bool(args.auto)
-    if str2bool(args.auto):
-        runclientAuto(args)
-    else:
-        runclient(args)
+    #if str2bool(args.auto):
+    runclientAuto(args)
+    #else:
+    #    runclient(args)
 
 MPI.Finalize()

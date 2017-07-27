@@ -5,6 +5,7 @@ import os
 import PeakFinder as pf
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance
+import h5py
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -22,7 +23,12 @@ size = comm.Get_size()
 def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 def runclient(args):
-    likelihoodThresh = 0.035
+    pairsFoundPerSpot = 0.0
+    if str2bool(args.auto):
+        likelihoodThresh = 0.035
+    else:
+        likelihoodThresh = 0
+
     if facility == 'LCLS':
         ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':idx')
         run = ds.runs().next()
@@ -284,6 +290,29 @@ def runclient(args):
             ps.getEvent(nevent)
 
             es = ps.ds.env().epicsStore()
+
+            # timetool
+            try:
+                md.small.timeToolDelay = es.value('CXI:LAS:MMN:04.RBV')
+            except:
+                md.small.timeToolDelay = 0
+
+            try:
+                md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
+            except:
+                md.small.laserTimeZero = 0
+
+            try:
+                md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
+            except:
+                md.small.laserTimeDelay = 0
+
+            try:
+                md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
+            except:
+                md.small.laserTimePhaseLocked = 0
+
+            # pulse length
             try:
                 pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
             except:
@@ -406,7 +435,6 @@ def runclient(args):
     ###############################
     # Help your neighbor find peaks
     ###############################
-    import h5py
     runStr = "%04d" % args.run
     fname = args.outDir + "/" + args.exp + "_" + runStr + ".cxi"
     dset_nPeaks = "/nPeaksAll"
@@ -511,6 +539,29 @@ def runclient(args):
                 ps.getEvent(nevent)
 
                 es = ps.ds.env().epicsStore()
+
+                # timetool
+                try:
+                    md.small.timeToolDelay = es.value('CXI:LAS:MMN:04.RBV')
+                except:
+                    md.small.timeToolDelay = 0
+
+                try:
+                    md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
+                except:
+                    md.small.laserTimeZero = 0
+
+                try:
+                    md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
+                except:
+                    md.small.laserTimeDelay = 0
+
+                try:
+                    md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
+                except:
+                    md.small.laserTimePhaseLocked = 0
+
+                # pulse length
                 try:
                     pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
                 except:
@@ -612,8 +663,7 @@ def runclient(args):
                                 pairsFoundPerSpot >= likelihoodThresh:
                     # Write image in cheetah format
                     img = ps.getCheetahImg()
-                    if img is not None:
-                        md.addarray('data', img)
+                    if img is not None: md.addarray('data', img)
 
                 if args.profile:
                     totalTime = time.time() - startTic
