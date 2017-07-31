@@ -294,21 +294,25 @@ def runclient(args):
             # timetool
             try:
                 md.small.timeToolDelay = es.value('CXI:LAS:MMN:04.RBV')
+                if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
             except:
                 md.small.timeToolDelay = 0
 
             try:
                 md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
+                if md.small.laserTimeZero is None: md.small.laserTimeZero = 0
             except:
                 md.small.laserTimeZero = 0
 
             try:
                 md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
+                if md.small.laserTimeDelay is None: md.small.laserTimeDelay = 0
             except:
                 md.small.laserTimeDelay = 0
 
             try:
                 md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
+                if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
             except:
                 md.small.laserTimePhaseLocked = 0
 
@@ -543,21 +547,25 @@ def runclient(args):
                 # timetool
                 try:
                     md.small.timeToolDelay = es.value('CXI:LAS:MMN:04.RBV')
+                    if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
                 except:
                     md.small.timeToolDelay = 0
 
                 try:
                     md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
+                    if md.small.laserTimeZero is None: md.small.laserTimeZero = 0
                 except:
                     md.small.laserTimeZero = 0
 
                 try:
                     md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
+                    if md.small.laserTimeDelay is None: md.small.laserTimeDelay = 0
                 except:
                     md.small.laserTimeDelay = 0
 
                 try:
                     md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
+                    if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
                 except:
                     md.small.laserTimePhaseLocked = 0
 

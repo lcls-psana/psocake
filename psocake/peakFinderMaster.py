@@ -173,10 +173,12 @@ def runmaster(args, nClients):
             else:
                 likelihood = 0
 
-            myHdf5[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay
-            myHdf5[grpName + dset_laserTimeZero][md.small.eventNum] = md.small.laserTimeZero
-            myHdf5[grpName + dset_laserTimeDelay][md.small.eventNum] = md.small.laserTimeDelay
-            myHdf5[grpName + dset_laserTimePhaseLocked][md.small.eventNum] = md.small.laserTimePhaseLocked
+            if facility == 'LCLS':
+                print "###: ", md.small.timeToolDelay
+                myHdf5[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay
+                myHdf5[grpName + dset_laserTimeZero][md.small.eventNum] = md.small.laserTimeZero
+                myHdf5[grpName + dset_laserTimeDelay][md.small.eventNum] = md.small.laserTimeDelay
+                myHdf5[grpName + dset_laserTimePhaseLocked][md.small.eventNum] = md.small.laserTimePhaseLocked
             myHdf5.flush()
 
             if args.profile:
