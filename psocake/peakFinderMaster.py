@@ -174,7 +174,6 @@ def runmaster(args, nClients):
                 likelihood = 0
 
             if facility == 'LCLS':
-                print "###: ", md.small.timeToolDelay
                 myHdf5[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay
                 myHdf5[grpName + dset_laserTimeZero][md.small.eventNum] = md.small.laserTimeZero
                 myHdf5[grpName + dset_laserTimeDelay][md.small.eventNum] = md.small.laserTimeDelay
@@ -222,6 +221,12 @@ def runmaster(args, nClients):
                         reshapeHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits, inc)
+
+                        if hasattr(md, 'evr0'):
+                            reshapeHdf5(myHdf5, '/LCLS/detector_1/evr0', numHits, inc)
+                        if hasattr(md, 'evr1'):
+                            reshapeHdf5(myHdf5, '/LCLS/detector_1/evr1', numHits, inc)
+
                         reshapeHdf5(myHdf5, '/LCLS/eVernier', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/charge', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/peakCurrentAfterSecondBunchCompressor', numHits, inc)
@@ -273,6 +278,12 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits, md.small.ebeamCharge)
                     updateHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits, md.small.beamRepRate)
                     updateHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits, md.small.particleN_electrons)
+
+                    if hasattr(md, 'evr0'):
+                        updateHdf5(myHdf5, '/LCLS/detector_1/evr0', numHits, md.evr0)
+                    if hasattr(md, 'evr1'):
+                        updateHdf5(myHdf5, '/LCLS/detector_1/evr1', numHits, md.evr1)
+
                     updateHdf5(myHdf5, '/LCLS/eVernier', numHits, md.small.eVernier)
                     updateHdf5(myHdf5, '/LCLS/charge', numHits, md.small.charge)
                     updateHdf5(myHdf5, '/LCLS/peakCurrentAfterSecondBunchCompressor', numHits, md.small.peakCurrentAfterSecondBunchCompressor)
@@ -425,6 +436,12 @@ def runmaster(args, nClients):
         cropHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits)
         cropHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits)
         cropHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits)
+
+        if hasattr(md, 'evr0'):
+            cropHdf5(myHdf5, '/LCLS/detector_1/evr0', numHits)
+        if hasattr(md, 'evr1'):
+            cropHdf5(myHdf5, '/LCLS/detector_1/evr1', numHits)
+
         cropHdf5(myHdf5, '/LCLS/eVernier', numHits)
         cropHdf5(myHdf5, '/LCLS/charge', numHits)
         cropHdf5(myHdf5, '/LCLS/peakCurrentAfterSecondBunchCompressor', numHits)

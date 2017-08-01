@@ -51,6 +51,7 @@ parser.add_argument("--psanaMask_edges",help="psana edges on",default="False", t
 parser.add_argument("--psanaMask_central",help="psana central on",default="False", type=str)
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default="False", type=str)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
+parser.add_argument("--psanaMask_badReadout",help="generous bad pixel map on",default="False", type=str)
 parser.add_argument("--mask",help="static mask",default='', type=str)
 #parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
 parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
@@ -153,6 +154,7 @@ if rank == 0:
     myHdf5.flush()
 
     dt = h5py.special_dtype(vlen=np.float)
+    dti = h5py.special_dtype(vlen=np.dtype('int32'))
 
     if facility == 'LCLS':
         ###################
@@ -250,6 +252,16 @@ if rank == 0:
                                                  maxshape=(None,),
                                                  dtype=int)
         ds_evtNum_1.attrs["axes"] = "experiment_identifier"
+
+        ds_evr0_1 = lcls_detector_1.create_dataset("evr0",(0,),
+                                                      maxshape=(None,),
+                                                      dtype=dti)
+        ds_evr0_1.attrs["axes"] = "experiment_identifier"
+
+        ds_evr1_1 = lcls_detector_1.create_dataset("evr1",(0,),
+                                                      maxshape=(None,),
+                                                      dtype=dti)
+        ds_evr1_1.attrs["axes"] = "experiment_identifier"
 
         myHdf5.flush()
     elif facility == 'PAL':
@@ -588,10 +600,7 @@ comm.Barrier()
 if rank==0:
     runmaster(args, numClients)
 else:
-    print "args.auto: ", str2bool(args.auto)
-    #if str2bool(args.auto):
+    print "Using auto peak finder: ", str2bool(args.auto)
     runclientAuto(args)
-    #else:
-    #    runclient(args)
 
 MPI.Finalize()

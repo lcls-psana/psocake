@@ -43,6 +43,7 @@ class PeakFinder:
         self.psanaMask_central = str2bool(psanaMask_central)
         self.psanaMask_unbond = str2bool(psanaMask_unbond)
         self.psanaMask_unbondnrs = str2bool(psanaMask_unbondnrs)
+        self.generousMaskOn = generousMask
 
         self.medianFilterOn = medianFilterOn
         self.medianRank = medianRank
@@ -56,7 +57,7 @@ class PeakFinder:
         self.streakMask = None
         self.userPsanaMask = None
         self.combinedMask = None
-        #self.generousMask = None
+        self.generousMask = None
 
         # Make user mask
         if self.userMask_path is not None:
@@ -68,10 +69,10 @@ class PeakFinder:
                 self.psanaMask = detector.mask(evt, calib=self.psanaMask_calib, status=self.psanaMask_status,
                                                edges=self.psanaMask_edges, central=self.psanaMask_central,
                                                unbond=self.psanaMask_unbond, unbondnbrs=self.psanaMask_unbondnrs)
-                #if generousMask:
-                #    self.psanaMask = self.generousBadPixel(self.psanaMask)
+                if self.generousMaskOn:
+                    self.psanaMask = self.generousBadPixel(self.psanaMask)
             # Combine userMask and psanaMask
-            self.userPsanaMask = np.ones_like(self.det.calib(evt))
+            self.userPsanaMask = np.ones_like(self.det.calib(evt), dtype=np.int16)
             if self.userMask is not None:
                 self.userPsanaMask *= self.userMask
             if self.psanaMask is not None:
@@ -82,14 +83,6 @@ class PeakFinder:
         # Powder of hits and misses
         self.powderHits = np.zeros_like(self.userPsanaMask)
         self.powderMisses = np.zeros_like(self.userPsanaMask)
-
-        if facility == 'LCLS':
-            self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
-            # set peak-selector parameters:
-            self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-                                            amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-                                            son_min=self.son_min)
-            #self.alg.set_mask(self.userPsanaMask)
 
         # set algorithm specific parameters
         if algorithm == 1:
@@ -110,7 +103,7 @@ class PeakFinder:
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
         if facility == 'LCLS':
-            self.alg = PyAlgos(windows=self.windows, mask=self.userPsanaMask, pbits=0)
+            self.alg = PyAlgos(windows=self.windows, mask=None, pbits=0)
             # set peak-selector parameters:
             self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
                                             amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
@@ -149,15 +142,15 @@ class PeakFinder:
             self.iX = np.array(self.ix, dtype=np.int64)
             self.iY = np.array(self.iy, dtype=np.int64)
 
-    #def generousBadPixel(self, unassemMask, n=10):
-    #    generousBadPixelMask = unassemMask
-    #    (numAsic, numFs, numSs) = unassemMask.shape
-    #    for i in range(numAsic):
-    #        for a in range(numSs):
-    #            numBadPixels = len(np.where(unassemMask[i, :, a] == 0)[0])
-    #            if numBadPixels >= n:
-    #                generousBadPixelMask[i, :, a] = 0
-    #    return generousBadPixelMask
+    def generousBadPixel(self, unassemMask, n=10):
+        generousBadPixelMask = unassemMask
+        (numAsic, numFs, numSs) = unassemMask.shape
+        for i in range(numAsic):
+            for a in range(numSs):
+                numBadPixels = len(np.where(unassemMask[i, :, a] == 0)[0])
+                if numBadPixels >= n:
+                    generousBadPixelMask[i, :, a] = 0
+        return generousBadPixelMask
 
     def setupExperiment(self):
         self.ds = psana.DataSource('exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx')
@@ -208,6 +201,7 @@ class PeakFinder:
                 self.combinedMask = self.userPsanaMask * self.streakMask
             else:
                 self.combinedMask = self.userPsanaMask
+
             # set new mask
             self.alg.set_mask(self.combinedMask) # This doesn't work reliably
         elif facility == 'PAL':

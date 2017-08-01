@@ -39,6 +39,15 @@ def runclient(args):
         ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib)
         ps.setupExperiment()
         ebeamDet = psana.Detector('EBeam')
+        try:
+            evr0 = psana.Detector('evr0')
+        except:
+            evr0 = None
+        try:
+            evr1 = psana.Detector('evr1')
+        except:
+            evr1 = None
+
     elif facility == 'PAL':
         temp = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/data/r' + str(args.run).zfill(4) + '/*.h5'
         _files = glob.glob(temp)
@@ -148,6 +157,7 @@ def runclient(args):
                                                      psanaMask_central=args.psanaMask_central,
                                                      psanaMask_unbond=args.psanaMask_unbond,
                                                      psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                                     generousMask=args.auto,
                                                      medianFilterOn=args.medianBackground,
                                                      medianRank=args.medianRank,
                                                      radialFilterOn=args.radialBackground,
@@ -175,7 +185,9 @@ def runclient(args):
                             if len(ind) > 0:
                                 profile[i] = np.mean(powderSum1D[ind])
                         myThreshInd = np.argmax(profile)
+                        print "###################################################"
                         print "Solution scattering radius (pixels): ", myThreshInd
+                        print "###################################################"
                         thickness = 10
                         indLo = np.where(r >= myThreshInd - thickness / 2.)[0].astype(int)
                         indHi = np.where(r <= myThreshInd + thickness / 2.)[0].astype(int)
@@ -316,6 +328,16 @@ def runclient(args):
             except:
                 md.small.laserTimePhaseLocked = 0
 
+            if evr0:
+                ec = evr0.eventCodes(evt)
+                if ec is None: ec = [-1]
+                md.addarray('evr0', np.array(ec))
+
+            if evr1:
+                ec = evr1.eventCodes(evt)
+                if ec is None: ec = [-1]
+                md.addarray('evr1', np.array(ec))
+
             # pulse length
             try:
                 pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
@@ -448,7 +470,7 @@ def runclient(args):
     myHdf5.close()
     ind = np.where(nPeaksAll == -1)[0]
     numLeft = len(ind)
-    print "helper: ", ind, numLeft, rank
+    #print "helper: ", ind, numLeft, rank
 
     if numLeft > 0:
         import numpy.random
@@ -568,6 +590,16 @@ def runclient(args):
                     if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
                 except:
                     md.small.laserTimePhaseLocked = 0
+
+                if evr0:
+                    ec = evr0.eventCodes(evt)
+                    if ec is None: ec = [-1]
+                    md.addarray('evr0', np.array(ec))
+
+                if evr1:
+                    ec = evr1.eventCodes(evt)
+                    if ec is None: ec = [-1]
+                    md.addarray('evr1', np.array(ec))
 
                 # pulse length
                 try:

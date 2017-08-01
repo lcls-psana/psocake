@@ -92,7 +92,7 @@ class MaskMaker(object):
         self.mask_centralOn = True
         self.mask_unbondOn = True
         self.mask_unbondnrsOn = True
-        self.mask_generousOn = False#True
+        self.mask_generousOn = True
         self.display_data = None
         self.mask_rect = None
         self.mask_circle = None
@@ -389,8 +389,8 @@ class MaskMaker(object):
             self.psanaMask = self.parent.det.mask(self.parent.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
                                            edges=self.mask_edgesOn, central=self.mask_centralOn,
                                            unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
-            #if self.mask_generousOn:
-            #    self.psanaMask *= self.generousBadPixel(self.psanaMask)
+            if self.mask_generousOn:
+                self.psanaMask *= self.generousBadPixel(self.psanaMask)
             if self.psanaMask is not None:
                 self.psanaMaskAssem = self.parent.det.image(self.parent.evt, self.psanaMask)
             else:
@@ -478,7 +478,6 @@ class MaskMaker(object):
             _mask = np.ones_like(self.parent.data, dtype='int')
             _mask[coord_row.astype('int'), coord_col.astype('int')] = 0
             if self.maskingMode == 1:  # masking mode
-                print "userMaskAssem and mask: ", self.userMaskAssem.dtype, _mask.dtype
                 self.userMaskAssem *= _mask
             elif self.maskingMode == 2:  # unmasking mode
                 self.userMaskAssem[coord_row.astype('int'), coord_col.astype('int')] = 1
