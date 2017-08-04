@@ -131,6 +131,10 @@ def runmaster(args, nClients):
             try:
                 nPeaks = md.peaks.shape[0]
                 maxRes = md.small.maxRes
+
+                alreadyDone = len(np.where(myHdf5["/LCLS/eventNumber"].value == md.small.eventNum)[0])
+                if alreadyDone == 1: continue
+
                 if args.profile:
                     calibTime = md.small.calibTime
                     peakTime = md.small.peakTime
