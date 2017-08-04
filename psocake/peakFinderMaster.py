@@ -240,6 +240,14 @@ def runmaster(args, nClients):
                         reshapeHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/fiducial', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/eventNumber', numHits, inc)
+
+                        reshapeHdf5(myHdf5, '/LCLS/ttspecAmpl', numHits, inc)
+                        reshapeHdf5(myHdf5, '/LCLS/ttspecAmplNxt', numHits, inc)
+                        reshapeHdf5(myHdf5, '/LCLS/ttspecFltPos', numHits, inc)
+                        reshapeHdf5(myHdf5, '/LCLS/ttspecFltPosFwhm', numHits, inc)
+                        reshapeHdf5(myHdf5, '/LCLS/ttspecFltPosPs', numHits, inc)
+                        reshapeHdf5(myHdf5, '/LCLS/ttspecRefAmpl', numHits, inc)
+
                         reshapeHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, inc) # same as /LCLS/eventNumber
                         dataShape = md.data.shape
                         myHdf5["/entry_1/data_1/data"].resize((numHits + inc, md.data.shape[0], md.data.shape[1]))
@@ -300,6 +308,14 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, md.small.nsec)
                     updateHdf5(myHdf5, '/LCLS/fiducial', numHits, md.small.fid)
                     updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.eventNum)
+
+                    updateHdf5(myHdf5, '/LCLS/ttspecAmpl', numHits, md.small.ttspecAmpl)
+                    updateHdf5(myHdf5, '/LCLS/ttspecAmplNxt', numHits, md.small.ttspecAmplNxt)
+                    updateHdf5(myHdf5, '/LCLS/ttspecFltPos', numHits, md.small.ttspecFltPos)
+                    updateHdf5(myHdf5, '/LCLS/ttspecFltPosFwhm', numHits, md.small.ttspecFltPosFwhm)
+                    updateHdf5(myHdf5, '/LCLS/ttspecFltPosPs', numHits, md.small.ttspecFltPosPs)
+                    updateHdf5(myHdf5, '/LCLS/ttspecRefAmpl', numHits, md.small.ttspecRefAmpl)
+
                     updateHdf5(myHdf5, '/entry_1/experimental_identifier', numHits, md.small.eventNum) # same as /LCLS/eventNumber
                     # Save images
                     myHdf5["/entry_1/data_1/data"][numHits, :, :] = md.data
@@ -461,6 +477,13 @@ def runmaster(args, nClients):
             myHdf5["/entry_1/data_1/mask"].resize((numHits, dataShape[0], dataShape[1]))
         if args.profile:
             cropHdf5(myHdf5, '/entry_1/result_1/reshapeTime', numInc)
+
+        cropHdf5(myHdf5, '/LCLS/ttspecAmpl', numHits)
+        cropHdf5(myHdf5, '/LCLS/ttspecAmplNxt', numHits)
+        cropHdf5(myHdf5, '/LCLS/ttspecFltPos', numHits)
+        cropHdf5(myHdf5, '/LCLS/ttspecFltPosFwhm', numHits)
+        cropHdf5(myHdf5, '/LCLS/ttspecFltPosPs', numHits)
+        cropHdf5(myHdf5, '/LCLS/ttspecRefAmpl', numHits)
 
         # Save attributes
         myHdf5["LCLS/detector_1/EncoderValue"].attrs["numEvents"] = numHits

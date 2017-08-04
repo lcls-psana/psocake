@@ -68,7 +68,6 @@ class LaunchPeakFinder(QtCore.QThread):
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     img = self.parent.mk.combinedMask[:, :] # psana format
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                    print self.parent.mk.combinedMask, self.parent.mk.combinedMask.shape
                     img = self.parent.mk.combinedMask[:, :]  # psana format
             dset[:,:] = img
             myHdf5.close()

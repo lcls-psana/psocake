@@ -629,8 +629,14 @@ class ExperimentInfo(object):
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                 if self.parent.detectorDistance < 0.01:
-                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
-                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
+                    try:
+                        self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                        self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
+                    except:
+                        self.parent.detectorDistance = 0
+                        print "######################################################"
+                        print "Detector distance not found. Check your geometry file."
+                        print "######################################################"
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
             elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
@@ -703,10 +709,10 @@ class ExperimentInfo(object):
                         print "Couldn't handle detector clen. Try using the full detector name."
                         exit()
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                print "setClen: Not implemented yet"
-                self.parent.clenEpics = 'MFX:DET:MMS:04' #'Rayonix_z'
+                self.parent.clenEpics = 'Rayonix_z' #'MFX:DET:MMS:04.RBV'
                 try:
                     self.readEpicsClen()
+                    print "Done readEpicsClen"
                 except:
                     print "ERROR: No such epics variable, ", self.parent.clenEpics
                     print "ERROR: setting clen to 0.0 metre"
@@ -728,8 +734,9 @@ class ExperimentInfo(object):
         for i in range(120):  # assume at least 1 second run time
             evt = self.run.event(self.times[i])
             self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000. # metres
-            if i == 0: _temp = self.parent.clen
-            if i > 0:
+            if i == 0:
+                _temp = self.parent.clen
+            elif i > 0:
                 if abs(_temp - self.parent.clen) >= 0.01: break
                 _temp = self.parent.clen
         if self.parent.args.v >= 1: print "Best guess at clen: ", self.parent.clen
@@ -856,13 +863,6 @@ class ExperimentInfo(object):
             self.parent.epics = self.ds.env().epicsStore()
             self.setClen()
 
-            # detector distance
-            self.updateDetectorDistance(self.parent.facility)
-            # pixel size
-            self.updatePixelSize(self.parent.facility)
-            # photon energy
-            self.updatePhotonEnergy(self.parent.facility)
-
             # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
             if self.parent.evt is None:
                 self.parent.evt = self.run.event(self.times[0])
@@ -875,6 +875,13 @@ class ExperimentInfo(object):
                     if self.detGuaranteed is not None:
                         print "Found an event with image: ", i
                         break
+
+            # detector distance
+            self.updateDetectorDistance(self.parent.facility)
+            # pixel size
+            self.updatePixelSize(self.parent.facility)
+            # photon energy
+            self.updatePhotonEnergy(self.parent.facility)
 
             # Setup pixel indices
             if self.detGuaranteed is not None:

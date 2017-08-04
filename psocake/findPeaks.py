@@ -263,6 +263,36 @@ if rank == 0:
                                                       dtype=dti)
         ds_evr1_1.attrs["axes"] = "experiment_identifier"
 
+        ds_ttspecAmpl_1 = lcls_1.create_dataset("ttspecAmpl",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_ttspecAmpl_1.attrs["axes"] = "experiment_identifier"
+
+        ds_ttspecAmplNxt_1 = lcls_1.create_dataset("ttspecAmplNxt",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_ttspecAmplNxt_1.attrs["axes"] = "experiment_identifier"
+
+        ds_ttspecFltpos_1 = lcls_1.create_dataset("ttspecFltPos",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_ttspecFltpos_1.attrs["axes"] = "experiment_identifier"
+
+        ds_ttspecFltposFwhm_1 = lcls_1.create_dataset("ttspecFltPosFwhm",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_ttspecFltposFwhm_1.attrs["axes"] = "experiment_identifier"
+
+        ds_ttspecFltposPs_1 = lcls_1.create_dataset("ttspecFltPosPs",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_ttspecFltposPs_1.attrs["axes"] = "experiment_identifier"
+
+        ds_ttspecRefAmpl_1 = lcls_1.create_dataset("ttspecRefAmpl",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_ttspecRefAmpl_1.attrs["axes"] = "experiment_identifier"
+
         myHdf5.flush()
     elif facility == 'PAL':
         ###################

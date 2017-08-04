@@ -305,7 +305,7 @@ def runclient(args):
 
             # timetool
             try:
-                md.small.timeToolDelay = es.value('CXI:LAS:MMN:04.RBV')
+                md.small.timeToolDelay = es.value(args.instrument+':LAS:MMN:04.RBV')
                 if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
             except:
                 md.small.timeToolDelay = 0
@@ -327,6 +327,42 @@ def runclient(args):
                 if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
             except:
                 md.small.laserTimePhaseLocked = 0
+
+            try:
+                md.small.ttspecAmpl = es.value(args.instrument+':TTSPEC:AMPL')
+                if md.small.ttspecAmpl is None: md.small.ttspecAmpl = 0
+            except:
+                md.small.ttspecAmpl = 0
+
+            try:
+                md.small.ttspecAmplNxt = es.value(args.instrument+':TTSPEC:AMPLNXT')
+                if md.small.ttspecAmplNxt is None: md.small.ttspecAmplNxt = 0
+            except:
+                md.small.ttspecAmplNxt = 0
+
+            try:
+                md.small.ttspecFltPos = es.value(args.instrument+':TTSPEC:FLTPOS')
+                if md.small.ttspecFltPos is None: md.small.ttspecFltPos = 0
+            except:
+                md.small.ttspecFltPos = 0
+
+            try:
+                md.small.ttspecFltPosFwhm = es.value(args.instrument+':TTSPEC:FLTPOSFWHM')
+                if md.small.ttspecFltPosFwhm is None: md.small.ttspecFltPosFwhm = 0
+            except:
+                md.small.ttspecFltPosFwhm = 0
+
+            try:
+                md.small.ttspecFltPosPs = es.value(args.instrument+':TTSPEC:FLTPOS_PS')
+                if md.small.ttspecFltPosPs is None: md.small.ttspecFltPosPs = 0
+            except:
+                md.small.ttspecFltPosPs = 0
+
+            try:
+                md.small.ttspecRefAmpl = es.value(args.instrument+':TTSPEC:REFAMPL')
+                if md.small.ttspecRefAmpl is None: md.small.ttspecRefAmpl = 0
+            except:
+                md.small.ttspecRefAmpl = 0
 
             if evr0:
                 ec = evr0.eventCodes(evt)
@@ -568,7 +604,7 @@ def runclient(args):
 
                 # timetool
                 try:
-                    md.small.timeToolDelay = es.value('CXI:LAS:MMN:04.RBV')
+                    md.small.timeToolDelay = es.value(args.instrument+':LAS:MMN:04.RBV')
                     if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
                 except:
                     md.small.timeToolDelay = 0
@@ -590,6 +626,42 @@ def runclient(args):
                     if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
                 except:
                     md.small.laserTimePhaseLocked = 0
+
+                try:
+                    md.small.ttspecAmpl = es.value(args.instrument + ':TTSPEC:AMPL')
+                    if md.small.ttspecAmpl is None: md.small.ttspecAmpl = 0
+                except:
+                    md.small.ttspecAmpl = 0
+
+                try:
+                    md.small.ttspecAmplNxt = es.value(args.instrument + ':TTSPEC:AMPLNXT')
+                    if md.small.ttspecAmplNxt is None: md.small.ttspecAmplNxt = 0
+                except:
+                    md.small.ttspecAmplNxt = 0
+
+                try:
+                    md.small.ttspecFltPos = es.value(args.instrument + ':TTSPEC:FLTPOS')
+                    if md.small.ttspecFltPos is None: md.small.ttspecFltPos = 0
+                except:
+                    md.small.ttspecFltPos = 0
+
+                try:
+                    md.small.ttspecFltPosFwhm = es.value(args.instrument + ':TTSPEC:FLTPOSFWHM')
+                    if md.small.ttspecFltPosFwhm is None: md.small.ttspecFltPosFwhm = 0
+                except:
+                    md.small.ttspecFltPosFwhm = 0
+
+                try:
+                    md.small.ttspecFltPosPs = es.value(args.instrument + ':TTSPEC:FLTPOS_PS')
+                    if md.small.ttspecFltPosPs is None: md.small.ttspecFltPosPs = 0
+                except:
+                    md.small.ttspecFltPosPs = 0
+
+                try:
+                    md.small.ttspecRefAmpl = es.value(args.instrument + ':TTSPEC:REFAMPL')
+                    if md.small.ttspecRefAmpl is None: md.small.ttspecRefAmpl = 0
+                except:
+                    md.small.ttspecRefAmpl = 0
 
                 if evr0:
                     ec = evr0.eventCodes(evt)
