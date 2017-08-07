@@ -304,6 +304,22 @@ class DiffractionGeometry(object):
                             p.stdout.close()
                         except:
                             print "Warning! deployCrystfelGeometry() failed."
+                        # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
+                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
+                            lines = f.readlines()
+                        newGeom = []
+                        for line in lines:
+                            if '; mask =' in line:
+                                # newGeom.append('mask_file = ' + self.parent.psocakeRunDir + '/staticMask.h5\n')
+                                newGeom.append(line.split('; ')[-1])
+                            elif '; mask_good =' in line:
+                                newGeom.append(line.split('; ')[-1])
+                            elif '; mask_bad =' in line:
+                                newGeom.append(line.split('; ')[-1])
+                            else:
+                                newGeom.append(line)
+                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f:
+                            lines = f.writelines(newGeom)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
                     if '.temp.geom' in self.parent.index.geom:
                         # Set GUI field to .temp.geom
@@ -319,6 +335,22 @@ class DiffractionGeometry(object):
                             p.stdout.close()
                         except:
                             print "Warning! deployCrystfelGeometry() failed."
+                        # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
+                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
+                            lines = f.readlines()
+                        newGeom = []
+                        for line in lines:
+                            if '; mask =' in line:
+                                # newGeom.append('mask_file = ' + self.parent.psocakeRunDir + '/staticMask.h5\n')
+                                newGeom.append(line.split('; ')[-1])
+                            elif '; mask_good =' in line:
+                                newGeom.append(line.split('; ')[-1])
+                            elif '; mask_bad =' in line:
+                                newGeom.append(line.split('; ')[-1])
+                            else:
+                                newGeom.append(line)
+                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f:
+                            lines = f.writelines(newGeom)
                 else:
                     if self.parent.args.v >= 1: print "deployCrystfelGeometry not implemented", self.parent.detInfo.lower(), self.parent.experimentName
         elif arg == self.parent.facilityPAL:

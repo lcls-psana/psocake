@@ -712,7 +712,6 @@ class ExperimentInfo(object):
                 self.parent.clenEpics = 'Rayonix_z' #'MFX:DET:MMS:04.RBV'
                 try:
                     self.readEpicsClen()
-                    print "Done readEpicsClen"
                 except:
                     print "ERROR: No such epics variable, ", self.parent.clenEpics
                     print "ERROR: setting clen to 0.0 metre"

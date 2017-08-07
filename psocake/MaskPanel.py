@@ -677,9 +677,9 @@ class MaskMaker(object):
             np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
                        asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
             # Natural shape
-            np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", combinedStaticMask)
+            np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", combinedStaticMask, dtype='int')
         else:
-            np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask)
+            np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask, dtype='int')
             np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
                        combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
         self.saveCheetahStaticMask()

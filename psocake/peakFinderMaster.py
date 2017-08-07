@@ -114,7 +114,7 @@ def runmaster(args, nClients):
 
     myHdf5 = h5py.File(fname, 'r+')
     numLeft = 1
-    while nClients > 0 or numLeft > 0:
+    while nClients > 0 and numLeft > 0:
         # Remove client if the run ended
         md = mpidata()
         md.recv()
