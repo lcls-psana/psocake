@@ -603,7 +603,7 @@ class MaskMaker(object):
 
     def getCombinedStaticMask(self):
         # update combined mask
-        combinedStaticMask = np.ones_like(self.parent.calib)
+        combinedStaticMask = np.ones_like(self.parent.calib, dtype='int')
         if self.userMask is not None and self.userMaskOn is True:
             combinedStaticMask *= self.userMask
         if self.psanaMask is not None and self.psanaMaskOn is True:
@@ -670,19 +670,20 @@ class MaskMaker(object):
 
         if self.parent.args.v >= 1: print "natural static mask: ", combinedStaticMask.shape
 
-        if combinedStaticMask.size == 2 * 185 * 388:  # cspad2x2
-            # DAQ shape
-            asData2x2 = two2x1ToData2x2(combinedStaticMask)
-            np.save(self.parent.psocakeRunDir + "/mask.npy", asData2x2)
-            np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
-                       asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
-            # Natural shape
-            np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", combinedStaticMask, dtype='int')
-        else:
-            np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask, dtype='int')
-            np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
-                       combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
-        self.saveCheetahStaticMask()
+        if combinedStaticMask is not None:
+            if combinedStaticMask.size == 2 * 185 * 388:  # cspad2x2
+                # DAQ shape
+                asData2x2 = two2x1ToData2x2(combinedStaticMask)
+                np.save(self.parent.psocakeRunDir + "/mask.npy", asData2x2)
+                np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
+                           asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
+                # Natural shape
+                np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", combinedStaticMask)
+            else:
+                np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask)
+                np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
+                           combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
+            self.saveCheetahStaticMask()
 
     def loadMask(self):
         if using_pyqt4:

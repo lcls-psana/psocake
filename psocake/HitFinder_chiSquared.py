@@ -1,6 +1,7 @@
 import numpy as np
 import myskbeam
 import time
+import os
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     from ImgAlgos.PyAlgos import PyAlgos # peak finding

@@ -443,6 +443,8 @@ class PeakFinding(object):
                      self.hitParam_alg1_thr_high_str: self.hitParam_alg1_thr_high,
                      self.hitParam_alg1_radius_str: self.hitParam_alg1_radius,
                      self.hitParam_alg1_dr_str: self.hitParam_alg1_dr}
+            if not os.path.exists(self.parent.psocakeDir+'/r'+str(run).zfill(4)):
+                os.mkdir(self.parent.psocakeDir+'/r'+str(run).zfill(4))
             self.writeStatus(peakParamFname, d)
 
     # If anything changes in the parameter tree, print a message

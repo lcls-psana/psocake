@@ -621,24 +621,30 @@ def runmaster(args, nClients):
         fnameHitsNatural = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits_natural_shape.npy"
         fnameMissesNatural = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses_natural_shape.npy"
 
-        if powderHits.size == 2 * 185 * 388:  # cspad2x2
-            # DAQ shape
-            asData2x2 = two2x1ToData2x2(powderHits)
-            np.save(fnameHits, asData2x2)
-            np.savetxt(fnameHitsTxt, asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
-            # Natural shape
-            np.save(fnameHitsNatural, powderHits)
-            # DAQ shape
-            asData2x2 = two2x1ToData2x2(powderMisses)
-            np.save(fnameMisses, asData2x2)
-            np.savetxt(fnameMissesTxt, asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
-            # Natural shape
-            np.save(fnameMissesNatural, powderMisses)
-        else:
-            np.save(fnameHits, powderHits)
-            np.savetxt(fnameHitsTxt, powderHits.reshape((-1, powderHits.shape[-1])), fmt='%0.18e')
-            np.save(fnameMisses, powderMisses)
-            np.savetxt(fnameMissesTxt, powderMisses.reshape((-1, powderMisses.shape[-1])), fmt='%0.18e')
+        # Save powder of hits
+        if powderHits is not None:
+            if powderHits.size == 2 * 185 * 388:  # cspad2x2
+                # DAQ shape
+                asData2x2 = two2x1ToData2x2(powderHits)
+                np.save(fnameHits, asData2x2)
+                np.savetxt(fnameHitsTxt, asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
+                # Natural shape
+                np.save(fnameHitsNatural, powderHits)
+            else:
+                np.save(fnameHits, powderHits)
+                np.savetxt(fnameHitsTxt, powderHits.reshape((-1, powderHits.shape[-1])), fmt='%0.18e')
+        # Save powder of misses
+        if powderMisses is not None:
+            if powderMisses.size == 2 * 185 * 388:  # cspad2x2
+                # DAQ shape
+                asData2x2 = two2x1ToData2x2(powderMisses)
+                np.save(fnameMisses, asData2x2)
+                np.savetxt(fnameMissesTxt, asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
+                # Natural shape
+                np.save(fnameMissesNatural, powderMisses)
+            else:
+                np.save(fnameMisses, powderMisses)
+                np.savetxt(fnameMissesTxt, powderMisses.reshape((-1, powderMisses.shape[-1])), fmt='%0.18e')
     elif facility == 'PAL':
         print "powder not implemented for PAL"
 

@@ -497,6 +497,7 @@ def runclient(args):
     ###############################
     # Help your neighbor find peaks
     ###############################
+    print "HELPER!!! ", rank
     runStr = "%04d" % args.run
     fname = args.outDir + "/" + args.exp + "_" + runStr + ".cxi"
     dset_nPeaks = "/nPeaksAll"
@@ -507,14 +508,27 @@ def runclient(args):
         myHdf5.close()
         ind = np.where(nPeaksAll == -1)[0]
         numLeft = len(ind)
-        #print "helper: ", ind, numLeft, rank
 
         if numLeft > 0:
             import numpy.random
             ind = numpy.random.permutation(ind)
 
             for nevent in ind:
-                #print "rank, event: ", rank, nevent
+                # check all done
+                try:
+                    f = open(args.outDir+"/status_peaks.txt")
+                    line = f.readline()
+                    fracDone = float(line.split(',')[0].split(':')[-1])
+                    f.close()
+                    if fracDone >= 100:
+                        md = mpidata()
+                        md.small.eventNum = nevent
+                        md.small.powder = 0
+                        md.send()
+                        break
+                except:
+                    pass
+
                 if facility == 'LCLS':
                     evt = run.event(times[nevent])
                     detarr = d.calib(evt)
@@ -792,6 +806,7 @@ def runclient(args):
                     md.small.detectorDistance = detectorDistance
                     md.small.photonEnergy = photonEnergy
                     md.send()
+
     except:
         print "I can't help you: ", rank
         pass

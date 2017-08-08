@@ -3,6 +3,7 @@ import subprocess
 import os
 import numpy as np
 import h5py
+import json
 
 class LaunchPeakFinder(QtCore.QThread):
     def __init__(self, parent = None):
@@ -85,6 +86,9 @@ class LaunchPeakFinder(QtCore.QThread):
             dset[:, :] = img
             myHdf5.close()
 
+    def writeStatus(self, fname, d):
+        json.dump(d, open(fname, 'w'))
+
     def run(self):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.pk.hitParam_runs)
@@ -106,6 +110,11 @@ class LaunchPeakFinder(QtCore.QThread):
                     self.parent.exp.table.setValue(run,"Number of hits","#PeakFindingNow")
             except AttributeError:
                 print "e-Log table does not exist"
+
+            # Result status_peaks.txt
+            fname = runDir + "/status_peaks.txt"
+            d = {"numHits": 0, "hitRate": 0, "fracDone": 0}
+            self.writeStatus(fname, d)
 
             if self.parent.facility == self.parent.facilityLCLS:
                 cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
