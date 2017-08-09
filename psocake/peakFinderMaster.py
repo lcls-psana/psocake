@@ -86,7 +86,7 @@ def runmaster(args, nClients):
 
     maxSize = 0
     numInc = 0
-    inc = 1200
+    inc = 10
     dataShape = (0,0)
     numProcessed = 0
     numHits = 0
@@ -130,10 +130,16 @@ def runmaster(args, nClients):
         else:
             try:
                 nPeaks = md.peaks.shape[0]
+                #print "eventNumber: ", md.small.eventNum
+                #print "numHits so far: ", numHits
+                #print "nPeaks: ", nPeaks, args.minPeaks
                 maxRes = md.small.maxRes
 
-                alreadyDone = len(np.where(myHdf5["/LCLS/eventNumber"].value == md.small.eventNum)[0])
-                if alreadyDone == 1: continue
+                # FIXME
+                if numHits > 0:
+                    alreadyDone = len(np.where(myHdf5["/LCLS/eventNumber"].value[:numHits] == md.small.eventNum)[0])
+                    #print "alreadyDone: ", myHdf5["/LCLS/eventNumber"].value, myHdf5["/LCLS/eventNumber"].value[:numHits], len(np.where(myHdf5["/LCLS/eventNumber"].value == md.small.eventNum)[0])
+                    if alreadyDone >= 1: continue
 
                 if args.profile:
                     calibTime = md.small.calibTime
@@ -193,6 +199,7 @@ def runmaster(args, nClients):
                 myHdf5[grpName + dset_rankID][md.small.eventNum] = rankID
                 myHdf5.flush()
 
+            #print "save hit: ", nPeaks, maxRes, hasattr(md, 'data')
             # If the event is a hit
             if nPeaks >= args.minPeaks and \
                nPeaks <= args.maxPeaks and \
@@ -312,7 +319,6 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/LCLS/machineTimeNanoSeconds', numHits, md.small.nsec)
                     updateHdf5(myHdf5, '/LCLS/fiducial', numHits, md.small.fid)
                     updateHdf5(myHdf5, '/LCLS/eventNumber', numHits, md.small.eventNum)
-
                     updateHdf5(myHdf5, '/LCLS/ttspecAmpl', numHits, md.small.ttspecAmpl)
                     updateHdf5(myHdf5, '/LCLS/ttspecAmplNxt', numHits, md.small.ttspecAmplNxt)
                     updateHdf5(myHdf5, '/LCLS/ttspecFltPos', numHits, md.small.ttspecFltPos)
