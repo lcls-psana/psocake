@@ -451,7 +451,7 @@ def runclient(args):
 
             ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
             try:
-                photonEnergy = ebeam.ebeamPhotonEnergy()
+                photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
                 pulseEnergy = ebeam.ebeamL3Energy()  # MeV
             except:
                 photonEnergy = 0
@@ -765,7 +765,7 @@ def runclient(args):
 
                     ebeam = ebeamDet.get(ps.evt)  # .get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
                     try:
-                        photonEnergy = ebeam.ebeamPhotonEnergy()
+                        photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
                         pulseEnergy = ebeam.ebeamL3Energy()  # MeV
                     except:
                         photonEnergy = 0

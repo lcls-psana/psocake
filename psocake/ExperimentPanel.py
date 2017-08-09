@@ -675,7 +675,8 @@ class ExperimentInfo(object):
     def updatePhotonEnergy(self, arg):
         if arg == self.parent.facilityLCLS:
             self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-            if self.parent.ebeam:
+            self.parent.photonEnergy = self.parent.epics.value('SIOC:SYS0:ML00:AO541')
+            if self.parent.photonEnergy is None and self.parent.ebeam:
                 self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
             else:
                 try:
