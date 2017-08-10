@@ -107,6 +107,7 @@ for run in ds.runs():
 
     ind = getMyUnfairShare(numJobs,size,rank)
     mytimes = times[ind[0]:ind[-1] + 1]
+    print "times: ", rank, mytimes
     if args.random:
         import numpy.random
         numpy.random.seed(seed=1234)
@@ -115,7 +116,7 @@ for run in ds.runs():
     for d in detlist:
         for i,time in enumerate(ind):
             if i%100==0 and i > 99: print 'Rank',rank,'processing event', i,'of',len(mytimes)
-            evt = run.event(mytimes[time])
+            evt = run.event(mytimes[i])
             try:
                 detarr = d.calib(evt)
             except ValueError:
@@ -131,13 +132,10 @@ for run in ds.runs():
                 print "Applying threshold: ", args.threshold
                 detarr[detarr < args.threshold] = 0
             if not hasattr(d,'stats'):
-                #print "##### init"
                 d.stats = Stats(detarr,env.experiment(),evt.run(),d.detname)
             else:
-                #print "##### update"
                 d.stats.update(detarr)
             nevent+=1
         if hasattr(d, 'stats'):
-            #print "### store"
             d.stats.store()
 MPI.Finalize()
