@@ -11,7 +11,10 @@ from scipy.spatial import distance
 import subprocess
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    from ImgAlgos.PyAlgos import PyAlgos # peak finding
+    #from ImgAlgos.PyAlgos import PyAlgos # peak finding
+    from psalgos.pypsalgos import PyAlgos  # replacement for: from ImgAlgos.PyAlgos import PyAlgos
+
+    import myskbeam
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     import myskbeam
 
@@ -71,7 +74,7 @@ class PeakFinding(object):
         self.hitParam_alg2_amax_thr_str = 'amax_thr'
         self.hitParam_alg2_atot_thr_str = 'atot_thr'
         self.hitParam_alg2_son_min_str = 'son_min'
-        self.hitParam_algorithm2_str = 'FloodFill'
+        self.hitParam_algorithm2_str = 'Adaptive'
         self.hitParam_alg2_thr_str = 'thr'
         self.hitParam_alg2_r0_str = 'r0'
         self.hitParam_alg2_dr_str = 'dr'
@@ -211,7 +214,8 @@ class PeakFinding(object):
                      'tip': "Show peaks found shot-to-shot"},
                     {'name': self.hitParam_autoPeaks_str, 'type': 'bool', 'value': self.turnOnAutoPeaks,
                      'tip': "Automatically find peaks"},
-                    {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm1_str: 1,
+                    {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm2_str: 2,
+                                                                                     self.hitParam_algorithm1_str: 1,
                                                                                      self.hitParam_algorithm0_str: 0},
                      'value': self.algorithm},
                     {'name': self.hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
@@ -341,7 +345,7 @@ class PeakFinding(object):
                 if os.path.exists(peakParamFname):
                     with open(peakParamFname) as infile:
                         d = json.load(infile)
-                        if d[self.hitParam_algorithm_str] == 1:
+                        if d[self.hitParam_algorithm_str] == 1 or d[self.hitParam_algorithm_str] == 2:
                             # Update variables
                             try:
                                 if self.parent.facility == self.parent.facilityLCLS:
@@ -490,8 +494,6 @@ class PeakFinding(object):
                 self.hitParam_threshold = data
             elif path[1] == self.hitParam_launch_str:
                 self.findPeaks()
-            #elif path[1] == self.hitParam_launchAuto_str:
-            #    self.findPeaks()
             elif path[1] == self.save_minPeaks_str:
                 self.minPeaks = data
             elif path[1] == self.save_maxPeaks_str:
@@ -635,6 +637,8 @@ class PeakFinding(object):
                         nPeaks = maxNumPeaks
                     for i, peak in enumerate(peaks):
                         seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
+                        #print "son: ", son
+                        #seg, row, col, npix, atot, son = peak
                         if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                             cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg, row, col)
                             myHdf5[grpName + dset_posX][0, i] = cheetahCol
@@ -747,24 +751,34 @@ class PeakFinding(object):
                     if self.algInitDone is False:
                         self.windows = None
                         self.alg = []
-                        self.alg = PyAlgos(windows=self.windows, mask=self.parent.mk.combinedMask, pbits=0)
-
                         # set peak-selector parameters:
                         if self.algorithm == 1:
-                            if not self.turnOnAutoPeaks:
-                                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
-                                                        amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
-                                                        son_min=self.hitParam_alg1_son_min)
-                            else:
-                                self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min,
-                                                                 npix_max=self.hitParam_alg1_npix_max,
-                                                                 amax_thr=self.hitParam_alg1_amax_thr,
-                                                                 atot_thr=0,
-                                                                 son_min=self.hitParam_alg1_son_min)
+                            self.alg = PyAlgos(mask=None, pbits=0)
+                            self.peakRadius = int(self.hitParam_alg1_radius)
+                            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
+                                                    amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
+                                                    son_min=self.hitParam_alg1_son_min)
+                            #self.peakRadius = int(self.hitParam_alg1_radius)
+                            #self.alg = myskbeam.DropletA(self.peakRadius,
+                            #                             self.peakRadius + self.hitParam_alg1_dr)  # PyAlgos(windows=self.windows, mask=self.parent.mk.combinedMask, pbits=0)
+                            #if not self.turnOnAutoPeaks:
+                            #    pass
+                                #self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
+                                #                        amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
+                                #                        son_min=self.hitParam_alg1_son_min)
+                            #else:
+                            #    pass
+                                #self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min,
+                                #                                 npix_max=self.hitParam_alg1_npix_max,
+                                #                                 amax_thr=self.hitParam_alg1_amax_thr,
+                                #                                 atot_thr=0,
+                                #                                 son_min=self.hitParam_alg1_son_min)
                         elif self.algorithm == 2:
-                            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg2_npix_min, npix_max=self.hitParam_alg2_npix_max, \
-                                                    amax_thr=self.hitParam_alg2_amax_thr, atot_thr=self.hitParam_alg2_atot_thr, \
-                                                    son_min=self.hitParam_alg2_son_min)
+                            self.alg = PyAlgos(mask=None, pbits=0)
+                            self.peakRadius = int(self.hitParam_alg1_radius)
+                            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
+                                                    amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
+                                                    son_min=self.hitParam_alg1_son_min)
                         elif self.algorithm == 3:
                             self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
                                                     amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
@@ -779,14 +793,28 @@ class PeakFinding(object):
                     if self.algorithm == 1:
                         # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                         #                           around pixel with maximal intensity.
-                        self.peakRadius = int(self.hitParam_alg1_radius)
                         if not self.turnOnAutoPeaks:
-                            self.peaks = self.alg.peak_finder_v4r2(self.parent.calib,
+                            self.peakRadius = int(self.hitParam_alg1_radius)
+                            self.peaks = self.alg.peak_finder_v4r3(self.parent.calib,
                                                                    thr_low=self.hitParam_alg1_thr_low,
                                                                    thr_high=self.hitParam_alg1_thr_high,
                                                                    rank=int(self.hitParam_alg1_rank),
                                                                    r0=self.peakRadius,
-                                                                   dr=self.hitParam_alg1_dr)
+                                                                   dr=self.hitParam_alg1_dr,
+                                                                   mask=self.parent.mk.combinedMask.astype(np.uint16))
+                            #self.peaks = self.alg.findPeaks(self.parent.calib,
+                            #                                npix_min=self.hitParam_alg1_npix_min,
+                            #                                npix_max=self.hitParam_alg1_npix_max,
+                            #                                atot_thr=self.hitParam_alg1_atot_thr,
+                            #                                son_min=self.hitParam_alg1_son_min,
+                            #                                thr_low=self.hitParam_alg1_thr_low,
+                            #                                thr_high=self.hitParam_alg1_thr_high,
+                            #                                mask=self.parent.mk.combinedMask)
+                                                                   #thr_low=self.hitParam_alg1_thr_low,
+                                                                   #thr_high=self.hitParam_alg1_thr_high,
+                                                                   #rank=int(self.hitParam_alg1_rank),
+                                                                   #r0=self.peakRadius,
+                                                                   #dr=self.hitParam_alg1_dr)
                         else:
                             ################################
                             # Determine thr_high and thr_low
@@ -798,15 +826,18 @@ class PeakFinding(object):
                                                 self.parent.detInfo + '_mean.npy'
                                     if not os.path.exists(powderSumFname):
                                         # Generate powder
-                                        cmd = "mpirun -n `nproc` generatePowder exp=" + self.parent.experimentName + \
+                                        cmd = "mpirun -n 6 generatePowder exp=" + self.parent.experimentName + \
                                               ":run=" + str(self.parent.runNumber) + " -d " + self.parent.detInfo + \
                                               " -o " + self.parent.psocakeRunDir
-                                        cmd += " -n " + str(32)
+                                        cmd += " -n " + str(256)
                                         cmd += " --random"
                                         print "Running on local machine: ", cmd
                                         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                                    shell=True)
                                         out, err = process.communicate()
+                                    # Copy as background.npy
+                                    import shutil
+                                    shutil.copyfile(powderSumFname, self.parent.psocakeRunDir + '/background.npy')
 
                                     # Read in powder pattern and calculate pixel indices
                                     powderSum = np.load(powderSumFname)
@@ -819,10 +850,11 @@ class PeakFinding(object):
                                     profile = np.zeros(endR - startR, )
                                     for i, val in enumerate(np.arange(startR, endR)):
                                         ind = np.where(r == val)[0].astype(int)
-                                        if len(ind) > 0:
-                                            profile[i] = np.mean(powderSum1D[ind])
+                                        if len(ind) > 0: profile[i] = np.mean(powderSum1D[ind])
                                     myThreshInd = np.argmax(profile)
+                                    print "###################################################"
                                     print "Solution scattering radius (pixels): ", myThreshInd
+                                    print "###################################################"
                                     thickness = 10
                                     indLo = np.where(r >= myThreshInd - thickness / 2.)[0].astype(int)
                                     indHi = np.where(r <= myThreshInd + thickness / 2.)[0].astype(int)
@@ -836,18 +868,30 @@ class PeakFinding(object):
                             calib1D = self.parent.calib.ravel()
                             mean = np.mean(calib1D[self.ind])
                             spread = np.std(calib1D[self.ind])
-                            thr_high = int(mean + 3. * spread + 50)
-                            thr_low = int(mean + 2. * spread + 50)
-                            self.peaks = self.alg.peak_finder_v4r2(self.parent.calib,
-                                                                   thr_low=thr_low,
-                                                                   thr_high=thr_high,
-                                                                   rank=int(self.hitParam_alg1_rank),
-                                                                   r0=self.peakRadius,
-                                                                   dr=self.hitParam_alg1_dr)
+                            highSigma = 3.5
+                            lowSigma = 2.5
+                            thr_high = int(mean + highSigma * spread + 50)
+                            thr_low = int(mean + lowSigma * spread + 50)
+                            #print "thr_high: ", thr_high, thr_low, np.sum(self.parent.calib)
+                            #print "param: ", self.hitParam_alg1_npix_min, self.hitParam_alg1_npix_max, 0, self.hitParam_alg1_son_min, thr_low, thr_high, np.sum(self.parent.mk.combinedMask)
+
+                            self.peaks = self.alg.findPeaks(self.parent.calib,
+                                                            npix_min=self.hitParam_alg1_npix_min,
+                                                            npix_max=self.hitParam_alg1_npix_max,
+                                                            atot_thr=0, son_min=self.hitParam_alg1_son_min,
+                                                            thr_low=thr_low,
+                                                            thr_high=thr_high,
+                                                            mask=self.parent.mk.combinedMask.astype(np.uint16))
+
                     elif self.algorithm == 2:
                         # v2 - define peaks for regions of connected pixels above threshold
-                        self.peakRadius = int(self.hitParam_alg2_r0)
-                        self.peaks = self.alg.peak_finder_v2(self.parent.calib, thr=self.hitParam_alg2_thr, r0=self.peakRadius, dr=self.hitParam_alg2_dr)
+                        #self.peakRadius = int(self.hitParam_alg1_r0)
+                        self.peaks = self.alg.peak_finder_v3r3(self.parent.calib,
+                                                               rank=int(self.hitParam_alg1_rank),
+                                                               r0=self.peakRadius,
+                                                               dr=self.hitParam_alg1_dr,
+                                                               nsigm=self.hitParam_alg1_son_min,
+                                                               mask=self.parent.mk.combinedMask.astype(np.uint16))#)#thr=self.hitParam_alg2_thr, r0=self.peakRadius, dr=self.hitParam_alg2_dr)
                     elif self.algorithm == 3:
                         self.peakRadius = int(self.hitParam_alg3_r0)
                         self.peaks = self.alg.peak_finder_v3(self.parent.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
@@ -856,7 +900,10 @@ class PeakFinding(object):
                         self.peakRadius = int(self.hitParam_alg4_r0)
                         self.peaks = self.alg.peak_finder_v4(self.parent.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
                                                    rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
+                    #print "peaks: ", self.peaks
+                    #print "algorithm: ", self.algorithm
                     self.numPeaksFound = self.peaks.shape[0]
+                    #print "numPeaksFound", self.numPeaksFound
                 elif self.parent.facility == self.parent.facilityPAL:
                     # Only initialize the hit finder algorithm once
                     self.peakRadius = int(self.hitParam_alg1_radius)

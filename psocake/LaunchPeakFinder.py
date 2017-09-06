@@ -116,6 +116,13 @@ class LaunchPeakFinder(QtCore.QThread):
             d = {"numHits": 0, "hitRate": 0, "fracDone": 0}
             self.writeStatus(fname, d)
 
+            # Copy powder ring
+            import shutil
+            src = self.parent.psocakeDir+'/r'+str(self.parent.runNumber).zfill(4)+'/background.npy'
+            dst = self.parent.psocakeDir+'/r'+str(run).zfill(4)+'/background.npy'
+            if src != dst and os.path.exists(src):
+                shutil.copyfile(src, dst)
+
             if self.parent.facility == self.parent.facilityLCLS:
                 cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
                   " -n "+str(self.parent.pk.hitParam_cpus) + \
@@ -124,6 +131,17 @@ class LaunchPeakFinder(QtCore.QThread):
                   " --outDir "+runDir+\
                   " --algorithm "+str(self.parent.pk.algorithm)
                 if self.parent.pk.algorithm == 1:
+                    cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg1_npix_min)+\
+                           " --alg_npix_max "+str(self.parent.pk.hitParam_alg1_npix_max)+\
+                           " --alg_amax_thr "+str(self.parent.pk.hitParam_alg1_amax_thr)+\
+                           " --alg_atot_thr "+str(self.parent.pk.hitParam_alg1_atot_thr)+\
+                           " --alg_son_min "+str(self.parent.pk.hitParam_alg1_son_min)+\
+                           " --alg1_thr_low "+str(self.parent.pk.hitParam_alg1_thr_low)+\
+                           " --alg1_thr_high "+str(self.parent.pk.hitParam_alg1_thr_high)+ \
+                           " --alg1_rank " + str(self.parent.pk.hitParam_alg1_rank) + \
+                           " --alg1_radius "+str(self.parent.pk.hitParam_alg1_radius)+\
+                           " --alg1_dr "+str(self.parent.pk.hitParam_alg1_dr)
+                elif self.parent.pk.algorithm == 2:
                     cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg1_npix_min)+\
                            " --alg_npix_max "+str(self.parent.pk.hitParam_alg1_npix_max)+\
                            " --alg_amax_thr "+str(self.parent.pk.hitParam_alg1_amax_thr)+\
@@ -201,6 +219,8 @@ class LaunchPeakFinder(QtCore.QThread):
 
                 cmd += " --auto " + str(self.parent.autoPeakFinding) + \
                        " --detectorDistance " + str(self.parent.detectorDistance)
+
+                cmd += " --access " + self.parent.access
 
                 cmd += " -r " + str(run)
                 # Launch peak finding

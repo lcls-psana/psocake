@@ -801,8 +801,10 @@ class ExperimentInfo(object):
     def getDatasource(self):
         if self.parent.facility == self.parent.facilityLCLS:
             try:
-                self.ds = psana.DataSource('exp=' + str(self.parent.experimentName) +
-                                           ':run=' + str(self.parent.runNumber) + ':idx')
+                access = 'exp=' + str(self.parent.experimentName) + ':run=' + str(self.parent.runNumber) + ':idx'
+                if 'ffb' in self.parent.access: access += ':dir=/reg/d/ffb/' + self.parent.experimentName[:3] + \
+                                                          '/' + self.parent.experimentName + '/xtc'
+                self.ds = psana.DataSource(access)
                 self.run = self.ds.runs().next()
                 self.times = self.run.times()
                 self.env = self.ds.env()

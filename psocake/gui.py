@@ -39,6 +39,8 @@ parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
 parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
+# LCLS specific
+parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
 # PAL specific
 parser.add_argument("--debug", help="Debug mode of PAL at LCLS.", action='store_true')
 args = parser.parse_args()
@@ -142,6 +144,13 @@ class MainFrame(QtGui.QWidget):
         self.elogDir = None
         self.rootDir = None
         self.writeAccess = True
+        self.access = args.access.lower()
+        if 'ffb' in self.access:
+            print "################################################################"
+            print "Remember only psfeh(hi)prioq/psneh(hi)prioq can access FFB nodes"
+            print "FFB node is here: /reg/d/ffb/"
+            print "################################################################"
+
 
         # Init variables
         self.det = None

@@ -24,19 +24,23 @@ def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 def runclient(args):
     pairsFoundPerSpot = 0.0
+    highSigma = 3.5
+    lowSigma = 2.5
     if str2bool(args.auto):
         likelihoodThresh = 0.035
     else:
         likelihoodThresh = 0
 
     if facility == 'LCLS':
-        ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':idx')
+        access = "exp="+args.exp+":run="+str(args.run)+':idx'
+        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+        ds = psana.DataSource(access)
         run = ds.runs().next()
         env = ds.env()
         times = run.times()
         d = psana.Detector(args.det)
         d.do_reshape_2d_to_3d(flag=True)
-        ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib)
+        ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib, access=args.access)
         ps.setupExperiment()
         ebeamDet = psana.Detector('EBeam')
         try:
@@ -134,7 +138,8 @@ def runclient(args):
                                                   maxNumPeaks=args.maxPeaks,
                                                   minResCutoff=args.minRes,
                                                   clen=args.clen,
-                                                  localCalib=args.localCalib)
+                                                  localCalib=args.localCalib,
+                                                  access=args.access)
                     else:
                         # Auto peak finder
                         d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
@@ -166,12 +171,10 @@ def runclient(args):
                                                      maxNumPeaks=args.maxPeaks,
                                                      minResCutoff=args.minRes,
                                                      clen=args.clen,
-                                                     localCalib=args.localCalib)
+                                                     localCalib=args.localCalib,
+                                                     access=args.access)
                         # Read in powder pattern and calculate pixel indices
-                        powderSumFname = args.outDir + '/' + \
-                                         args.exp + '_' + \
-                                         str(args.run).zfill(4) + '_' + \
-                                         str(args.det) + '_mean.npy'
+                        powderSumFname = args.outDir + '/background.npy'
                         powderSum = np.load(powderSumFname)
                         powderSum1D = powderSum.ravel()
                         cx, cy = d.indexes_xy(evt)
@@ -232,7 +235,38 @@ def runclient(args):
                                               clen=args.clen,
                                               localCalib=args.localCalib,
                                               geom=_geom)
-
+            elif args.algorithm == 2:
+                d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
+                                             args.algorithm, args.alg_npix_min,
+                                             args.alg_npix_max, args.alg_amax_thr,
+                                             args.alg_atot_thr, args.alg_son_min,
+                                             alg1_thr_low=args.alg1_thr_low,
+                                             alg1_thr_high=args.alg1_thr_high,
+                                             alg1_rank=args.alg1_rank,
+                                             alg1_radius=args.alg1_radius,
+                                             alg1_dr=args.alg1_dr,
+                                             streakMask_on=args.streakMask_on,
+                                             streakMask_sigma=args.streakMask_sigma,
+                                             streakMask_width=args.streakMask_width,
+                                             userMask_path=args.userMask_path,
+                                             psanaMask_on=args.psanaMask_on,
+                                             psanaMask_calib=args.psanaMask_calib,
+                                             psanaMask_status=args.psanaMask_status,
+                                             psanaMask_edges=args.psanaMask_edges,
+                                             psanaMask_central=args.psanaMask_central,
+                                             psanaMask_unbond=args.psanaMask_unbond,
+                                             psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                             generousMask=1,
+                                             medianFilterOn=args.medianBackground,
+                                             medianRank=args.medianRank,
+                                             radialFilterOn=args.radialBackground,
+                                             distance=args.detectorDistance,
+                                             minNumPeaks=args.minPeaks,
+                                             maxNumPeaks=args.maxPeaks,
+                                             minResCutoff=args.minRes,
+                                             clen=args.clen,
+                                             localCalib=args.localCalib,
+                                             access=args.access)
         if not str2bool(args.auto):
             if args.profile: tic = time.time()
 
@@ -247,8 +281,9 @@ def runclient(args):
             calib1D = detarr.ravel()
             mean = np.mean(calib1D[d.ind])
             spread = np.std(calib1D[d.ind])
-            thr_high = int(mean + 3. * spread + 50)
-            thr_low = int(mean + 2. * spread + 50)
+            thr_high = int(mean + highSigma * spread + 50)
+            thr_low = int(mean + lowSigma * spread + 50)
+
             d.peakFinder.findPeaks(detarr, evt, thr_high, thr_low)
 
             if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
@@ -544,6 +579,7 @@ def runclient(args):
                 if detarr is None:
                     md = mpidata()
                     md.small.eventNum = nevent
+                    md.small.powder = 0
                     md.send()
                     continue
 
@@ -561,8 +597,8 @@ def runclient(args):
                     calib1D = detarr.ravel()
                     mean = np.mean(calib1D[d.ind])
                     spread = np.std(calib1D[d.ind])
-                    thr_high = int(mean + 3. * spread + 50)
-                    thr_low = int(mean + 2. * spread + 50)
+                    thr_high = int(mean + highSigma * spread + 50)
+                    thr_low = int(mean + lowSigma * spread + 50)
                     d.peakFinder.findPeaks(detarr, evt, thr_high, thr_low)
 
                     if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event

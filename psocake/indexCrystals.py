@@ -37,6 +37,7 @@ parser.add_argument("--hitParam_threshold", help="", default=0, type=int)
 parser.add_argument("--keepData", help="", default=False, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 parser.add_argument("--likelihood", help="index hits with likelihood higher than this value", default=0, type=float)
+parser.add_argument("--condition", help="logic condition", default='', type=str)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 args = parser.parse_args()
@@ -169,6 +170,48 @@ peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '.cxi
 #indexingFile = runDir + '/.' + experimentName + '_' + str(runNumber).zfill(4) + '.txt'
 fnameIndex = runDir+"/status_index.txt"
 
+
+
+
+
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+def getpath(cxi_name):
+    global search_name, hf
+    if cxi_name.endswith(search_name):
+        try: hf[cxi_name].value
+        except Exception: return None
+        return cxi_name
+
+def condition_check(hf, ival, iicondition):
+    if not iicondition: return True
+    exec('itest = ' + iicondition)
+    if itest: return True
+    return False
+
+hf = h5py.File(peakFile, 'r')
+icondition = args.condition
+iposition = [ipos for ipos, ichar in enumerate(icondition) if ichar == '#']
+print '##################'
+print 'original condition = ', icondition
+istart = iposition[0::2]
+iend = iposition[1::2]
+assert (len(istart) == len(iend))
+iname = [icondition[(istart[i]+1):iend[i]] for i in range(len(istart))]
+ifullpath = []
+for idx in range(len(istart)): 
+    search_name = iname[idx]
+    assert(hf.visit(getpath))
+    ifullpath.append("hf['"+hf.visit(getpath)+"'][ival]")
+    icondition = icondition.replace('#'+iname[idx]+'#', ifullpath[-1])
+print 'modified condition = ', icondition, '\n'
+print '##################'
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+
+
+
+
 if facility == 'PAL':
     temp = dir + '/' + experimentName[:3] + '/' + experimentName + \
     '/data/r' + str(runNumber).zfill(4) + '/*.h5'
@@ -237,15 +280,22 @@ if hasData:
             myStreamList.append(myStream)
 
             # Write list
+            isat_event = []
             checkEnoughLikes = 0
             with open(myList, "w") as text_file:
                 for i, val in enumerate(myJobs):
                     if args.likelihood > 0:
-                        if likelihood[val] >= args.likelihood:
+                        if likelihood[val] >= args.likelihood and condition_check(hf, val, icondition):
                             text_file.write("{} //{}\n".format(peakFile, val))
                             checkEnoughLikes += 1
+                            isat_event.append(val)
                     else:
-                        text_file.write("{} //{}\n".format(peakFile, val))
+                        if condition_check(hf, val, icondition):
+                            text_file.write("{} //{}\n".format(peakFile, val))
+                            isat_event.append(val)
+            print 'satisfied event: ', isat_event, '\n'
+            isat_event = []
+
 
             # Submit job
             cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
@@ -442,6 +492,7 @@ if hasData:
         for fname in myStreamList:
             os.remove(fname)
 
+hf.close()
 print "Done indexing run: ", runNumber
 
 

@@ -73,6 +73,8 @@ parser.add_argument("--localCalib", help="Use local calib directory. A calib dir
 parser.add_argument("--profile", help="Turn on profiling. Saves timing information for calibration, peak finding, and saving to hdf5", action='store_true')
 parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
 parser.add_argument("--auto", help="automatically determine peak finding parameter per event", default="False", type=str)
+# LCLS specific
+parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)
@@ -89,7 +91,10 @@ elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
 def getNoe(args):
     if facility == "LCLS":
         runStr = "%04d" % args.run
-        ds = psana.DataSource("exp="+args.exp+":run="+runStr+':idx')
+        access = "exp="+args.exp+":run="+runStr+':idx'
+        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+        print "findPeaks: ", access
+        ds = psana.DataSource(access)
         run = ds.runs().next()
         times = run.times()
         # check if the user requested specific number of events
@@ -116,7 +121,7 @@ if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 if rank == 0:
     if facility == 'LCLS':
         # Set up psana
-        ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib)
+        ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib, access=args.access)
         ps.setupExperiment()
         img = ps.getCheetahImg()
         numEvents = ps.eventTotal

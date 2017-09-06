@@ -7,16 +7,20 @@ from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 import Detector.PyDetector
 
 class psanaWhisperer():
-    def __init__(self, experimentName, runNumber, detInfo, clen='', aduPerPhoton=1, localCalib=False):
+    def __init__(self, experimentName, runNumber, detInfo, clen='', aduPerPhoton=1, localCalib=False, access='ana'):
         self.experimentName = experimentName
         self.runNumber = runNumber
         self.detInfo = detInfo
         self.clenStr = clen
         self.aduPerPhoton = aduPerPhoton
         self.localCalib = localCalib
+        self.access = access
 
     def setupExperiment(self):
-        self.ds = psana.DataSource('exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx')
+        access = 'exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx'
+        if 'ffb' in self.access.lower(): access += ':dir=/reg/d/ffb/' + self.experimentName[:3] + \
+                                                   '/' + self.experimentName + '/xtc'
+        self.ds = psana.DataSource(access)
         self.run = self.ds.runs().next()
         self.times = self.run.times()
         self.eventTotal = len(self.times)

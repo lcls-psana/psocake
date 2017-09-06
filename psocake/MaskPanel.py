@@ -156,7 +156,7 @@ class MaskMaker(object):
                  'value': self.powder_queue, 'tip': "Choose queue"},
                 {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
                 {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
-                {'name': self.powder_noe_str, 'type': 'int', 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
+                {'name': self.powder_noe_str, 'type': 'int', 'decimals': 7, 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
             ]},
         ]
 

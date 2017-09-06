@@ -132,6 +132,7 @@ class LaunchIndexer(QtCore.QThread):
                 if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
                 if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
                 if self.parent.index.extra: cmd += " " + self.parent.index.extra
+                if self.parent.index.condition: cmd += " --condition " + '"'+self.parent.index.condition+'"'
                 cmd += " --run " + str(run)
                 # Launch indexing job
                 print "Launch indexing job: ", cmd

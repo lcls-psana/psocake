@@ -104,6 +104,90 @@ def findPeaks_hdome(calib, npix_min=0, npix_max=0, atot_thr=0,
 
     return peaks
 
+class DropletA:
+    def __init__(self, innerRing, outerRing):
+        self.innerRing = innerRing
+        self.outerRing = outerRing
+        width = int(self.outerRing * 2 + 1)
+
+        outer, rr, rc, n, m = donutMask(width, width, self.outerRing, self.innerRing, centreRow=0, centreCol=0)
+        inner, rr, rc, n, m = donutMask(width, width, self.innerRing, 0, centreRow=0, centreCol=0)
+        if width % 2 == 0:
+            self.lh = self.rh = int(width / 2)
+        else:
+            self.lh = int(width / 2)
+            self.rh = int(width / 2) + 1
+
+        self.fgInd = np.where(inner == 1)
+        self.bgInd = np.where(outer == 1)
+        #print "#skbeam fgInd: ", self.fgInd
+
+    def findPeaks(self, calib, npix_min=0, npix_max=0, atot_thr=0, son_min=0, thr_low=0, thr_high=0, r0=0, dr=0, mask=None):
+        hmax = np.zeros_like(calib)
+        hmax[np.where(calib>=thr_high)] = 1
+        if mask is not None: hmax = np.multiply(hmax, mask)
+
+        numAsic = calib.shape[0]
+        seg = []
+        posX = []
+        posY = []
+        npix = []
+        atot = []
+        son = []
+        for j in range(numAsic):
+            ll = label(hmax[j])
+            regions = regionprops(ll)
+
+            numPeaks = len(regions)
+            x = np.zeros((numPeaks,))
+            y = np.zeros((numPeaks,))
+            for i, p in enumerate(regions):
+                x[i], y[i] = p.centroid
+
+            snr = np.zeros_like(x)
+            tot = np.zeros_like(x)
+            numPix = np.zeros_like(x)
+            numInner = len(self.fgInd[0])
+            for i in range(numPeaks):
+                try:
+                    d = calib[j, int(x[i]) - self.lh:int(x[i]) + self.rh, int(y[i]) - self.lh:int(y[i]) + self.rh]
+                    meanSig = np.mean(d[self.fgInd])
+                    stdNoise = np.std(d[self.bgInd])
+                    meanBackground = np.mean(d[self.bgInd])
+                    tot[i] = np.sum(d[self.fgInd]) - numInner * meanBackground
+                    numPix[i] = len(np.where(d[self.fgInd] >= thr_low)[0])
+                    if stdNoise == 0:
+                        snr[i] = -1
+                    else:
+                        snr[i] = meanSig / stdNoise
+                except:
+                    snr[i] = 0
+
+            ind= (snr >= son_min) & (tot >= atot_thr) & (numPix >= npix_min) & (numPix < npix_max)
+            seg.append(np.ones_like(x[ind])*j)
+            posX.append(x[ind])
+            posY.append(y[ind])
+            npix.append(numPix[ind])
+            atot.append(tot[ind])
+            son.append(snr[ind])
+
+        seg = np.concatenate(seg)
+        posX = np.concatenate(posX)
+        posY = np.concatenate(posY)
+        npix = np.concatenate(npix)
+        atot = np.concatenate(atot)
+        son = np.concatenate(son)
+
+        peaks = np.zeros((len(posX), 6))
+        if len(posX) > 0:
+            peaks[:,0] = seg.T
+            peaks[:,1] = posX.T
+            peaks[:,2] = posY.T
+            peaks[:,3] = npix.T
+            peaks[:,4] = atot.T
+            peaks[:,5] = son.T
+        return peaks
+
 class Droplet:
     def __init__(self, innerRing, outerRing):
         self.innerRing = innerRing

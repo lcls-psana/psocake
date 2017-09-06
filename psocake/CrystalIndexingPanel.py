@@ -49,6 +49,7 @@ class CrystalIndexing(object):
         self.index_method_str = 'Indexing method'
         self.index_tolerance_str = 'Tolerance'
         self.index_extra_str = 'Extra CrystFEL parameters'
+        self.index_condition_str = 'Index condition'
 
         self.launch_grp = 'Batch'
         self.outDir_str = 'Output directory'
@@ -90,6 +91,7 @@ class CrystalIndexing(object):
             self.indexingMethod = 'mosflm-noretry,dirax'
             self.tolerance = '5,5,5,1.5'
             self.extra = ''
+            self.condition = ''
             self.keepData = True
         elif self.parent.facility == self.parent.facilityPAL:
             self.showIndexedPeaks = False
@@ -106,6 +108,7 @@ class CrystalIndexing(object):
             self.indexingMethod = 'mosflm-noretry,dirax'
             self.tolerance = '5,5,5,1.5'
             self.extra = ''
+            self.condition = ''
             self.keepData = True
 
         #######################
@@ -124,6 +127,8 @@ class CrystalIndexing(object):
                      'tip': "Indexing tolerance, default: 5,5,5,1.5"},
                     {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
                      'tip': "Other indexing parameters"},
+                    {'name': self.index_condition_str, 'type': 'str', 'value': self.condition,
+                     'tip': "indexing condition e.g. 41 in #evr1# and #eventNumber# > 3"},
                 ]},
                 {'name': self.launch_grp, 'type': 'group', 'children': [
                     {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
@@ -266,6 +271,8 @@ class CrystalIndexing(object):
             self.updateTolerance(data)
         elif path[1] == self.index_extra_str:
             self.updateExtra(data)
+        elif path[1] == self.index_condition_str:
+            self.updateCondition(data)
         # launch grp
         elif path[1] == self.outDir_str:
             self.updateOutputDir(data)
@@ -318,6 +325,10 @@ class CrystalIndexing(object):
 
     def updateExtra(self, data):
         self.extra = data
+        self.updateIndex()
+
+    def updateCondition(self, data):
+        self.condition = data
         self.updateIndex()
 
     def updateIndex(self):

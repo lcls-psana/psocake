@@ -35,7 +35,9 @@ def convert_peaks_to_cheetah(s, r, c) :
 def getNoe(args):
     if facility == 'LCLS':
         runStr = "%04d" % args.run
-        ds = psana.DataSource("exp="+args.exp+":run="+runStr+':idx')
+        access = "exp=" + args.exp + ":run=" + runStr + ':idx'
+        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+        ds = psana.DataSource(access)
         run = ds.runs().next()
         times = run.times()
         numJobs = len(times)
@@ -92,13 +94,14 @@ def runmaster(args, nClients):
     numHits = 0
     hitRate = 0.0
     fracDone = 0.0
+    projected = 0.0
     likelihood = 0.0
     timeToolDelay = 0.0
     laserTimeZero = 0.0
     laserTimeDelay = 0.0
     laserTimePhaseLocked = 0.0
     numEvents = getNoe(args)
-    d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+    d = {"numHits": numHits, "hitRate(%)": hitRate, "fracDone(%)": fracDone, "projected": projected}
     try:
         writeStatus(statusFname, d)
     except:
@@ -120,13 +123,13 @@ def runmaster(args, nClients):
         md.recv()
         if md.small.endrun:
             nClients -= 1
-        elif md.small.powder == 1:
-            if powderHits is None:
-                powderHits = md.powderHits
-                powderMisses = md.powderMisses
-            else:
-                powderHits = np.maximum(powderHits, md.powderHits)
-                powderMisses = np.maximum(powderMisses, md.powderMisses)
+        elif hasattr(md.small, 'powder') and md.small.powder == 1:
+                if powderHits is None:
+                    powderHits = md.powderHits
+                    powderMisses = md.powderMisses
+                else:
+                    powderHits = np.maximum(powderHits, md.powderHits)
+                    powderMisses = np.maximum(powderMisses, md.powderMisses)
         else:
             try:
                 nPeaks = md.peaks.shape[0]
@@ -159,6 +162,7 @@ def runmaster(args, nClients):
 
             if facility == 'LCLS':
                 for i,peak in enumerate(md.peaks):
+                    #seg, row, col, npix, atot, son = peak
                     seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
                     cheetahRow,cheetahCol = convert_peaks_to_cheetah(seg,row,col)
                     myHdf5[grpName+dset_posX][md.small.eventNum,i] = cheetahCol
@@ -434,7 +438,8 @@ def runmaster(args, nClients):
                 try:
                     hitRate = numHits * 100. / numProcessed
                     fracDone = numProcessed * 100. / numEvents
-                    d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+                    projected = hitRate / 100. * numEvents
+                    d = {"numHits": numHits, "hitRate(%)": round(hitRate,3), "fracDone(%)": round(fracDone,3), "projected": round(projected)}
                     writeStatus(statusFname, d)
                 except:
                     pass
@@ -613,7 +618,7 @@ def runmaster(args, nClients):
 
     try:
         hitRate = numHits * 100. / numProcessed
-        d = {"numHits": numHits, "hitRate": hitRate, "fracDone": 100.}
+        d = {"numHits": numHits, "hitRate(%)": round(hitRate,3), "fracDone(%)": 100., "projected": numHits}
         writeStatus(statusFname, d)
     except:
         pass

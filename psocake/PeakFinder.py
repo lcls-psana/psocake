@@ -5,7 +5,8 @@ import os
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'LCLS'
     import psana
-    from ImgAlgos.PyAlgos import PyAlgos # peak finding
+    #from ImgAlgos.PyAlgos import PyAlgos # peak finding
+    from psalgos.pypsalgos import PyAlgos
     from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
     from pyimgalgos.MedianFilter import median_filter_ndarr
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -91,6 +92,12 @@ class PeakFinder:
             self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
+        elif algorithm == 2:
+            self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
+            self.hitParam_alg1_thr_high = kwargs["alg1_thr_high"]
+            self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
+            self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
+            self.hitParam_alg1_dr = kwargs["alg1_dr"]
         elif algorithm == 3:
             self.hitParam_alg3_rank = kwargs["alg3_rank"]
             self.hitParam_alg3_r0 = int(kwargs["alg3_r0"])
@@ -102,12 +109,23 @@ class PeakFinder:
             self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
+        self.access = kwargs["access"]
+
         if facility == 'LCLS':
-            self.alg = PyAlgos(windows=self.windows, mask=None, pbits=0)
-            # set peak-selector parameters:
-            self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
-                                            amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
-                                            son_min=self.son_min)
+            if self.algorithm == 1:
+                self.alg = PyAlgos(mask=None, pbits=0)
+                self.peakRadius = int(self.hitParam_alg1_radius)
+                self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                                 amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                                 son_min=self.son_min)
+                #self.alg = myskbeam.DropletA(self.peakRadius, self.peakRadius+self.hitParam_alg1_dr) #PyAlgos(windows=self.windows, mask=None, pbits=0)
+            elif self.algorithm == 2:
+                # set peak-selector parameters:
+                self.alg = PyAlgos(mask=None, pbits=0)
+                self.peakRadius = int(self.hitParam_alg1_radius)
+                self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
+                                                 amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
+                                                 son_min=self.son_min)
         elif facility == 'PAL':
             self.peakRadius = int(self.hitParam_alg1_radius)
             self.alg = myskbeam.Droplet(self.peakRadius, self.hitParam_alg1_dr)
@@ -153,7 +171,9 @@ class PeakFinder:
         return generousBadPixelMask
 
     def setupExperiment(self):
-        self.ds = psana.DataSource('exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx')
+        access = 'exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx'
+        if 'ffb' in self.access.lower(): access += ':dir=/reg/d/ffb/' + self.exp[:3] + '/' + self.exp + '/xtc'
+        self.ds = psana.DataSource(access)
         self.run = self.ds.runs().next()
         self.times = self.run.times()
         self.eventTotal = len(self.times)
@@ -203,29 +223,46 @@ class PeakFinder:
                 self.combinedMask = self.userPsanaMask
 
             # set new mask
-            self.alg.set_mask(self.combinedMask) # This doesn't work reliably
+            #self.alg.set_mask(self.combinedMask) # This doesn't work reliably
         elif facility == 'PAL':
             self.combinedMask = self.userMask
 
         # set algorithm specific parameters
         if self.algorithm == 1:
             if facility == 'LCLS':
+                #print "param: ", self.npix_min, self.npix_max, self.atot_thr, self.son_min, thr_low, thr_high, np.sum(self.combinedMask)
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                 #                           around pixel with maximal intensity.
-                if thr_high is None:
-                    self.peaks = self.alg.peak_finder_v4r2(calib,
-                                                           thr_low=self.hitParam_alg1_thr_low,
-                                                           thr_high=self.hitParam_alg1_thr_high,
-                                                           rank=self.hitParam_alg1_rank,
-                                                           r0=self.hitParam_alg1_radius,
-                                                           dr=self.hitParam_alg1_dr)
+                if thr_high is None: # use gui input
+                    self.peakRadius = int(self.hitParam_alg1_radius)
+                    self.peaks = self.alg.peak_finder_v4r3(calib,
+                                                    thr_low=self.hitParam_alg1_thr_low,
+                                                    thr_high=self.hitParam_alg1_thr_high,
+                                                    rank = self.hitParam_alg1_rank,
+                                                    r0=self.hitParam_alg1_radius,
+                                                    dr=self.hitParam_alg1_dr,
+                                                    mask=self.combinedMask.astype(np.uint16))
+#                    self.peaks = self.alg.peak_finder_v4r2(calib,
+#                                                           thr_low=self.hitParam_alg1_thr_low,
+#                                                           thr_high=self.hitParam_alg1_thr_high,
+#                                                           rank=self.hitParam_alg1_rank,
+#                                                           r0=self.hitParam_alg1_radius,
+#                                                           dr=self.hitParam_alg1_dr)
                 else:
-                    self.peaks = self.alg.peak_finder_v4r2(calib,
-                                                           thr_low=thr_low,
-                                                           thr_high=thr_high,
-                                                           rank=self.hitParam_alg1_rank,
-                                                           r0=self.hitParam_alg1_radius,
-                                                           dr=self.hitParam_alg1_dr)
+                    self.peaks = self.alg.findPeaks(calib,
+                                                    npix_min=self.npix_min,
+                                                    npix_max=self.npix_max,
+                                                    atot_thr=self.atot_thr,
+                                                    son_min=self.son_min,
+                                                    thr_low=thr_low,
+                                                    thr_high=thr_high,
+                                                    mask=self.combinedMask)
+#                    self.peaks = self.alg.peak_finder_v4r2(calib,
+#                                                           thr_low=thr_low,
+#                                                           thr_high=thr_high,
+#                                                           rank=self.hitParam_alg1_rank,
+#                                                           r0=self.hitParam_alg1_radius,
+#                                                           dr=self.hitParam_alg1_dr)
             elif facility == 'PAL':
                 self.peakRadius = int(self.hitParam_alg1_radius)
                 self.peaks = self.alg.findPeaks(calib,
@@ -237,7 +274,17 @@ class PeakFinder:
                                                 atot_thr = self.atot_thr,
                                                 r0 = self.peakRadius,
                                                 dr = int(self.hitParam_alg1_dr),
-                                                mask = self.combinedMask)
+                                                mask = self.combinedMask.astype(np.uint16))
+        elif self.algorithm == 2:
+            if facility == 'LCLS':
+                #print "param: ", self.npix_min, self.npix_max, self.atot_thr, self.son_min, thr_low, thr_high, np.sum(self.combinedMask)
+                # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
+                #                           around pixel with maximal intensity.
+                self.peakRadius = int(self.hitParam_alg1_radius)
+                self.peaks = self.alg.peak_finder_v3r3(calib, rank=int(self.hitParam_alg1_rank),
+                                                       r0=self.peakRadius, dr=self.hitParam_alg1_dr,
+                                                       nsigm=self.son_min,
+                                                       mask=self.combinedMask.astype(np.uint16))
         elif self.algorithm == 3:
             self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
         elif self.algorithm == 4:
@@ -249,10 +296,12 @@ class PeakFinder:
 
         if self.numPeaksFound > 0:
             if facility == 'LCLS':
-                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
-                    self.peaks[:, 2], dtype=np.int64)] + 0.5
-                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64), np.array(
-                    self.peaks[:, 2], dtype=np.int64)] + 0.5
+                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), 
+                               np.array(self.peaks[:, 1], dtype=np.int64), 
+                               np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), 
+                               np.array(self.peaks[:, 1], dtype=np.int64), 
+                               np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
             elif facility == 'PAL':
                 cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
                 cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
