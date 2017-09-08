@@ -109,9 +109,8 @@ class PeakFinder:
             self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
             self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
-        self.access = kwargs["access"]
-
         if facility == 'LCLS':
+            self.access = kwargs["access"]
             if self.algorithm == 1:
                 self.alg = PyAlgos(mask=None, pbits=0)
                 self.peakRadius = int(self.hitParam_alg1_radius)
@@ -128,7 +127,7 @@ class PeakFinder:
                                                  son_min=self.son_min)
         elif facility == 'PAL':
             self.peakRadius = int(self.hitParam_alg1_radius)
-            self.alg = myskbeam.Droplet(self.peakRadius, self.hitParam_alg1_dr)
+            self.alg = myskbeam.DropletA(self.peakRadius, self.hitParam_alg1_dr)
 
         if facility == 'LCLS':
             self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
@@ -265,7 +264,14 @@ class PeakFinder:
 #                                                           dr=self.hitParam_alg1_dr)
             elif facility == 'PAL':
                 self.peakRadius = int(self.hitParam_alg1_radius)
-                self.peaks = self.alg.findPeaks(calib,
+                _calib = np.zeros((1, calib.shape[0], calib.shape[1]))
+                _calib[0, :, :] = calib
+                if self.combinedMask is None:
+                    _mask = None
+                else:
+                    _mask = self.combinedMask.astype(np.uint16)
+
+                self.peaks = self.alg.findPeaks(_calib,
                                                 npix_min = self.npix_min,
                                                 npix_max = self.npix_max,
                                                 son_min = self.son_min,
@@ -274,7 +280,7 @@ class PeakFinder:
                                                 atot_thr = self.atot_thr,
                                                 r0 = self.peakRadius,
                                                 dr = int(self.hitParam_alg1_dr),
-                                                mask = self.combinedMask.astype(np.uint16))
+                                                mask = _mask)
         elif self.algorithm == 2:
             if facility == 'LCLS':
                 #print "param: ", self.npix_min, self.npix_max, self.atot_thr, self.son_min, thr_low, thr_high, np.sum(self.combinedMask)
@@ -303,8 +309,8 @@ class PeakFinder:
                                np.array(self.peaks[:, 1], dtype=np.int64), 
                                np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
             elif facility == 'PAL':
-                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
-                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
+                cenX = self.iX[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
             self.maxRes = getMaxRes(cenX, cenY, self.cx, self.cy)
         else:
             self.maxRes = 0

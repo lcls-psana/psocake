@@ -133,13 +133,10 @@ def runmaster(args, nClients):
         else:
             try:
                 nPeaks = md.peaks.shape[0]
-                #print "eventNumber: ", md.small.eventNum
-                #print "numHits so far: ", numHits
-                #print "nPeaks: ", nPeaks, args.minPeaks
                 maxRes = md.small.maxRes
 
                 # FIXME
-                if numHits > 0:
+                if facility == 'LCLS' and numHits > 0:
                     alreadyDone = len(np.where(myHdf5["/LCLS/eventNumber"].value[:numHits] == md.small.eventNum)[0])
                     #print "alreadyDone: ", myHdf5["/LCLS/eventNumber"].value, myHdf5["/LCLS/eventNumber"].value[:numHits], len(np.where(myHdf5["/LCLS/eventNumber"].value == md.small.eventNum)[0])
                     if alreadyDone >= 1: continue
@@ -171,7 +168,7 @@ def runmaster(args, nClients):
                     myHdf5.flush()
             elif facility == 'PAL':
                 for i, peak in enumerate(md.peaks):
-                    row, col, npix, atot, son = peak
+                    seg, row, col, npix, atot, son = peak
                     myHdf5[grpName + dset_posX][md.small.eventNum, i] = col
                     myHdf5[grpName + dset_posY][md.small.eventNum, i] = row
                     myHdf5[grpName + dset_atot][md.small.eventNum, i] = atot
@@ -203,7 +200,6 @@ def runmaster(args, nClients):
                 myHdf5[grpName + dset_rankID][md.small.eventNum] = rankID
                 myHdf5.flush()
 
-            #print "save hit: ", nPeaks, maxRes, hasattr(md, 'data')
             # If the event is a hit
             if nPeaks >= args.minPeaks and \
                nPeaks <= args.maxPeaks and \

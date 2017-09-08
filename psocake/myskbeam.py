@@ -123,21 +123,28 @@ class DropletA:
         #print "#skbeam fgInd: ", self.fgInd
 
     def findPeaks(self, calib, npix_min=0, npix_max=0, atot_thr=0, son_min=0, thr_low=0, thr_high=0, r0=0, dr=0, mask=None):
-        hmax = np.zeros_like(calib)
-        hmax[np.where(calib>=thr_high)] = 1
-        if mask is not None: hmax = np.multiply(hmax, mask)
-
-        numAsic = calib.shape[0]
         seg = []
         posX = []
         posY = []
         npix = []
         atot = []
         son = []
-        for j in range(numAsic):
-            ll = label(hmax[j])
-            regions = regionprops(ll)
+        hmax = np.zeros_like(calib)
+        hmax[np.where(calib>=thr_high)] = 1
+        if mask is not None: hmax = np.multiply(hmax, mask)
 
+        numDim = len(calib.shape)
+        if numDim == 2:
+            numAsic = 1
+        elif numDim == 3:
+            numAsic = calib.shape[0]
+
+        for j in range(numAsic):
+            if numDim == 2:
+                ll = label(hmax)
+            elif numDim == 3:
+                ll = label(hmax[j])
+            regions = regionprops(ll)
             numPeaks = len(regions)
             x = np.zeros((numPeaks,))
             y = np.zeros((numPeaks,))
@@ -150,7 +157,10 @@ class DropletA:
             numInner = len(self.fgInd[0])
             for i in range(numPeaks):
                 try:
-                    d = calib[j, int(x[i]) - self.lh:int(x[i]) + self.rh, int(y[i]) - self.lh:int(y[i]) + self.rh]
+                    if numDim == 2:
+                        d = calib[int(x[i]) - self.lh:int(x[i]) + self.rh, int(y[i]) - self.lh:int(y[i]) + self.rh]
+                    elif numDim == 3:
+                        d = calib[j, int(x[i]) - self.lh:int(x[i]) + self.rh, int(y[i]) - self.lh:int(y[i]) + self.rh]
                     meanSig = np.mean(d[self.fgInd])
                     stdNoise = np.std(d[self.bgInd])
                     meanBackground = np.mean(d[self.bgInd])

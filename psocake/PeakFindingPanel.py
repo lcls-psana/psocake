@@ -696,7 +696,7 @@ class PeakFinding(object):
                 seg = 0
                 for i, peak in enumerate(peaks):
                     #seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
-                    row, col, npix, atot, son = peak
+                    seg, row, col, npix, atot, son = peak
                     myHdf5[grpName + dset_posX][0, i] = col
                     myHdf5[grpName + dset_posY][0, i] = row
                     myHdf5[grpName + dset_atot][0, i] = atot
@@ -908,10 +908,12 @@ class PeakFinding(object):
                     # Only initialize the hit finder algorithm once
                     self.peakRadius = int(self.hitParam_alg1_radius)
                     if self.algInitDone is False:
-                        self.alg = myskbeam.Droplet(self.peakRadius, self.hitParam_alg1_dr)
+                        self.alg = myskbeam.DropletA(self.peakRadius, self.hitParam_alg1_dr)
                         self.algInitDone = True
                     if self.parent.args.v >= 1: tic = time.time()
-                    self.peaks = self.alg.findPeaks(self.parent.calib,
+                    _calib = np.zeros((1, self.parent.calib.shape[0], self.parent.calib.shape[1]))
+                    _calib[0,:,:] = self.parent.calib
+                    self.peaks = self.alg.findPeaks(_calib,
                                                     npix_min=self.hitParam_alg1_npix_min,
                                                     npix_max=self.hitParam_alg1_npix_max,
                                                     son_min=self.hitParam_alg1_son_min,
@@ -1029,8 +1031,8 @@ class PeakFinding(object):
                     self.ix = np.transpose(self.iy)
                     self.iX = np.array(self.ix, dtype=np.int64)
                     self.iY = np.array(self.iy, dtype=np.int64)
-                    cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
-                    cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), np.array(self.peaks[:, 1], dtype=np.int64)] + 0.5
+                    cenX = self.iX[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+                    cenY = self.iY[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
                 self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
                 diameter = self.peakRadius*2+1
                 self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
