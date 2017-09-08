@@ -731,13 +731,16 @@ class ExperimentInfo(object):
             self.parent.clen = self.parent.detectorDistance # metres
 
     def readEpicsClen(self):
-        for i in range(120):  # assume at least 1 second run time
+        numEvt = len(self.times)
+        if numEvt > 120: numEvt = 120
+        for i in range(numEvt):  # assume at least 1 second run time
             evt = self.run.event(self.times[i])
             self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000. # metres
             if i == 0:
                 _temp = self.parent.clen
             elif i > 0:
-                if abs(_temp - self.parent.clen) >= 0.01: break
+                if abs(_temp - self.parent.clen) >= 0.01:
+                    break
                 _temp = self.parent.clen
         if self.parent.args.v >= 1: print "Best guess at clen: ", self.parent.clen
 
