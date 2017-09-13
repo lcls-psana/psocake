@@ -82,8 +82,8 @@ class PeakFinder:
             self.userPsanaMask = self.userMask
 
         # Powder of hits and misses
-        self.powderHits = np.zeros_like(self.userPsanaMask)
-        self.powderMisses = np.zeros_like(self.userPsanaMask)
+        self.powderHits = None
+        self.powderMisses = None
 
         # set algorithm specific parameters
         if algorithm == 1:
@@ -316,9 +316,18 @@ class PeakFinder:
             self.maxRes = 0
 
         if self.numPeaksFound >= 15:
-            self.powderHits = np.maximum(self.powderHits, calib)
+            if self.powderHits is None:
+                self.powderHits = calib
+            else:
+                self.powderHits = np.maximum(self.powderHits, calib)
         else:
-            self.powderMisses = np.maximum(self.powderMisses, calib)
+            if self.powderMisses is None:
+                self.powderMisses = calib
+            else:
+                self.powderMisses = np.maximum(self.powderMisses, calib)
+
+        if self.powderHits is None: self.powderHits = np.zeros_like(calib)
+        if self.powderMisses is None: self.powderMisses = np.zeros_like(calib)
 
 def getMaxRes(posX, posY, centerX, centerY):
     maxRes = np.max(np.sqrt((posX - centerX) ** 2 + (posY - centerY) ** 2))

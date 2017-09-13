@@ -520,7 +520,6 @@ def runclient(args):
                 md.small.rankID = rank
             md.send() # send mpi data object to master when desired
         elif facility == 'PAL':
-            print "###: ", len(d.peakFinder.peaks)
             if len(d.peakFinder.peaks) >= args.minPeaks and \
                len(d.peakFinder.peaks) <= args.maxPeaks and \
                d.peakFinder.maxRes >= args.minRes:
@@ -859,8 +858,11 @@ def runclient(args):
         md.endrun()
         print "Done: ", rank
     elif facility == 'PAL':
-        print "powder hits and misses not implemented for PAL"
         md = mpidata()
+        md.small.powder = 1
+        md.addarray('powderHits', d.peakFinder.powderHits)
+        md.addarray('powderMisses', d.peakFinder.powderMisses)
+        md.send()
         md.endrun()
         print "Done: ", rank
 

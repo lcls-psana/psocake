@@ -124,12 +124,12 @@ def runmaster(args, nClients):
         if md.small.endrun:
             nClients -= 1
         elif hasattr(md.small, 'powder') and md.small.powder == 1:
-                if powderHits is None:
-                    powderHits = md.powderHits
-                    powderMisses = md.powderMisses
-                else:
-                    powderHits = np.maximum(powderHits, md.powderHits)
-                    powderMisses = np.maximum(powderMisses, md.powderMisses)
+            if powderHits is None:
+                powderHits = md.powderHits
+                powderMisses = md.powderMisses
+            else:
+                powderHits = np.maximum(powderHits, md.powderHits)
+                powderMisses = np.maximum(powderMisses, md.powderMisses)
         else:
             try:
                 nPeaks = md.peaks.shape[0]
@@ -653,7 +653,12 @@ def runmaster(args, nClients):
                 np.save(fnameMisses, powderMisses)
                 np.savetxt(fnameMissesTxt, powderMisses.reshape((-1, powderMisses.shape[-1])), fmt='%0.18e')
     elif facility == 'PAL':
-        print "powder not implemented for PAL"
+        fnameHits = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.npy"
+        fnameMisses = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses.npy"
+        # Save powder of hits
+        if powderHits is not None: np.save(fnameHits, powderHits)
+        # Save powder of misses
+        if powderMisses is not None: np.save(fnameMisses, powderMisses)
 
     while nClients > 0:
         # Remove client if the run ended

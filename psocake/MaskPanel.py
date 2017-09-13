@@ -80,29 +80,54 @@ class MaskMaker(object):
         ######################
         # Mask
         ######################
-        self.maskingMode = 0
-        self.userMaskOn = False
-        self.streakMaskOn = False
-        self.streak_sigma = 1
-        self.streak_width = 250
-        self.psanaMaskOn = False
-        self.mask_calibOn = True
-        self.mask_statusOn = True
-        self.mask_edgesOn = True
-        self.mask_centralOn = True
-        self.mask_unbondOn = True
-        self.mask_unbondnrsOn = True
-        self.mask_generousOn = True
-        self.display_data = None
-        self.mask_rect = None
-        self.mask_circle = None
-        self.mask_poly = None
-        self.powder_outDir = self.parent.psocakeDir
-        self.powder_runs = ''
-        self.powder_queue = self.parent.pk.hitParam_psanaq_str
-        self.powder_cpus = 24
-        self.powder_noe = -1
-        self.powder_threshold = -1
+        if self.parent.facility == self.parent.facilityLCLS:
+            self.maskingMode = 0
+            self.userMaskOn = False
+            self.streakMaskOn = False
+            self.streak_sigma = 1
+            self.streak_width = 250
+            self.psanaMaskOn = False
+            self.mask_calibOn = True
+            self.mask_statusOn = True
+            self.mask_edgesOn = True
+            self.mask_centralOn = True
+            self.mask_unbondOn = True
+            self.mask_unbondnrsOn = True
+            self.mask_generousOn = True
+            self.display_data = None
+            self.mask_rect = None
+            self.mask_circle = None
+            self.mask_poly = None
+            self.powder_outDir = self.parent.psocakeDir
+            self.powder_runs = ''
+            self.powder_queue = self.parent.pk.hitParam_psanaq_str
+            self.powder_cpus = 24
+            self.powder_noe = -1
+            self.powder_threshold = -1
+        elif self.parent.facility == self.parent.facilityPAL:
+            self.maskingMode = 0
+            self.userMaskOn = False
+            self.streakMaskOn = False
+            self.streak_sigma = 1
+            self.streak_width = 250
+            self.psanaMaskOn = False
+            self.mask_calibOn = False
+            self.mask_statusOn = False
+            self.mask_edgesOn = False
+            self.mask_centralOn = False
+            self.mask_unbondOn = False
+            self.mask_unbondnrsOn = False
+            self.mask_generousOn = False
+            self.display_data = None
+            self.mask_rect = None
+            self.mask_circle = None
+            self.mask_poly = None
+            self.powder_outDir = self.parent.psocakeDir
+            self.powder_runs = ''
+            self.powder_queue = self.parent.pk.hitParam_noQueue_str
+            self.powder_cpus = 3
+            self.powder_noe = -1
+            self.powder_threshold = -1
 
         ###########################
         # Mask variables
@@ -117,49 +142,84 @@ class MaskMaker(object):
         self.combinedMask = None # combined mask
         self.gapAssemInd = None
 
-        self.params = [
-            {'name': self.mask_grp, 'type': 'group', 'children': [
-                {'name': self.user_mask_str, 'type': 'bool', 'value': self.userMaskOn, 'tip': "Mask areas defined by user", 'children':[
-                    {'name': self.mask_mode_str, 'type': 'list', 'values': {self.do_toggle_str: 3,
-                                                                            self.do_unmask_str: 2,
-                                                                            self.do_mask_str: 1,
-                                                                            self.do_nothing_str: 0},
-                                                                       'value': self.maskingMode,
-                                                                       'tip': "Choose masking mode"},
+        if self.parent.facility == self.parent.facilityLCLS:
+            self.params = [
+                {'name': self.mask_grp, 'type': 'group', 'children': [
+                    {'name': self.user_mask_str, 'type': 'bool', 'value': self.userMaskOn, 'tip': "Mask areas defined by user", 'children':[
+                        {'name': self.mask_mode_str, 'type': 'list', 'values': {self.do_toggle_str: 3,
+                                                                                self.do_unmask_str: 2,
+                                                                                self.do_mask_str: 1,
+                                                                                self.do_nothing_str: 0},
+                                                                           'value': self.maskingMode,
+                                                                           'tip': "Choose masking mode"},
+                    ]},
+                    {'name': self.streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot", 'children':[
+                        {'name': self.streak_width_str, 'type': 'float', 'value': self.streak_width, 'tip': "set maximum length of streak"},
+                        {'name': self.streak_sigma_str, 'type': 'float', 'value': self.streak_sigma, 'tip': "set number of sigma to threshold"},
+                    ]},
+                    {'name': self.psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask edges and unbonded pixels etc", 'children': [
+                        {'name': self.mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "use custom mask deployed in calibdir"},
+                        {'name': self.mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "mask bad pixel status"},
+                        {'name': self.mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "mask edge pixels"},
+                        {'name': self.mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
+                        {'name': self.mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
+                        {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
+                        {'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
+                    ]},
                 ]},
-                {'name': self.streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot", 'children':[
-                    {'name': self.streak_width_str, 'type': 'float', 'value': self.streak_width, 'tip': "set maximum length of streak"},
-                    {'name': self.streak_sigma_str, 'type': 'float', 'value': self.streak_sigma, 'tip': "set number of sigma to threshold"},
+                {'name': self.powder_grp, 'type': 'group', 'children': [
+                    {'name': self.powder_outDir_str, 'type': 'str', 'value': self.powder_outDir},
+                    {'name': self.powder_runs_str, 'type': 'str', 'value': self.powder_runs,
+                     'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
+                    {'name': self.powder_queue_str, 'type': 'list', 'values': {self.parent.pk.hitParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                               self.parent.pk.hitParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                               self.parent.pk.hitParam_psfehprioq_str: 'psfehprioq',
+                                                                               self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
+                                                                               self.parent.pk.hitParam_psfehq_str: 'psfehq',
+                                                                               self.parent.pk.hitParam_psnehq_str: 'psnehq',
+                                                                               self.parent.pk.hitParam_psanaq_str: 'psanaq',
+                                                                               self.parent.pk.hitParam_psdebugq_str: 'psdebugq'},
+                     'value': self.powder_queue, 'tip': "Choose queue"},
+                    {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
+                    {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
+                    {'name': self.powder_noe_str, 'type': 'int', 'decimals': 7, 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
                 ]},
-                {'name': self.psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask edges and unbonded pixels etc", 'children': [
-                    {'name': self.mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "use custom mask deployed in calibdir"},
-                    {'name': self.mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "mask bad pixel status"},
-                    {'name': self.mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "mask edge pixels"},
-                    {'name': self.mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
-                    {'name': self.mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
-                    {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
-                    {'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
+            ]
+        elif self.parent.facility == self.parent.facilityPAL:
+            self.params = [
+                {'name': self.mask_grp, 'type': 'group', 'children': [
+                    {'name': self.user_mask_str, 'type': 'bool', 'value': self.userMaskOn, 'tip': "Mask areas defined by user", 'children':[
+                        {'name': self.mask_mode_str, 'type': 'list', 'values': {self.do_toggle_str: 3,
+                                                                                self.do_unmask_str: 2,
+                                                                                self.do_mask_str: 1,
+                                                                                self.do_nothing_str: 0},
+                                                                           'value': self.maskingMode,
+                                                                           'tip': "Choose masking mode"},
+                    ]},
+                    {'name': self.streak_mask_str, 'type': 'bool', 'value': self.streakMaskOn, 'tip': "Mask jet streaks shot-to-shot", 'children':[
+                        {'name': self.streak_width_str, 'type': 'float', 'value': self.streak_width, 'tip': "set maximum length of streak"},
+                        {'name': self.streak_sigma_str, 'type': 'float', 'value': self.streak_sigma, 'tip': "set number of sigma to threshold"},
+                    ]},
+                    {'name': self.psana_mask_str, 'type': 'bool', 'value': self.psanaMaskOn, 'tip': "Mask edges and unbonded pixels etc", 'children': [
+                        {'name': self.mask_calib_str, 'type': 'bool', 'value': self.mask_calibOn, 'tip': "use custom mask deployed in calibdir"},
+                        {'name': self.mask_status_str, 'type': 'bool', 'value': self.mask_statusOn, 'tip': "mask bad pixel status"},
+                        {'name': self.mask_edges_str, 'type': 'bool', 'value': self.mask_edgesOn, 'tip': "mask edge pixels"},
+                        {'name': self.mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
+                        {'name': self.mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
+                        {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
+                        {'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
+                    ]},
                 ]},
-            ]},
-            {'name': self.powder_grp, 'type': 'group', 'children': [
-                {'name': self.powder_outDir_str, 'type': 'str', 'value': self.powder_outDir},
-                {'name': self.powder_runs_str, 'type': 'str', 'value': self.powder_runs,
-                 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
-                {'name': self.powder_queue_str, 'type': 'list', 'values': {self.parent.pk.hitParam_psfehhiprioq_str: 'psfehhiprioq',
-                                                                           self.parent.pk.hitParam_psnehhiprioq_str: 'psnehhiprioq',
-                                                                           self.parent.pk.hitParam_psfehprioq_str: 'psfehprioq',
-                                                                           self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
-                                                                           self.parent.pk.hitParam_psfehq_str: 'psfehq',
-                                                                           self.parent.pk.hitParam_psnehq_str: 'psnehq',
-                                                                           self.parent.pk.hitParam_psanaq_str: 'psanaq',
-                                                                           self.parent.pk.hitParam_psdebugq_str: 'psdebugq'},
-                 'value': self.powder_queue, 'tip': "Choose queue"},
-                {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
-                {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
-                {'name': self.powder_noe_str, 'type': 'int', 'decimals': 7, 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
-            ]},
-        ]
-
+                {'name': self.powder_grp, 'type': 'group', 'children': [
+                    {'name': self.powder_outDir_str, 'type': 'str', 'value': self.powder_outDir},
+                    {'name': self.powder_runs_str, 'type': 'str', 'value': self.powder_runs,
+                     'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
+                    {'name': self.powder_queue_str, 'type': 'list', 'values': {self.parent.pk.hitParam_noQueue_str: 'None'}},
+                    {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
+                    {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
+                    {'name': self.powder_noe_str, 'type': 'int', 'decimals': 7, 'value': self.powder_noe, 'tip': "number of events to process, default=-1 means process all events"},
+                ]},
+            ]
         self.p6 = Parameter.create(name='paramsMask', type='group', \
                                    children=self.params, expanded=True)
         self.win.setParameters(self.p6, showTop=False)
@@ -185,10 +245,16 @@ class MaskMaker(object):
     def makePowder(self):
         if self.parent.facility == self.parent.facilityLCLS:
             self.parent.thread.append(LaunchPowderProducer.PowderProducer(self.parent))  # send parent parameters with self
-            self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo)
+            self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName,
+                                                                        self.parent.runNumber,
+                                                                        self.parent.detInfo)
             self.parent.threadCounter += 1
         elif self.parent.facility == self.parent.facilityPAL:
-            print "makePowder is not implemented for PAL"
+            self.parent.thread.append(LaunchPowderProducer.PowderProducer(self.parent))  # send parent parameters with self
+            self.parent.thread[self.parent.threadCounter].computePowder(self.parent.experimentName,
+                                                                        self.parent.runNumber,
+                                                                        self.parent.detInfo)
+            self.parent.threadCounter += 1
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
