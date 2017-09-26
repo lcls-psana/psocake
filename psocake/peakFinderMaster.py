@@ -430,7 +430,7 @@ def runmaster(args, nClients):
                     myHdf5.flush()
             numProcessed += 1
             # Update status
-            if numProcessed % 120:
+            if numProcessed % 60:
                 try:
                     hitRate = numHits * 100. / numProcessed
                     fracDone = numProcessed * 100. / numEvents
@@ -611,6 +611,8 @@ def runmaster(args, nClients):
     myHdf5['/status/findPeaks'] = 'success'
     myHdf5.flush()
     myHdf5.close()
+
+    print "Closed cxi file"
 
     try:
         hitRate = numHits * 100. / numProcessed

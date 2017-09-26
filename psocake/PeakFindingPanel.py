@@ -138,15 +138,15 @@ class PeakFinding(object):
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.hitParam_alg1_npix_min = 2.
-            self.hitParam_alg1_npix_max = 20.
+            self.hitParam_alg1_npix_max = 30.
             self.hitParam_alg1_amax_thr = 0.
-            self.hitParam_alg1_atot_thr = 1000.
-            self.hitParam_alg1_son_min = 7.
-            self.hitParam_alg1_thr_low = 250.
-            self.hitParam_alg1_thr_high = 600.
-            self.hitParam_alg1_rank = 2
-            self.hitParam_alg1_radius = 2
-            self.hitParam_alg1_dr = 1
+            self.hitParam_alg1_atot_thr = 600.
+            self.hitParam_alg1_son_min = 10.
+            self.hitParam_alg1_thr_low = 0.
+            self.hitParam_alg1_thr_high = 300.
+            self.hitParam_alg1_rank = 3
+            self.hitParam_alg1_radius = 3
+            self.hitParam_alg1_dr = 2
         elif self.parent.facility == self.parent.facilityPAL:
             self.hitParam_alg1_npix_min = 2.
             self.hitParam_alg1_npix_max = 30.
@@ -212,8 +212,8 @@ class PeakFinding(object):
                 {'name': self.hitParam_grp, 'type': 'group', 'children': [
                     {'name': self.hitParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks,
                      'tip': "Show peaks found shot-to-shot"},
-                    {'name': self.hitParam_autoPeaks_str, 'type': 'bool', 'value': self.turnOnAutoPeaks,
-                     'tip': "Automatically find peaks"},
+                    #{'name': self.hitParam_autoPeaks_str, 'type': 'bool', 'value': self.turnOnAutoPeaks,
+                    # 'tip': "Automatically find peaks"},
                     {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm2_str: 2,
                                                                                      self.hitParam_algorithm1_str: 1,
                                                                                      self.hitParam_algorithm0_str: 0},
