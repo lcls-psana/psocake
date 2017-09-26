@@ -41,6 +41,7 @@ class PeakFinding(object):
         self.hitParam_showPeaks_str = 'Show peaks found'
         self.hitParam_autoPeaks_str = 'Auto peak finder'
         self.hitParam_algorithm_str = 'Algorithm'
+        self.hitParam_parameters_str = 'Parameters'
         # algorithm 0
         self.hitParam_algorithm0_str = 'None'
         # algorithm 1
@@ -139,11 +140,11 @@ class PeakFinding(object):
         if self.parent.facility == self.parent.facilityLCLS:
             self.hitParam_alg1_npix_min = 2.
             self.hitParam_alg1_npix_max = 30.
-            self.hitParam_alg1_amax_thr = 0.
+            self.hitParam_alg1_amax_thr = 300.
             self.hitParam_alg1_atot_thr = 600.
             self.hitParam_alg1_son_min = 10.
             self.hitParam_alg1_thr_low = 0.
-            self.hitParam_alg1_thr_high = 300.
+            self.hitParam_alg1_thr_high = 0.
             self.hitParam_alg1_rank = 3
             self.hitParam_alg1_radius = 3
             self.hitParam_alg1_dr = 2
@@ -218,7 +219,7 @@ class PeakFinding(object):
                                                                                      self.hitParam_algorithm1_str: 1,
                                                                                      self.hitParam_algorithm0_str: 0},
                      'value': self.algorithm},
-                    {'name': self.hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
+                    {'name': self.hitParam_parameters_str, 'visible': True, 'expanded': False, 'type': 'str', 'value': "",
                      'readonly': True, 'children': [
                         {'name': self.hitParam_alg1_npix_min_str, 'type': 'float', 'value': self.hitParam_alg1_npix_min,
                          'tip': "Only keep the peak if number of pixels above thr_low is above this value"},
@@ -276,7 +277,7 @@ class PeakFinding(object):
                     {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm1_str: 1,
                                                                                      self.hitParam_algorithm0_str: 0},
                      'value': self.algorithm},
-                    {'name': self.hitParam_algorithm1_str, 'visible': True, 'expanded': False, 'type': 'str',
+                    {'name': self.hitParam_parameters_str, 'visible': True, 'expanded': False, 'type': 'str',
                      'value': "",
                      'readonly': True, 'children': [
                         {'name': self.hitParam_alg1_npix_min_str, 'type': 'float', 'value': self.hitParam_alg1_npix_min,
@@ -362,26 +363,26 @@ class PeakFinding(object):
                                     # Update GUI
                                     self.doingUpdate = True
                                     #self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(self.algorithm)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_min_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_npix_min_str).setValue(
                                         self.hitParam_alg1_npix_min)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_max_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_npix_max_str).setValue(
                                         self.hitParam_alg1_npix_max)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_amax_thr_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_amax_thr_str).setValue(
                                         self.hitParam_alg1_amax_thr)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_atot_thr_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_atot_thr_str).setValue(
                                         self.hitParam_alg1_atot_thr)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_son_min_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_son_min_str).setValue(
                                         self.hitParam_alg1_son_min)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_low_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_thr_low_str).setValue(
                                         self.hitParam_alg1_thr_low)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_high_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_thr_high_str).setValue(
                                         self.hitParam_alg1_thr_high)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_rank_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_rank_str).setValue(
                                         self.hitParam_alg1_rank)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_radius_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_radius_str).setValue(
                                         self.hitParam_alg1_radius)
                                     self.doingUpdate = False
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_dr_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_dr_str).setValue(
                                         self.hitParam_alg1_dr)
                                 elif self.parent.facility == self.parent.facilityPAL:
                                     self.hitParam_alg1_npix_min = d[self.hitParam_alg1_npix_min_str]
@@ -394,20 +395,20 @@ class PeakFinding(object):
                                     # Update GUI
                                     self.doingUpdate = True
                                     #self.p3.param(self.hitParam_grp, self.hitParam_algorithm_str).setValue(self.algorithm)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_min_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_npix_min_str).setValue(
                                         self.hitParam_alg1_npix_min)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_npix_max_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_npix_max_str).setValue(
                                         self.hitParam_alg1_npix_max)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_atot_thr_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_atot_thr_str).setValue(
                                         self.hitParam_alg1_atot_thr)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_son_min_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_son_min_str).setValue(
                                         self.hitParam_alg1_son_min)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_thr_low_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_thr_low_str).setValue(
                                         self.hitParam_alg1_thr_low)
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_radius_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_radius_str).setValue(
                                         self.hitParam_alg1_radius)
                                     self.doingUpdate = False
-                                    self.p3.param(self.hitParam_grp, self.hitParam_algorithm1_str, self.hitParam_alg1_dr_str).setValue(
+                                    self.p3.param(self.hitParam_grp, self.hitParam_parameters_str, self.hitParam_alg1_dr_str).setValue(
                                         self.hitParam_alg1_dr)
                             except:
                                 pass
@@ -504,61 +505,61 @@ class PeakFinding(object):
                 self.sample = data
             elif path[1] == self.hitParam_extra_str:
                 self.hitParam_extra = data
-            elif path[2] == self.hitParam_alg1_npix_min_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_npix_min_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_npix_min = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_npix_max_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_npix_max_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_npix_max = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_amax_thr_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_amax_thr_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_amax_thr = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_atot_thr_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_atot_thr_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_atot_thr = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_son_min_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_son_min_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_son_min = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_thr_low_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_thr_low_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_thr_low = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_thr_high_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_thr_high_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_thr_high = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_rank_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_rank_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_rank = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_radius_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_radius_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_radius = data
                 self.algInitDone = False
                 self.userUpdate = True
                 if self.showPeaks and self.doingUpdate is False:
                     self.updateClassification()
-            elif path[2] == self.hitParam_alg1_dr_str and path[1] == self.hitParam_algorithm1_str:
+            elif path[2] == self.hitParam_alg1_dr_str and path[1] == self.hitParam_parameters_str:
                 self.hitParam_alg1_dr = data
                 self.algInitDone = False
                 self.userUpdate = True
