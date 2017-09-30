@@ -38,15 +38,15 @@ class LaunchPeakFinder(QtCore.QThread):
 
     def saveCheetahFormatMask(self, run, arg):
         if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
                 dim0 = 8 * 185
                 dim1 = 4 * 388
-            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+            elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
                 dim0 = 1920
                 dim1 = 1920
-            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                dim0 = 1920
-                dim1 = 1920
+            #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+            #    dim0 = 1920
+            #    dim1 = 1920
             else:
                 print "saveCheetahFormatMask not implemented"
 
@@ -61,15 +61,15 @@ class LaunchPeakFinder(QtCore.QThread):
             else:
                 img = np.zeros((dim0, dim1))
                 counter = 0
-                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
                     for quad in range(4):
                         for seg in range(8):
                             img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.mk.combinedMask[counter, :, :]
                             counter += 1
-                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
                     img = self.parent.mk.combinedMask[:, :] # psana format
-                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                    img = self.parent.mk.combinedMask[:, :]  # psana format
+                #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                #    img = self.parent.mk.combinedMask[:, :]  # psana format
             dset[:,:] = img
             myHdf5.close()
         elif arg == self.parent.facilityPAL:
