@@ -145,7 +145,7 @@ if facility == 'LCLS':
             ind = numpy.random.permutation(len(ind))
 
         for d in detlist:
-            d.stats = Stats(env.experiment(), evt.run(), d.detname)
+            d.stats = Stats(env.experiment(), runnumber, d.detname)
             for i,time in enumerate(ind):
                 if i%100==0 and i > 99: print 'Rank',rank,'processing event', i,'of',len(mytimes)
                 evt = run.event(mytimes[i])

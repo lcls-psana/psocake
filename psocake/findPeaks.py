@@ -123,8 +123,14 @@ if rank == 0:
         # Set up psana
         ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib, access=args.access)
         ps.setupExperiment()
-        img = ps.getCheetahImg()
         numEvents = ps.eventTotal
+        img = None
+        for i in np.arange(numEvents):
+            ps.getEvent(i)
+            img = ps.getCheetahImg()
+            if img is not None:
+                print "Found an event with image: ", i
+                break
     elif facility == 'PAL':
         temp = args.dir + '/' + args.exp[:3] + '/' + args.exp + \
                '/data/r' + str(args.run).zfill(4) + '/*.h5'

@@ -81,19 +81,27 @@ class psanaWhisperer():
         if 'cspad2x2' in self.detInfo.lower():
             print "Not implemented yet: cspad2x2"
         elif 'cspad' in self.detInfo.lower():
-            if calib is None: calib = self.det.calib(self.evt) # (32,185,388)
-            img = np.zeros((8 * 185, 4 * 388))
-            try:
-                counter = 0
-                for quad in range(4):
-                    for seg in range(8):
-                        img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
-                        counter += 1
-            except:
-                pass
+            if calib is None:
+                _calib = self.det.calib(self.evt) # (32,185,388)
+            if _calib is None:
+                return None
+            else:
+                img = np.zeros((8 * 185, 4 * 388))
+                try:
+                    counter = 0
+                    for quad in range(4):
+                        for seg in range(8):
+                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = _calib[counter, :, :]
+                            counter += 1
+                except:
+                    pass
         elif 'rayonix' in self.detInfo.lower():
             if calib is None:
-                img = np.squeeze(self.det.calib(self.evt))  # (1920,1920)
+                _calib = self.det.calib(self.evt)
+                if _calib is None:
+                    return None
+                else:
+                    img = np.squeeze(_calib)  # (1920,1920)
             else:
                 img = np.squeeze(calib)
         return img
