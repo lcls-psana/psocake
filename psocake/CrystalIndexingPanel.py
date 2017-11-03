@@ -90,7 +90,7 @@ class CrystalIndexing(object):
             self.pdb = ''
             self.indexingMethod = 'mosflm,dirax'
             self.tolerance = '5,5,5,1.5'
-            self.extra = '--no-retry'
+            self.extra = ''
             self.condition = ''
             self.keepData = True
         elif self.parent.facility == self.parent.facilityPAL:
@@ -107,7 +107,7 @@ class CrystalIndexing(object):
             self.pdb = ''
             self.indexingMethod = 'mosflm,dirax'
             self.tolerance = '5,5,5,1.5'
-            self.extra = '--no-retry'
+            self.extra = ''
             self.condition = ''
             self.keepData = True
 
