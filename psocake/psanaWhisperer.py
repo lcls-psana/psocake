@@ -78,6 +78,7 @@ class psanaWhisperer():
         """Converts seg, row, col assuming (32,185,388)
            to cheetah 2-d table row and col (8*185, 4*388)
         """
+        _calib = None
         if 'cspad2x2' in self.detInfo.lower():
             print "Not implemented yet: cspad2x2"
         elif 'cspad' in self.detInfo.lower():

@@ -458,9 +458,27 @@ if rank == 0:
 
         # Add x,y,z coordinates
         cx, cy, cz = ps.det.coords_xyz(ps.evt)
-        data_1["x"] = ps.getCheetahImg(calib=cx)
-        data_1["y"] = ps.getCheetahImg(calib=cy)
-        data_1["z"] = ps.getCheetahImg(calib=cz)
+        ds_x = data_1.create_dataset("x", (dim0, dim1),
+                                    chunks=(dim0, dim1),
+                                    maxshape=(dim0, dim1),
+                                    compression='gzip',
+                                    compression_opts=1,
+                                    dtype=float)
+        ds_y = data_1.create_dataset("y", (dim0, dim1),
+                                    chunks=(dim0, dim1),
+                                    maxshape=(dim0, dim1),
+                                    compression='gzip',
+                                    compression_opts=1,
+                                    dtype=float)
+        ds_z = data_1.create_dataset("z", (dim0, dim1),
+                                    chunks=(dim0, dim1),
+                                    maxshape=(dim0, dim1),
+                                    compression='gzip',
+                                    compression_opts=1,
+                                    dtype=float)
+        ds_x = ps.getCheetahImg(calib=cx)
+        ds_y = ps.getCheetahImg(calib=cy)
+        ds_z = ps.getCheetahImg(calib=cz)
 
         # Add mask in cheetah format
         if args.mask is not None:
