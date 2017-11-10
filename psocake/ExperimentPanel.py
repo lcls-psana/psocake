@@ -530,16 +530,19 @@ class ExperimentInfo(object):
             if os.path.exists(self.loggerFile):
                 with open(self.loggerFile, "r") as myfile:
                     content = myfile.readlines()
-                    if content[0].strip() == self.parent.username:
-                        if logbook_present and self.table is not None:
-                            self.logger = True
+                    try:
+                        if content[0].strip() == self.parent.username:
+                            if logbook_present and self.table is not None:
+                                self.logger = True
+                            else:
+                                if self.parent.facility == self.parent.facilityLCLS:
+                                    print "WARNING: logbook not present"
+                            if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
                         else:
-                            if self.parent.facility == self.parent.facilityLCLS:
-                                print "WARNING: logbook not present"
-                        if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
-                    else:
+                            self.logger = False
+                            if self.parent.args.v >= 1: print "I'm not an elogger"
+                    except:
                         self.logger = False
-                        if self.parent.args.v >= 1: print "I'm not an elogger"
             else:
                 self.logger = False
         # Make run folder
