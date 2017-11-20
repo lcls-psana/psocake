@@ -311,6 +311,9 @@ class ImageViewer(object):
         if arg == self.parent.facilityLCLS:
             self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
             if self.parent.cx is None:
+                print "#######################################"
+                print "WARNING: Unable to get detector center position. Check detector geometry is deployed."
+                print "#######################################"
                 data = self.parent.det.image(self.parent.evt, self.parent.exp.detGuaranteed)
                 self.parent.cx, self.parent.cy = self.getCentre(data.shape)
         elif arg == self.parent.facilityPAL:

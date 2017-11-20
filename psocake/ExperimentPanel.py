@@ -905,6 +905,7 @@ class ExperimentInfo(object):
 
             self.parent.img.setupRadialBackground()
             self.parent.img.updatePolarizationFactor()
+
         elif self.parent.facility == self.parent.facilityPAL:
             # read geometry
             self.readCrystfelGeometry(self.parent.facility)
