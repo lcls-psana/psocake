@@ -233,6 +233,9 @@ def runmaster(args, nClients):
                         reshapeHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits, inc)
                         reshapeHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits, inc)
 
+                        reshapeHdf5(myHdf5, '/LCLS/injector_1/pressureSDS', numHits, inc)
+                        reshapeHdf5(myHdf5, '/LCLS/injector_1/pressureSDSB', numHits, inc)
+
                         if hasattr(md, 'evr0'):
                             reshapeHdf5(myHdf5, '/LCLS/detector_1/evr0', numHits, inc)
                         if hasattr(md, 'evr1'):
@@ -297,6 +300,9 @@ def runmaster(args, nClients):
                     updateHdf5(myHdf5, '/LCLS/detector_1/electronBeamEnergy', numHits, md.small.ebeamCharge)
                     updateHdf5(myHdf5, '/LCLS/detector_1/beamRepRate', numHits, md.small.beamRepRate)
                     updateHdf5(myHdf5, '/LCLS/detector_1/particleN_electrons', numHits, md.small.particleN_electrons)
+
+                    updateHdf5(myHdf5, '/LCLS/injector_1/pressureSDS', numHits, md.small.injectorPressureSDS)
+                    updateHdf5(myHdf5, '/LCLS/injector_1/pressureSDSB', numHits, md.small.injectorPressureSDSB)
 
                     if hasattr(md, 'evr0'):
                         updateHdf5(myHdf5, '/LCLS/detector_1/evr0', numHits, md.evr0)

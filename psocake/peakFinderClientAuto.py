@@ -484,6 +484,16 @@ def runclient(args):
             except:
                 md.small.wavelength = 0
 
+            try:
+                md.small.injectorPressureSDS = es.value('CXI:LC20:SDS:Pressure')
+            except:
+                md.small.injectorPressureSDS = 0
+
+            try:
+                md.small.injectorPressureSDSB = es.value('CXI:LC20:SDSB:Pressure')
+            except:
+                md.small.injectorPressureSDSB = 0
+
             ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
             try:
                 photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
@@ -799,6 +809,16 @@ def runclient(args):
                             md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
                         except:
                             md.small.wavelength = 0
+
+                        try:
+                            md.small.injectorPressureSDS = es.value('CXI:LC20:SDS:Pressure')
+                        except:
+                            md.small.injectorPressureSDS = 0
+
+                        try:
+                            md.small.injectorPressureSDSB = es.value('CXI:LC20:SDSB:Pressure')
+                        except:
+                            md.small.injectorPressureSDSB = 0
 
                         ebeam = ebeamDet.get(ps.evt)  # .get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
                         try:

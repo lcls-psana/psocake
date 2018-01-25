@@ -304,6 +304,16 @@ if rank == 0:
                                                  dtype=float)
         ds_ttspecRefAmpl_1.attrs["axes"] = "experiment_identifier"
 
+        lcls_injector_1 = lcls_1.create_group("injector_1")
+        ds_pressure_1 = lcls_injector_1.create_dataset("pressureSDS",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_pressure_1.attrs["axes"] = "experiment_identifier"
+        ds_pressure_2 = lcls_injector_1.create_dataset("pressureSDSB",(0,),
+                                                 maxshape=(None,),
+                                                 dtype=float)
+        ds_pressure_2.attrs["axes"] = "experiment_identifier"
+
         myHdf5.flush()
     elif facility == 'PAL':
         ###################
