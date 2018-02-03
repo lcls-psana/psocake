@@ -689,7 +689,10 @@ class MaskMaker(object):
             #    dim0 = 1920
             #    dim1 = 1920
             else:
+                print "#####################################"
                 print "saveCheetahFormatMask not implemented"
+                print "#####################################"
+                return
             fname = self.parent.psocakeRunDir + "/staticMask.h5"
             print "Saving static mask in Cheetah format: ", fname
             myHdf5 = h5py.File(fname, 'w')
