@@ -574,7 +574,8 @@ class PeakFinding(object):
 
     def saveCheetahFormat(self, arg):
         if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            if 'cspad' in self.parent.detInfo.lower():
+                print "@@@@@@@@@@@@@@@@@@@ saveCheetahFormat: ", self.parent.index.hiddenCXI
                 dim0 = 8 * 185
                 dim1 = 4 * 388
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
@@ -613,7 +614,7 @@ class PeakFinding(object):
                     img = np.zeros((dim0, dim1))
                     mask = np.zeros((dim0, dim1))
                     counter = 0
-                    if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                    if 'cspad' in self.parent.detInfo.lower():
                         for quad in range(4):
                             for seg in range(8):
                                 img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.calib[counter, :, :]
@@ -640,7 +641,7 @@ class PeakFinding(object):
                         seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
                         #print "son: ", son
                         #seg, row, col, npix, atot, son = peak
-                        if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                        if 'cspad' in self.parent.detInfo.lower():
                             cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg, row, col)
                             myHdf5[grpName + dset_posX][0, i] = cheetahCol
                             myHdf5[grpName + dset_posY][0, i] = cheetahRow

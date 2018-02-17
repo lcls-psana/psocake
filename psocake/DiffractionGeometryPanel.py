@@ -263,7 +263,8 @@ class DiffractionGeometry(object):
             self.findPsanaGeometry()
             if self.calibFile is not None and self.parent.writeAccess:
                 # Convert psana geometry to crystfel geom
-                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
+                   ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
                     if '.temp.geom' in self.parent.index.geom:
                         self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(self.parent.psocakeRunDir + '/.temp.geom')
                         cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
@@ -377,6 +378,7 @@ class DiffractionGeometry(object):
     def updateClen(self, arg):
         if arg == self.parent.facilityLCLS:
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
+               ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
                 self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
@@ -436,6 +438,7 @@ class DiffractionGeometry(object):
     def writeCrystfelGeom(self, arg):
         if arg == self.parent.facilityLCLS:
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
+               ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
                 if self.parent.index.hiddenCXI is not None:
@@ -639,6 +642,10 @@ class DiffractionGeometry(object):
                     top = geo.get_top_geo()
                     children = top.get_list_of_children()[0]
                     geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
+                elif 'cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
+                    top = geo.get_top_geo()
+                    children = top.get_list_of_children()[0]
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     top = geo.get_top_geo()
                     children = top.get_list_of_children()[0]
@@ -725,6 +732,8 @@ class DiffractionGeometry(object):
                     dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
                     geo = self.parent.det.geometry(self.parent.evt)
                     if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                        geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
+                    elif 'cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                         geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
                     elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                         top = geo.get_top_geo()

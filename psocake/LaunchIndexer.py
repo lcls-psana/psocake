@@ -37,7 +37,7 @@ class LaunchIndexer(QtCore.QThread):
 
     def saveCheetahFormatMask(self, run, arg):
         if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            if 'cspad' in self.parent.detInfo.lower():
                 dim0 = 8 * 185
                 dim1 = 4 * 388
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
@@ -60,7 +60,7 @@ class LaunchIndexer(QtCore.QThread):
             else:
                 img = np.zeros((dim0, dim1))
                 counter = 0
-                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+                if 'cspad' in self.parent.detInfo.lower():
                     for quad in range(4):
                         for seg in range(8):
                             img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.mk.combinedMask[counter, :, :]
