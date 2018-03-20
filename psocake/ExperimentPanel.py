@@ -453,6 +453,7 @@ class ExperimentInfo(object):
             self.getEventAndDisplay()
 
         if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
+
         #if self.hasExpRunDetInfo():
         #    if self.parent.facility == self.parent.facilityLCLS:
         #        # update timestamps and fiducial

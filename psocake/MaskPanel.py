@@ -67,7 +67,7 @@ class MaskMaker(object):
         self.mask_central_str = 'central pixels'
         self.mask_unbond_str = 'unbonded pixels'
         self.mask_unbondnrs_str = 'unbonded pixel neighbors'
-        self.mask_generous_str = 'bad readout channels'
+        #self.mask_generous_str = 'bad readout channels'
         self.powder_grp = 'Generate Average Image'
         self.powder_outDir_str = 'Output directory'
         self.powder_runs_str = 'Run(s)'
@@ -93,7 +93,7 @@ class MaskMaker(object):
             self.mask_centralOn = True
             self.mask_unbondOn = True
             self.mask_unbondnrsOn = True
-            self.mask_generousOn = True
+            #self.mask_generousOn = True
             self.display_data = None
             self.mask_rect = None
             self.mask_circle = None
@@ -117,7 +117,7 @@ class MaskMaker(object):
             self.mask_centralOn = False
             self.mask_unbondOn = False
             self.mask_unbondnrsOn = False
-            self.mask_generousOn = False
+            #self.mask_generousOn = False
             self.display_data = None
             self.mask_rect = None
             self.mask_circle = None
@@ -164,7 +164,7 @@ class MaskMaker(object):
                         {'name': self.mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
                         {'name': self.mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
                         {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
-                        {'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
+                        #{'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
                     ]},
                 ]},
                 {'name': self.powder_grp, 'type': 'group', 'children': [
@@ -207,7 +207,7 @@ class MaskMaker(object):
                         {'name': self.mask_central_str, 'type': 'bool', 'value': self.mask_centralOn, 'tip': "mask central edge pixels inside asic2x1"},
                         {'name': self.mask_unbond_str, 'type': 'bool', 'value': self.mask_unbondOn, 'tip': "mask unbonded pixels (cspad only)"},
                         {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
-                        {'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
+                        #{'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
                     ]},
                 ]},
                 {'name': self.powder_grp, 'type': 'group', 'children': [
@@ -309,9 +309,9 @@ class MaskMaker(object):
                 elif path[2] == self.mask_unbondnrs_str:
                     self.parent.pk.algInitDone = False
                     self.updatePsanaMaskFlag(path[2], data)
-                elif path[2] == self.mask_generous_str:
-                    self.parent.pk.algInitDone = False
-                    self.updatePsanaMaskFlag(path[2], data)
+                #elif path[2] == self.mask_generous_str:
+                #    self.parent.pk.algInitDone = False
+                #    self.updatePsanaMaskFlag(path[2], data)
         elif path[0] == self.powder_grp:
             if path[1] == self.powder_outDir_str:
                 self.powder_outDir = data
@@ -445,8 +445,8 @@ class MaskMaker(object):
             self.mask_unbondOn = data
         elif flag == self.mask_unbondnrs_str:
             self.mask_unbondnrsOn = data
-        elif flag == self.mask_generous_str:
-            self.mask_generousOn = data
+        #elif flag == self.mask_generous_str:
+        #    self.mask_generousOn = data
         self.updatePsanaMaskOn()
 
     def updatePsanaMaskOn(self):
@@ -455,23 +455,23 @@ class MaskMaker(object):
             self.psanaMask = self.parent.det.mask(self.parent.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
                                            edges=self.mask_edgesOn, central=self.mask_centralOn,
                                            unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
-            if self.mask_generousOn:
-                self.psanaMask *= self.generousBadPixel(self.psanaMask)
+            #if self.mask_generousOn:
+            #    self.psanaMask *= self.generousBadPixel(self.psanaMask)
             if self.psanaMask is not None:
                 self.psanaMaskAssem = self.parent.det.image(self.parent.evt, self.psanaMask)
             else:
                 self.psanaMaskAssem = None
             self.parent.pk.updateClassification()
 
-    def generousBadPixel(self, unassemMask, n=10):
-        generousBadPixelMask = unassemMask
-        (numAsic, numFs, numSs) = unassemMask.shape
-        for i in range(numAsic):
-            for a in range(numSs):
-                numBadPixels = len(np.where(unassemMask[i, :, a] == 0)[0])
-                if numBadPixels >= n:
-                    generousBadPixelMask[i, :, a] = 0
-        return generousBadPixelMask
+    #def generousBadPixel(self, unassemMask, n=10):
+    #    generousBadPixelMask = unassemMask
+    #    (numAsic, numFs, numSs) = unassemMask.shape
+    #    for i in range(numAsic):
+    #        for a in range(numSs):
+    #            numBadPixels = len(np.where(unassemMask[i, :, a] == 0)[0])
+    #            if numBadPixels >= n:
+    #                generousBadPixelMask[i, :, a] = 0
+    #    return generousBadPixelMask
 
     def initMask(self):
         if self.parent.facility == self.parent.facilityLCLS:

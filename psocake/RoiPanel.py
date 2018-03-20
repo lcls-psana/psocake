@@ -109,6 +109,7 @@ class RoiHistogram(object):
                     if self.x1 > self.parent.data.shape[0]: self.x1 = self.parent.data.shape[0]
                     if self.y1 > self.parent.data.shape[1]: self.y1 = self.parent.data.shape[1]
                     print "######################################################"
+                    print "WARNING: Invalid for Jungfrau or tilted detectors"
                     print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
                         self.y1) + "]"  # Note: self.parent.data[x0:x1,y0:y1]
                     selected = selected[np.where(pixelsExist == 1)]
