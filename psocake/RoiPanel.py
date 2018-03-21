@@ -109,7 +109,6 @@ class RoiHistogram(object):
                     if self.x1 > self.parent.data.shape[0]: self.x1 = self.parent.data.shape[0]
                     if self.y1 > self.parent.data.shape[1]: self.y1 = self.parent.data.shape[1]
                     print "######################################################"
-                    print "WARNING: Invalid for Jungfrau or tilted detectors"
                     print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
                         self.y1) + "]"  # Note: self.parent.data[x0:x1,y0:y1]
                     selected = selected[np.where(pixelsExist == 1)]
@@ -132,6 +131,7 @@ class RoiHistogram(object):
                                     plt.imshow(self.parent.calib[itile, ax1.min():ax1.max(), ax0.min():ax0.max()],
                                                interpolation='none')
                                     plt.show()
+                    print "WARNING: Unassembled ROI is invalid for tilted detectors"
                     print "######################################################"
                 elif roi.name == 'circ':
                     selected = self.ret
