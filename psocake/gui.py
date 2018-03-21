@@ -318,10 +318,8 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.exp.dock, 'above', self.geom.dock)
 
             self.area.addDock(self.hf.dock, 'bottom', self.exp.dock)
-            self.area.addDock(self.index.dock, 'bottom', self.exp.dock)
             self.area.addDock(self.mk.dock, 'bottom', self.exp.dock)
-            self.area.moveDock(self.index.dock, 'above', self.mk.dock)  ## move d6 to stack on top of d4
-            self.area.moveDock(self.hf.dock, 'above', self.index.dock)
+            self.area.moveDock(self.hf.dock, 'above', self.mk.dock)     ## move hf to stack on top of mk
 
             self.area.addDock(self.small.dock, 'right')
             self.area.addDock(self.control.dock, 'right')
