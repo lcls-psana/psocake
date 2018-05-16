@@ -68,6 +68,7 @@ class MaskMaker(object):
         self.mask_unbond_str = 'unbonded pixels'
         self.mask_unbondnrs_str = 'unbonded pixel neighbors'
         #self.mask_generous_str = 'bad readout channels'
+        self.mask_tag_str = 'Tag'
         self.powder_grp = 'Generate Average Image'
         self.powder_outDir_str = 'Output directory'
         self.powder_runs_str = 'Run(s)'
@@ -94,6 +95,7 @@ class MaskMaker(object):
             self.mask_unbondOn = True
             self.mask_unbondnrsOn = True
             #self.mask_generousOn = True
+            self.mask_tag = ''
             self.display_data = None
             self.mask_rect = None
             self.mask_circle = None
@@ -166,6 +168,7 @@ class MaskMaker(object):
                         {'name': self.mask_unbondnrs_str, 'type': 'bool', 'value': self.mask_unbondnrsOn, 'tip': "mask unbonded pixel neighbors (cspad only)"},
                         #{'name': self.mask_generous_str, 'type': 'bool', 'value': self.mask_generousOn, 'tip': "mask bad readout channels"},
                     ]},
+                    {'name': self.mask_tag_str, 'type': 'str', 'value': self.mask_tag, 'tip': "attach tag to mask, e.g. staticMask_tag.h5"},
                 ]},
                 {'name': self.powder_grp, 'type': 'group', 'children': [
                     {'name': self.powder_outDir_str, 'type': 'str', 'value': self.powder_outDir},
@@ -281,6 +284,8 @@ class MaskMaker(object):
             elif path[1] == self.psana_mask_str and len(path) == 2:
                 self.updatePsanaMask(data)
                 self.parent.pk.algInitDone = False
+            elif path[1] == self.mask_tag_str and len(path) == 2:
+                self.updateMaskTag(data)
             if len(path) == 3:
                 if path[2] == self.mask_mode_str:
                     self.parent.pk.algInitDone = False
@@ -472,6 +477,9 @@ class MaskMaker(object):
     #            if numBadPixels >= n:
     #                generousBadPixelMask[i, :, a] = 0
     #    return generousBadPixelMask
+
+    def updateMaskTag(self, data):
+        self.mask_tag = data
 
     def initMask(self):
         if self.parent.facility == self.parent.facilityLCLS:
@@ -676,6 +684,15 @@ class MaskMaker(object):
             combinedStaticMask *= self.psanaMask
         return combinedStaticMask
 
+    def parseMaskTag(self):
+        _tag = ''
+        if self.mask_tag:
+            if "$n" in self.mask_tag:
+                _tag = "_" + self.mask_tag.replace("$n", str(self.parent.eventNumber))
+            else:
+                _tag = "_" + self.mask_tag
+        return _tag
+
     def saveCheetahStaticMask(self):
         # Save cheetah format mask
         if self.parent.facility == self.parent.facilityLCLS:
@@ -693,7 +710,9 @@ class MaskMaker(object):
                 print "saveCheetahFormatMask not implemented"
                 print "#####################################"
                 return
-            fname = self.parent.psocakeRunDir + "/staticMask.h5"
+
+            _tag = self.parseMaskTag()
+            fname = self.parent.psocakeRunDir + "/staticMask"+_tag+".h5"
             print "Saving static mask in Cheetah format: ", fname
             myHdf5 = h5py.File(fname, 'w')
             dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
@@ -732,25 +751,26 @@ class MaskMaker(object):
             myHdf5.close()
 
     def deployMask(self):
-        print "*** deploy user-defined mask as mask.txt and mask.npy as DAQ shape ***"
-        print "*** deploy user-defined mask as mask_natural_shape.npy as natural shape ***"
-
         combinedStaticMask = self.getCombinedStaticMask()
 
         if self.parent.args.v >= 1: print "natural static mask: ", combinedStaticMask.shape
 
         if combinedStaticMask is not None:
+            _tag = self.parseMaskTag()
+            print "*** deploy user-defined mask as mask"+_tag+".txt and mask"+_tag+".npy as DAQ shape ***"
+            print "*** deploy user-defined mask as mask_natural_shape"+_tag+".npy as natural shape ***"
+
             if combinedStaticMask.size == 2 * 185 * 388:  # cspad2x2
                 # DAQ shape
                 asData2x2 = two2x1ToData2x2(combinedStaticMask)
-                np.save(self.parent.psocakeRunDir + "/mask.npy", asData2x2)
-                np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
+                np.save(self.parent.psocakeRunDir + "/mask"+_tag+".npy", asData2x2)
+                np.savetxt(self.parent.psocakeRunDir + "/mask"+_tag+".txt",
                            asData2x2.reshape((-1, asData2x2.shape[-1])), fmt='%0.18e')
                 # Natural shape
-                np.save(self.parent.psocakeRunDir + "/mask_natural_shape.npy", combinedStaticMask)
+                np.save(self.parent.psocakeRunDir + "/mask_natural_shape"+_tag+".npy", combinedStaticMask)
             else:
-                np.save(self.parent.psocakeRunDir + "/mask.npy", combinedStaticMask)
-                np.savetxt(self.parent.psocakeRunDir + "/mask.txt",
+                np.save(self.parent.psocakeRunDir + "/mask"+_tag+".npy", combinedStaticMask)
+                np.savetxt(self.parent.psocakeRunDir + "/mask"+_tag+".txt",
                            combinedStaticMask.reshape((-1, combinedStaticMask.shape[-1])), fmt='%0.18e')
             self.saveCheetahStaticMask()
 

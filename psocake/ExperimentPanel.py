@@ -535,9 +535,6 @@ class ExperimentInfo(object):
                         if content[0].strip() == self.parent.username:
                             if logbook_present and self.table is not None:
                                 self.logger = True
-                            else:
-                                if self.parent.facility == self.parent.facilityLCLS:
-                                    print "WARNING: logbook not present"
                             if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
                         else:
                             self.logger = False
@@ -651,6 +648,20 @@ class ExperimentInfo(object):
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
                     self.parent.clen)
+            elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
+                if self.parent.detectorDistance < 0.01:
+                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
+                    self.parent.clen)
+            elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
+                if self.parent.detectorDistance < 0.01:
+                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
+                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
+                    self.parent.clen)
             else:
                 print "#############################################################"
                 print "updateDetectorDistance: not implemented for this detector yet"
@@ -702,7 +713,9 @@ class ExperimentInfo(object):
 
     def setClen(self):
         if self.parent.facility == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            if 'cspad2x2' in self.parent.detInfo.lower():
+                self.parent.clen = 0.0 # the cspad2x2 detector is not motorized
+            elif 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 try:
                     self.parent.clenEpics = str(self.parent.detAlias) + '_z'
                     self.readEpicsClen()
@@ -713,6 +726,7 @@ class ExperimentInfo(object):
                     elif 'ds2' in self.parent.detInfo.lower():
                         self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                         self.readEpicsClen()
+
                     else:
                         print "Couldn't handle detector clen. Try using the full detector name."
                         exit()
@@ -733,6 +747,16 @@ class ExperimentInfo(object):
                     print "ERROR: No such epics variable, ", self.parent.clenEpics
                     print "ERROR: setting clen to 0.0 metre"
                     self.parent.clen = 0.0  # metres
+            elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
+                self.parent.clenEpics = 'AMO:LMP:MMS:10.RBV' # There's no alias
+                try:
+                    self.readEpicsClen()
+                except:
+                    print "ERROR: No such epics variable, ", self.parent.clenEpics
+                    print "ERROR: setting clen to 0.0 metre"
+                    self.parent.clen = 0.0 # metres
+            elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
+                self.parent.clen = 0.0 # the back pnccd is not motorized at AMO
             else:
                 print "#########################################"
                 print "Not implemented yet clen: ", self.parent.detInfo

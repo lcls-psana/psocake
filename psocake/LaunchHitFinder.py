@@ -46,7 +46,7 @@ class HitFinder(QtCore.QThread):
                 if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
                 cmd = "bsub -q "+self.parent.hf.spiParam_queue+\
                   " -n "+str(self.parent.hf.spiParam_cpus)+\
-                  " -o "+runDir+"/.%J.log mpirun findHits"+\
+                  " -o "+runDir+"/.%J.log mpirun --mca btl ^openib findHits"+\
                   " -e " + self.experimentName + \
                   " -d "+self.detInfo+\
                   " --outDir " + runDir

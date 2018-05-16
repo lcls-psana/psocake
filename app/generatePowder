@@ -65,6 +65,8 @@ class Stats:
             # Save calibman compatible file
             calibman_max = self.maximum.reshape((-1,self.maximum.shape[-1]))
             np.savetxt(file+"_max.txt",calibman_max,fmt='%0.18e')
+            calibman_mean = self.mean.reshape((-1,self.maximum.shape[-1]))
+            np.savetxt(file+"_mean.txt",calibman_mean,fmt='%0.18e')
         else:
             comm.Reduce(self.sum,self.sum)
             comm.Reduce(self.sumsq,self.sumsq)

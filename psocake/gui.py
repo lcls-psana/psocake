@@ -41,6 +41,7 @@ parser.add_argument('--version', action='version',
 parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
 # LCLS specific
 parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
+parser.add_argument("--noInfiniband", help="Do not use infiniband.", action='store_true')
 # PAL specific
 parser.add_argument("--debug", help="Debug mode of PAL at LCLS.", action='store_true')
 args = parser.parse_args()

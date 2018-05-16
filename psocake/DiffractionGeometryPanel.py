@@ -380,7 +380,9 @@ class DiffractionGeometry(object):
             if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
                ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
                ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
+               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName) or \
+               ('camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower()) or \
+               ('camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower()):
                 self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
@@ -651,6 +653,10 @@ class DiffractionGeometry(object):
                     children = top.get_list_of_children()[0]
                     geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+                    top = geo.get_top_geo()
+                    children = top.get_list_of_children()[0]
+                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
+                elif 'pnccd' in self.parent.detInfo.lower():
                     top = geo.get_top_geo()
                     children = top.get_list_of_children()[0]
                     geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
