@@ -188,8 +188,7 @@ class LaunchPeakFinder(QtCore.QThread):
                        " --psanaMask_edges "+str(self.parent.mk.mask_edgesOn) + \
                        " --psanaMask_central "+str(self.parent.mk.mask_centralOn) + \
                        " --psanaMask_unbond "+str(self.parent.mk.mask_unbondOn) + \
-                       " --psanaMask_unbondnrs "+str(self.parent.mk.mask_unbondnrsOn) + \
-                       " --psanaMask_badReadout " + str(self.parent.mk.mask_generousOn)
+                       " --psanaMask_unbondnrs "+str(self.parent.mk.mask_unbondnrsOn)
 
                 cmd += " --mask "+self.parent.pk.hitParam_outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
 

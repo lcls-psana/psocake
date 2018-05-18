@@ -575,7 +575,6 @@ class PeakFinding(object):
     def saveCheetahFormat(self, arg):
         if arg == self.parent.facilityLCLS:
             if 'cspad' in self.parent.detInfo.lower():
-                print "@@@@@@@@@@@@@@@@@@@ saveCheetahFormat: ", self.parent.index.hiddenCXI
                 dim0 = 8 * 185
                 dim1 = 4 * 388
             elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:

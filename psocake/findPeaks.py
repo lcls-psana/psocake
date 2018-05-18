@@ -51,7 +51,6 @@ parser.add_argument("--psanaMask_edges",help="psana edges on",default="False", t
 parser.add_argument("--psanaMask_central",help="psana central on",default="False", type=str)
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default="False", type=str)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
-parser.add_argument("--psanaMask_badReadout",help="generous bad pixel map on",default="False", type=str)
 parser.add_argument("--mask",help="static mask",default='', type=str)
 #parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
 parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
