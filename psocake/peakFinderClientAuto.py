@@ -318,8 +318,6 @@ def runclient(args):
                 pairsFoundPerSpot = 0.0
 
         md=mpidata()
-        print("@@@@ numPeaksFound: ", len(d.peakFinder.peaks))
-
         md.addarray('peaks', d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes
