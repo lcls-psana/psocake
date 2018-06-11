@@ -129,7 +129,6 @@ def runclient(args):
                                                   psanaMask_central=args.psanaMask_central,
                                                   psanaMask_unbond=args.psanaMask_unbond,
                                                   psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                                  generousMask = 1,
                                                   medianFilterOn=args.medianBackground,
                                                   medianRank=args.medianRank,
                                                   radialFilterOn=args.radialBackground,
@@ -162,7 +161,6 @@ def runclient(args):
                                                      psanaMask_central=args.psanaMask_central,
                                                      psanaMask_unbond=args.psanaMask_unbond,
                                                      psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                                     generousMask=args.auto,
                                                      medianFilterOn=args.medianBackground,
                                                      medianRank=args.medianRank,
                                                      radialFilterOn=args.radialBackground,
@@ -256,7 +254,6 @@ def runclient(args):
                                              psanaMask_central=args.psanaMask_central,
                                              psanaMask_unbond=args.psanaMask_unbond,
                                              psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                             generousMask=1,
                                              medianFilterOn=args.medianBackground,
                                              medianRank=args.medianRank,
                                              radialFilterOn=args.radialBackground,
@@ -321,6 +318,8 @@ def runclient(args):
                 pairsFoundPerSpot = 0.0
 
         md=mpidata()
+        print("@@@@ numPeaksFound: ", len(d.peakFinder.peaks))
+
         md.addarray('peaks', d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes

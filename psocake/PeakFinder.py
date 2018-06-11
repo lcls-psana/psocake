@@ -19,7 +19,7 @@ class PeakFinder:
                  hitParam_alg_amax_thr, hitParam_alg_atot_thr, hitParam_alg_son_min,
                  streakMask_on, streakMask_sigma, streakMask_width, userMask_path, psanaMask_on, psanaMask_calib,
                  psanaMask_status, psanaMask_edges, psanaMask_central, psanaMask_unbond, psanaMask_unbondnrs,
-                 generousMask=0, medianFilterOn=0, medianRank=5, radialFilterOn=0, distance=0.0, windows=None, **kwargs):
+                 medianFilterOn=0, medianRank=5, radialFilterOn=0, distance=0.0, windows=None, **kwargs):
         self.exp = exp
         self.run = run
         self.detname = detname
@@ -44,7 +44,6 @@ class PeakFinder:
         self.psanaMask_central = str2bool(psanaMask_central)
         self.psanaMask_unbond = str2bool(psanaMask_unbond)
         self.psanaMask_unbondnrs = str2bool(psanaMask_unbondnrs)
-        self.generousMaskOn = generousMask
 
         self.medianFilterOn = medianFilterOn
         self.medianRank = medianRank
@@ -58,7 +57,6 @@ class PeakFinder:
         self.streakMask = None
         self.userPsanaMask = None
         self.combinedMask = None
-        self.generousMask = None
 
         # Make user mask
         if self.userMask_path is not None:
@@ -70,8 +68,6 @@ class PeakFinder:
                 self.psanaMask = detector.mask(evt, calib=self.psanaMask_calib, status=self.psanaMask_status,
                                                edges=self.psanaMask_edges, central=self.psanaMask_central,
                                                unbond=self.psanaMask_unbond, unbondnbrs=self.psanaMask_unbondnrs)
-                if self.generousMaskOn:
-                    self.psanaMask = self.generousBadPixel(self.psanaMask)
             # Combine userMask and psanaMask
             self.userPsanaMask = np.ones_like(self.det.calib(evt), dtype=np.int16)
             if self.userMask is not None:
@@ -158,16 +154,6 @@ class PeakFinder:
             self.ix = np.transpose(self.iy)
             self.iX = np.array(self.ix, dtype=np.int64)
             self.iY = np.array(self.iy, dtype=np.int64)
-
-    def generousBadPixel(self, unassemMask, n=10):
-        generousBadPixelMask = unassemMask
-        (numAsic, numFs, numSs) = unassemMask.shape
-        for i in range(numAsic):
-            for a in range(numSs):
-                numBadPixels = len(np.where(unassemMask[i, :, a] == 0)[0])
-                if numBadPixels >= n:
-                    generousBadPixelMask[i, :, a] = 0
-        return generousBadPixelMask
 
     def setupExperiment(self):
         access = 'exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx'
