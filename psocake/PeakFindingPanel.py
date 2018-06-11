@@ -159,32 +159,6 @@ class PeakFinding(object):
             self.hitParam_alg1_rank = 3
             self.hitParam_alg1_radius = 3
             self.hitParam_alg1_dr = 5
-        # self.hitParam_alg2_npix_min = 1.
-        # self.hitParam_alg2_npix_max = 5000.
-        # self.hitParam_alg2_amax_thr = 1.
-        # self.hitParam_alg2_atot_thr = 1.
-        # self.hitParam_alg2_son_min = 1.
-        # self.hitParam_alg2_thr = 10.
-        # self.hitParam_alg2_r0 = 1.
-        # self.hitParam_alg2_dr = 0.05
-        # self.hitParam_alg3_npix_min = 5.
-        # self.hitParam_alg3_npix_max = 5000.
-        # self.hitParam_alg3_amax_thr = 0.
-        # self.hitParam_alg3_atot_thr = 0.
-        # self.hitParam_alg3_son_min = 4.
-        # self.hitParam_alg3_rank = 3
-        # self.hitParam_alg3_r0 = 5.
-        # self.hitParam_alg3_dr = 0.05
-        # self.hitParam_alg4_npix_min = 1.
-        # self.hitParam_alg4_npix_max = 45.
-        # self.hitParam_alg4_amax_thr = 800.
-        # self.hitParam_alg4_atot_thr = 0
-        # self.hitParam_alg4_son_min = 7.
-        # self.hitParam_alg4_thr_low = 200.
-        # self.hitParam_alg4_thr_high = self.hitParam_alg1_thr_high
-        # self.hitParam_alg4_rank = 3
-        # self.hitParam_alg4_r0 = 2
-        # self.hitParam_alg4_dr = 1
         if self.parent.facility == self.parent.facilityLCLS:
             self.hitParam_outDir = self.parent.psocakeDir
             self.hitParam_outDir_overridden = False
@@ -638,8 +612,6 @@ class PeakFinding(object):
                         nPeaks = maxNumPeaks
                     for i, peak in enumerate(peaks):
                         seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
-                        #print "son: ", son
-                        #seg, row, col, npix, atot, son = peak
                         if 'cspad' in self.parent.detInfo.lower():
                             cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg, row, col)
                             myHdf5[grpName + dset_posX][0, i] = cheetahCol
@@ -901,10 +873,7 @@ class PeakFinding(object):
                         self.peakRadius = int(self.hitParam_alg4_r0)
                         self.peaks = self.alg.peak_finder_v4(self.parent.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
                                                    rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
-                    #print "peaks: ", self.peaks
-                    #print "algorithm: ", self.algorithm
                     self.numPeaksFound = self.peaks.shape[0]
-                    #print "numPeaksFound", self.numPeaksFound
                 elif self.parent.facility == self.parent.facilityPAL:
                     # Only initialize the hit finder algorithm once
                     self.peakRadius = int(self.hitParam_alg1_radius)
@@ -995,7 +964,7 @@ class PeakFinding(object):
         return [meanClosestNeighborDist, pairsFoundPerSpot]
 
     def convert_peaks_to_cheetah(self, s, r, c) :
-        """Converts seg, row, col assuming (32,185,388)
+        """Converts psana seg, row, col assuming (32,185,388)
            to cheetah 2-d table row and col (8*185, 4*388)
         """
         segs, rows, cols = (32,185,388)
@@ -1003,29 +972,48 @@ class PeakFinding(object):
         col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
         return row2d, col2d
 
+    def convert_peaks_to_psana(self, row2d, col2d) :
+        """Converts cheetah 2-d table row and col (8*185, 4*388)
+           to psana seg, row, col assuming (32,185,388)
+        """
+        if isinstance(row2d, np.ndarray):
+            row2d = row2d.astype('int')
+            col2d = col2d.astype('int')
+        segs, rows, cols = (32,185,388)
+        s = (row2d / rows) + (col2d / cols * 8)
+        r = row2d % rows
+        c = col2d % cols
+        return s, r, c
+
     def getMaxRes(self, posX, posY, centerX, centerY):
         maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
         if self.parent.args.v >= 1: print "maxRes: ", maxRes
         return maxRes # in pixels
+
+    def assemblePeakPos(self, peaks):
+        self.ix = self.parent.det.indexes_x(self.parent.evt)
+        self.iy = self.parent.det.indexes_y(self.parent.evt)
+        if self.ix is None:
+            (_, dim0, dim1) = self.parent.calib.shape
+            self.iy = np.tile(np.arange(dim0), [dim1, 1])
+            self.ix = np.transpose(self.iy)
+        self.iX = np.array(self.ix, dtype=np.int64)
+        self.iY = np.array(self.iy, dtype=np.int64)
+        if len(self.iX.shape) == 2:
+            self.iX = np.expand_dims(self.iX, axis=0)
+            self.iY = np.expand_dims(self.iY, axis=0)
+        cenX = self.iX[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
+            peaks[:, 2], dtype=np.int64)] + 0.5
+        cenY = self.iY[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
+            peaks[:, 2], dtype=np.int64)] + 0.5
+        return cenX, cenY
 
     def drawPeaks(self):
         self.parent.img.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
                 if self.parent.facility == self.parent.facilityLCLS:
-                    self.ix = self.parent.det.indexes_x(self.parent.evt)
-                    self.iy = self.parent.det.indexes_y(self.parent.evt)
-                    if self.ix is None:
-                        (_, dim0, dim1) = self.parent.calib.shape
-                        self.iy = np.tile(np.arange(dim0),[dim1, 1])
-                        self.ix = np.transpose(self.iy)
-                    self.iX = np.array(self.ix, dtype=np.int64)
-                    self.iY = np.array(self.iy, dtype=np.int64)
-                    if len(self.iX.shape)==2:
-                        self.iX = np.expand_dims(self.iX,axis=0)
-                        self.iY = np.expand_dims(self.iY,axis=0)
-                    cenX = self.iX[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
-                    cenY = self.iY[np.array(self.peaks[:,0],dtype=np.int64),np.array(self.peaks[:,1],dtype=np.int64),np.array(self.peaks[:,2],dtype=np.int64)] + 0.5
+                    cenX, cenY = self.assemblePeakPos(self.peaks)
                 elif self.parent.facility == self.parent.facilityPAL:
                     (dim0, dim1) = self.parent.calib.shape
                     self.iy = np.tile(np.arange(dim0), [dim1, 1])
@@ -1059,9 +1047,26 @@ class PeakFinding(object):
                 self.parent.img.peak_text.setPos(0,0)
         else:
             self.parent.img.peak_feature.setData([], [], pxMode=False)
-            #self.parent.index.indexedPeaks = None
-            #self.parent.index.numIndexedPeaksFound = 0
-            #self.parent.index.clearIndexedPeaks()
-            #if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
+
+        if self.hitParam_extra.endswith('.cxi'): # Draw peaks from a cxi file
+            # Read cxi file containing peaks
+            f = h5py.File(self.hitParam_extra)
+            npeaks = f['/entry_1/result_1/nPeaksAll'][self.parent.eventNumber]
+            row2d = f['/entry_1/result_1/peakYPosRawAll'][self.parent.eventNumber, :npeaks]
+            col2d = f['/entry_1/result_1/peakXPosRawAll'][self.parent.eventNumber, :npeaks]
+            f.close()
+            # Convert cheetah peaks to psana peaks
+            s, r, c = self.convert_peaks_to_psana(row2d, col2d)
+            peaks = np.array([s, r, c]).T
+            # Display peaks
+            if peaks is not None and len(peaks) > 0:
+                if self.parent.facility == self.parent.facilityLCLS:
+                    cenX, cenY = self.assemblePeakPos(peaks)
+                    diameter = int(self.hitParam_alg1_radius) * 2 + 1
+                    self.parent.img.filePeak_feature.setData(cenX, cenY, symbol='s', \
+                                                         size=diameter, brush=(255, 255, 255, 0), \
+                                                         pen=pg.mkPen({'color': "y", 'width': 2}), pxMode=False)  # FF0
+            else:
+                self.parent.img.filePeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done drawPeaks"
         self.parent.geom.drawCentre()
