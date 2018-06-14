@@ -20,7 +20,7 @@ class FriedelSym(object):
         pdim = np.zeros_like(centre)  # padded dimension
         for i, val in enumerate(centre):
             pdim[i] = 2 * max(val, dim[i] - val + 1) + 1
-        shift = np.floor(pdim / 2.) + 1 - centre
+        shift = (np.floor(pdim / 2.) + 1 - centre).astype('i4')
         endGap = pdim - dim
         self.pad = []
         for i in zip(shift, endGap - 1):
