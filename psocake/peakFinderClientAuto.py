@@ -26,10 +26,7 @@ def runclient(args):
     pairsFoundPerSpot = 0.0
     highSigma = 3.5
     lowSigma = 2.5
-    if str2bool(args.auto):
-        likelihoodThresh = 0.035
-    else:
-        likelihoodThresh = 0
+    likelihoodThresh = 0.035
 
     if facility == 'LCLS':
         access = "exp="+args.exp+":run="+str(args.run)+':idx'
@@ -264,66 +261,51 @@ def runclient(args):
                                              clen=args.clen,
                                              localCalib=args.localCalib,
                                              access=args.access)
-        if not str2bool(args.auto):
-            if args.profile: tic = time.time()
+            ix = d.indexes_x(evt)
+            iy = d.indexes_y(evt)
+            d.iX = np.array(ix, dtype=np.int64)
+            d.iY = np.array(iy, dtype=np.int64)
+            d.ipx, d.ipy = d.point_indexes(evt, pxy_um=(0, 0))
 
-            d.peakFinder.findPeaks(detarr, evt)
+        d.peakFinder.findPeaks(detarr, evt)
+        # Likelihood
+        numPeaksFound = d.peakFinder.peaks.shape[0]
+        if numPeaksFound >= args.minPeaks and \
+           numPeaksFound <= args.maxPeaks and \
+           d.peakFinder.maxRes >= args.minRes:
+            cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+            cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
 
-            if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
+            x = cenX - d.ipx  # args.center[0]
+            y = cenY - d.ipy  # args.center[1]
+
+            pixSize = float(d.pixel_size(evt))
+            detdis = float(args.detectorDistance)
+            z = detdis / pixSize * np.ones(x.shape)  # pixels
+
+            ebeam = ebeamDet.get(evt)
+            try:
+                photonEnergy = ebeam.ebeamPhotonEnergy()
+            except:
+                photonEnergy = 1
+
+            wavelength = 12.407002 / float(photonEnergy)  # Angstrom
+            norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+            qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+            [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
         else:
-            ################################
-            # Determine thr_high and thr_low
-            if args.profile: tic = time.time()
-
-            calib1D = detarr.ravel()
-            mean = np.mean(calib1D[d.ind])
-            spread = np.std(calib1D[d.ind])
-            thr_high = int(mean + highSigma * spread + 50)
-            thr_low = int(mean + lowSigma * spread + 50)
-
-            d.peakFinder.findPeaks(detarr, evt, thr_high, thr_low)
-
-            if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
-
-            # Likelihood
-            numPeaksFound = d.peakFinder.peaks.shape[0]
-            if numPeaksFound >= args.minPeaks and \
-               numPeaksFound <= args.maxPeaks and \
-               d.peakFinder.maxRes >= args.minRes:
-                cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                               np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                               np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-                cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                               np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                               np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-
-                x = cenX - d.ipx  # args.center[0]
-                y = cenY - d.ipy  # args.center[1]
-
-                pixSize = float(d.pixel_size(evt))
-                detdis = float(args.detectorDistance)
-                z = detdis / pixSize * np.ones(x.shape)  # pixels
-
-                ebeam = ebeamDet.get(evt)
-                try:
-                    photonEnergy = ebeam.ebeamPhotonEnergy()
-                except:
-                    photonEnergy = 1
-
-                wavelength = 12.407002 / float(photonEnergy)  # Angstrom
-                norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-                qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
-                [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
-            else:
-                pairsFoundPerSpot = 0.0
+            pairsFoundPerSpot = 0.0
 
         md=mpidata()
         md.addarray('peaks', d.peakFinder.peaks)
         md.small.eventNum = nevent
         md.small.maxRes = d.peakFinder.maxRes
         md.small.powder = 0
-        if str2bool(args.auto):
-            md.small.likelihood = pairsFoundPerSpot
+        md.small.likelihood = pairsFoundPerSpot
 
         if args.profile:
             md.small.calibTime = calibTime
@@ -514,8 +496,8 @@ def runclient(args):
 
             if len(d.peakFinder.peaks) >= args.minPeaks and \
                len(d.peakFinder.peaks) <= args.maxPeaks and \
-               d.peakFinder.maxRes >= args.minRes and \
-               pairsFoundPerSpot >= likelihoodThresh:
+               d.peakFinder.maxRes >= args.minRes:
+               #and pairsFoundPerSpot >= likelihoodThresh:
                 # Write image in cheetah format
                 img = ps.getCheetahImg()
                 if img is not None:
@@ -591,65 +573,45 @@ def runclient(args):
                         md.send()
                         continue
 
-                    if not str2bool(args.auto):
-                        if args.profile: tic = time.time()
+                    d.peakFinder.findPeaks(detarr, evt)
+                    # Likelihood
+                    numPeaksFound = d.peakFinder.peaks.shape[0]
+                    if numPeaksFound >= args.minPeaks and \
+                                    numPeaksFound <= args.maxPeaks and \
+                                    d.peakFinder.maxRes >= args.minRes:
+                        cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+                        cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
 
-                        d.peakFinder.findPeaks(detarr, evt)
+                        x = cenX - d.ipx  # args.center[0]
+                        y = cenY - d.ipy  # args.center[1]
 
-                        if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
+                        pixSize = float(d.pixel_size(evt))
+                        detdis = float(args.detectorDistance)
+                        z = detdis / pixSize * np.ones(x.shape)  # pixels
+
+                        ebeam = ebeamDet.get(evt)
+                        try:
+                            photonEnergy = ebeam.ebeamPhotonEnergy()
+                        except:
+                            photonEnergy = 1
+
+                        wavelength = 12.407002 / float(photonEnergy)  # Angstrom
+                        norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+                        qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+                        [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
                     else:
-                        ################################
-                        # Determine thr_high and thr_low
-                        if args.profile: tic = time.time()
-
-                        calib1D = detarr.ravel()
-                        mean = np.mean(calib1D[d.ind])
-                        spread = np.std(calib1D[d.ind])
-                        thr_high = int(mean + highSigma * spread + 50)
-                        thr_low = int(mean + lowSigma * spread + 50)
-                        d.peakFinder.findPeaks(detarr, evt, thr_high, thr_low)
-
-                        if args.profile: peakTime = time.time() - tic  # Time to find the peaks per event
-
-                        # Likelihood
-                        numPeaksFound = d.peakFinder.peaks.shape[0]
-                        if numPeaksFound >= args.minPeaks and \
-                           numPeaksFound <= args.maxPeaks and \
-                           d.peakFinder.maxRes >= args.minRes:
-                            cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                                           np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                                           np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-                            cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                                           np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                                           np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-
-                            x = cenX - d.ipx  # args.center[0]
-                            y = cenY - d.ipy  # args.center[1]
-
-                            pixSize = float(d.pixel_size(evt))
-                            detdis = float(args.detectorDistance)
-                            z = detdis / pixSize * np.ones(x.shape)  # pixels
-
-                            ebeam = ebeamDet.get(evt)
-                            try:
-                                photonEnergy = ebeam.ebeamPhotonEnergy()
-                            except:
-                                photonEnergy = 1
-
-                            wavelength = 12.407002 / float(photonEnergy)  # Angstrom
-                            norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-                            qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
-                            [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
-                        else:
-                            pairsFoundPerSpot = 0.0
+                        pairsFoundPerSpot = 0.0
 
                     md = mpidata()
                     md.addarray('peaks', d.peakFinder.peaks)
                     md.small.eventNum = nevent
                     md.small.maxRes = d.peakFinder.maxRes
                     md.small.powder = 0
-                    if str2bool(args.auto):
-                        md.small.likelihood = pairsFoundPerSpot
+                    md.small.likelihood = pairsFoundPerSpot
 
                     if args.profile:
                         md.small.calibTime = calibTime
@@ -840,8 +802,8 @@ def runclient(args):
 
                         if len(d.peakFinder.peaks) >= args.minPeaks and \
                                         len(d.peakFinder.peaks) <= args.maxPeaks and \
-                                        d.peakFinder.maxRes >= args.minRes and \
-                                        pairsFoundPerSpot >= likelihoodThresh:
+                                        d.peakFinder.maxRes >= args.minRes:
+                            #and pairsFoundPerSpot >= likelihoodThresh:
                             # Write image in cheetah format
                             img = ps.getCheetahImg()
                             if img is not None: md.addarray('data', img)

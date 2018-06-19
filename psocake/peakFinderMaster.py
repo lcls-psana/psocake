@@ -178,11 +178,8 @@ def runmaster(args, nClients):
 
             numLeft = len(np.where(myHdf5[grpName + dset_nPeaks].value == -1)[0])
 
-            if str2bool(args.auto):
-                likelihood = md.small.likelihood
-                myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood
-            else:
-                likelihood = 0
+            likelihood = md.small.likelihood
+            myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood
 
             if facility == 'LCLS':
                 myHdf5[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay

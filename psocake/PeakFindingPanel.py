@@ -731,21 +731,6 @@ class PeakFinding(object):
                             self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
                                                     amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
                                                     son_min=self.hitParam_alg1_son_min)
-                            #self.peakRadius = int(self.hitParam_alg1_radius)
-                            #self.alg = myskbeam.DropletA(self.peakRadius,
-                            #                             self.peakRadius + self.hitParam_alg1_dr)  # PyAlgos(windows=self.windows, mask=self.parent.mk.combinedMask, pbits=0)
-                            #if not self.turnOnAutoPeaks:
-                            #    pass
-                                #self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min, npix_max=self.hitParam_alg1_npix_max, \
-                                #                        amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
-                                #                        son_min=self.hitParam_alg1_son_min)
-                            #else:
-                            #    pass
-                                #self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg1_npix_min,
-                                #                                 npix_max=self.hitParam_alg1_npix_max,
-                                #                                 amax_thr=self.hitParam_alg1_amax_thr,
-                                #                                 atot_thr=0,
-                                #                                 son_min=self.hitParam_alg1_son_min)
                         elif self.algorithm == 2:
                             self.alg = PyAlgos(mask=None, pbits=0)
                             self.peakRadius = int(self.hitParam_alg1_radius)
@@ -760,9 +745,15 @@ class PeakFinding(object):
                             self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg4_npix_min, npix_max=self.hitParam_alg4_npix_max, \
                                                     amax_thr=self.hitParam_alg4_amax_thr, atot_thr=self.hitParam_alg4_atot_thr, \
                                                     son_min=self.hitParam_alg4_son_min)
+                        ix = self.parent.det.indexes_x(self.parent.evt)
+                        iy = self.parent.det.indexes_y(self.parent.evt)
+                        self.iX = np.array(ix, dtype=np.int64)
+                        self.iY = np.array(iy, dtype=np.int64)
+
                         self.algInitDone = True
 
                     self.parent.calib = self.parent.calib * 1.0 # Neccessary when int is returned
+
                     if self.algorithm == 1:
                         # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                         #                           around pixel with maximal intensity.
@@ -775,19 +766,6 @@ class PeakFinding(object):
                                                                    r0=self.peakRadius,
                                                                    dr=self.hitParam_alg1_dr,
                                                                    mask=self.parent.mk.combinedMask.astype(np.uint16))
-                            #self.peaks = self.alg.findPeaks(self.parent.calib,
-                            #                                npix_min=self.hitParam_alg1_npix_min,
-                            #                                npix_max=self.hitParam_alg1_npix_max,
-                            #                                atot_thr=self.hitParam_alg1_atot_thr,
-                            #                                son_min=self.hitParam_alg1_son_min,
-                            #                                thr_low=self.hitParam_alg1_thr_low,
-                            #                                thr_high=self.hitParam_alg1_thr_high,
-                            #                                mask=self.parent.mk.combinedMask)
-                                                                   #thr_low=self.hitParam_alg1_thr_low,
-                                                                   #thr_high=self.hitParam_alg1_thr_high,
-                                                                   #rank=int(self.hitParam_alg1_rank),
-                                                                   #r0=self.peakRadius,
-                                                                   #dr=self.hitParam_alg1_dr)
                         else:
                             ################################
                             # Determine thr_high and thr_low
@@ -845,8 +823,6 @@ class PeakFinding(object):
                             lowSigma = 2.5
                             thr_high = int(mean + highSigma * spread + 50)
                             thr_low = int(mean + lowSigma * spread + 50)
-                            #print "thr_high: ", thr_high, thr_low, np.sum(self.parent.calib)
-                            #print "param: ", self.hitParam_alg1_npix_min, self.hitParam_alg1_npix_max, 0, self.hitParam_alg1_son_min, thr_low, thr_high, np.sum(self.parent.mk.combinedMask)
 
                             self.peaks = self.alg.findPeaks(self.parent.calib,
                                                             npix_min=self.hitParam_alg1_npix_min,
@@ -855,10 +831,8 @@ class PeakFinding(object):
                                                             thr_low=thr_low,
                                                             thr_high=thr_high,
                                                             mask=self.parent.mk.combinedMask.astype(np.uint16))
-
                     elif self.algorithm == 2:
-                        # v2 - define peaks for regions of connected pixels above threshold
-                        #self.peakRadius = int(self.hitParam_alg1_r0)
+                        # v2 - aka Adaptive peak finder
                         self.peaks = self.alg.peak_finder_v3r3(self.parent.calib,
                                                                rank=int(self.hitParam_alg1_rank),
                                                                r0=self.peakRadius,
@@ -896,7 +870,7 @@ class PeakFinding(object):
                     if self.parent.args.v >= 1: print "time: ", time.time() - tic
                     self.numPeaksFound = self.peaks.shape[0]
 
-                if self.numPeaksFound > self.minPeaks and self.numPeaksFound < self.maxPeaks and self.turnOnAutoPeaks:
+                if self.numPeaksFound > self.minPeaks and self.numPeaksFound < self.maxPeaks:# and self.turnOnAutoPeaks:
                     cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64),
                                    np.array(self.peaks[:, 1], dtype=np.int64),
                                    np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
@@ -935,18 +909,15 @@ class PeakFinding(object):
 
         nPeaks = int(qPeaks.shape[1])
         selfD = distance.cdist(qPeaks.transpose(), qPeaks.transpose(), 'euclidean')
-        # sortedIndexD = np.argsort(selfD, axis = 1)
         sortedSelfD = np.sort(selfD)
         closestNeighborDist = sortedSelfD[:, 1]
         meanClosestNeighborDist = np.median(closestNeighborDist)
-        numclosest = [0] * nPeaks
         closestPeaks = [None] * nPeaks
         coords = qPeaks.transpose()
         pairsFound = 0.
 
         for ii in range(nPeaks):
             index = np.where(selfD[ii, :] == closestNeighborDist[ii])
-            # numclosest[ii] = index[0].shape[0]
             closestPeaks[ii] = coords[list(index[0]), :].copy()
             p = coords[ii, :]
             flip = 2 * p - closestPeaks[ii]
@@ -1068,5 +1039,7 @@ class PeakFinding(object):
                                                          pen=pg.mkPen({'color': "y", 'width': 2}), pxMode=False)  # FF0
             else:
                 self.parent.img.filePeak_feature.setData([], [], pxMode=False)
+        else:
+            self.parent.img.filePeak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print "Done drawPeaks"
         self.parent.geom.drawCentre()

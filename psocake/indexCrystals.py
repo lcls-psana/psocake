@@ -296,7 +296,6 @@ if hasData:
             print 'satisfied event: ', isat_event, '\n'
             isat_event = []
 
-
             # Submit job
             cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
             cmd += " indexamajig -i " + myList
