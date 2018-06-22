@@ -123,7 +123,8 @@ class MainFrame(QtGui.QWidget):
         if 'CFEL' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityLCLS
             self.dir = '/gpfs/cfel/cxi/common/slac/reg/d/psdm'
-            args.outDir = '/gpfs/cfel/cxi/scratch/user/'+self.username+'/psocake'
+            if args.outDir is None:
+                args.outDir = '/gpfs/cfel/cxi/scratch/user/'+self.username+'/psocake'
         elif 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityLCLS
             self.dir = '/reg/d/psdm'
