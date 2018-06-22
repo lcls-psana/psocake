@@ -506,7 +506,7 @@ class ExperimentInfo(object):
             return False
 
     def setupPsocake(self):
-        self.loggerFile = self.parent.elogDir + '/logger.data'
+        self.loggerFile = self.parent.elogDir + '/' + self.parent.experimentName + '.data'
         if os.path.exists(self.parent.elogDir) is False:
             try:
                 os.makedirs(self.parent.elogDir, 0774)
@@ -787,7 +787,7 @@ class ExperimentInfo(object):
         else:
             self.parent.rootDir = self.parent.args.outDir
             self.parent.elogDir = self.parent.rootDir + '/psocake'
-            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.username + '/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
     def updatePanels(self):

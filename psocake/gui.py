@@ -2,6 +2,8 @@ import os
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
+elif 'CFEL' in os.environ['PSOCAKE_FACILITY'].upper():
+    pass
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 else:
@@ -118,7 +120,12 @@ class MainFrame(QtGui.QWidget):
         # Supported facilities keywords
         self.facilityLCLS = 'LCLS'
         self.facilityPAL = 'PAL'
-        if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
+        if 'CFEL' in os.environ['PSOCAKE_FACILITY'].upper():
+            self.facility = self.facilityLCLS
+            self.dir = '/gpfs/cfel/cxi/common/slac/reg/d/psdm'
+            if args.outDir is None:
+                args.outDir = '/gpfs/cfel/cxi/scratch/user/'+self.username+'/psocake'
+        elif 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityLCLS
             self.dir = '/reg/d/psdm'
         elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
