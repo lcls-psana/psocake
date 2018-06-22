@@ -787,7 +787,7 @@ class ExperimentInfo(object):
         else:
             self.parent.rootDir = self.parent.args.outDir
             self.parent.elogDir = self.parent.rootDir + '/psocake'
-            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/'
+            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
     def updatePanels(self):
