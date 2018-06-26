@@ -85,7 +85,7 @@ class PeakFinding(object):
         self.hitParam_alg3_amax_thr_str = 'amax_thr'
         self.hitParam_alg3_atot_thr_str = 'atot_thr'
         self.hitParam_alg3_son_min_str = 'son_min'
-        self.hitParam_algorithm3_str = 'Ranker'
+        self.hitParam_algorithm3_str = 'PeakNet'
         self.hitParam_alg3_rank_str = 'rank'
         self.hitParam_alg3_r0_str = 'r0'
         self.hitParam_alg3_dr_str = 'dr'
@@ -136,6 +136,7 @@ class PeakFinding(object):
         self.algInitDone = False
         self.peaksMaxRes = 0
         self.classify = False
+        self.psnet = None
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.hitParam_alg1_npix_min = 2.
@@ -189,7 +190,8 @@ class PeakFinding(object):
                      'tip': "Show peaks found shot-to-shot"},
                     #{'name': self.hitParam_autoPeaks_str, 'type': 'bool', 'value': self.turnOnAutoPeaks,
                     # 'tip': "Automatically find peaks"},
-                    {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm2_str: 2,
+                    {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm3_str: 3,
+                                                                                     self.hitParam_algorithm2_str: 2,
                                                                                      self.hitParam_algorithm1_str: 1,
                                                                                      self.hitParam_algorithm0_str: 0},
                      'value': self.algorithm},
@@ -738,13 +740,11 @@ class PeakFinding(object):
                                                     amax_thr=self.hitParam_alg1_amax_thr, atot_thr=self.hitParam_alg1_atot_thr, \
                                                     son_min=self.hitParam_alg1_son_min)
                         elif self.algorithm == 3:
-                            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg3_npix_min, npix_max=self.hitParam_alg3_npix_max, \
-                                                    amax_thr=self.hitParam_alg3_amax_thr, atot_thr=self.hitParam_alg3_atot_thr, \
-                                                    son_min=self.hitParam_alg3_son_min)
-                        elif self.algorithm == 4:
-                            self.alg.set_peak_selection_pars(npix_min=self.hitParam_alg4_npix_min, npix_max=self.hitParam_alg4_npix_max, \
-                                                    amax_thr=self.hitParam_alg4_amax_thr, atot_thr=self.hitParam_alg4_atot_thr, \
-                                                    son_min=self.hitParam_alg4_son_min)
+                            if self.psnet is None:
+                                from peaknet import peaknet  # TODO: initialize peakNet here
+                                cfgPath = "/reg/neh/home/liponan/ai/psnet/cfg/newpeaksv5-asic.cfg"
+                                self.psnet = peaknet(cfgPath=cfgPath)
+
                         ix = self.parent.det.indexes_x(self.parent.evt)
                         iy = self.parent.det.indexes_y(self.parent.evt)
                         self.iX = np.array(ix, dtype=np.int64)
@@ -840,13 +840,14 @@ class PeakFinding(object):
                                                                nsigm=self.hitParam_alg1_son_min,
                                                                mask=self.parent.mk.combinedMask.astype(np.uint16))#)#thr=self.hitParam_alg2_thr, r0=self.peakRadius, dr=self.hitParam_alg2_dr)
                     elif self.algorithm == 3:
-                        self.peakRadius = int(self.hitParam_alg3_r0)
-                        self.peaks = self.alg.peak_finder_v3(self.parent.calib, rank=self.hitParam_alg3_rank, r0=self.peakRadius, dr=self.hitParam_alg3_dr)
-                    elif self.algorithm == 4:
-                        # v4 - aka Droplet Finder - the same as v1, but uses rank and r0 parameters in stead of common radius.
-                        self.peakRadius = int(self.hitParam_alg4_r0)
-                        self.peaks = self.alg.peak_finder_v4(self.parent.calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high,
-                                                   rank=self.hitParam_alg4_rank, r0=self.peakRadius,  dr=self.hitParam_alg4_dr)
+                        self.peakRadius = 3 # FIXME: read radius from psnet
+                        self.res = self.psnet.detectBatch(np.expand_dims(self.parent.calib*self.parent.mk.combinedMask, axis=0), thresh=0.25) # element in the list: score, (x,y,w,h)
+                        s,r,c = self.psnet.peaknet2psana(self.res[0])
+                        self.peaks = np.zeros((len(s), 17))
+                        self.peaks[:,0] = np.squeeze(s).astype('int')
+                        self.peaks[:,1] = np.squeeze(r).astype('int')
+                        self.peaks[:,2] = np.squeeze(c).astype('int')
+
                     self.numPeaksFound = self.peaks.shape[0]
                 elif self.parent.facility == self.parent.facilityPAL:
                     # Only initialize the hit finder algorithm once
@@ -877,7 +878,6 @@ class PeakFinding(object):
                     cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64),
                                    np.array(self.peaks[:, 1], dtype=np.int64),
                                    np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
-
                     x = cenX - self.parent.cx # args.center[0]
                     y = cenY - self.parent.cy # args.center[1]
 
@@ -904,6 +904,7 @@ class PeakFinding(object):
 
                 self.drawPeaks()
             if self.parent.args.v >= 1: print "Done updateClassification"
+
 
     def calculate_likelihood(self, qPeaks):
 
