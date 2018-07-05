@@ -22,6 +22,264 @@ size = comm.Get_size()
 
 def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
+def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
+	d.peakFinder.findPeaks(detarr, evt)
+	# Likelihood
+	numPeaksFound = d.peakFinder.peaks.shape[0]
+	radius = np.zeros((1,1))
+	if numPeaksFound >= args.minPeaks and \
+	   numPeaksFound <= args.maxPeaks and \
+	   d.peakFinder.maxRes >= args.minRes:
+	    cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+            cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                        np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+
+	    x = cenX - d.ipx  # args.center[0]
+            y = cenY - d.ipy  # args.center[1]
+
+            radius = np.sqrt((x**2)+(y**2))
+
+            pixSize = float(d.pixel_size(evt))
+	    detdis = float(args.detectorDistance)
+	    z = detdis / pixSize * np.ones(x.shape)  # pixels
+
+	    ebeam = ebeamDet.get(evt)
+	    try:
+		photonEnergy = ebeam.ebeamPhotonEnergy()
+	    except:
+		photonEnergy = 1
+
+	    wavelength = 12.407002 / float(photonEnergy)  # Angstrom
+	    norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+	    qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+            [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
+	else:
+	    pairsFoundPerSpot = 0.0
+
+	md = mpidata()
+	md.addarray('peaks', d.peakFinder.peaks)
+	md.addarray('radius', radius)
+	md.small.eventNum = nevent
+	md.small.maxRes = d.peakFinder.maxRes
+	md.small.powder = 0
+	md.small.likelihood = pairsFoundPerSpot
+
+	if args.profile:
+		md.small.calibTime = calibTime
+		md.small.peakTime = peakTime
+
+	if facility == 'LCLS':
+		# other cxidb data
+		ps.getEvent(nevent)
+
+		es = ps.ds.env().epicsStore()
+
+		# timetool
+		try:
+			md.small.timeToolDelay = es.value(args.instrument+':LAS:MMN:04.RBV')
+			if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
+		except:
+			md.small.timeToolDelay = 0
+
+		try:
+			md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
+			if md.small.laserTimeZero is None: md.small.laserTimeZero = 0
+		except:
+			md.small.laserTimeZero = 0
+
+		try:
+			md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
+			if md.small.laserTimeDelay is None: md.small.laserTimeDelay = 0
+		except:
+			md.small.laserTimeDelay = 0
+
+		try:
+			md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
+			if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
+		except:
+			md.small.laserTimePhaseLocked = 0
+
+		try:
+			md.small.ttspecAmpl = es.value(args.instrument+':TTSPEC:AMPL')
+			if md.small.ttspecAmpl is None: md.small.ttspecAmpl = 0
+		except:
+			md.small.ttspecAmpl = 0
+
+		try:
+			md.small.ttspecAmplNxt = es.value(args.instrument+':TTSPEC:AMPLNXT')
+			if md.small.ttspecAmplNxt is None: md.small.ttspecAmplNxt = 0
+		except:
+			md.small.ttspecAmplNxt = 0
+
+		try:
+			md.small.ttspecFltPos = es.value(args.instrument+':TTSPEC:FLTPOS')
+			if md.small.ttspecFltPos is None: md.small.ttspecFltPos = 0
+		except:
+			md.small.ttspecFltPos = 0
+
+		try:
+			md.small.ttspecFltPosFwhm = es.value(args.instrument+':TTSPEC:FLTPOSFWHM')
+			if md.small.ttspecFltPosFwhm is None: md.small.ttspecFltPosFwhm = 0
+		except:
+			md.small.ttspecFltPosFwhm = 0
+
+		try:
+			md.small.ttspecFltPosPs = es.value(args.instrument+':TTSPEC:FLTPOS_PS')
+			if md.small.ttspecFltPosPs is None: md.small.ttspecFltPosPs = 0
+		except:
+			md.small.ttspecFltPosPs = 0
+
+		try:
+			md.small.ttspecRefAmpl = es.value(args.instrument+':TTSPEC:REFAMPL')
+			if md.small.ttspecRefAmpl is None: md.small.ttspecRefAmpl = 0
+		except:
+			md.small.ttspecRefAmpl = 0
+
+		if evr0:
+			ec = evr0.eventCodes(evt)
+			if ec is None: ec = [-1]
+			md.addarray('evr0', np.array(ec))
+
+		if evr1:
+			ec = evr1.eventCodes(evt)
+			if ec is None: ec = [-1]
+			md.addarray('evr1', np.array(ec))
+
+		# pulse length
+		try:
+			pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
+		except:
+			pulseLength = 0
+
+		md.small.pulseLength = pulseLength
+
+		md.small.detectorDistance = detectorDistance
+
+		md.small.pixelSize = args.pixelSize
+
+		# LCLS
+		if "cxi" in args.exp:
+			md.small.lclsDet = es.value(args.clen)  # mm
+		elif "mfx" in args.exp:
+			md.small.lclsDet = es.value(args.clen)  # mm
+		elif "xpp" in args.exp:
+			md.small.lclsDet = es.value(args.clen)  # mm
+
+		try:
+			md.small.ebeamCharge = es.value('BEND:DMP1:400:BDES')
+		except:
+			md.small.ebeamCharge = 0
+
+		try:
+			md.small.beamRepRate = es.value('EVNT:SYS0:1:LCLSBEAMRATE')
+		except:
+			md.small.beamRepRate = 0
+
+		try:
+			md.small.particleN_electrons = es.value('BPMS:DMP1:199:TMIT1H')
+		except:
+			md.small.particleN_electrons = 0
+
+		try:
+			md.small.eVernier = es.value('SIOC:SYS0:ML00:AO289')
+		except:
+			md.small.eVernier = 0
+
+		try:
+			md.small.charge = es.value('BEAM:LCLS:ELEC:Q')
+		except:
+			md.small.charge = 0
+
+		try:
+			md.small.peakCurrentAfterSecondBunchCompressor = es.value('SIOC:SYS0:ML00:AO195')
+		except:
+			md.small.peakCurrentAfterSecondBunchCompressor = 0
+
+		try:
+			md.small.pulseLength = es.value('SIOC:SYS0:ML00:AO820')
+		except:
+			md.small.pulseLength = 0
+
+		try:
+			md.small.ebeamEnergyLossConvertedToPhoton_mJ = es.value('SIOC:SYS0:ML00:AO569')
+		except:
+			md.small.ebeamEnergyLossConvertedToPhoton_mJ = 0
+
+		try:
+			md.small.calculatedNumberOfPhotons = es.value('SIOC:SYS0:ML00:AO580') * 1e12  # number of photons
+		except:
+			md.small.calculatedNumberOfPhotons = 0
+
+		try:
+			md.small.photonBeamEnergy = es.value('SIOC:SYS0:ML00:AO541')
+		except:
+			md.small.photonBeamEnergy = 0
+
+		try:
+			md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
+		except:
+			md.small.wavelength = 0
+
+		try:
+			md.small.injectorPressureSDS = es.value('CXI:LC20:SDS:Pressure')
+		except:
+			md.small.injectorPressureSDS = 0
+
+		try:
+			md.small.injectorPressureSDSB = es.value('CXI:LC20:SDSB:Pressure')
+		except:
+			md.small.injectorPressureSDSB = 0
+
+		ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+		try:
+			photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
+			pulseEnergy = ebeam.ebeamL3Energy()  # MeV
+		except:
+			photonEnergy = 0
+			pulseEnergy = 0
+			if md.small.wavelength > 0:
+				h = 6.626070e-34  # J.m
+				c = 2.99792458e8  # m/s
+				joulesPerEv = 1.602176621e-19  # J/eV
+				photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)
+
+		md.small.photonEnergy = photonEnergy
+		md.small.pulseEnergy = pulseEnergy
+
+		evtId = ps.evt.get(psana.EventId)
+		md.small.sec = evtId.time()[0]
+		md.small.nsec = evtId.time()[1]
+ 		md.small.fid = evtId.fiducials()
+
+		if len(d.peakFinder.peaks) >= args.minPeaks and \
+		   len(d.peakFinder.peaks) <= args.maxPeaks and \
+           d.peakFinder.maxRes >= args.minRes:
+           #and pairsFoundPerSpot >= likelihoodThresh:
+           # Write image in cheetah format
+			img = ps.getCheetahImg()
+			if img is not None:
+				md.addarray('data', img)
+
+		if args.profile:
+			totalTime = time.time() - startTic
+			md.small.totalTime = totalTime
+			md.small.rankID = rank
+		md.send() # send mpi data object to master when desired
+
+        elif facility == 'PAL':
+            if len(d.peakFinder.peaks) >= args.minPeaks and \
+               len(d.peakFinder.peaks) <= args.maxPeaks and \
+               d.peakFinder.maxRes >= args.minRes:
+                # Write image in cheetah format
+                if detarr is not None: md.addarray('data', detarr)
+            md.small.detectorDistance = detectorDistance
+            md.small.photonEnergy = photonEnergy
+            md.send()
+
+
 def runclient(args):
     pairsFoundPerSpot = 0.0
     highSigma = 3.5
@@ -267,256 +525,7 @@ def runclient(args):
             d.iY = np.array(iy, dtype=np.int64)
             d.ipx, d.ipy = d.point_indexes(evt, pxy_um=(0, 0))
 
-        d.peakFinder.findPeaks(detarr, evt)
-        # Likelihood
-        numPeaksFound = d.peakFinder.peaks.shape[0]
-        if numPeaksFound >= args.minPeaks and \
-           numPeaksFound <= args.maxPeaks and \
-           d.peakFinder.maxRes >= args.minRes:
-            cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                        np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                        np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-            cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                        np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                        np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-
-            x = cenX - d.ipx  # args.center[0]
-            y = cenY - d.ipy  # args.center[1]
-
-            pixSize = float(d.pixel_size(evt))
-            detdis = float(args.detectorDistance)
-            z = detdis / pixSize * np.ones(x.shape)  # pixels
-
-            ebeam = ebeamDet.get(evt)
-            try:
-                photonEnergy = ebeam.ebeamPhotonEnergy()
-            except:
-                photonEnergy = 1
-
-            wavelength = 12.407002 / float(photonEnergy)  # Angstrom
-            norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-            qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
-            [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
-        else:
-            pairsFoundPerSpot = 0.0
-
-        md=mpidata()
-        md.addarray('peaks', d.peakFinder.peaks)
-        md.small.eventNum = nevent
-        md.small.maxRes = d.peakFinder.maxRes
-        md.small.powder = 0
-        md.small.likelihood = pairsFoundPerSpot
-
-        if args.profile:
-            md.small.calibTime = calibTime
-            md.small.peakTime = peakTime
-
-        if facility == 'LCLS':
-            # other cxidb data
-            ps.getEvent(nevent)
-
-            es = ps.ds.env().epicsStore()
-
-            # timetool
-            try:
-                md.small.timeToolDelay = es.value(args.instrument+':LAS:MMN:04.RBV')
-                if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
-            except:
-                md.small.timeToolDelay = 0
-
-            try:
-                md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
-                if md.small.laserTimeZero is None: md.small.laserTimeZero = 0
-            except:
-                md.small.laserTimeZero = 0
-
-            try:
-                md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
-                if md.small.laserTimeDelay is None: md.small.laserTimeDelay = 0
-            except:
-                md.small.laserTimeDelay = 0
-
-            try:
-                md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
-                if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
-            except:
-                md.small.laserTimePhaseLocked = 0
-
-            try:
-                md.small.ttspecAmpl = es.value(args.instrument+':TTSPEC:AMPL')
-                if md.small.ttspecAmpl is None: md.small.ttspecAmpl = 0
-            except:
-                md.small.ttspecAmpl = 0
-
-            try:
-                md.small.ttspecAmplNxt = es.value(args.instrument+':TTSPEC:AMPLNXT')
-                if md.small.ttspecAmplNxt is None: md.small.ttspecAmplNxt = 0
-            except:
-                md.small.ttspecAmplNxt = 0
-
-            try:
-                md.small.ttspecFltPos = es.value(args.instrument+':TTSPEC:FLTPOS')
-                if md.small.ttspecFltPos is None: md.small.ttspecFltPos = 0
-            except:
-                md.small.ttspecFltPos = 0
-
-            try:
-                md.small.ttspecFltPosFwhm = es.value(args.instrument+':TTSPEC:FLTPOSFWHM')
-                if md.small.ttspecFltPosFwhm is None: md.small.ttspecFltPosFwhm = 0
-            except:
-                md.small.ttspecFltPosFwhm = 0
-
-            try:
-                md.small.ttspecFltPosPs = es.value(args.instrument+':TTSPEC:FLTPOS_PS')
-                if md.small.ttspecFltPosPs is None: md.small.ttspecFltPosPs = 0
-            except:
-                md.small.ttspecFltPosPs = 0
-
-            try:
-                md.small.ttspecRefAmpl = es.value(args.instrument+':TTSPEC:REFAMPL')
-                if md.small.ttspecRefAmpl is None: md.small.ttspecRefAmpl = 0
-            except:
-                md.small.ttspecRefAmpl = 0
-
-            if evr0:
-                ec = evr0.eventCodes(evt)
-                if ec is None: ec = [-1]
-                md.addarray('evr0', np.array(ec))
-
-            if evr1:
-                ec = evr1.eventCodes(evt)
-                if ec is None: ec = [-1]
-                md.addarray('evr1', np.array(ec))
-
-            # pulse length
-            try:
-                pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
-            except:
-                pulseLength = 0
-
-            md.small.pulseLength = pulseLength
-
-            md.small.detectorDistance = detectorDistance
-
-            md.small.pixelSize = args.pixelSize
-
-            # LCLS
-            if "cxi" in args.exp:
-                md.small.lclsDet = es.value(args.clen)  # mm
-            elif "mfx" in args.exp:
-                md.small.lclsDet = es.value(args.clen)  # mm
-            elif "xpp" in args.exp:
-                md.small.lclsDet = es.value(args.clen)  # mm
-
-            try:
-                md.small.ebeamCharge = es.value('BEND:DMP1:400:BDES')
-            except:
-                md.small.ebeamCharge = 0
-
-            try:
-                md.small.beamRepRate = es.value('EVNT:SYS0:1:LCLSBEAMRATE')
-            except:
-                md.small.beamRepRate = 0
-
-            try:
-                md.small.particleN_electrons = es.value('BPMS:DMP1:199:TMIT1H')
-            except:
-                md.small.particleN_electrons = 0
-
-            try:
-                md.small.eVernier = es.value('SIOC:SYS0:ML00:AO289')
-            except:
-                md.small.eVernier = 0
-
-            try:
-                md.small.charge = es.value('BEAM:LCLS:ELEC:Q')
-            except:
-                md.small.charge = 0
-
-            try:
-                md.small.peakCurrentAfterSecondBunchCompressor = es.value('SIOC:SYS0:ML00:AO195')
-            except:
-                md.small.peakCurrentAfterSecondBunchCompressor = 0
-
-            try:
-                md.small.pulseLength = es.value('SIOC:SYS0:ML00:AO820')
-            except:
-                md.small.pulseLength = 0
-
-            try:
-                md.small.ebeamEnergyLossConvertedToPhoton_mJ = es.value('SIOC:SYS0:ML00:AO569')
-            except:
-                md.small.ebeamEnergyLossConvertedToPhoton_mJ = 0
-
-            try:
-                md.small.calculatedNumberOfPhotons = es.value('SIOC:SYS0:ML00:AO580') * 1e12  # number of photons
-            except:
-                md.small.calculatedNumberOfPhotons = 0
-
-            try:
-                md.small.photonBeamEnergy = es.value('SIOC:SYS0:ML00:AO541')
-            except:
-                md.small.photonBeamEnergy = 0
-
-            try:
-                md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
-            except:
-                md.small.wavelength = 0
-
-            try:
-                md.small.injectorPressureSDS = es.value('CXI:LC20:SDS:Pressure')
-            except:
-                md.small.injectorPressureSDS = 0
-
-            try:
-                md.small.injectorPressureSDSB = es.value('CXI:LC20:SDSB:Pressure')
-            except:
-                md.small.injectorPressureSDSB = 0
-
-            ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-            try:
-                photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
-                pulseEnergy = ebeam.ebeamL3Energy()  # MeV
-            except:
-                photonEnergy = 0
-                pulseEnergy = 0
-                if md.small.wavelength > 0:
-                    h = 6.626070e-34  # J.m
-                    c = 2.99792458e8  # m/s
-                    joulesPerEv = 1.602176621e-19  # J/eV
-                    photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)
-
-            md.small.photonEnergy = photonEnergy
-            md.small.pulseEnergy = pulseEnergy
-
-            evtId = ps.evt.get(psana.EventId)
-            md.small.sec = evtId.time()[0]
-            md.small.nsec = evtId.time()[1]
-            md.small.fid = evtId.fiducials()
-
-            if len(d.peakFinder.peaks) >= args.minPeaks and \
-               len(d.peakFinder.peaks) <= args.maxPeaks and \
-               d.peakFinder.maxRes >= args.minRes:
-               #and pairsFoundPerSpot >= likelihoodThresh:
-                # Write image in cheetah format
-                img = ps.getCheetahImg()
-                if img is not None:
-                    md.addarray('data', img)
-
-            if args.profile:
-                totalTime = time.time() - startTic
-                md.small.totalTime = totalTime
-                md.small.rankID = rank
-            md.send() # send mpi data object to master when desired
-        elif facility == 'PAL':
-            if len(d.peakFinder.peaks) >= args.minPeaks and \
-               len(d.peakFinder.peaks) <= args.maxPeaks and \
-               d.peakFinder.maxRes >= args.minRes:
-                # Write image in cheetah format
-                if detarr is not None: md.addarray('data', detarr)
-            md.small.detectorDistance = detectorDistance
-            md.small.photonEnergy = photonEnergy
-            md.send()
+	calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1)
 
     ###############################
     # Help your neighbor find peaks
@@ -573,255 +582,7 @@ def runclient(args):
                         md.send()
                         continue
 
-                    d.peakFinder.findPeaks(detarr, evt)
-                    # Likelihood
-                    numPeaksFound = d.peakFinder.peaks.shape[0]
-                    if numPeaksFound >= args.minPeaks and \
-                                    numPeaksFound <= args.maxPeaks and \
-                                    d.peakFinder.maxRes >= args.minRes:
-                        cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-                        cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-
-                        x = cenX - d.ipx  # args.center[0]
-                        y = cenY - d.ipy  # args.center[1]
-
-                        pixSize = float(d.pixel_size(evt))
-                        detdis = float(args.detectorDistance)
-                        z = detdis / pixSize * np.ones(x.shape)  # pixels
-
-                        ebeam = ebeamDet.get(evt)
-                        try:
-                            photonEnergy = ebeam.ebeamPhotonEnergy()
-                        except:
-                            photonEnergy = 1
-
-                        wavelength = 12.407002 / float(photonEnergy)  # Angstrom
-                        norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-                        qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
-                        [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
-                    else:
-                        pairsFoundPerSpot = 0.0
-
-                    md = mpidata()
-                    md.addarray('peaks', d.peakFinder.peaks)
-                    md.small.eventNum = nevent
-                    md.small.maxRes = d.peakFinder.maxRes
-                    md.small.powder = 0
-                    md.small.likelihood = pairsFoundPerSpot
-
-                    if args.profile:
-                        md.small.calibTime = calibTime
-                        md.small.peakTime = peakTime
-
-                    if facility == 'LCLS':
-                        # other cxidb data
-                        ps.getEvent(nevent)
-
-                        es = ps.ds.env().epicsStore()
-
-                        # timetool
-                        try:
-                            md.small.timeToolDelay = es.value(args.instrument+':LAS:MMN:04.RBV')
-                            if md.small.timeToolDelay is None: md.small.timeToolDelay = 0
-                        except:
-                            md.small.timeToolDelay = 0
-
-                        try:
-                            md.small.laserTimeZero = es.value('LAS:FS5:VIT:FS_TGT_TIME_OFFSET')
-                            if md.small.laserTimeZero is None: md.small.laserTimeZero = 0
-                        except:
-                            md.small.laserTimeZero = 0
-
-                        try:
-                            md.small.laserTimeDelay = es.value('LAS:FS5:VIT:FS_TGT_TIME_DIAL')
-                            if md.small.laserTimeDelay is None: md.small.laserTimeDelay = 0
-                        except:
-                            md.small.laserTimeDelay = 0
-
-                        try:
-                            md.small.laserTimePhaseLocked = es.value('LAS:FS5:VIT:PHASE_LOCKED')
-                            if md.small.laserTimePhaseLocked is None: md.small.laserTimePhaseLocked = 0
-                        except:
-                            md.small.laserTimePhaseLocked = 0
-
-                        try:
-                            md.small.ttspecAmpl = es.value(args.instrument + ':TTSPEC:AMPL')
-                            if md.small.ttspecAmpl is None: md.small.ttspecAmpl = 0
-                        except:
-                            md.small.ttspecAmpl = 0
-
-                        try:
-                            md.small.ttspecAmplNxt = es.value(args.instrument + ':TTSPEC:AMPLNXT')
-                            if md.small.ttspecAmplNxt is None: md.small.ttspecAmplNxt = 0
-                        except:
-                            md.small.ttspecAmplNxt = 0
-
-                        try:
-                            md.small.ttspecFltPos = es.value(args.instrument + ':TTSPEC:FLTPOS')
-                            if md.small.ttspecFltPos is None: md.small.ttspecFltPos = 0
-                        except:
-                            md.small.ttspecFltPos = 0
-
-                        try:
-                            md.small.ttspecFltPosFwhm = es.value(args.instrument + ':TTSPEC:FLTPOSFWHM')
-                            if md.small.ttspecFltPosFwhm is None: md.small.ttspecFltPosFwhm = 0
-                        except:
-                            md.small.ttspecFltPosFwhm = 0
-
-                        try:
-                            md.small.ttspecFltPosPs = es.value(args.instrument + ':TTSPEC:FLTPOS_PS')
-                            if md.small.ttspecFltPosPs is None: md.small.ttspecFltPosPs = 0
-                        except:
-                            md.small.ttspecFltPosPs = 0
-
-                        try:
-                            md.small.ttspecRefAmpl = es.value(args.instrument + ':TTSPEC:REFAMPL')
-                            if md.small.ttspecRefAmpl is None: md.small.ttspecRefAmpl = 0
-                        except:
-                            md.small.ttspecRefAmpl = 0
-
-                        if evr0:
-                            ec = evr0.eventCodes(evt)
-                            if ec is None: ec = [-1]
-                            md.addarray('evr0', np.array(ec))
-
-                        if evr1:
-                            ec = evr1.eventCodes(evt)
-                            if ec is None: ec = [-1]
-                            md.addarray('evr1', np.array(ec))
-
-                        # pulse length
-                        try:
-                            pulseLength = es.value('SIOC:SYS0:ML00:AO820') * 1e-15  # s
-                        except:
-                            pulseLength = 0
-
-                        md.small.pulseLength = pulseLength
-
-                        md.small.detectorDistance = detectorDistance
-
-                        md.small.pixelSize = args.pixelSize
-
-                        # LCLS
-                        if "cxi" in args.exp:
-                            md.small.lclsDet = es.value(args.clen)  # mm
-                        elif "mfx" in args.exp:
-                            md.small.lclsDet = es.value(args.clen)  # mm
-                        elif "xpp" in args.exp:
-                            md.small.lclsDet = es.value(args.clen)  # mm
-
-                        try:
-                            md.small.ebeamCharge = es.value('BEND:DMP1:400:BDES')
-                        except:
-                            md.small.ebeamCharge = 0
-
-                        try:
-                            md.small.beamRepRate = es.value('EVNT:SYS0:1:LCLSBEAMRATE')
-                        except:
-                            md.small.beamRepRate = 0
-
-                        try:
-                            md.small.particleN_electrons = es.value('BPMS:DMP1:199:TMIT1H')
-                        except:
-                            md.small.particleN_electrons = 0
-
-                        try:
-                            md.small.eVernier = es.value('SIOC:SYS0:ML00:AO289')
-                        except:
-                            md.small.eVernier = 0
-
-                        try:
-                            md.small.charge = es.value('BEAM:LCLS:ELEC:Q')
-                        except:
-                            md.small.charge = 0
-
-                        try:
-                            md.small.peakCurrentAfterSecondBunchCompressor = es.value('SIOC:SYS0:ML00:AO195')
-                        except:
-                            md.small.peakCurrentAfterSecondBunchCompressor = 0
-
-                        try:
-                            md.small.pulseLength = es.value('SIOC:SYS0:ML00:AO820')
-                        except:
-                            md.small.pulseLength = 0
-
-                        try:
-                            md.small.ebeamEnergyLossConvertedToPhoton_mJ = es.value('SIOC:SYS0:ML00:AO569')
-                        except:
-                            md.small.ebeamEnergyLossConvertedToPhoton_mJ = 0
-
-                        try:
-                            md.small.calculatedNumberOfPhotons = es.value('SIOC:SYS0:ML00:AO580') * 1e12  # number of photons
-                        except:
-                            md.small.calculatedNumberOfPhotons = 0
-
-                        try:
-                            md.small.photonBeamEnergy = es.value('SIOC:SYS0:ML00:AO541')
-                        except:
-                            md.small.photonBeamEnergy = 0
-
-                        try:
-                            md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')
-                        except:
-                            md.small.wavelength = 0
-
-                        try:
-                            md.small.injectorPressureSDS = es.value('CXI:LC20:SDS:Pressure')
-                        except:
-                            md.small.injectorPressureSDS = 0
-
-                        try:
-                            md.small.injectorPressureSDSB = es.value('CXI:LC20:SDSB:Pressure')
-                        except:
-                            md.small.injectorPressureSDSB = 0
-
-                        ebeam = ebeamDet.get(ps.evt)  # .get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-                        try:
-                            photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
-                            pulseEnergy = ebeam.ebeamL3Energy()  # MeV
-                        except:
-                            photonEnergy = 0
-                            pulseEnergy = 0
-                            if md.small.wavelength > 0:
-                                h = 6.626070e-34  # J.m
-                                c = 2.99792458e8  # m/s
-                                joulesPerEv = 1.602176621e-19  # J/eV
-                                photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)
-
-                        md.small.photonEnergy = photonEnergy
-                        md.small.pulseEnergy = pulseEnergy
-
-                        evtId = ps.evt.get(psana.EventId)
-                        md.small.sec = evtId.time()[0]
-                        md.small.nsec = evtId.time()[1]
-                        md.small.fid = evtId.fiducials()
-
-                        if len(d.peakFinder.peaks) >= args.minPeaks and \
-                                        len(d.peakFinder.peaks) <= args.maxPeaks and \
-                                        d.peakFinder.maxRes >= args.minRes:
-                            #and pairsFoundPerSpot >= likelihoodThresh:
-                            # Write image in cheetah format
-                            img = ps.getCheetahImg()
-                            if img is not None: md.addarray('data', img)
-
-                        if args.profile:
-                            totalTime = time.time() - startTic
-                            md.small.totalTime = totalTime
-                            md.small.rankID = rank
-                        md.send()  # send mpi data object to master when desired
-                    elif facility == 'PAL':
-                        if len(d.peakFinder.peaks) >= args.minPeaks and \
-                                        len(d.peakFinder.peaks) <= args.maxPeaks and \
-                                        d.peakFinder.maxRes >= args.minRes:
-                            # Write image in cheetah format
-                            if detarr is not None: md.addarray('data', detarr)
-                        md.small.detectorDistance = detectorDistance
-                        md.small.photonEnergy = photonEnergy
-                        md.send()
+	            calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1)
 
         except:
             print "I can't help you: ", rank

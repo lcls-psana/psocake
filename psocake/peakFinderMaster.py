@@ -70,6 +70,8 @@ def runmaster(args, nClients):
     dset_posX = "/peakXPosRawAll"
     dset_posY = "/peakYPosRawAll"
     dset_atot = "/peakTotalIntensityAll"
+    dset_amax = "/peakMaxIntensityAll"
+    dset_radius = "/peakRadiusAll"
     dset_maxRes = "/maxResAll"
     dset_likelihood = "/likelihoodAll"
     dset_timeToolDelay = "/timeToolDelayAll"
@@ -154,6 +156,14 @@ def runmaster(args, nClients):
             if nPeaks > 2048: # only save upto maxNumPeaks
                 md.peaks = md.peaks[:2048]
                 nPeaks = md.peaks.shape[0]
+                md.radius = md.radius[:2048]
+                #radius = md.radius.shape[0]
+            
+            ran = True
+	    if ran:
+	        rad = np.zeros(2048)
+	        rad[:nPeaks] = md.radius
+		ran = False
 
             if args.profile: tic = time.time()
 
@@ -165,7 +175,10 @@ def runmaster(args, nClients):
                     myHdf5[grpName+dset_posX][md.small.eventNum,i] = cheetahCol
                     myHdf5[grpName+dset_posY][md.small.eventNum,i] = cheetahRow
                     myHdf5[grpName+dset_atot][md.small.eventNum,i] = atot
+                    myHdf5[grpName+dset_amax][md.small.eventNum,i] = amax
+                    myHdf5[grpName+dset_radius][md.small.eventNum,i] = rad[i]
                     myHdf5.flush()
+
             elif facility == 'PAL':
                 for i, peak in enumerate(md.peaks):
                     seg, row, col, npix, atot, son = peak
@@ -210,6 +223,8 @@ def runmaster(args, nClients):
                         myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits + inc, 2048))
                         myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits + inc, 2048))
                         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits + inc, 2048))
+			myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits + inc, 2048))
+                        myHdf5["/entry_1/result_1/peakRadius"].resize((numHits + inc, 2048))
                         reshapeHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, inc)
                         reshapeHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits, inc)
 
@@ -276,6 +291,8 @@ def runmaster(args, nClients):
                     myHdf5["/entry_1/result_1/peakXPosRaw"][numHits,:] = myHdf5[grpName+dset_posX][md.small.eventNum,:]
                     myHdf5["/entry_1/result_1/peakYPosRaw"][numHits,:] = myHdf5[grpName+dset_posY][md.small.eventNum,:]
                     myHdf5["/entry_1/result_1/peakTotalIntensity"][numHits,:] = myHdf5[grpName+dset_atot][md.small.eventNum,:]
+                    myHdf5["/entry_1/result_1/peakMaxIntensity"][numHits,:] = myHdf5[grpName+dset_amax][md.small.eventNum,:]
+                    myHdf5["/entry_1/result_1/peakRadius"][numHits,:] = myHdf5[grpName+dset_radius][md.small.eventNum,:]
                     updateHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, maxRes)
                     updateHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits, likelihood)
                     # Save epics
@@ -344,6 +361,8 @@ def runmaster(args, nClients):
                         myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits + inc, 2048))
                         myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits + inc, 2048))
                         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits + inc, 2048))
+			myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits + inc, 2048))
+			myHdf5["/entry_1/result_1/peakRadius"].resize((numHits + inc, 2048))
                         reshapeHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, inc)
                         #reshapeHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits, inc)
                         reshapeHdf5(myHdf5, '/PAL/photon_energy_eV', numHits, inc)
@@ -388,6 +407,10 @@ def runmaster(args, nClients):
                     myHdf5["/entry_1/result_1/peakYPosRaw"][numHits, :] = myHdf5[grpName + dset_posY][md.small.eventNum,
                                                                           :]
                     myHdf5["/entry_1/result_1/peakTotalIntensity"][numHits, :] = myHdf5[grpName + dset_atot][
+                                                                                 md.small.eventNum, :]
+                    myHdf5["/entry_1/result_1/peakMaxIntensity"][numHits, :] = myHdf5[grpName + dset_amax][
+                                                                                 md.small.eventNum, :]
+                    myHdf5["/entry_1/result_1/peakRadius"][numHits, :] = myHdf5[grpName + dset_radius][
                                                                                  md.small.eventNum, :]
                     updateHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits, maxRes)
                     # Save epics
@@ -449,6 +472,8 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits, 2048))
         myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits, 2048))
         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits, 2048))
+	myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits, 2048))
+        myHdf5["/entry_1/result_1/peakRadius"].resize((numHits, 2048))
         cropHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits)
         cropHdf5(myHdf5, '/entry_1/result_1/likelihood', numHits)
         cropHdf5(myHdf5, '/entry_1/result_1/timeToolDelay', numHits)
@@ -523,6 +548,8 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakXPosRaw"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/peakYPosRaw"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/peakTotalIntensity"].attrs["numEvents"] = numHits
+	myHdf5["/entry_1/result_1/peakMaxIntensity"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/peakRadius"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/maxRes"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/likelihood"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/timeToolDelay"].attrs["numEvents"] = numHits
@@ -542,6 +569,8 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits, 2048))
         myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits, 2048))
         myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits, 2048))
+	myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits, 2048))
+        myHdf5["/entry_1/result_1/peakRadius"].resize((numHits, 2048))
         cropHdf5(myHdf5, '/entry_1/result_1/maxRes', numHits)
         #cropHdf5(myHdf5, '/entry_1/instrument_1/source_1/pulse_width', numHits)
         cropHdf5(myHdf5, '/PAL/photon_energy_eV', numHits)
@@ -598,6 +627,8 @@ def runmaster(args, nClients):
         myHdf5["/entry_1/result_1/peakXPosRaw"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/peakYPosRaw"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/peakTotalIntensity"].attrs["numEvents"] = numHits
+	myHdf5["/entry_1/result_1/peakMaxIntensity"].attrs["numEvents"] = numHits
+        myHdf5["/entry_1/result_1/peakRadius"].attrs["numEvents"] = numHits
         myHdf5["/entry_1/result_1/maxRes"].attrs["numEvents"] = numHits
         #myHdf5["entry_1/instrument_1/source_1/energy"].attrs["numEvents"] = numHits
         #myHdf5["entry_1/instrument_1/source_1/pulse_energy"].attrs["numEvents"] = numHits
