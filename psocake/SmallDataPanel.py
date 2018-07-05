@@ -23,6 +23,8 @@ class SmallData(object):
         self.winL = pg.LayoutWidget()
         self.refreshBtn = QtGui.QPushButton('Refresh')
         self.winL.addWidget(self.refreshBtn, row=0, col=0)
+        self.peakogramBtn = QtGui.QPushButton('Peakogram')
+        self.winL.addWidget(self.peakogramBtn, row=0, col=1)
         self.dock.addWidget(self.winL)
         # Add plot
         self.winP = pg.PlotWidget(title="Metric")
@@ -55,8 +57,10 @@ class SmallData(object):
         self.pSmall.sigTreeStateChanged.connect(self.change)
         if using_pyqt4:
             self.parent.connect(self.refreshBtn, QtCore.SIGNAL("clicked()"), self.reloadQuantifier)
+            self.parent.connect(self.peakogramBtn, QtCore.SIGNAL("clicked()"), self.showPeakogram)
         else:
             self.refreshBtn.clicked.connect(self.reloadQuantifier)
+            self.peakogramBtn.clicked.connect(self.showPeakogram)
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
         for param, change, data in changes:
@@ -164,3 +168,8 @@ class SmallData(object):
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
             self.parent.img.win.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
+
+    def showPeakogram(self):
+        if os.path.isfile(self.quantifier_filename):
+            cmd = "python peakogram -i " + self.quantifier_filename
+            subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

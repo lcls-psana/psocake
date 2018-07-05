@@ -51,9 +51,7 @@ if(args.i.endswith(".txt")):
 elif(args.i.endswith(".cxi")):
 	f = h5py.File(args.i, 'r')
 	x = f['entry_1/result_1/peakRadiusAll'].value
-	print(x)
 	y = f['entry_1/result_1/peakMaxIntensityAll'].value
-	print(y)
 	f.close()
 
 xmin = np.min(x[x>0])
