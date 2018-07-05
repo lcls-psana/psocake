@@ -7,6 +7,7 @@ from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import h5py
 
+#
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'LCLS'
