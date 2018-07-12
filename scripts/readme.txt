@@ -1,0 +1,1 @@
+To run this program, open two terminals. In one terminal, run master.py, and in the other terminal, run allPeakFinding.py. allPeakFinding.py will finding events with a high likelihood of crystals, and will send a message of how many peaks were found to the master.
