@@ -14,6 +14,9 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+import re
+import ntpath
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", default="peaks.txt", help="peaks.txt file")
@@ -96,6 +99,10 @@ else:
 if(args.i.endswith(".txt")):
 	plt.title(args.i)
 elif(args.i.endswith(".cxi")):
-	plt.title(".cxi file")
+	if("/reg/d/psdm/cxi/" in args.i):
+		head, tail = ntpath.split(args.i)
+		plt.title(tail)
+	else:
+		plt.title(args.i)
 plt.show()
 #plt.savefig(args.o, ext="png")
