@@ -10,6 +10,7 @@ class Crawler:
     def __init__(self):
         self.seenList = []
         self.badList = []
+        self.readFile('listOfUnreadableFiles.txt')
 
     def addToList(self, name, run, det):
         self.seenList.append([name, run, det])
@@ -58,7 +59,6 @@ class Crawler:
             return [False, 0, 0]
 
     def detectorValidator(self):
-        self.readFile('listOfUnreadableFiles.txt')
         loopCondition = True
         while loopCondition:
             boolean, name, run = self.crawl()
@@ -104,4 +104,5 @@ class Crawler:
 #myCrawler = Crawler()
 #print(myCrawler.badList)
 #myCrawler.printSome(10)
+#print(myCrawler.returnOneRandomExpRunDet())
 #myCrawler.printList()
