@@ -52,27 +52,32 @@ def munge_json(event):
 
 boolean = True
 numberOfClients = 1
-numClientsDone = 0
+#numClientsDone = 0
 totalPeaks = 0
+peaksThenHits = 0
 
 while (boolean):
         try:
+                print("waiting...")
                 val = pull()
-                if(val == "Done!"):
-                        numClientsDone += 1
-                boolean = ((val != "Done") and (numClientsDone != numberOfClients))
+                #if(val == "Done!"):
+                #        numClientsDone += 1
+                #boolean = ((val != "Done") and (numClientsDone != numberOfClients))
                 integer = (isinstance(val,int))
         except zmq.error.Again:
                 break
         if(integer):
-                totalPeaks += val
-                print(totalPeaks, "Peaks")
-        elif(val == "Done!"):
-                print("finishing up")
+                if(peaksThenHits == 0):
+                        totalPeaks += val
+                        print(totalPeaks, "Peaks")
+                        peaksThenHits += 1
+                else:
+                        print(val, "Hits")
+        #elif(val == "Done!"):
+                #fprint("finishing up")
         else:
                 b = (munge_json(val))
                 print(b)
                 print(b[1][0])
-
 
 

@@ -1,7 +1,7 @@
 import psana
 import numpy as np
 from psalgos.pypsalgos import PyAlgos
-#from ImgAlgos.PyAlgos import PyAlgos
+from ImgAlgos.PyAlgos import PyAlgos as PA
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import time
@@ -10,7 +10,7 @@ import json
 import base64
 from psana import *
 import random
-from peaknet import peaknet
+from peaknet import Peaknet
 from crawler import Crawler
 
 #Amount of events sent to PeakNet
@@ -22,7 +22,7 @@ eventLimit = 1000
 #Minimum number of peaks to be found to calculate likelihood
 goodNumPeaks = 15
 
-psnet = peaknet()
+psnet = Peaknet()
 
 #pull() recieves information from a master zmq socket
 def pull():
@@ -40,6 +40,7 @@ def push(val):
     zmq_socket.bind("tcp://127.0.0.1:5559")
     print("I am pushing:", val)
     zmq_socket.send_json(val)
+
 
 #converts a numpy array to be sent through json
 def bitwise_array(value):
@@ -100,9 +101,13 @@ def getPeaks(d, alg, hdr, fmt, mask, times, env, run, j):
     if (nda is not None):
         peaks = alg.peak_finder_v3r3(nda, rank=3, r0=3, dr=2, nsigm =5)
         numPeaksFound = len(peaks)
-        return [evt, nda, peaks, numPeaksFound]
+        alg = PA()
+        thr = 20
+        numpix = alg.number_of_pix_above_thr(nda, thr)
+        #totint = alg.intensity_of_pix_above_thr(nda, thr)
+        return [evt, nda, peaks, numPeaksFound, numpix]
     else:
-        return[None,None,None,None]
+        return[None,None,None,None,None]
 
 #retrieves likelihood value for an event with 15 or more peaks
 def getLikelihood(d, evt, peaks, numPeaksFound):
@@ -145,6 +150,7 @@ def evaluateRun():
     ndalist = []
     dontRedo = []
     totalNumPeaks = 0
+    totalPix = 0
     myCrawler = Crawler()
     while True:
         timebefore = time.time()
@@ -155,43 +161,51 @@ def evaluateRun():
         runnum = int(runnum)
         eventInfo = getImage(exp, runnum, det)
         d, alg, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
+        numGoodEvents = 0
         for j in range(numEvents):
             if(len(goodlist) >= batchSize):
                 break
-            if(j >= eventLimit):
+            if((j >= eventLimit) and (numGoodEvents < 3)):
                 break
-            eventList = []
+            print(j)
+            eventList = [[],[],[]]
             peakInfo = getPeaks(d, alg, hdr, fmt, mask, times, env, run, j)
-            evt, nda, peaks, numPeaksFound = peakInfo[:]
+            evt, nda, peaks, numPeaksFound, numpix = peakInfo[:]
             if nda is None:
 	        continue
-            print(j)
             pairsFoundPerSpot = getLikelihood(d, evt, peaks, numPeaksFound)
             if (pairsFoundPerSpot > goodLikelihood):
                 print hdr
                 for peak in peaks:
                     totalNumPeaks += 1
                     seg,row,col,npix,amax,atot = peak[0:6]
-                    eventList.append([seg, row, col])
+                    eventList[0].append([seg])
+                    eventList[1].append([row])
+                    eventList[2].append([col])
 	            print fmt % (seg, row, col, npix, atot)
-                goodlist.append(eventList)
+                totalPix += numpix
+                goodlist.append(np.array(eventList))
                 ndalist.append(nda)
+                numGoodEvents += 1
                 print ("Event Likelihood: %f" % pairsFoundPerSpot)
         timeafter = time.time()
         print("This took " ,timeafter-timebefore, " seconds")
-    return [goodlist, ndalist, totalNumPeaks]
+    return [goodlist, ndalist, totalNumPeaks, totalPix]
 
 
 evaluateinfo = evaluateRun()
-goodlist, ndalist, totalNumPeaks = evaluateinfo[:]
+goodlist, ndalist, totalNumPeaks, totalPix = evaluateinfo[:]
 
-print(len(goodlist))
-print(len(ndalist))
 
-push(totalNumPeaks)
+#push(totalNumPeaks)
+#push(totalPix)
+
+#print(goodlist[0])
+for i,element in enumerate(ndalist):
+	psnet.train(element, goodlist[i])
 
 a = np.array([[1, 2],[3, 4]])
 b = bitwise_array(a)
 push(b)
 
-push("Done!")
+#push("Done!")
