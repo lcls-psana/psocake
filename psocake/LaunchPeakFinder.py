@@ -221,6 +221,8 @@ class LaunchPeakFinder(QtCore.QThread):
 
                 cmd += " --access " + self.parent.access
 
+                if self.parent.pk.tag: cmd += " --tag " + self.parent.pk.tag
+
                 cmd += " -r " + str(run)
                 # Launch peak finding
                 print "Submitting batch job: ", cmd

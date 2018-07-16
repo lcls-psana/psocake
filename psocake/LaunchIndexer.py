@@ -129,6 +129,7 @@ class LaunchIndexer(QtCore.QThread):
                       " --hitParam_threshold " + str(self.parent.pk.minPeaks) + \
                       " --keepData " + str(self.parent.index.keepData) + \
                       " -v " + str(self.parent.args.v)
+                if self.parent.pk.tag: cmd += " --pkTag " + self.parent.pk.tag
                 if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
                 if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
                 if self.parent.index.extra: cmd += " " + self.parent.index.extra

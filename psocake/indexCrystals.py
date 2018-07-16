@@ -23,6 +23,7 @@ parser.add_argument("--maxPeaks", help="",default=0, type=int)
 parser.add_argument("--minRes", help="",default=0, type=int)
 parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
 parser.add_argument("--sample", help="", default=None, type=str)
+parser.add_argument("--pkTag", help="", default='', type=str)
 parser.add_argument("--tag", help="", default='', type=str)
 parser.add_argument("--queue", help="", default=None, type=str)
 parser.add_argument("--chunkSize", help="", default=500, type=int)
@@ -166,9 +167,12 @@ def getIndexedPeaks():
     return indexedPeaks, numProcessed
 ##############################################################################
 runDir = outDir + "/r" + str(runNumber).zfill(4)
-peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '.cxi'
-#indexingFile = runDir + '/.' + experimentName + '_' + str(runNumber).zfill(4) + '.txt'
-fnameIndex = runDir+"/status_index.txt"
+peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4)
+if args.pkTag: peakFile += '_'+args.pkTag
+peakFile += '.cxi'
+fnameIndex = runDir+"/status_index"
+if args.pkTag: fnameIndex += '_'+args.pkTag
+fnameIndex += ".txt"
 
 
 
