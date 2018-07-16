@@ -125,6 +125,7 @@ class PeakFinding(object):
         self.save_maxPeaks_str = 'Maximum number of peaks'
         self.save_minRes_str = 'Minimum resolution (pixels)'
         self.save_sample_str = 'Sample name'
+        self.tag_str = 'Tag'
 
         self.showPeaks = True
         self.turnOnAutoPeaks = False
@@ -136,6 +137,7 @@ class PeakFinding(object):
         self.algInitDone = False
         self.peaksMaxRes = 0
         self.classify = False
+        self.tag = ''
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.hitParam_alg1_npix_min = 2.
@@ -224,6 +226,8 @@ class PeakFinding(object):
                      'tip': "Index only if Bragg peak resolution is at least this"},
                     {'name': self.save_sample_str, 'type': 'str', 'value': self.sample,
                      'tip': "Sample name saved inside cxi"},
+                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
+                     'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
                     {'name': self.hitParam_outDir_str, 'type': 'str', 'value': self.hitParam_outDir},
                     {'name': self.hitParam_runs_str, 'type': 'str', 'value': self.hitParam_runs},
                     {'name': self.hitParam_queue_str, 'type': 'list', 'values': {self.hitParam_psfehhiprioq_str: 'psfehhiprioq',
@@ -316,7 +320,9 @@ class PeakFinding(object):
     def updateParam(self):
         if self.userUpdate is None:
             if self.parent.psocakeRunDir is not None:
-                peakParamFname = self.parent.psocakeRunDir + '/peakParam.json'
+                peakParamFname = self.parent.psocakeRunDir + '/peakParam'
+                if self.tag: peakParamFname += '_' + self.tag
+                peakParamFname += '.json'
                 if os.path.exists(peakParamFname):
                     with open(peakParamFname) as infile:
                         d = json.load(infile)
@@ -399,7 +405,9 @@ class PeakFinding(object):
         # Save peak finding parameters
         runsToDo = self.digestRunList(self.hitParam_runs)
         for run in runsToDo:
-            peakParamFname = self.parent.psocakeDir+'/r'+str(run).zfill(4)+'/peakParam.json'
+            peakParamFname = self.parent.psocakeDir+'/r'+str(run).zfill(4)+'/peakParam'
+            if self.tag: peakParamFname += '_'+self.tag
+            peakParamFname += '.json'
             if self.parent.facility == self.parent.facilityLCLS:
                 d = {self.hitParam_algorithm_str: self.algorithm,
                      self.hitParam_alg1_npix_min_str: self.hitParam_alg1_npix_min,
@@ -477,6 +485,8 @@ class PeakFinding(object):
                 self.minRes = data
             elif path[1] == self.save_sample_str:
                 self.sample = data
+            elif path[1] == self.tag_str:
+                self.updateTag(data)
             elif path[1] == self.hitParam_extra_str:
                 self.hitParam_extra = data
             elif path[2] == self.hitParam_alg1_npix_min_str and path[1] == self.hitParam_parameters_str:
@@ -545,6 +555,9 @@ class PeakFinding(object):
         self.algInitDone = False
         self.updateClassification()
         if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm
+
+    def updateTag(self, data):
+        self.tag = data
 
     def saveCheetahFormat(self, arg):
         if arg == self.parent.facilityLCLS:

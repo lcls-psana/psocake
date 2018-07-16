@@ -74,6 +74,8 @@ parser.add_argument("--cxiVersion", help="cxi version",default=140, type=int)
 parser.add_argument("--auto", help="automatically determine peak finding parameter per event", default="False", type=str)
 # LCLS specific
 parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
+parser.add_argument("-t","--tag", help="Set tag for cxi filename",default="", type=str)
+
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)
@@ -141,7 +143,9 @@ if rank == 0:
     (dim0, dim1) = img.shape
 
     runStr = "%04d" % args.run
-    fname = args.outDir + '/' + args.exp +"_"+ runStr + ".cxi"
+    fname = args.outDir + '/' + args.exp +"_"+ runStr
+    if args.tag: fname += '_' + args.tag
+    fname += ".cxi"
     # Get number of events to process
     numJobs = getNoe(args)
 

@@ -64,7 +64,10 @@ def updateHdf5(h5file, dataset, ind, val):
 def runmaster(args, nClients):
 
     runStr = "%04d" % args.run
-    fname = args.outDir +"/"+ args.exp +"_"+ runStr + ".cxi"
+    fname = args.outDir +"/"+ args.exp +"_"+ runStr
+    if args.tag: fname += '_' + args.tag
+    fname += ".cxi"
+
     grpName = "/entry_1/result_1"
     dset_nPeaks = "/nPeaksAll"
     dset_posX = "/peakXPosRawAll"
@@ -83,7 +86,9 @@ def runmaster(args, nClients):
     dset_peakTime = "/peakTime"
     dset_totalTime = "/totalTime"
     dset_rankID = "/rankID"
-    statusFname = args.outDir + "/status_peaks.txt"
+    statusFname = args.outDir + "/status_peaks"
+    if args.tag: statusFname += '_'+args.tag
+    statusFname += ".txt"
 
     powderHits = None
     powderMisses = None
@@ -657,12 +662,14 @@ def runmaster(args, nClients):
 
     # Save powder patterns
     if facility == 'LCLS':
-        fnameHits = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.npy"
-        fnameMisses = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses.npy"
-        fnameHitsTxt = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits.txt"
-        fnameMissesTxt = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses.txt"
-        fnameHitsNatural = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxHits_natural_shape.npy"
-        fnameMissesNatural = args.outDir +"/"+ args.exp +"_"+ runStr + "_maxMisses_natural_shape.npy"
+        runTagStr = runStr
+        if args.tag: runTagStr += "_"+args.tag
+        fnameHits = args.outDir +"/"+ args.exp +"_"+ runTagStr + "_maxHits.npy"
+        fnameMisses = args.outDir +"/"+ args.exp +"_"+ runTagStr + "_maxMisses.npy"
+        fnameHitsTxt = args.outDir +"/"+ args.exp +"_"+ runTagStr + "_maxHits.txt"
+        fnameMissesTxt = args.outDir +"/"+ args.exp +"_"+ runTagStr + "_maxMisses.txt"
+        fnameHitsNatural = args.outDir +"/"+ args.exp +"_"+ runTagStr + "_maxHits_natural_shape.npy"
+        fnameMissesNatural = args.outDir +"/"+ args.exp +"_"+ runTagStr + "_maxMisses_natural_shape.npy"
 
         # Save powder of hits
         if powderHits is not None:
