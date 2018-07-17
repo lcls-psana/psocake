@@ -9,9 +9,33 @@ import base64
 from pathlib import Path
 import json
 
+#Initialize global variables 
 
-#push(val) takes a variable val, and sends it to a receiving client zmq socket
+#Value that continues the loop of accepting information from clients. Could potentially be used to end the master program if all clients have finished sending information to the master. For now, boolean is always true
+boolean = True
+
+#Value that keeps track of the number of clients sending the master information
+#numberOfClients = 1
+
+#Value that keeps track of the number of clients who have finished sending the master information. Could be used to end the master program.
+#numClientsDone = 0
+
+#The total number of peaks found by the clients
+totalPeaks = 0
+
+#The total number of hits found by the clients
+totalHits = 0
+
+#If peaks have been reported, then this value will change to true and hits will be reported.
+peaksThenHits = False
+
+
 def push(val):
+        """ Give information to the client zmq socket.
+    
+        Arguments:
+        val -- The information/value that will be pushed to the client zmq socket.
+        """
 	context = zmq.Context()
 	zmq_socket = context.socket(zmq.PUSH)
 	zmq_socket.bind("tcp://127.0.0.1:5560")
@@ -19,8 +43,11 @@ def push(val):
 	zmq_socket.send_json(val)
 	print("Pushed")
 
-#pull() recieves information from a client zmq socket
 def pull():
+        """ Recieve information from the client zmq socket. 
+        When called, the program will wait until information 
+        has been pushed by the client zmq socket.
+        """
 	context = zmq.Context()
 	results_receiver = context.socket(zmq.PULL)
         results_receiver.connect("tcp://127.0.0.1:5559")
@@ -28,8 +55,13 @@ def pull():
 	print("I just pulled:", result)  
 	return result
 
-#change data back into np array
+
 def munge_json(event):
+        """ Convert an array pushed through json back into a numpy array
+        
+        Arguments:
+        event -- array sent through json to be changed into numpy array
+        """
         if 'done' in event:
                 return None, None
         else:
@@ -41,21 +73,8 @@ def munge_json(event):
                                 pass
                 return val
 
-#Read the list
-#csPadList = []
-#with open('csPadList.txt', 'r') as f:
-#        csPadList = json.load(f)
 
-#for val in csPadList:
- #       push(val)
-
-
-boolean = True
-numberOfClients = 1
-#numClientsDone = 0
-totalPeaks = 0
-peaksThenHits = 0
-
+#Accepted information from clients.
 while (boolean):
         try:
                 print("waiting...")
@@ -67,12 +86,13 @@ while (boolean):
         except zmq.error.Again:
                 break
         if(integer):
-                if(peaksThenHits == 0):
+                if(peaksThenHits == False):
                         totalPeaks += val
                         print(totalPeaks, "Peaks")
-                        peaksThenHits += 1
+                        peaksThenHits = True
                 else:
-                        print(val, "Hits")
+                        totalHits += val
+                        print(totalHits, "Hits")
         #elif(val == "Done!"):
                 #fprint("finishing up")
         else:
