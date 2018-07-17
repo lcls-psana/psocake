@@ -5,27 +5,54 @@ from psana import *
 import json
 
 
+
 class Crawler:
+    """A Crawler instance is used to search through the experimental 
+    data and fetch a random, non-corrupt experiment run pair
+    """
 
     def __init__(self):
+        """When a Crawler is initialized, an empty list of the experiments and runs 
+        the crawler has already reported is created, this will be used to keep track
+        of experiments and runs the crawler has found, so that it does not re-report 
+        these runs. The crawler also reads a file which reports to it which runs are 
+        corrupt, so that it skips over these runs.
+        """
         self.seenList = []
         self.badList = []
         self.readFile('listOfUnreadableFiles.txt')
 
     def addToList(self, name, run, det):
+        """adds a run to the list of runs the crawler has seen
+        
+        Arguments:
+        name -- experiment name
+        run -- run number
+        det -- detector name
+        """
         self.seenList.append([name, run, det])
 
     def printList(self):
+        """prints the list of exp,run,det the crawler has seen"""
         print(self.seenList)
 
     def inList(self, name, run, det):
+        """checks to see if the exp,run,det the crawler just fetched
+        has already been reported
+        """
         if([name, run, det] in self.seenList):
-            print("Repeat!")
+            #print("Repeat!")
             return True
         else:
             return False
 
     def readFile(self, filename):
+        """reads a file that contains a dictionary, which informs the crawler
+        of which exp,run,det should not be reported
+
+        Arguments:
+        filename -- the filename/extension of the list of unreadable exp,runs
+        """
         #Read a dictionary
         newlist = []
         with open(filename, 'r') as f:#'listOfUnreadableFiles.txt'
@@ -33,12 +60,21 @@ class Crawler:
         self.badList = newlist
 		
     def isValidRun(self, name, files):
+        """determines if an experiment, run has a corresponding idx file
+
+        Arguments:
+        name -- experiment name
+        files -- filename for this run number
+        """
         extension = '/reg/d/psdm/cxi/' + name + '/xtc/index/' + files + '.idx'
         boolean = os.path.isfile(extension)
         boolean2 = (os.stat(extension).st_size != 0)
         return (boolean and boolean2)
 
     def crawl(self):
+        """searches through the data files and reports a random experiment and run number
+        
+        """
         choice = random.choice(os.listdir("/reg/d/psdm/cxi"))
         if ("cxi" in choice):
             try:
@@ -59,6 +95,9 @@ class Crawler:
             return [False, 0, 0]
 
     def detectorValidator(self):
+        """ Validates that the experiment and run number found used a CsPad detector
+        returns the experiment, run number, detector.
+        """
         loopCondition = True
         while loopCondition:
             boolean, name, run = self.crawl()
@@ -78,6 +117,8 @@ class Crawler:
                  return [False, 0, 0, 0]
             
     def returnOneRandomExpRunDet(self):
+        """returns one single, random Experiment, Run Number, and Detector set.
+        """
         loopCondition = True
         while loopCondition:
             boolean, name, run, det = self.detectorValidator()
@@ -88,18 +129,13 @@ class Crawler:
                     return [name, run, det]
 
     def printSome(self,n):
+        """prints n random Experiment, Run Number, and Detector sets.
+
+        Arguments:
+        n -- number of Experiment, Run Number, and Detector sets to be printed
+        """
         for i in range(n):
             print(self.returnOneRandomExpRunDet())
-
-
-    def main(self):
-        for i in range(1000):
-            boolean, name, run, det = self.detectorValidator()
-            if(boolean):
-                if(not self.inList(name, run, det)):
-                    self.addToList(name, run, det)
-                    print(i, name, run, det)
-
 
 #myCrawler = Crawler()
 #print(myCrawler.badList)

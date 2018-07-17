@@ -12,6 +12,9 @@ from psana import *
 import random
 from peaknet import Peaknet
 from crawler import Crawler
+#import pymongo
+
+#Intialize global variables
 
 #Amount of events sent to PeakNet
 batchSize = 64
@@ -21,11 +24,18 @@ goodLikelihood = .03
 eventLimit = 1000
 #Minimum number of peaks to be found to calculate likelihood
 goodNumPeaks = 15
-
+#Minimum number of events to be found before peak finding on 1000 events of a run
+minEvents = 3
+#Initialization of Peaknet
 psnet = Peaknet()
 
-#pull() recieves information from a master zmq socket
+
+
 def pull():
+    """ Recieve information from the master zmq socket. 
+    When called, the program will wait until information 
+    has been pushed by the master zmq socket.
+    """
     context = zmq.Context()
     results_receiver = context.socket(zmq.PULL)
     results_receiver.connect("tcp://127.0.0.1:5560")
@@ -33,8 +43,12 @@ def pull():
     print("I just pulled:", result)  
     return result
 
-#push(val) takes a variable val, and sends it to a receiving master zmq socket
 def push(val):
+    """ Give information to the master zmq socket.
+    
+    Arguments:
+    val -- The information/value that will be pushed to the master zmq socket.
+    """
     context = zmq.Context()
     zmq_socket = context.socket(zmq.PUSH)
     zmq_socket.bind("tcp://127.0.0.1:5559")
@@ -44,13 +58,22 @@ def push(val):
 
 #converts a numpy array to be sent through json
 def bitwise_array(value):
+    """ Convert a numpy array to a form that can be sent through json.
+    
+    Arguments:
+    value -- a numpy array that will be converted.
+    """
     if np.isscalar(value):
         return value
     val = np.asarray(value)
     return [base64.b64encode(val), val.shape, val.dtype.str]
 
-#Calculates the likelihood than an event is a crystal
 def calculate_likelihood(qPeaks):
+    """ Calculate the likelihood that an event is a crystal
+
+    Arguments:
+    qPeaks -- 
+    """
     nPeaks = int(qPeaks.shape[1])
     selfD = distance.cdist(qPeaks.transpose(), qPeaks.transpose(), 'euclidean')
     sortedSelfD = np.sort(selfD)
@@ -76,7 +99,15 @@ def calculate_likelihood(qPeaks):
     return [meanClosestNeighborDist, pairsFoundPerSpot]
 
 #gets detector information
-def getImage(exp, runnum, det):
+def getDetectorInformation(exp, runnum, det):
+    """ Returns the detector, the peak finding algorithm, and the number of events for
+    this run.
+    
+    Arguments:
+    exp -- the experiment name
+    runnum -- the run number for this experiment
+    det -- the detector used for this experiment
+    """
     ds = psana.DataSource('exp=%s:run=%d:idx'%(exp,runnum))
     d = psana.Detector(det)
     d.do_reshape_2d_to_3d(flag=True)
@@ -91,8 +122,21 @@ def getImage(exp, runnum, det):
     mask = d.mask(runnum,calib=True,status=True,edges=True,central=True,unbond=True,unbondnbrs=True)
     return [d, alg, hdr, fmt, numEvents, mask, times, env, run]
 
-#gets peaks from an event
 def getPeaks(d, alg, hdr, fmt, mask, times, env, run, j):
+    """Finds peaks within an event, and returns the event information, peaks found, and hits found
+    
+    Arguments:
+    d -- psana.Detector() of this experiment's detector
+    alg -- the algorithm used to find peaks
+    hdr -- Title row for printed chart of peaks found
+    fmt -- Locations of peaks found for printed chart
+    mask -- the detector mask
+    times -- all the events for this run
+    env -- ds.env()
+    run -- ds.runs().next(), the run information
+    j -- this event's number
+    
+    """
     evt = run.event(times[j])
     try:
         nda = d.calib(evt) * mask
@@ -109,8 +153,15 @@ def getPeaks(d, alg, hdr, fmt, mask, times, env, run, j):
     else:
         return[None,None,None,None,None]
 
-#retrieves likelihood value for an event with 15 or more peaks
 def getLikelihood(d, evt, peaks, numPeaksFound):
+    """ Returns the likeligood value for an event with 15 or more peaks
+    
+    Arguments:
+    d -- psana.Detector() of this experiment's detector
+    evt -- ds.env()
+    peaks -- the peaks found for this event
+    numPeaksFound -- number of peaks found for this event
+    """
     if (numPeaksFound >= goodNumPeaks):
         ix = d.indexes_x(evt)
         iy = d.indexes_y(evt) 
@@ -144,30 +195,42 @@ def getLikelihood(d, evt, peaks, numPeaksFound):
 
 
 def evaluateRun():
-    d = 0
-    evt = 0
-    goodlist = []
-    ndalist = []
-    dontRedo = []
-    totalNumPeaks = 0
-    totalPix = 0
-    myCrawler = Crawler()
+    """ Finds a random experiment run, finds peaks, and determines likelihood of events. If an event is
+    likely to be a crystal, it will be used to train PeakNet. This function continues until the amount of 
+    events found is equal to the batchSize.
+   
+    return the list peaks in good events,  the list of corresponding images for the good events, 
+    the total number of peaks found by this function, and the total number of hits found 
+    """
+    # Initialize local variables
+    d = 0 #Will be psana.Detector(det)
+    evt = 0 #Will be run.event(this event)
+    goodlist = [] # List of good peaks - their segment, row, and column
+    ndalist = [] # Image of event
+    totalNumPeaks = 0 #Number of peaks found during this function's call
+    totalPix = 0 #Number of hits found during this function's call
+    myCrawler = Crawler() # Crawler used to fetch a random experiment + run
+    # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
     while True:
         timebefore = time.time()
         if(len(goodlist) >= batchSize):
             break
+        #Use the crawler to fetch a random experiment+run
         exp, runnum, det = myCrawler.returnOneRandomExpRunDet()
         print(exp, runnum, det)
         runnum = int(runnum)
-        eventInfo = getImage(exp, runnum, det)
+        eventInfo = getDetectorInformation(exp, runnum, det)
         d, alg, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
         numGoodEvents = 0
+        #Peak find for each event in an experiment+run
         for j in range(numEvents):
             if(len(goodlist) >= batchSize):
                 break
+            #If the amount of good events found is less than minEvents before the eventLimit, then 
+            #stop and try peak finding on a new experiment+run
             if((j >= eventLimit) and (numGoodEvents < 3)):
                 break
-            print(j)
+            #print(j)
             eventList = [[],[],[]]
             peakInfo = getPeaks(d, alg, hdr, fmt, mask, times, env, run, j)
             evt, nda, peaks, numPeaksFound, numpix = peakInfo[:]
@@ -196,14 +259,15 @@ def evaluateRun():
 evaluateinfo = evaluateRun()
 goodlist, ndalist, totalNumPeaks, totalPix = evaluateinfo[:]
 
+#Master gets the number of peaks and hits found
+push(totalNumPeaks)
+push(totalPix)
 
-#push(totalNumPeaks)
-#push(totalPix)
-
-#print(goodlist[0])
+#Train PeakNet on the good events
 for i,element in enumerate(ndalist):
 	psnet.train(element, goodlist[i])
 
+#for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
 a = np.array([[1, 2],[3, 4]])
 b = bitwise_array(a)
 push(b)
