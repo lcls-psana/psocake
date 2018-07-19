@@ -1,10 +1,9 @@
 import random
 import os
 import re
+import numpy as np
 from psana import *
 import json
-
-
 
 class Crawler:
     """A Crawler instance is used to search through the experimental 
@@ -59,22 +58,34 @@ class Crawler:
             newlist = json.load(f)
         self.badList = newlist
 		
-    def isValidRun(self, name, files):
+    def isValidRun(self, filetype, name, files):
         """determines if an experiment, run has a corresponding idx file
 
         Arguments:
+        filetype -- either cxi or mfx files allowed
         name -- experiment name
         files -- filename for this run number
         """
-        extension = '/reg/d/psdm/cxi/' + name + '/xtc/index/' + files + '.idx'
-        boolean = os.path.isfile(extension)
-        boolean2 = (os.stat(extension).st_size != 0)
-        return (boolean and boolean2)
+        if(filetype == "cxi"):
+            extension = '/reg/d/psdm/cxi/' + name + '/xtc/index/' + files + '.idx'
+            boolean = os.path.isfile(extension)
+            boolean2 = (os.stat(extension).st_size != 0)
+            return (boolean and boolean2)
+        elif(filetype == "mfx"):
+            extension = '/reg/d/psdm/mfx/' + name + '/xtc/index/' + files + '.idx'
+            boolean = os.path.isfile(extension)
+            boolean2 = (os.stat(extension).st_size != 0)
+            return (boolean and boolean2)
+        else:
+            return False
 
     def crawl(self):
         """searches through the data files and reports a random experiment and run number
         
         """
+        #filetype = random.choice(["cxi", "mfx"])
+        #choice = random.choice(os.listdir("/reg/d/psdm/%s"%filetype))
+        filetype = "cxi"
         choice = random.choice(os.listdir("/reg/d/psdm/cxi"))
         if ("cxi" in choice):
             try:
@@ -82,7 +93,22 @@ class Crawler:
                 if(".xtc.inprogress" in randomRun):
                     return [False, 0, 0]
                 elif(".xtc" in randomRun):
-                    if(self.isValidRun(choice,randomRun)):
+                    if(self.isValidRun(filetype, choice,randomRun)):
+                        num = re.findall("-r(\d+)-", randomRun)
+                        return [True, choice, num[0]]
+                    else:
+                        return [False, 0, 0]
+                else:
+                    return [False, 0, 0]
+            except OSError:
+                return [False, 0, 0]
+        elif("mfx" in choice):
+            try:
+                randomRun = random.choice(os.listdir('/reg/d/psdm/mfx/' + choice + '/xtc'))
+                if(".xtc.inprogress" in randomRun):
+                    return [False, 0, 0]
+                elif(".xtc" in randomRun):
+                    if(self.isValidRun(filetype, choice,randomRun)):
                         num = re.findall("-r(\d+)-", randomRun)
                         return [True, choice, num[0]]
                     else:
@@ -102,17 +128,31 @@ class Crawler:
         while loopCondition:
             boolean, name, run = self.crawl()
             if (boolean == True):
-                if not((name in self.badList) and (run in self.badList[name])):
-                    ds = DataSource('exp=%s:run=%s:idx'%(name,run))
-                    detnames = DetNames()
-                    detector = random.choice(DetNames())
-                    if ("DscCsPad" in detector) or ("DsdCsPad" in detector) or ("DsaCsPad" in detector):
-                        loopCondition = False
-                        return [True, name, run, detector[1]]
+                if ("cxi" in name): 
+                    if not((name in self.badList) and (run in self.badList[name])):
+                        ds = DataSource('exp=%s:run=%s:idx'%(name,run))
+                        detnames = DetNames()
+                        for detname in detnames:
+                            if ("DscCsPad" in detname) or ("DsdCsPad" in detname) or ("DsaCsPad" in detname):
+                                loopCondition = False
+                                return [True, name, run, detname[1]]
+                        else:
+                            return [False, 0, 0, 0]
                     else:
-                        return [False, 0, 0, 0]
+                        return[False, 0, 0, 0]
+                elif("mfx" in name):
+                    if not((name in self.badList) and (run in self.badList[name])):
+                        ds = DataSource('exp=%s:run=%s:idx'%(name,run))
+                        detnames = np.array(DetNames()).ravel()
+                        if ("CsPad" in detnames):
+                            loopCondition = False
+                            return [True, name, run, "CsPad"]
+                        else:
+                            return [False, 0, 0, 0]
+                    else:
+                        return[False, 0, 0, 0]
                 else:
-                    return[False, 0, 0, 0]
+                     return [False, 0, 0, 0]
             else:
                  return [False, 0, 0, 0]
             
