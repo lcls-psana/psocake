@@ -213,5 +213,5 @@ class HitFinder(object):
         myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Pixels=' + \
                     str(self.nPixels) + ' <br></span></div>'
         self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
-        self.parent.img.w1.getView().addItem(self.parent.img.peak_text)
+        self.parent.img.win.getView().addItem(self.parent.img.peak_text)
         self.parent.img.peak_text.setPos(maxX, maxY)
