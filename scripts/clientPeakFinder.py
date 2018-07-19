@@ -44,24 +44,26 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         alg.set_peak_selection_pars(npix_min=npxmin, npix_max=npxmax, amax_thr=amaxthr, atot_thr=atotthr, son_min=sonmin) #(npix_min=2, npix_max=30, amax_thr=300, atot_thr=600, son_min=10)
         self.runClient(alg, **kwargs)
 
-    def createDatabaseTrial(self):
+    def createDatabase(self):
         client = MongoClient('mongodb://*:27017/')
-        print("client made")
-        db = client['test-for-peaks']
-        print("db made")
-        post = {"Exp":"explab",
-                "RunNum":5,
-                "Det": "CsPad",
-                "Event":5,
-                "Peaks":50,
-                "Hit":500}
-        print("post written")
+        db = client['PeakFindingDatabase']
+        #post = {"Exp":"explab",
+        #        "RunNum":5,
+        #        "Det": "CsPad",
+        #        "Event":5,
+        #        "Peaks":50,
+        #        "Hit":500}
         posts = db.posts
-        print("posts made")
-        posts.insert_one(post)
-        print("post posted")
-        print(posts.find_one())
+        return posts
 
+    def createDictionary(self, exp, runnum, det, event, peaks, hits):
+        post = {"Exp":exp,
+                "RunNum":runnum,
+                "Det": det,
+                "Event":event,
+                "Peaks":peaks,
+                "Hit":hits}
+        return post
 
     #converts a numpy array to be sent through json
     def bitwise_array(self, value):
@@ -215,6 +217,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         totalNumPeaks = 0 #Number of peaks found during this function's call
         totalPix = 0 #Number of hits found during this function's call
         myCrawler = Crawler() # Crawler used to fetch a random experiment + run
+        dbPoster = self.createDatabase() #create database to store good event info in
         # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
         while True:
             timebefore = time.time()
@@ -243,19 +246,23 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 if nda is None:
 	            continue
                 pairsFoundPerSpot = self.getLikelihood(d, evt, peaks, numPeaksFound)
+                #If this event is a good event, save the location of the peaks to train PeakNet
                 if (pairsFoundPerSpot > self.goodLikelihood):
                     print hdr
                     for peak in peaks:
-                        totalNumPeaks += 1
+                        totalNumPeaks += 1 #number of peaks
                         seg,row,col,npix,amax,atot = peak[0:6]
                         eventList[0].append([seg])
                         eventList[1].append([row])
                         eventList[2].append([col])
 	                print fmt % (seg, row, col, npix, atot)
-                    totalPix += numpix
+                    totalPix += numpix #number of hits
                     goodlist.append(np.array(eventList))
                     ndalist.append(nda)
                     numGoodEvents += 1
+                    dbPoster.insert_one(self.createDictionary(exp, runnum, det, j, numPeaksFound, numpix))
+                    print(dbPoster.find_one())
+                    
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
             timeafter = time.time()
             print("This took " ,timeafter-timebefore, " seconds")
@@ -278,6 +285,5 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         a = np.array([[1, 2],[3, 4]])
         b = self.bitwise_array(a)
         socket.push(b)
-        #self.createDatabaseTrial()
 
         #socket.push("Done!")
