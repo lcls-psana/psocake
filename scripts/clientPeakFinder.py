@@ -13,8 +13,7 @@ from peaknet import Peaknet
 from crawler import Crawler
 import clientAbstract
 from clientSocket import clientSocket
-import pymongo
-from pymongo import MongoClient
+from peakDatabase import PeakDatabase
 
 class clientPeakFinder(clientAbstract.clientAbstract):
 
@@ -34,7 +33,13 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     psnet = Peaknet()
     
     def algorithm(self, **kwargs):
-        values = []
+        """ Initialize the peakfinding algorithim with keyword 
+        arguments given by the user, then run the peakfinding 
+        algorithm on random sets of experiment runs
+
+        Arguments:
+        **kwargs -- a dictionary of arguments containing peakfinding parameters
+        """
         npxmin = kwargs["npix_min"]
         npxmax = kwargs["npix_max"]
         amaxthr = kwargs["amax_thr"]
@@ -44,25 +49,19 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         alg.set_peak_selection_pars(npix_min=npxmin, npix_max=npxmax, amax_thr=amaxthr, atot_thr=atotthr, son_min=sonmin) #(npix_min=2, npix_max=30, amax_thr=300, atot_thr=600, son_min=10)
         self.runClient(alg, **kwargs)
 
-    def createDatabase(self):
-        client = MongoClient('mongodb://*:27017/')
-        db = client['PeakFindingDatabase']
-        #post = {"Exp":"explab",
-        #        "RunNum":5,
-        #        "Det": "CsPad",
-        #        "Event":5,
-        #        "Peaks":50,
-        #        "Hit":500}
-        posts = db.posts
-        return posts
+    def createDictionary(self, exp, runnum, event, peaks):
+        """Create a dictionary that holds the important information of events with crystals
 
-    def createDictionary(self, exp, runnum, det, event, peaks, hits):
+        Arguments:
+        exp -- experiment name
+        runnum -- run number
+        event -- event number
+        peaks -- number of peaks found
+        """
         post = {"Exp":exp,
                 "RunNum":runnum,
-                "Det": det,
                 "Event":event,
-                "Peaks":peaks,
-                "Hit":hits}
+                "Peaks":peaks}
         return post
 
     #converts a numpy array to be sent through json
@@ -154,11 +153,9 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             numPeaksFound = len(peaks)
             alg = PA()
             thr = 20
-            numpix = alg.number_of_pix_above_thr(nda, thr)
-            #totint = alg.intensity_of_pix_above_thr(nda, thr)
-            return [evt, nda, peaks, numPeaksFound, numpix]
+            return [evt, nda, peaks, numPeaksFound]
         else:
-            return[None,None,None,None,None]
+            return[None,None,None,None]
 
     def getLikelihood(self, d, evt, peaks, numPeaksFound):
         """ Returns the likeligood value for an event with 15 or more peaks
@@ -201,7 +198,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
 
 
 
-    def evaluateRun(self, alg):
+    def evaluateRun(self, alg, peakDB):
         """ Finds a random experiment run, finds peaks, and determines likelihood of events. If an event is
         likely to be a crystal, it will be used to train PeakNet. This function continues until the amount of 
         events found is equal to the batchSize.
@@ -215,18 +212,16 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         goodlist = [] # List of good peaks - their segment, row, and column
         ndalist = [] # Image of event
         totalNumPeaks = 0 #Number of peaks found during this function's call
-        totalPix = 0 #Number of hits found during this function's call
         myCrawler = Crawler() # Crawler used to fetch a random experiment + run
-        dbPoster = self.createDatabase() #create database to store good event info in
         # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
         while True:
             timebefore = time.time()
             if(len(goodlist) >= self.batchSize):
                 break
             #Use the crawler to fetch a random experiment+run
-            exp, runnum, det = myCrawler.returnOneRandomExpRunDet()
-            print(exp, runnum, det)
-            runnum = int(runnum)
+            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
+            print(exp, strrunnum, det)
+            runnum = int(strrunnum)
             eventInfo = self.getDetectorInformation(exp, runnum, det)
             d, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
             print("Number of Events:", numEvents)
@@ -242,7 +237,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 #print(j)
                 eventList = [[],[],[]]
                 peakInfo = self.getPeaks(d, alg, hdr, fmt, mask, times, env, run, j)
-                evt, nda, peaks, numPeaksFound, numpix = peakInfo[:]
+                evt, nda, peaks, numPeaksFound = peakInfo[:]
                 if nda is None:
 	            continue
                 pairsFoundPerSpot = self.getLikelihood(d, evt, peaks, numPeaksFound)
@@ -256,26 +251,24 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                         eventList[1].append([row])
                         eventList[2].append([col])
 	                print fmt % (seg, row, col, npix, atot)
-                    totalPix += numpix #number of hits
                     goodlist.append(np.array(eventList))
                     ndalist.append(nda)
                     numGoodEvents += 1
-                    dbPoster.insert_one(self.createDictionary(exp, runnum, det, j, numPeaksFound, numpix))
-                    print(dbPoster.find_one())
-                    
+                    kwargs = self.createDictionary(exp, strrunnum, str(j), numPeaksFound)
+                    peakDB.addExpRunEventPeaks(**kwargs)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
             timeafter = time.time()
             print("This took " ,timeafter-timebefore, " seconds")
-        return [goodlist, ndalist, totalNumPeaks, totalPix]
+        return [goodlist, ndalist, totalNumPeaks]
 
     def runClient(self, alg, **kwargs):
         socket = clientSocket(**kwargs)
-        evaluateinfo = self.evaluateRun(alg)
-        goodlist, ndalist, totalNumPeaks, totalPix = evaluateinfo[:]
+        peakDB = PeakDatabase(**kwargs) #create database to store good event info in
+        evaluateinfo = self.evaluateRun(alg, peakDB)
+        goodlist, ndalist, totalNumPeaks = evaluateinfo[:]
 
-        #Master gets the number of peaks and hits found
+        #Master gets the number of peaks found
         socket.push(totalNumPeaks)
-        socket.push(totalPix)
 
         #Train PeakNet on the good events
         for i,element in enumerate(ndalist):

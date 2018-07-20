@@ -83,10 +83,12 @@ class Crawler:
         """searches through the data files and reports a random experiment and run number
         
         """
-        #filetype = random.choice(["cxi", "mfx"])
-        #choice = random.choice(os.listdir("/reg/d/psdm/%s"%filetype))
-        filetype = "cxi"
-        choice = random.choice(os.listdir("/reg/d/psdm/cxi"))
+        filetype = random.choice(["cxi", "mfx"])
+        choice = random.choice(os.listdir("/reg/d/psdm/%s"%filetype))
+        #filetype = "cxi"
+        #choice = random.choice(os.listdir("/reg/d/psdm/cxi"))
+        #filetype = "mfx"
+        #choice = random.choice(os.listdir("/reg/d/psdm/mfx"))
         if ("cxi" in choice):
             try:
                 randomRun = random.choice(os.listdir('/reg/d/psdm/cxi/' + choice + '/xtc'))
@@ -141,7 +143,7 @@ class Crawler:
                     else:
                         return[False, 0, 0, 0]
                 elif("mfx" in name):
-                    if not((name in self.badList) and (run in self.badList[name])):
+                    if not(name in self.badList):
                         ds = DataSource('exp=%s:run=%s:idx'%(name,run))
                         detnames = np.array(DetNames()).ravel()
                         if ("CsPad" in detnames):

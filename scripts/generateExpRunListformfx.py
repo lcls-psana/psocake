@@ -10,20 +10,21 @@ import base64
 from pathlib import Path
 import json
 
+
 #################################################################
 #Note: While this script is no longer used in the data pipeline,#
 # it is still useful in that it can quickly parse through each  #
-# experiment and run for cxi files, which is helpful for finding#
+# experiment and run for mfx files, which is helpful for finding#
 # corrupt files to blacklist.                                   #
 #################################################################
 
 def experimentListMaker():
     #First check the directory where each experiment is stored, and save that to a variable
-    listOfExperiments = os.listdir('/reg/d/psdm/cxi')
+    listOfExperiments = os.listdir('/reg/d/psdm/mfx')
     experimentNames = []
     #For each experiment there is a directory, save that directory's name to a list
     for experiment in listOfExperiments:
-        if "cxi" in experiment:
+        if "mfx" in experiment:
             experimentNames.append(experiment)
     return experimentNames
 
@@ -36,7 +37,7 @@ def runListMaker(experimentNames):
         #Some experiments are outdated, so the xtc files no longer exist. To avoid an error while looking
         #for xtc files that no longer exist, just ignore the directories that dont have xtc files.
         try:
-            listOfXtcFiles = os.listdir('/reg/d/psdm/cxi/' + name + '/xtc')
+            listOfXtcFiles = os.listdir('/reg/d/psdm/mfx/' + name + '/xtc')
         except OSError:
             continue
 	#For every xtc file, save the run number, and pair that with its experiment in "file_list"
@@ -44,7 +45,7 @@ def runListMaker(experimentNames):
             if ".xtc.inprogress" in files: #Some experiments have runs that are being copied. Ignore these.
                 continue
             elif ".xtc" in files: #Check to make sure each run has a corresponding .idx file
-                extension = '/reg/d/psdm/cxi/' + name + '/xtc/index/' + files + '.idx'
+                extension = '/reg/d/psdm/mfx/' + name + '/xtc/index/' + files + '.idx'
                 boolean = os.path.isfile(extension)
                 if (boolean and (os.stat(extension).st_size != 0)):
                     num = re.findall("-r(\d+)-", files)
@@ -80,13 +81,13 @@ def expRunDetListforCsPad(runList,newList):
     totalNumberOfEvents = 0 #the sum of all the events in every experiment,run pair in the list
     for pairs in runList[m:n]: #[:n] only creates a list up to n 
         #If the pair is in the dictionary, move to the next pair
-        if not ((pairs[0] in newList) and (pairs[1] in newList[pairs[0]])):
+        if not (pairs[0] in newList):
             print(runList.index(pairs), pairs) #Prints the pair that is added to the list
             ds = DataSource('exp=%s:run=%s:idx'%(pairs[0],pairs[1])) #Fetches data from pair
             detnames = DetNames() #Fetches detector names	
             run = ds.runs().next() 
             for detname in DetNames(): 
-                if ("DscCsPad" in detname) or ("DsdCsPad" in detname) or ("DsaCsPad" in detname):
+                if ("CsPad" in detname):
                     #Add experiment, run, detector to list
                     csPadList.append([pairs[0],pairs[1],detname[1]]) 
                     times = run.times()
