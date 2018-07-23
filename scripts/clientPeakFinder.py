@@ -20,7 +20,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Intialize global variables
 
     #Amount of events sent to PeakNet
-    batchSize = 20
+    batchSize = 64
     #Calculated Likelihood that counts as a "good event"
     goodLikelihood = .03
     #Limit of events iterated through in a run
@@ -30,7 +30,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Minimum number of events to be found before peak finding on 1000 events of a run
     minEvents = 3
     #Initialization of Peaknet
-    #psnet = Peaknet()
+    psnet = Peaknet()
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -279,8 +279,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         socket.push(numGoodEvents)
 
         #Train PeakNet on the good events
-        #for i,element in enumerate(ndalist):
-            #self.psnet.train(element, goodlist[i])
+        for i,element in enumerate(ndalist):
+            self.psnet.train(element, goodlist[i])
 
         #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
         a = np.array([[1, 2],[3, 4]])
