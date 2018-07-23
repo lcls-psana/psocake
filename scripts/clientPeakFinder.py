@@ -20,7 +20,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Intialize global variables
 
     #Amount of events sent to PeakNet
-    batchSize = 1
+    batchSize = 20
     #Calculated Likelihood that counts as a "good event"
     goodLikelihood = .03
     #Limit of events iterated through in a run
@@ -30,7 +30,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Minimum number of events to be found before peak finding on 1000 events of a run
     minEvents = 3
     #Initialization of Peaknet
-    psnet = Peaknet()
+    #psnet = Peaknet()
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -220,11 +220,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 break
             #Use the crawler to fetch a random experiment+run
             exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
-            print(exp, strrunnum, det)
+            print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
             runnum = int(strrunnum)
             eventInfo = self.getDetectorInformation(exp, runnum, det)
             d, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
-            print("Number of Events:", numEvents)
+            print("%d Events to find peaks on"%numEvents)
             numGoodEvents = 0
             #Peak find for each event in an experiment+run
             for j in range(numEvents):
@@ -254,25 +254,33 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                     goodlist.append(np.array(eventList))
                     ndalist.append(nda)
                     numGoodEvents += 1
-                    kwargs = self.createDictionary(exp, strrunnum, str(j), numPeaksFound)
+                    kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound)
                     peakDB.addExpRunEventPeaks(**kwargs)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
             timeafter = time.time()
-            print("This took " ,timeafter-timebefore, " seconds")
-        return [goodlist, ndalist, totalNumPeaks]
+            print("This took %d seconds" % (timeafter-timebefore))
+        peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents)
+        return [goodlist, ndalist, totalNumPeaks, numGoodEvents]
 
     def runClient(self, alg, **kwargs):
+        """ Runs the peakfinder, adds values to the database, trains peaknet, and reports values to the master
+
+        Arguments:
+        alg -- the peakfinding algorithm
+        kwargs -- peakfinding parameters, host and server name, client name
+        """
         socket = clientSocket(**kwargs)
         peakDB = PeakDatabase(**kwargs) #create database to store good event info in
         evaluateinfo = self.evaluateRun(alg, peakDB)
-        goodlist, ndalist, totalNumPeaks = evaluateinfo[:]
+        goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
 
         #Master gets the number of peaks found
         socket.push(totalNumPeaks)
+        socket.push(numGoodEvents)
 
         #Train PeakNet on the good events
-        for i,element in enumerate(ndalist):
-            self.psnet.train(element, goodlist[i])
+        #for i,element in enumerate(ndalist):
+            #self.psnet.train(element, goodlist[i])
 
         #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
         a = np.array([[1, 2],[3, 4]])

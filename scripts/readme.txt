@@ -7,9 +7,11 @@ Source the following environment:
 export PYTHONPATH=/reg/neh/home/liponan/ai/psnet:/reg/neh/home/liponan/ai/psnet/examples:/reg/neh/home/liponan/ai/psnet/python:$PYTHONPATH
 export PYTHONPATH=/reg/neh/home/yoon82/Software/peaknet4psocake:$PYTHONPATH
 
-In either terminal, run startMongoServer.sh. Keep track of the database's host address, it will be used as an argument when running the client.
+In either terminal, run startMongoServer.sh. Keep track of the database's host address, it will be used as an argument when 
+running the client.
 
-In one terminal, run "python master.py". Keep track of the master's host address, it will be used as an argument when running the client.
+In one terminal, run "python master.py". Keep track of the master's host address, it will be used as an argument when running 
+the client.
 
 In the other terminal, run "python runClients.py" with the following arguments:
 
@@ -25,4 +27,5 @@ arguments for runClients.py:
   -h, --help          show this help message and exit     ***Optional
 
 
-runClients.py will find events with a high likelihood of crystals, post these events to a database, train PeakNet on these events, and will send a message of how many peaks were found to the master.
+runClients.py will find events with a high likelihood of crystals, post these events to a database, train PeakNet on these events, 
+and will send a message of how many peaks were found to the master.

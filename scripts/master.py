@@ -69,6 +69,7 @@ while (boolean):
                 else:
                         totalHits += val
                         print(totalHits, "Hits")
+                        peaksThenHits = False
         #elif(val == "Done!"):
                 #fprint("finishing up")
         else:
