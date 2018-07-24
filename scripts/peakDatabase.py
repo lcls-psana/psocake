@@ -14,7 +14,8 @@ class PeakDatabase:
         """
         server = kwargs["server"]
         self.client = MongoClient('mongodb://%s:27017/'%server)
-        self.db = self.client['PeakFindingDatabase']
+        dbname = kwargs["dbname"]
+        self.db = self.client[dbname]
         self.poster = self.db.posts
         self.clientName = kwargs["name"] + datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S")
         dictionary = {self.clientName:{"parameters":{"npxmin" : kwargs["npix_min"],
