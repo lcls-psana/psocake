@@ -12,6 +12,7 @@ parser.add_argument("-atot_thr", default = 600, type = int, help = "integral ins
 parser.add_argument("-son_min", default = 10, type = int, help = "signal over noise ratio")
 parser.add_argument("-name", default = "Client", help = "Name of client for database")
 parser.add_argument("-server", default = "psanagpu114", help = "Host address of the MongoDB server")
+parser.add_argument("-dbname" , default = "PeakFindingDatabase", help = "The database you would like to save your information to")
 args = parser.parse_args()
 
 def invoke_model(model_name, **kwargs):
@@ -26,10 +27,8 @@ def invoke_model(model_name, **kwargs):
 
 kwargs = {"npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args.amax_thr, 
           "atot_thr": args.atot_thr, "son_min" : args.son_min, "host" : args.host, "name" : args.name,
-          "server" : args.server}
+          "server" : args.server, "dbname" : args.dbname}
 
 print(kwargs)
 
 invoke_model("clientPeakFinder",**kwargs)
-
-#invoke_model("clientSummer",**kwargs)

@@ -121,6 +121,10 @@ class PeakFinding(object):
         #self.hitParam_launchAuto_str = 'Launch auto peak finder'
         self.hitParam_extra_str = 'Extra parameters'
 
+        #Manual peak finding
+        self.hitParam_manualparameters_str = 'Manual Peak Finding'
+        self.hitParam_manualradius_str = 'Radius'
+
         self.save_minPeaks_str = 'Minimum number of peaks'
         self.save_maxPeaks_str = 'Maximum number of peaks'
         self.save_minRes_str = 'Minimum resolution (pixels)'
@@ -183,6 +187,7 @@ class PeakFinding(object):
         self.sample = 'sample'
         self.profile = 0
         self.hitParam_extra = ''
+        self.hitParam_manualradius = 5
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
@@ -243,6 +248,12 @@ class PeakFinding(object):
                     {'name': self.hitParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
                     {'name': self.hitParam_extra_str, 'type': 'str', 'value': self.hitParam_extra, 'tip': "Extra peak finding flags"},
+                    {'name': self.hitParam_manualparameters_str, 'visible':True, 'expanded':False, 'type': 'str',
+                     'value': "",
+                     'readonly': True, 'children':[
+                        {'name': self.hitParam_manualradius_str, 'type':'int', 'decimals':7, 'value': self.hitParam_manualradius,
+                         'tip': "radius of manually chosen peak"}
+                    ]},
                     {'name': self.hitParam_launch_str, 'type': 'action'},
                     #{'name': self.hitParam_launchAuto_str, 'type': 'action'},
                 ]},
@@ -293,6 +304,12 @@ class PeakFinding(object):
                      'tip': "number of events to process, default=-1 means process all events"},
                     {'name': self.hitParam_extra_str, 'type': 'str', 'value': self.hitParam_extra,
                      'tip': "Extra peak finding flags"},
+                    {'name': self.hitParam_manualparameters_str, 'visible':True, 'expanded':False, 'type': 'str',
+                     'value': "",
+                     'readonly': True, 'children':[
+                        {'name': self.hitParam_manualradius_str, 'type':'int', 'value': self.hitParam_manualradius,
+                         'tip': "radius of manually chosen peak"},
+                    ]},
                     {'name': self.hitParam_launch_str, 'type': 'action'},
                 ]},
             ]
