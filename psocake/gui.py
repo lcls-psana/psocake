@@ -27,7 +27,7 @@ import MousePanel, ImagePanel, ImageStackPanel
 import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
-import HitFinderPanel
+import HitFinderPanel, LabelingPanel
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")
@@ -214,6 +214,7 @@ class MainFrame(QtGui.QWidget):
         self.small = SmallDataPanel.SmallData(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.hf = HitFinderPanel.HitFinder(self)
+        self.label = LabelingPanel.Labeling(self)
 
         self.initUI()
 
@@ -351,6 +352,23 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.index.dock, 'above', self.mk.dock)  ## move d6 to stack on top of d4
             self.area.moveDock(self.pk.dock, 'above', self.index.dock)
             self.area.moveDock(self.hf.dock, 'above', self.pk.dock)
+
+            self.area.addDock(self.small.dock, 'right')
+            self.area.addDock(self.control.dock, 'right')
+            self.area.moveDock(self.small.dock, 'top', self.control.dock)
+        elif args.mode == 'label':
+            self.area.addDock(self.mouse.dock, 'left')
+            self.area.addDock(self.img.dock, 'bottom', self.mouse.dock)
+
+            self.area.addDock(self.exp.dock, 'right')
+            self.area.addDock(self.geom.dock, 'right')
+            self.area.addDock(self.roi.dock, 'right')
+            self.area.moveDock(self.geom.dock, 'above', self.roi.dock)   ## move d6 to stack on top of d4
+            self.area.moveDock(self.exp.dock, 'above', self.geom.dock)
+
+            self.area.addDock(self.label.dock, 'bottom', self.exp.dock)
+            self.area.addDock(self.mk.dock, 'bottom', self.exp.dock)
+            self.area.moveDock(self.label.dock, 'above', self.mk.dock)  ## move d6 to stack on top of d4
 
             self.area.addDock(self.small.dock, 'right')
             self.area.addDock(self.control.dock, 'right')
