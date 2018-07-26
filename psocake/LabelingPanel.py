@@ -9,6 +9,7 @@ import json, os, time
 from scipy.spatial.distance import cdist #TODO: clean up unneeded imports
 from scipy.spatial import distance
 import subprocess
+#import ImagePanel
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
@@ -24,7 +25,6 @@ class Labeling(object):
         self.win = ParameterTree()
         self.dock.addWidget(self.win)
 
-        # TODO: add dropdown for ADD/REMOVE (default: ADD)
         self.labelParam_grp = 'Labeler'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_pluginDir_str = 'Plugin directory'
@@ -44,6 +44,9 @@ class Labeling(object):
         self.labelParam_noe_str = 'Number of events to process'
         self.labelParam_launch_str = 'Launch labeler'
         self.labelParam_pluginParam_str = 'Plugin parameters'
+        self.labelParam_mode_str = 'Mode'
+        self.labelParam_add_str = 'Add'
+        self.labelParam_remove_str = 'Remove'
         self.tag_str = 'Tag'
 
         self.labelParam_poly_str = 'Polygon'
@@ -52,6 +55,7 @@ class Labeling(object):
         self.labelParam_none_str = 'None'
 
         self.shape = None
+        self.mode = self.labelParam_add_str
         self.labelParam_pluginParam = ''
         self.tag = ''
         self.labelParam_pluginDir = ''
@@ -67,21 +71,25 @@ class Labeling(object):
             pass
 
         # TODO: outDir doesn't display as expected
-        # TODO: fix tip
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
                 {'name': self.labelParam_grp, 'type': 'group', 'children': [
-                    {'name': self.labelParam_shapes_str, 'type': 'list', 'values': {self.labelParam_poly_str: 3,
-                                                                                    self.labelParam_circ_str: 2,
-                                                                                    self.labelParam_rect_str: 1,
-                                                                                    self.labelParam_none_str: 0},
-                     'value': self.shape},
-                    {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir},
+                    {'name': self.labelParam_mode_str, 'type': 'list', 'values': {self.labelParam_add_str: 'Add',
+                                                                                    self.labelParam_remove_str: 'Remove'},
+                     'value': self.mode, 'tip': "Choose labelling mode"},
+                    {'name': self.labelParam_shapes_str, 'type': 'list', 'values': {self.labelParam_poly_str: 'Polygon',
+                                                                                    self.labelParam_circ_str: 'Circle',
+                                                                                    self.labelParam_rect_str: 'Rectangle',
+                                                                                    self.labelParam_none_str: 'None'},
+                     'value': self.shape, 'tip': "Choose label shape"},
+                    {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
+                     'tip': "Input your algorithm directory"},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
-                     'tip': "Extra peak finding flags"},
+                     'tip': "Dictionary/kwargs of parameters for your algorithm"},
                     {'name': self.tag_str, 'type': 'str', 'value': self.tag,
                      'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
-                    {'name': self.labelParam_outDir_str, 'type': 'str', 'value': self.labelParam_outDir},
+                    {'name': self.labelParam_outDir_str, 'type': 'str', 'value': self.labelParam_outDir,
+                     'tip': "Output Directory for save files"},
                     {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
                     {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
                                                                                  self.labelParam_psnehhiprioq_str: 'psnehhiprioq',
@@ -190,6 +198,10 @@ class Labeling(object):
                 self.updateTag(data)
             elif path[1] == self.labelParam_pluginParam_str:
                 self.labelParam_pluginParam = data
+            elif path[1] == self.labelParam_shapes_str:
+                self.shapes = data
+            elif path[1] == self.labelParam_mode_str:
+                self.mode = data
 
     def updateAlgorithm(self, data):
         self.algorithm = data
@@ -242,8 +254,50 @@ class Labeling(object):
             if self.parent.args.v >= 1: print "Done updateLabel"
 
     def drawLabels(self):
-        # TODO: add roi objects
-        pass
-
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
+
+    def action(self,x,y):
+        if(self.mode == "Add"):
+            self.createShape(x,y)
+        elif(self.mode == "Remove"):
+            print("This feature is not yet finished")
+            self.parent.img.win.getView().removeItem(self.roiPoly)
+
+    def createShape(self,x,y):
+        try:
+            if(self.shapes == "Rectangle"):
+                width = 200
+                height = 200
+                self.roi = pg.ROI(pos=[x-(width/2), y-(height/2)], size=[width, height], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                          pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
+                self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
+                self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
+                self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
+                self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
+                self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+                self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+                self.roi.addScaleHandle([0, 1], [1, 0])
+                self.parent.img.win.getView().addItem(self.roi)
+                print("Rectangle added at x = %d, y = %d" % (x, y))
+            elif(self.shapes == "Circle"):
+                xrad = 200
+                yrad = 200
+                self.roiCircle = pg.CircleROI([x- (xrad/2), y - (yrad/2)], size=[xrad, yrad], snapSize=0.1, scaleSnap=False, translateSnap=False,
+                                        pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                self.roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
+                self.roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
+                self.roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
+                self.roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
+                self.roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
+                self.parent.img.win.getView().addItem(self.roiCircle)
+                print("Circle added at x = %d, y = %d" % (x, y))
+            elif(self.shapes == "Polygon"):
+                self.roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]],
+                                      closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                      pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                self.parent.img.win.getView().addItem(self.roiPoly)
+                print("Polygon added at x = %d, y = %d" % (x, y))
+        except AttributeError:
+            print("Choose a shape.")

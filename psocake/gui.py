@@ -214,7 +214,7 @@ class MainFrame(QtGui.QWidget):
         self.small = SmallDataPanel.SmallData(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.hf = HitFinderPanel.HitFinder(self)
-        self.label = LabelingPanel.Labeling(self)
+        self.labeling = LabelingPanel.Labeling(self)
 
         self.initUI()
 
@@ -366,9 +366,9 @@ class MainFrame(QtGui.QWidget):
             self.area.moveDock(self.geom.dock, 'above', self.roi.dock)   ## move d6 to stack on top of d4
             self.area.moveDock(self.exp.dock, 'above', self.geom.dock)
 
-            self.area.addDock(self.label.dock, 'bottom', self.exp.dock)
+            self.area.addDock(self.labeling.dock, 'bottom', self.exp.dock)
             self.area.addDock(self.mk.dock, 'bottom', self.exp.dock)
-            self.area.moveDock(self.label.dock, 'above', self.mk.dock)  ## move d6 to stack on top of d4
+            self.area.moveDock(self.labeling.dock, 'above', self.mk.dock)  ## move d6 to stack on top of d4
 
             self.area.addDock(self.small.dock, 'right')
             self.area.addDock(self.control.dock, 'right')
@@ -476,6 +476,7 @@ class MainFrame(QtGui.QWidget):
                 # Mouse click
                 if indexX >= 0 and indexX < self.data.shape[0] \
                         and indexY >= 0 and indexY < self.data.shape[1]:
+                    self.labeling.action(indexX,indexY)
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]
                     if self.mk.maskingMode > 0:
                         self.initMask()
