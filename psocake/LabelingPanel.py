@@ -19,7 +19,7 @@ elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
 class Labeling(object):
     def __init__(self, parent = None):
         self.parent = parent
-
+        self.setupRunDir()
         ## Dock: Labeler
         self.dock = Dock("Labeling", size=(1, 1))
         self.win = ParameterTree()
@@ -182,6 +182,7 @@ class Labeling(object):
             if path[1] == self.labelParam_outDir_str:
                 self.labelParam_outDir = data
                 self.labelParam_outDir_overridden = True
+                print(data)
             elif path[1] == self.labelParam_pluginDir_str:
                 self.updateAlgorithm(data)
             elif path[1] == self.labelParam_runs_str:
@@ -263,6 +264,18 @@ class Labeling(object):
         elif(self.mode == "Remove"):
             print("This feature is not yet finished")
             self.parent.img.win.getView().removeItem(self.roiPoly)
+
+    def setupRunDir(self):
+        # Set up psocake directory in scratch
+        if self.parent.args.outDir is None:
+            self.parent.rootDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
+            self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.parent.username + '/psocake'
+        else:
+            self.parent.rootDir = self.parent.args.outDir
+            self.parent.elogDir = self.parent.rootDir + '/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
+        self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
     def createShape(self,x,y):
         try:
