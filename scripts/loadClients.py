@@ -1,5 +1,4 @@
 import os, sys
-
 def load_model(modname): # module name only known at runtime
     try:
         if modname not in sys.modules: # if not already loaded
@@ -11,6 +10,6 @@ def load_model(modname): # module name only known at runtime
         #print "Dynamically loaded model :"+modname
         classObj = class_()
         return classObj
-    except Exception as e :
-        print "No Model : "+modname+", Error : "+e.message
-        raise e
+    except Exception:
+        print("No Model : "+modname) #, Error : "+e.message)
+        #raise e

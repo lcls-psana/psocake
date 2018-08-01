@@ -9,6 +9,7 @@ import json, os, time
 from scipy.spatial.distance import cdist #TODO: clean up unneeded imports
 from scipy.spatial import distance
 import subprocess
+from database import LabelDatabase
 #import ImagePanel
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -47,7 +48,12 @@ class Labeling(object):
         self.labelParam_mode_str = 'Mode'
         self.labelParam_add_str = 'Add'
         self.labelParam_remove_str = 'Remove'
+        self.labelParam_loadName_str = 'Label Load Name'
+        self.labelParam_saveName_str = 'Label Save Name'
+        self.labelParam_load_str = 'Load Labels'
+        self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
+
 
         self.labelParam_poly_str = 'Polygon'
         self.labelParam_circ_str = 'Circle'
@@ -59,6 +65,8 @@ class Labeling(object):
         self.labelParam_pluginParam = ''
         self.tag = ''
         self.labelParam_pluginDir = ''
+        self.labelParam_loadName = ''
+        self.labelParam_saveName = None
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -70,7 +78,16 @@ class Labeling(object):
         elif self.parent.facility == self.parent.facilityPAL:
             pass
 
-        # TODO: outDir doesn't display as expected
+        self.rectRois = []
+        self.circleRois = []
+        self.polyRois = []
+
+        self.rectAttributes = []
+        self.circleAttributes = []
+        self.polyAttributes = []
+
+        self.db = LabelDatabase()
+
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
                 {'name': self.labelParam_grp, 'type': 'group', 'children': [
@@ -103,6 +120,12 @@ class Labeling(object):
                     {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
                     {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
+                    {'name': self.labelParam_saveName_str, 'type': 'str', 'value': self.labelParam_saveName, 
+                     'tip': "Input the name you want to save these labels as"},
+                    {'name': self.labelParam_save_str, 'type': 'action'},
+                    {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName, 
+                     'tip': "Input the name of the label save post you want to load"},
+                    {'name': self.labelParam_load_str, 'type': 'action'},
                     {'name': self.labelParam_launch_str, 'type': 'action'},
                 ]},
             ]
@@ -182,7 +205,6 @@ class Labeling(object):
             if path[1] == self.labelParam_outDir_str:
                 self.labelParam_outDir = data
                 self.labelParam_outDir_overridden = True
-                print(data)
             elif path[1] == self.labelParam_pluginDir_str:
                 self.updateAlgorithm(data)
             elif path[1] == self.labelParam_runs_str:
@@ -195,6 +217,8 @@ class Labeling(object):
                 self.labelParam_noe = data
             elif path[1] == self.labelParam_launch_str:
                 self.findLabels()
+            elif path[1] == self.labelParam_save_str:
+                self.postLabels()
             elif path[1] == self.tag_str:
                 self.updateTag(data)
             elif path[1] == self.labelParam_pluginParam_str:
@@ -203,6 +227,12 @@ class Labeling(object):
                 self.shapes = data
             elif path[1] == self.labelParam_mode_str:
                 self.mode = data
+            elif path[1] == self.labelParam_loadName_str:
+                self.labelParam_loadName = data
+            elif path[1] == self.labelParam_saveName_str:
+                self.labelParam_saveName = data
+            elif path[1] == self.labelParam_load_str:
+                self.loadLabels(self.labelParam_loadName)
 
     def updateAlgorithm(self, data):
         self.algorithm = data
@@ -260,10 +290,9 @@ class Labeling(object):
 
     def action(self,x,y):
         if(self.mode == "Add"):
-            self.createShape(x,y)
+            self.clickCreateShape(x,y)
         elif(self.mode == "Remove"):
-            print("This feature is not yet finished")
-            self.parent.img.win.getView().removeItem(self.roiPoly)
+            pass
 
     def setupRunDir(self):
         # Set up psocake directory in scratch
@@ -277,40 +306,153 @@ class Labeling(object):
             self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-    def createShape(self,x,y):
+    def clickCreateShape(self,x,y):
         try:
             if(self.shapes == "Rectangle"):
                 width = 200
                 height = 200
-                self.roi = pg.ROI(pos=[x-(width/2), y-(height/2)], size=[width, height], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                roiRect = pg.ROI(pos=[x-(width/2), y-(height/2)], size=[width, height], snapSize=1.0, scaleSnap=True, translateSnap=True,
                           pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-                self.roi.addScaleHandle([1, 0.5], [0.5, 0.5])
-                self.roi.addScaleHandle([0.5, 0], [0.5, 0.5])
-                self.roi.addScaleHandle([0.5, 1], [0.5, 0.5])
-                self.roi.addScaleHandle([0, 0.5], [0.5, 0.5])
-                self.roi.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
-                self.roi.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
-                self.roi.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
-                self.roi.addScaleHandle([0, 1], [1, 0])
-                self.parent.img.win.getView().addItem(self.roi)
+                roiRect.addScaleHandle([1, 0.5], [0.5, 0.5])
+                roiRect.addScaleHandle([0.5, 0], [0.5, 0.5])
+                roiRect.addScaleHandle([0.5, 1], [0.5, 0.5])
+                roiRect.addScaleHandle([0, 0.5], [0.5, 0.5])
+                roiRect.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
+                roiRect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+                roiRect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+                roiRect.addScaleHandle([0, 1], [1, 0])
+                roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+                roiRect.sigClicked.connect(self.update)
+                self.rectRois.append(roiRect)
+                self.parent.img.win.getView().addItem(roiRect)
                 print("Rectangle added at x = %d, y = %d" % (x, y))
             elif(self.shapes == "Circle"):
                 xrad = 200
                 yrad = 200
-                self.roiCircle = pg.CircleROI([x- (xrad/2), y - (yrad/2)], size=[xrad, yrad], snapSize=0.1, scaleSnap=False, translateSnap=False,
+                roiCircle = pg.CircleROI([x- (xrad/2), y - (yrad/2)], size=[xrad, yrad], snapSize=0.1, scaleSnap=False, translateSnap=False,
                                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-                self.roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
-                self.roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
-                self.roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
-                self.roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
-                self.roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
-                self.parent.img.win.getView().addItem(self.roiCircle)
+                roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
+                roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
+                roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
+                roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
+                roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
+                roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+                roiCircle.sigClicked.connect(self.update)
+                self.circleRois.append(roiCircle)
+                self.parent.img.win.getView().addItem(roiCircle)
                 print("Circle added at x = %d, y = %d" % (x, y))
             elif(self.shapes == "Polygon"):
-                self.roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]],
+                roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]], pos = [0,0],
                                       closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
                                       pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-                self.parent.img.win.getView().addItem(self.roiPoly)
+                roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+                roiPoly.sigClicked.connect(self.update)
+                roiPoly.sigRegionChanged.connect(self.update)
+                self.polyRois.append(roiPoly)
+                self.parent.img.win.getView().addItem(roiPoly)
                 print("Polygon added at x = %d, y = %d" % (x, y))
+            else:
+                print("Choose a Shape.")
         except AttributeError:
-            print("Choose a shape.")
+            pass
+
+    def update(self, roi):
+        if(self.mode == "Remove"):
+            self.parent.img.win.getView().removeItem(roi)
+            try:
+                self.polyRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+            try:
+                self.circleRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+            try:
+                self.rectRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+        else:
+            pass
+    
+    def getPosition(self, roi):
+        return [roi.pos()[0],roi.pos()[1]]
+
+    def getSize(self, roi):
+        return [roi.size()[0],roi.size()[1]]
+
+    def getPoints(self, roi):
+            coords = []
+            for point in roi.getState()["points"]:
+                coords.append([point[0],point[1]])
+            return coords
+
+    def getAttributesRectangle(self, roi):
+        return {"Position" : self.getPosition(roi), "Size" : self.getSize(roi)}
+
+    def getAttributesCircle(self, roi):
+        return {"Position" : self.getPosition(roi), "Radius" : self.getSize(roi)[0]} ##only return radius
+
+    def getAttributesPolygon(self, roi):
+        return {"Position" : self.getPosition(roi), "Coordinates" : self.getPoints(roi)}
+
+    def saveLabels(self):
+        self.rectAttributes = []
+        self.circleAttributes = []
+        self.polyAttributes = []
+        for roi in self.polyRois:
+            self.polyAttributes.append(self.getAttributesPolygon(roi))
+        for roi in self.rectRois:
+            self.rectAttributes.append(self.getAttributesRectangle(roi))
+        for roi in self.circleRois:
+            self.circleAttributes.append(self.getAttributesCircle(roi))
+        return {"Polygons" : self.polyAttributes, "Circles" : self.circleAttributes, "Rectangles" : self.rectAttributes}
+
+    def postLabels(self):
+        self.db.post(self.labelParam_saveName, self.saveLabels())
+        self.db.printDatabase()
+
+    def loadLabels(self, loadName):
+        try:
+            shapes = self.db.findPost(loadName)[loadName]
+        except TypeError:
+            print("Invalid Load Name")
+        circles = shapes["Circles"]
+        rectangles = shapes["Rectangles"]
+        polygons = shapes["Polygons"]
+        for circle in circles:
+            self.loadCircle(circle["Position"][0],circle["Position"][1],circle["Radius"])
+        for rectangle in rectangles:
+            self.loadRectangle(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1])
+        for polygon in polygons:
+            self.loadPolygon(polygon["Position"], polygon["Coordinates"])
+
+    def loadRectangle(self, x, y, w, h):
+        roiRect = pg.ROI(pos = [x,y], size=[w, h], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+        roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        roiRect.sigClicked.connect(self.update)
+        self.rectRois.append(roiRect)
+        self.parent.img.win.getView().addItem(roiRect)
+        print("Rectangle added at x = %d, y = %d" % (x, y))
+
+    def loadCircle(self, x, y, r):
+        roiCircle = pg.CircleROI(pos = [x, y], size=[r, r], snapSize=0.1, scaleSnap=False, translateSnap=False,
+                                 pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+        roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        roiCircle.sigClicked.connect(self.update)
+        self.circleRois.append(roiCircle)
+        self.parent.img.win.getView().addItem(roiCircle)
+        print("Circle added at x = %d, y = %d" % (x, y))
+
+    def loadPolygon(self, pos, coords):
+        roiPoly = pg.PolyLineROI(coords, pos=pos,
+                                 closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                 pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+        roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        roiPoly.sigClicked.connect(self.update)
+        self.polyRois.append(roiPoly)
+        self.parent.img.win.getView().addItem(roiPoly)
+        print("Polygon added at x = %d, y = %d" % (coords[0][0], coords[0][1]))
