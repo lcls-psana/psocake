@@ -4,6 +4,7 @@ import re
 import numpy as np
 from psana import *
 import time
+import datetime
 import base64
 from pathlib import Path
 import json
@@ -53,8 +54,10 @@ socket = masterSocket()
 #Accepted information from clients.
 while (boolean):
         try:
+                print(datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S"))
                 print("waiting...")
                 val = socket.pull()
+                print(datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S"))
                 #if(val == "Done!"):
                 #        numClientsDone += 1
                 #boolean = ((val != "Done") and (numClientsDone != numberOfClients))

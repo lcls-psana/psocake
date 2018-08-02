@@ -10,6 +10,7 @@ from scipy.spatial.distance import cdist #TODO: clean up unneeded imports
 from scipy.spatial import distance
 import subprocess
 from database import LabelDatabase
+import runAlgorithm
 #import ImagePanel
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -62,9 +63,9 @@ class Labeling(object):
 
         self.shape = None
         self.mode = self.labelParam_add_str
-        self.labelParam_pluginParam = ''
+        self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30, \"amax_thr\":300, \"atot_thr\":600, \"son_min\":10}"
         self.tag = ''
-        self.labelParam_pluginDir = ''
+        self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
         self.labelParam_loadName = ''
         self.labelParam_saveName = None
 
@@ -100,9 +101,9 @@ class Labeling(object):
                                                                                     self.labelParam_none_str: 'None'},
                      'value': self.shape, 'tip': "Choose label shape"},
                     {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
-                     'tip': "Input your algorithm directory"},
+                     'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
-                     'tip': "Dictionary/kwargs of parameters for your algorithm"},
+                     'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
                     {'name': self.tag_str, 'type': 'str', 'value': self.tag,
                      'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
                     {'name': self.labelParam_outDir_str, 'type': 'str', 'value': self.labelParam_outDir,
@@ -235,10 +236,10 @@ class Labeling(object):
                 self.loadLabels(self.labelParam_loadName)
 
     def updateAlgorithm(self, data):
-        self.algorithm = data
+        self.algorithm_name = data
         self.algInitDone = False
         self.updateLabel()
-        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm
+        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
 
     def updateTag(self, data):
         self.tag = data
@@ -266,18 +267,22 @@ class Labeling(object):
                 self.parent.mk.combinedMask *= self.parent.mk.psanaMask
 
             # Compute
-            if self.algorithm == 0: # No algorithm
+            if self.algorithm_name == 0: # No algorithm
                 self.labels = None
                 self.drawLabels()
             else:
                 if self.parent.facility == self.parent.facilityLCLS:
                     # Only initialize the hit finder algorithm once
                     if self.algInitDone is False:
-                        # TODO: initialize plugin
+                        if (self.labelParam_pluginParam is not None):
+                            print("Loading %s!" % self.algorithm_name)
+                            kwargs = json.loads(self.labelParam_pluginParam)
+                            self.algorithm = runAlgorithm.invoke_model(self.algorithm_name, **kwargs)
+                        else:
+                            print("Enter plug-in parameters")
                         self.algInitDone = True
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
-
                 # TODO: Run plugin
                 if self.parent.args.v >= 1: print "Labels found: ", self.labels
 
@@ -347,6 +352,7 @@ class Labeling(object):
                                       pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
                 roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
                 roiPoly.sigClicked.connect(self.update)
+                roiPoly.sigHoverEvent.connect(self.update)
                 roiPoly.sigRegionChanged.connect(self.update)
                 self.polyRois.append(roiPoly)
                 self.parent.img.win.getView().addItem(roiPoly)
@@ -374,6 +380,8 @@ class Labeling(object):
                 print(roi, "removed.")
             except ValueError:
                 pass
+        elif(self.mode == "Add"):
+            pass
         else:
             pass
     
