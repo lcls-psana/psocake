@@ -10,6 +10,6 @@ def load_model(modname): # module name only known at runtime
         #print "Dynamically loaded model :"+modname
         classObj = class_()
         return classObj
-    except Exception:
+    except Exception as e:
         print("No Model : "+modname, "Error : "+e.message)
         raise e

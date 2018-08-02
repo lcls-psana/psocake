@@ -54,6 +54,7 @@ class Labeling(object):
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
+        self.labelParam_showPeaks_str = 'Show labels from Plug-in'
 
 
         self.labelParam_poly_str = 'Polygon'
@@ -63,11 +64,13 @@ class Labeling(object):
 
         self.shape = None
         self.mode = self.labelParam_add_str
-        self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30, \"amax_thr\":300, \"atot_thr\":600, \"son_min\":10}"
+        self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30,\"amax_thr\":300, \"atot_thr\":600,\"son_min\":10, \"rank\":3, \"r0\":3, \"dr\":2, \"nsigm\":5 }"
         self.tag = ''
         self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
         self.labelParam_loadName = ''
         self.labelParam_saveName = None
+        self.showPeaks = False
+        self.numPeaksFound = 0
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -100,6 +103,8 @@ class Labeling(object):
                                                                                     self.labelParam_rect_str: 'Rectangle',
                                                                                     self.labelParam_none_str: 'None'},
                      'value': self.shape, 'tip': "Choose label shape"},
+                    {'name': self.labelParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks,
+                     'tip': "Show peaks found shot-to-shot"},
                     {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
@@ -234,6 +239,9 @@ class Labeling(object):
                 self.labelParam_saveName = data
             elif path[1] == self.labelParam_load_str:
                 self.loadLabels(self.labelParam_loadName)
+            elif path[1] == self.labelParam_showPeaks_str:
+                self.showPeaks = data
+                self.drawPeaks()
 
     def updateAlgorithm(self, data):
         self.algorithm_name = data
@@ -277,15 +285,15 @@ class Labeling(object):
                         if (self.labelParam_pluginParam is not None):
                             print("Loading %s!" % self.algorithm_name)
                             kwargs = json.loads(self.labelParam_pluginParam)
-                            self.algorithm = runAlgorithm.invoke_model(self.algorithm_name, **kwargs)
+                            self.peakRadius = kwargs["r0"]
+                            self.peaks = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
+                            self.numPeaksFound = self.peaks.shape[0]
                         else:
                             print("Enter plug-in parameters")
                         self.algInitDone = True
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
-                # TODO: Run plugin
                 if self.parent.args.v >= 1: print "Labels found: ", self.labels
-
                 self.drawLabels()
             if self.parent.args.v >= 1: print "Done updateLabel"
 
@@ -464,3 +472,62 @@ class Labeling(object):
         self.polyRois.append(roiPoly)
         self.parent.img.win.getView().addItem(roiPoly)
         print("Polygon added at x = %d, y = %d" % (coords[0][0], coords[0][1]))
+
+    def getMaxRes(self, posX, posY, centerX, centerY):
+        maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
+        if self.parent.args.v >= 1: print "maxRes: ", maxRes
+        return maxRes # in pixels
+
+    def assemblePeakPos(self, peaks):
+        self.ix = self.parent.det.indexes_x(self.parent.evt)
+        self.iy = self.parent.det.indexes_y(self.parent.evt)
+        if self.ix is None:
+            (_, dim0, dim1) = self.parent.calib.shape
+            self.iy = np.tile(np.arange(dim0), [dim1, 1])
+            self.ix = np.transpose(self.iy)
+        self.iX = np.array(self.ix, dtype=np.int64)
+        self.iY = np.array(self.iy, dtype=np.int64)
+        if len(self.iX.shape) == 2:
+            self.iX = np.expand_dims(self.iX, axis=0)
+            self.iY = np.expand_dims(self.iY, axis=0)
+        cenX = self.iX[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
+            peaks[:, 2], dtype=np.int64)] + 0.5
+        cenY = self.iY[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
+            peaks[:, 2], dtype=np.int64)] + 0.5
+        return cenX, cenY
+
+    def drawPeaks(self): #TODO: Change so that peak labels come up at rois (this way they can be deleted or saved to MongoDB)
+        self.parent.img.clearPeakMessage()
+        if self.showPeaks:
+            if self.peaks is not None and self.numPeaksFound > 0:
+                if self.parent.facility == self.parent.facilityLCLS:
+                    cenX, cenY = self.assemblePeakPos(self.peaks)
+                elif self.parent.facility == self.parent.facilityPAL:
+                    (dim0, dim1) = self.parent.calib.shape
+                    self.iy = np.tile(np.arange(dim0), [dim1, 1])
+                    self.ix = np.transpose(self.iy)
+                    self.iX = np.array(self.ix, dtype=np.int64)
+                    self.iY = np.array(self.iy, dtype=np.int64)
+                    cenX = self.iX[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+                    cenY = self.iY[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
+                self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
+                diameter = self.peakRadius*2+1
+                self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
+                                          size=diameter, brush=(255,255,255,0), \
+                                          pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
+                # Write number of peaks found
+                xMargin = 5 # pixels
+                yMargin = 0  # pixels
+                maxX = np.max(self.ix) + xMargin
+                maxY = np.max(self.iy) - yMargin
+                self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+                self.parent.img.peak_text.setPos(maxX, maxY)
+            else:
+                self.parent.img.peak_feature.setData([], [], pxMode=False)
+                self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+                self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+                self.parent.img.peak_text.setPos(0,0)
+        else:
+            self.parent.img.peak_feature.setData([], [], pxMode=False)
+        if self.parent.args.v >= 1: print "Done drawPeaks"
+        self.parent.geom.drawCentre()

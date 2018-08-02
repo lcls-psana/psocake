@@ -19,8 +19,18 @@ class adaptiveAlgorithm(abstractAlgorithm.abstractAlgorithm):
         self.hitParam_alg1_amax_thr = kwargs["amax_thr"]
         self.hitParam_alg1_atot_thr = kwargs["atot_thr"]
         self.hitParam_alg1_son_min = kwargs["son_min"]
+        self.hitParam_alg1_rank = kwargs["rank"]
+        self.hitParam_alg1_r0 = kwargs["r0"]
+        self.hitParam_alg1_dr = kwargs["dr"]
+        self.hitParam_alg1_nsigm = kwargs["nsigm"]
         self.setParams()
 
-    def algorithm(self, **kwargs):
+    def algorithm(self, nda, mask, **kwargs):
         self.initParams(**kwargs)
-        return self.alg
+        self.peaks = self.alg.peak_finder_v3r3(nda,rank=
+                           self.hitParam_alg1_rank, r0=
+                           self.hitParam_alg1_r0, dr=
+                           self.hitParam_alg1_dr, nsigm=
+                           self.hitParam_alg1_nsigm, mask=
+                           mask)
+        return self.peaks

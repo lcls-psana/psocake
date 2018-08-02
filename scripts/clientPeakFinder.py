@@ -20,7 +20,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Intialize global variables
 
     #Amount of events sent to PeakNet
-    #batchSize = 1
+    batchSize = 64
     #Calculated Likelihood that counts as a "good event"
     goodLikelihood = .03
     #Limit of events iterated through in a run
@@ -30,9 +30,9 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Minimum number of events to be found before peak finding on 1000 events of a run
     minEvents = 3
     #Initialization of Peaknet
-    #psnet = Peaknet()
+    psnet = Peaknet()
     #Max runtime
-    maxRunTime = 3600
+    #maxRunTime = 3600
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -222,10 +222,10 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         while True:
             timebefore = time.time()
             runTime = (clientEndTime - clientBeginTime)
-            if(runTime >= self.maxRunTime):
-                break
-            #if(len(goodlist) >= self.batchSize):
+            #if(runTime >= self.maxRunTime):
             #    break
+            if(len(goodlist) >= self.batchSize):
+                break
             #Use the crawler to fetch a random experiment+run
             exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
             #exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
@@ -237,13 +237,13 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             numGoodEvents = 0
             #Peak find for each event in an experiment+run
             for j in range(numEvents):
-                #if(len(goodlist) >= self.batchSize):
-                #    break
+                if(len(goodlist) >= self.batchSize):
+                    break
                 clientEndTime = time.time()
                 runTime = (clientEndTime - clientBeginTime)
-                if(runTime >= self.maxRunTime):
-                    print(runTime)
-                    break
+                #if(runTime >= self.maxRunTime):
+                #    print(runTime)
+                #    break
                 #If the amount of good events found is less than minEvents before the eventLimit, then 
                 #stop and try peak finding on a new experiment+run
                 if((j >= self.eventLimit) and (numGoodEvents < self.minEvents)):

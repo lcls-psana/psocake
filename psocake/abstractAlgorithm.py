@@ -13,4 +13,4 @@ class abstractAlgorithm(object):
     def initParams(self, **kwargs): pass
 
     @abc.abstractmethod
-    def algorithm(self, **kwargs): pass
+    def algorithm(self, nda, mask, **kwargs): pass
