@@ -440,11 +440,14 @@ class ExperimentInfo(object):
 
     def updateEventNumber(self, data):
         self.parent.eventNumber = data
-
+        self.parent.labeling.peaks = None
         self.parent.pk.peaks = None
-        self.parent.pk.numPeaksFound = 0
+        self.parent.labeling.numPeaksFound = 0
         self.parent.pk.numPeaksFound = 0
         self.parent.pk.peaksMaxRes = 0
+        self.parent.labeling.removePeaks()
+        self.parent.labeling.updateAlgorithm()
+        self.parent.labeling.drawPeaks()
 
         if self.parent.eventNumber >= self.eventTotal and self.eventTotal > 0:
             self.parent.eventNumber = self.eventTotal - 1

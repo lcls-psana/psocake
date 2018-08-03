@@ -1,22 +1,19 @@
 import numpy as np
 import pyqtgraph as pg
-import h5py
 from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
-import json, os, time
-from scipy.spatial.distance import cdist #TODO: clean up unneeded imports
-from scipy.spatial import distance
-import subprocess
+import json, os, time #TODO: clean up unneeded imports
 from database import LabelDatabase
 import runAlgorithm
-#import ImagePanel
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
+
+#TODO: Labels only appear for their event, at the moment they appear for every event -- update classification
 
 class Labeling(object):
     def __init__(self, parent = None):
@@ -85,6 +82,7 @@ class Labeling(object):
         self.rectRois = []
         self.circleRois = []
         self.polyRois = []
+        self.algRois = []
 
         self.rectAttributes = []
         self.circleAttributes = []
@@ -212,7 +210,7 @@ class Labeling(object):
                 self.labelParam_outDir = data
                 self.labelParam_outDir_overridden = True
             elif path[1] == self.labelParam_pluginDir_str:
-                self.updateAlgorithm(data)
+                self.algorithm_name = data
             elif path[1] == self.labelParam_runs_str:
                 self.labelParam_runs = data
             elif path[1] == self.labelParam_queue_str:
@@ -241,10 +239,10 @@ class Labeling(object):
                 self.loadLabels(self.labelParam_loadName)
             elif path[1] == self.labelParam_showPeaks_str:
                 self.showPeaks = data
+                self.updateAlgorithm()
                 self.drawPeaks()
 
-    def updateAlgorithm(self, data):
-        self.algorithm_name = data
+    def updateAlgorithm(self):
         self.algInitDone = False
         self.updateLabel()
         if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
@@ -319,13 +317,13 @@ class Labeling(object):
             self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-    def clickCreateShape(self,x,y):
+    def clickCreateShape(self,x,y, w = 8, h = 8, d = 9, algorithm = False, color = 'g'):
         try:
-            if(self.shapes == "Rectangle"):
-                width = 200
-                height = 200
+            if((algorithm == True) or (self.shapes == "Rectangle")):
+                width = w
+                height = h
                 roiRect = pg.ROI(pos=[x-(width/2), y-(height/2)], size=[width, height], snapSize=1.0, scaleSnap=True, translateSnap=True,
-                          pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                          pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
                 roiRect.addScaleHandle([1, 0.5], [0.5, 0.5])
                 roiRect.addScaleHandle([0.5, 0], [0.5, 0.5])
                 roiRect.addScaleHandle([0.5, 1], [0.5, 0.5])
@@ -337,13 +335,15 @@ class Labeling(object):
                 roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
                 roiRect.sigClicked.connect(self.update)
                 self.rectRois.append(roiRect)
+                if (algorithm == True):
+                    self.algRois.append(roiRect)
                 self.parent.img.win.getView().addItem(roiRect)
                 print("Rectangle added at x = %d, y = %d" % (x, y))
             elif(self.shapes == "Circle"):
-                xrad = 200
-                yrad = 200
-                roiCircle = pg.CircleROI([x- (xrad/2), y - (yrad/2)], size=[xrad, yrad], snapSize=0.1, scaleSnap=False, translateSnap=False,
-                                        pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                xd = d
+                yd = d
+                roiCircle = pg.CircleROI([x- (xd/2), y - (yd/2)], size=[xd, yd], snapSize=0.1, scaleSnap=False, translateSnap=False,
+                                        pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
                 roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
                 roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
                 roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
@@ -357,7 +357,7 @@ class Labeling(object):
             elif(self.shapes == "Polygon"):
                 roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]], pos = [0,0],
                                       closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                      pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                                      pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
                 roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
                 roiPoly.sigClicked.connect(self.update)
                 roiPoly.sigHoverEvent.connect(self.update)
@@ -409,7 +409,7 @@ class Labeling(object):
         return {"Position" : self.getPosition(roi), "Size" : self.getSize(roi)}
 
     def getAttributesCircle(self, roi):
-        return {"Position" : self.getPosition(roi), "Radius" : self.getSize(roi)[0]} ##only return radius
+        return {"Position" : self.getPosition(roi), "Diameter" : self.getSize(roi)[0]} ##only return radius
 
     def getAttributesPolygon(self, roi):
         return {"Position" : self.getPosition(roi), "Coordinates" : self.getPoints(roi)}
@@ -439,7 +439,7 @@ class Labeling(object):
         rectangles = shapes["Rectangles"]
         polygons = shapes["Polygons"]
         for circle in circles:
-            self.loadCircle(circle["Position"][0],circle["Position"][1],circle["Radius"])
+            self.loadCircle(circle["Position"][0],circle["Position"][1],circle["Diameter"])
         for rectangle in rectangles:
             self.loadRectangle(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1])
         for polygon in polygons:
@@ -473,11 +473,6 @@ class Labeling(object):
         self.parent.img.win.getView().addItem(roiPoly)
         print("Polygon added at x = %d, y = %d" % (coords[0][0], coords[0][1]))
 
-    def getMaxRes(self, posX, posY, centerX, centerY):
-        maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
-        if self.parent.args.v >= 1: print "maxRes: ", maxRes
-        return maxRes # in pixels
-
     def assemblePeakPos(self, peaks):
         self.ix = self.parent.det.indexes_x(self.parent.evt)
         self.iy = self.parent.det.indexes_y(self.parent.evt)
@@ -496,7 +491,7 @@ class Labeling(object):
             peaks[:, 2], dtype=np.int64)] + 0.5
         return cenX, cenY
 
-    def drawPeaks(self): #TODO: Change so that peak labels come up at rois (this way they can be deleted or saved to MongoDB)
+    def drawPeaks(self): #TODO: mask issue
         self.parent.img.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
@@ -510,24 +505,20 @@ class Labeling(object):
                     self.iY = np.array(self.iy, dtype=np.int64)
                     cenX = self.iX[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
                     cenY = self.iY[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
-                self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
                 diameter = self.peakRadius*2+1
-                self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
-                                          size=diameter, brush=(255,255,255,0), \
-                                          pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
-                # Write number of peaks found
-                xMargin = 5 # pixels
-                yMargin = 0  # pixels
-                maxX = np.max(self.ix) + xMargin
-                maxY = np.max(self.iy) - yMargin
-                self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-                self.parent.img.peak_text.setPos(maxX, maxY)
+                for i,x in enumerate(cenX):
+                        self.clickCreateShape(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
             else:
                 self.parent.img.peak_feature.setData([], [], pxMode=False)
                 self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
                 self.parent.img.win.getView().addItem(self.parent.img.peak_text)
                 self.parent.img.peak_text.setPos(0,0)
         else:
-            self.parent.img.peak_feature.setData([], [], pxMode=False)
+            self.removePeaks()
         if self.parent.args.v >= 1: print "Done drawPeaks"
         self.parent.geom.drawCentre()
+
+    def removePeaks(self):
+        for roi in self.algRois:
+            self.parent.img.win.getView().removeItem(roi)
+        self.algRois = []
