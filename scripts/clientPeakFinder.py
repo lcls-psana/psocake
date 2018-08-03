@@ -31,6 +31,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     minEvents = 3
     #Initialization of Peaknet
     psnet = Peaknet()
+    #Max runtime
+    #maxRunTime = 3600
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -214,13 +216,19 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         totalNumPeaks = 0 #Number of peaks found during this function's call
         myCrawler = Crawler() # Crawler used to fetch a random experiment + run
         # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
+        clientBeginTime = time.time()
+        runTime = 0
+        clientEndTime = 0
         while True:
             timebefore = time.time()
+            runTime = (clientEndTime - clientBeginTime)
+            #if(runTime >= self.maxRunTime):
+            #    break
             if(len(goodlist) >= self.batchSize):
                 break
             #Use the crawler to fetch a random experiment+run
-            #exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
-            exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
+            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
+            #exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
             print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
             runnum = int(strrunnum)
             eventInfo = self.getDetectorInformation(exp, runnum, det)
@@ -231,6 +239,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             for j in range(numEvents):
                 if(len(goodlist) >= self.batchSize):
                     break
+                clientEndTime = time.time()
+                runTime = (clientEndTime - clientBeginTime)
+                #if(runTime >= self.maxRunTime):
+                #    print(runTime)
+                #    break
                 #If the amount of good events found is less than minEvents before the eventLimit, then 
                 #stop and try peak finding on a new experiment+run
                 if((j >= self.eventLimit) and (numGoodEvents < self.minEvents)):
@@ -259,8 +272,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                     peakDB.addExpRunEventPeaks(**kwargs)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
             timeafter = time.time()
+            clientEndTime = time.time()
             print("This took %d seconds" % (timeafter-timebefore))
         peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents)
+        print("Peaks", totalNumPeaks, "Events", numGoodEvents)
+        print(runTime)
         return [goodlist, ndalist, totalNumPeaks, numGoodEvents]
 
     def runClient(self, alg, **kwargs):
@@ -280,8 +296,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         socket.push(numGoodEvents)
 
         #Train PeakNet on the good events
-        for i,element in enumerate(ndalist):
-            self.psnet.train(element, goodlist[i])
+        #for i,element in enumerate(ndalist):
+        #    self.psnet.train(element, goodlist[i])
 
         #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
         a = np.array([[1, 2],[3, 4]])
