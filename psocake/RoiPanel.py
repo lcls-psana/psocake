@@ -186,4 +186,15 @@ class RoiHistogram(object):
         else:
             self.updateRoiStatus = True
 
+    def getSizeCircle(self):
+        return [self.roiCircle.size()[0],self.roiCircle.size()[1]]
+
+    def getSizeRectangle(self):
+        return [self.roi.size()[0],self.roi.size()[1]]
+
+    def getPolygonPoints(self):
+            coords = []
+            for point in self.roiPoly.getState()["points"]:
+                coords.append([point[0],point[1]])
+            return coords
 

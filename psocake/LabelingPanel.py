@@ -4,7 +4,7 @@ from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
-import json, os, time #TODO: clean up unneeded imports
+import json, os, time
 from database import LabelDatabase
 import runAlgorithm
 
@@ -12,8 +12,6 @@ if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
-
-#TODO: Labels only appear for their event, at the moment they appear for every event -- update classification
 
 class Labeling(object):
     def __init__(self, parent = None):
@@ -24,6 +22,7 @@ class Labeling(object):
         self.win = ParameterTree()
         self.dock.addWidget(self.win)
 
+        #String Names for Buttons and Menus
         self.labelParam_grp = 'Labeler'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_pluginDir_str = 'Plugin directory'
@@ -68,6 +67,7 @@ class Labeling(object):
         self.labelParam_saveName = None
         self.showPeaks = False
         self.numPeaksFound = 0
+        self.algorithm_name = 0
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -299,9 +299,9 @@ class Labeling(object):
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
 
-    def action(self,x,y):
+    def action(self, x, y, coords, w, h, d):
         if(self.mode == "Add"):
-            self.clickCreateShape(x,y)
+            self.clickCreateShape(x,y, coords, w,h,d)
         elif(self.mode == "Remove"):
             pass
 
@@ -317,7 +317,7 @@ class Labeling(object):
             self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-    def clickCreateShape(self,x,y, w = 8, h = 8, d = 9, algorithm = False, color = 'g'):
+    def clickCreateShape(self,x,y,coords, w = 8, h = 8, d = 9, algorithm = False, color = 'g'):
         try:
             if((algorithm == True) or (self.shapes == "Rectangle")):
                 width = w
@@ -355,7 +355,10 @@ class Labeling(object):
                 self.parent.img.win.getView().addItem(roiCircle)
                 print("Circle added at x = %d, y = %d" % (x, y))
             elif(self.shapes == "Polygon"):
-                roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]], pos = [0,0],
+                #roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]], pos = [0,0],
+                                      #closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                      #pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                roiPoly = pg.PolyLineROI(coords, pos = [x-375,y+150],
                                       closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
                                       pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
                 roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
@@ -491,7 +494,7 @@ class Labeling(object):
             peaks[:, 2], dtype=np.int64)] + 0.5
         return cenX, cenY
 
-    def drawPeaks(self): #TODO: mask issue
+    def drawPeaks(self):
         self.parent.img.clearPeakMessage()
         if self.showPeaks:
             if self.peaks is not None and self.numPeaksFound > 0:
@@ -522,3 +525,7 @@ class Labeling(object):
         for roi in self.algRois:
             self.parent.img.win.getView().removeItem(roi)
         self.algRois = []
+
+#TODO: save peaks for each event, so that if a user places labels down, and then changes the event, the labels from the first event are saved and can be returned to.
+
+#TODO: The bottom ROIs control the new ROIs size -- done for rectangles and circles, working on polygons

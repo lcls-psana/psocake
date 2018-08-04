@@ -476,7 +476,7 @@ class MainFrame(QtGui.QWidget):
                 # Mouse click
                 if indexX >= 0 and indexX < self.data.shape[0] \
                         and indexY >= 0 and indexY < self.data.shape[1]:
-                    self.labeling.action(indexX,indexY)
+                    self.labeling.action(indexX,indexY, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]
                     if self.mk.maskingMode > 0:
                         self.initMask()
