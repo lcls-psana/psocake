@@ -317,7 +317,7 @@ class Labeling(object):
             self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-    def clickCreateShape(self,x,y,coords, w = 8, h = 8, d = 9, algorithm = False, color = 'g'):
+    def clickCreateShape(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'g'):
         try:
             if((algorithm == True) or (self.shapes == "Rectangle")):
                 width = w
@@ -527,5 +527,3 @@ class Labeling(object):
         self.algRois = []
 
 #TODO: save peaks for each event, so that if a user places labels down, and then changes the event, the labels from the first event are saved and can be returned to.
-
-#TODO: The bottom ROIs control the new ROIs size -- done for rectangles and circles, working on polygons
