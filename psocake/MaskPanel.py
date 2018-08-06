@@ -467,9 +467,9 @@ class MaskMaker(object):
             else:
                 self.psanaMaskAssem = None
             self.parent.pk.updateClassification()
-            self.parent.labeling.removePeaks()
+            self.parent.labeling.removeLabels()
             self.parent.labeling.updateAlgorithm()
-            self.parent.labeling.drawPeaks()
+            self.parent.labeling.drawLabels()
 
     #def generousBadPixel(self, unassemMask, n=10):
     #    generousBadPixelMask = unassemMask
