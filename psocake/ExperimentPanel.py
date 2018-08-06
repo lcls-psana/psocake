@@ -445,9 +445,8 @@ class ExperimentInfo(object):
         self.parent.labeling.numPeaksFound = 0
         self.parent.pk.numPeaksFound = 0
         self.parent.pk.peaksMaxRes = 0
-        self.parent.labeling.removePeaks()
-        self.parent.labeling.updateAlgorithm()
-        self.parent.labeling.drawPeaks()
+
+        self.parent.labeling.actionEventChange()
 
         if self.parent.eventNumber >= self.eventTotal and self.eventTotal > 0:
             self.parent.eventNumber = self.eventTotal - 1

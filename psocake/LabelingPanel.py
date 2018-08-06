@@ -68,6 +68,7 @@ class Labeling(object):
         self.showPeaks = False
         self.numPeaksFound = 0
         self.algorithm_name = 0
+        self.lastEventNumber = 0
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -87,6 +88,9 @@ class Labeling(object):
         self.rectAttributes = []
         self.circleAttributes = []
         self.polyAttributes = []
+
+        self.eventLabels = {}
+        self.algorithmEvaluated = {}
 
         self.db = LabelDatabase()
 
@@ -289,6 +293,7 @@ class Labeling(object):
                         else:
                             print("Enter plug-in parameters")
                         self.algInitDone = True
+                        self.algorithmEvaluated[self.parent.eventNumber] = True
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
                 if self.parent.args.v >= 1: print "Labels found: ", self.labels
@@ -355,9 +360,6 @@ class Labeling(object):
                 self.parent.img.win.getView().addItem(roiCircle)
                 print("Circle added at x = %d, y = %d" % (x, y))
             elif(self.shapes == "Polygon"):
-                #roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]], pos = [0,0],
-                                      #closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                      #pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
                 roiPoly = pg.PolyLineROI(coords, pos = [x-375,y+150],
                                       closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
                                       pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
@@ -522,8 +524,60 @@ class Labeling(object):
         self.parent.geom.drawCentre()
 
     def removePeaks(self):
+        print("Removing Peaks from %d" % (self.lastEventNumber))
         for roi in self.algRois:
             self.parent.img.win.getView().removeItem(roi)
         self.algRois = []
+        for roi in self.rectRois:
+            self.parent.img.win.getView().removeItem(roi)
+        self.rectRois = []
+        for roi in self.circleRois:
+            self.parent.img.win.getView().removeItem(roi)
+        self.circleRois = []
+        for roi in self.polyRois:
+            self.parent.img.win.getView().removeItem(roi)
+        self.polyRois = []
+
+    def savePeaks(self):
+        print("Saving Peaks from %d" % (self.lastEventNumber))
+        self.eventLabels[self.lastEventNumber] = []
+        for roi in self.algRois:
+            self.eventLabels[self.lastEventNumber].append(roi)
+        for roi in self.rectRois:
+            self.eventLabels[self.lastEventNumber].append(roi)
+        for roi in self.circleRois:
+            self.eventLabels[self.lastEventNumber].append(roi)
+        for roi in self.polyRois:
+            self.eventLabels[self.lastEventNumber].append(roi)
+
+    def checkLabels(self):
+        if self.parent.eventNumber in self.algorithmEvaluated:
+            if self.algorithmEvaluated[self.parent.eventNumber] == True:
+                return True
+        else:
+            return False
+
+    def loadPeaks(self):
+        if self.checkLabels():
+            self.eventPeaks()
+        else:
+            print("Using Algorithm to show Peaks for %d" % self.parent.eventNumber)
+            self.updateAlgorithm()
+            self.drawPeaks()
+
+    def eventPeaks(self):
+        print("Loading Peaks for %d" % self.parent.eventNumber)
+        for roi in self.eventLabels[self.parent.eventNumber]:
+            self.parent.img.win.getView().addItem(roi)
+            self.algRois.append(roi)
+
+    def saveEventNumber(self):
+        self.lastEventNumber = self.parent.eventNumber
+
+    def actionEventChange(self):
+        self.savePeaks()
+        self.removePeaks()
+        self.loadPeaks()
+        self.saveEventNumber()
 
 #TODO: save peaks for each event, so that if a user places labels down, and then changes the event, the labels from the first event are saved and can be returned to.
