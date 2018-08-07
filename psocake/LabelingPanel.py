@@ -50,7 +50,6 @@ class Labeling(object):
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
-        self.labelParam_showLabels_str = 'Show labels from Plug-in'
 
 
         self.labelParam_poly_str = 'Polygon'
@@ -65,7 +64,6 @@ class Labeling(object):
         self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
         self.labelParam_loadName = ''
         self.labelParam_saveName = None
-        self.showLabels = False
         self.numLabelsFound = 0
         self.algorithm_name = 0
         self.lastEventNumber = 0
@@ -105,8 +103,6 @@ class Labeling(object):
                                                                                     self.labelParam_rect_str: 'Rectangle',
                                                                                     self.labelParam_none_str: 'None'},
                      'value': self.shape, 'tip': "Choose label shape"},
-                    {'name': self.labelParam_showLabels_str, 'type': 'bool', 'value': self.showLabels,
-                     'tip': "Show labels found shot-to-shot by Plug-in"},
                     {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
@@ -215,6 +211,8 @@ class Labeling(object):
                 self.labelParam_outDir_overridden = True
             elif path[1] == self.labelParam_pluginDir_str:
                 self.algorithm_name = data
+                self.updateAlgorithm()
+                self.drawLabels()
             elif path[1] == self.labelParam_runs_str:
                 self.labelParam_runs = data
             elif path[1] == self.labelParam_queue_str:
@@ -241,10 +239,6 @@ class Labeling(object):
                 self.labelParam_saveName = data
             elif path[1] == self.labelParam_load_str:
                 self.loadLabelsFromDatabase(self.labelParam_loadName)
-            elif path[1] == self.labelParam_showLabels_str:
-                self.showLabels = data
-                self.updateAlgorithm()
-                self.drawLabels()
 
     def updateAlgorithm(self): #TODO: merge with setAlgorithm
         """updates the Algorithm based on Plugin Parameters
@@ -355,7 +349,7 @@ class Labeling(object):
         **d - diameter of circle
         **algorithm - Boolean value, True if these labels are loaded
                       from an algorithm, and not from a click event
-        **colot - color of ROI, green if click event, blue if 
+        **color - color of ROI, green if click event, blue if 
                   loaded from algorithm
         """
         try:
@@ -615,28 +609,25 @@ class Labeling(object):
         """ Draw Labels from an algorithm.
         """
         self.parent.img.clearPeakMessage()
-        if self.showLabels:
-            if self.labels is not None and self.numLabelsFound > 0:
-                if self.parent.facility == self.parent.facilityLCLS:
-                    cenX, cenY = self.assembleLabelPos(self.labels)
-                elif self.parent.facility == self.parent.facilityPAL:
-                    (dim0, dim1) = self.parent.calib.shape
-                    self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                    self.ix = np.transpose(self.iy)
-                    self.iX = np.array(self.ix, dtype=np.int64)
-                    self.iY = np.array(self.iy, dtype=np.int64)
-                    cenX = self.iX[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
-                    cenY = self.iY[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
-                diameter = self.labelRadius*2+1
-                for i,x in enumerate(cenX):
-                        self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
-            else:
-                self.parent.img.peak_feature.setData([], [], pxMode=False)
-                self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
-                self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-                self.parent.img.peak_text.setPos(0,0)
+        if self.labels is not None and self.numLabelsFound > 0:
+            if self.parent.facility == self.parent.facilityLCLS:
+                cenX, cenY = self.assembleLabelPos(self.labels)
+            elif self.parent.facility == self.parent.facilityPAL:
+                (dim0, dim1) = self.parent.calib.shape
+                self.iy = np.tile(np.arange(dim0), [dim1, 1])
+                self.ix = np.transpose(self.iy)
+                self.iX = np.array(self.ix, dtype=np.int64)
+                self.iY = np.array(self.iy, dtype=np.int64)
+                cenX = self.iX[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+            diameter = self.labelRadius*2+1
+            for i,x in enumerate(cenX):
+                self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
         else:
-            self.removeLabels()
+            self.parent.img.peak_feature.setData([], [], pxMode=False)
+            self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+            self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+            self.parent.img.peak_text.setPos(0,0)
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
 
@@ -697,6 +688,7 @@ class Labeling(object):
         for roi in self.eventLabels[self.parent.eventNumber]:
             self.parent.img.win.getView().addItem(roi)
             self.algRois.append(roi)
+        print(self.eventLabels)
 
     def saveEventNumber(self):
         """ Save the last event's number
@@ -711,3 +703,7 @@ class Labeling(object):
         self.removeLabels()
         self.loadLabelsEventChange()
         self.saveEventNumber()
+
+#TODO: labels get erased event to event when no algorithm is inputted
+#TODO: bug, occationally labels that were removed will reappear 
+#TODO: save labels to mongoDB correctly
