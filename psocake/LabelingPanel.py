@@ -225,6 +225,7 @@ class Labeling(object):
             elif path[1] == self.labelParam_launch_str:
                 self.findLabels()
             elif path[1] == self.labelParam_save_str:
+                self.saveLabelsFromEvent(self.parent.eventNumber)
                 self.postLabels()
             elif path[1] == self.tag_str:
                 self.updateTag(data)
@@ -491,19 +492,23 @@ class Labeling(object):
         return {"Position" : self.getPosition(roi), "Coordinates" : self.getPoints(roi)}
 
     def saveLabelsToDictionary(self):
-        """ Save the current set of labels to a dictionary,
-        this will be posted to MongoBD
-        """
-        self.rectAttributes = []
-        self.circleAttributes = []
-        self.polyAttributes = []
-        for roi in self.polyRois:
-            self.polyAttributes.append(self.getAttributesPolygon(roi))
-        for roi in self.rectRois:
-            self.rectAttributes.append(self.getAttributesRectangle(roi))
-        for roi in self.circleRois:
-            self.circleAttributes.append(self.getAttributesCircle(roi))
-        return {"Polygons" : self.polyAttributes, "Circles" : self.circleAttributes, "Rectangles" : self.rectAttributes}
+        translatedEventLabels = {}
+        for event in self.eventLabels:
+            polyAttributes = []
+            circleAttributes = []
+            rectAttributes = []
+            for roi in self.eventLabels[event]:
+                print(roi)
+                if type(roi) is pg.graphicsItems.ROI.ROI:
+                    rectAttributes.append(self.getAttributesRectangle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.CircleROI:
+                    circleAttributes.append(self.getAttributesCircle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+                    polyAttributes.append(self.getAttributesPolygon(roi))
+                else:
+                    print("Cant use this type: %s" % type(roi))
+            translatedEventLabels["%s"%event] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+        return translatedEventLabels
 
     def postLabels(self):
         """ Post a set of labels to MongoDB
@@ -512,13 +517,13 @@ class Labeling(object):
         self.db.printDatabase()
 
     def loadLabelsFromDatabase(self, loadName):
-        """ Load a saved set of labels from MongoDB
+        """Load a saved set of labels from MongoDB
 
         Arguments:
         loadName - name of the saved set of labels
         """
         try:
-            shapes = self.db.findPost(loadName)[loadName]
+            shapes = self.db.findPost(loadName)[loadName]["%d"%self.parent.eventNumber]
         except TypeError:
             print("Invalid Load Name")
         circles = shapes["Circles"]
@@ -530,6 +535,7 @@ class Labeling(object):
             self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1])
         for polygon in polygons:
             self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"])
+    
 
     def loadRectangleFromDatabase(self, x, y, w, h):
         """ Used to draw labels on an image based on locations saved
@@ -542,7 +548,7 @@ class Labeling(object):
         h - height
         """
         roiRect = pg.ROI(pos = [x,y], size=[w, h], snapSize=1.0, scaleSnap=True, translateSnap=True,
-                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                         pen={'color': 'r', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
         roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         roiRect.sigClicked.connect(self.removeROI)
         self.rectRois.append(roiRect)
@@ -559,7 +565,7 @@ class Labeling(object):
         d - diameter
         """
         roiCircle = pg.CircleROI(pos = [x, y], size=[d, d], snapSize=0.1, scaleSnap=False, translateSnap=False,
-                                 pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                                 pen={'color': 'r', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
         roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         roiCircle.sigClicked.connect(self.removeROI)
         self.circleRois.append(roiCircle)
@@ -576,7 +582,7 @@ class Labeling(object):
         """
         roiPoly = pg.PolyLineROI(coords, pos=pos,
                                  closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                 pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                                 pen={'color': 'r', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
         roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         roiPoly.sigClicked.connect(self.removeROI)
         self.polyRois.append(roiPoly)
@@ -631,7 +637,6 @@ class Labeling(object):
             self.parent.img.peak_text.setPos(0,0)
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
-        print(self.eventLabels)
 
     def removeLabels(self):
         """ Remove the labels from the last event from the screen.
@@ -649,19 +654,19 @@ class Labeling(object):
             self.parent.img.win.getView().removeItem(roi)
         self.polyRois = []
 
-    def saveLabelsFromLastEvent(self):
+    def saveLabelsFromEvent(self, eventNum):
         """ Save the labels from the last event.
         """
-        self.eventLabels[self.lastEventNumber] = []
+        self.eventLabels["%d"%eventNum] = []
         for roi in self.algRois:
-            self.eventLabels[self.lastEventNumber].append(roi)
+            self.eventLabels["%d"%eventNum].append(roi)
         for roi in self.rectRois:
-            self.eventLabels[self.lastEventNumber].append(roi)
+            self.eventLabels["%d"%eventNum].append(roi)
         for roi in self.circleRois:
-            self.eventLabels[self.lastEventNumber].append(roi)
+            self.eventLabels["%d"%eventNum].append(roi)
         for roi in self.polyRois:
-            self.eventLabels[self.lastEventNumber].append(roi)
-        self.eventLabels[self.lastEventNumber] = set(self.eventLabels[self.lastEventNumber])
+            self.eventLabels["%d"%eventNum].append(roi)
+        self.eventLabels["%d"%eventNum] = tuple(set(self.eventLabels["%d"%eventNum]))
 
     def checkLabels(self):
         """ If an algorithm has been used to load labels for the current
@@ -694,7 +699,7 @@ class Labeling(object):
         """ Show the labels for an event that has already been evaluated
         with an algorithm.
         """
-        for roi in self.eventLabels[self.parent.eventNumber]:
+        for roi in self.eventLabels["%d"%self.parent.eventNumber]:
             self.parent.img.win.getView().addItem(roi)
             self.algRois.append(roi)
 
@@ -707,10 +712,10 @@ class Labeling(object):
         """ When an event changes, First save the labels from the previous
         event, remove them from the screen, then load the next labels.
         """
-        self.saveLabelsFromLastEvent()
+        self.saveLabelsFromEvent(self.lastEventNumber)
         self.removeLabels()
         self.loadLabelsEventChange()
         self.saveEventNumber()
+        print self.eventLabels
 
-#TODO: save labels to mongoDB correctly
 #TODO: Hit, Miss, etc
