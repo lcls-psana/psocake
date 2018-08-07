@@ -67,6 +67,7 @@ class Labeling(object):
         self.numLabelsFound = 0
         self.algorithm_name = 0
         self.lastEventNumber = 0
+        self.algInitDone = False
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -630,6 +631,7 @@ class Labeling(object):
             self.parent.img.peak_text.setPos(0,0)
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
+        print(self.eventLabels)
 
     def removeLabels(self):
         """ Remove the labels from the last event from the screen.
@@ -659,6 +661,7 @@ class Labeling(object):
             self.eventLabels[self.lastEventNumber].append(roi)
         for roi in self.polyRois:
             self.eventLabels[self.lastEventNumber].append(roi)
+        self.eventLabels[self.lastEventNumber] = set(self.eventLabels[self.lastEventNumber])
 
     def checkLabels(self):
         """ If an algorithm has been used to load labels for the current
@@ -675,11 +678,17 @@ class Labeling(object):
         """ Either load labels from a previous event or use an algorithm
         to load new labels.
         """
-        if self.checkLabels():
-            self.loadLabelsFromPreviousEvent()
+        if self.algInitDone == True:
+            if self.checkLabels():
+                self.loadLabelsFromPreviousEvent()
+            else:
+                self.updateAlgorithm()
+                self.drawLabels()
         else:
-            self.updateAlgorithm()
-            self.drawLabels()
+            try:
+                self.loadLabelsFromPreviousEvent()
+            except KeyError:
+                pass
 
     def loadLabelsFromPreviousEvent(self):
         """ Show the labels for an event that has already been evaluated
@@ -688,7 +697,6 @@ class Labeling(object):
         for roi in self.eventLabels[self.parent.eventNumber]:
             self.parent.img.win.getView().addItem(roi)
             self.algRois.append(roi)
-        print(self.eventLabels)
 
     def saveEventNumber(self):
         """ Save the last event's number
@@ -704,6 +712,5 @@ class Labeling(object):
         self.loadLabelsEventChange()
         self.saveEventNumber()
 
-#TODO: labels get erased event to event when no algorithm is inputted
-#TODO: bug, occationally labels that were removed will reappear 
 #TODO: save labels to mongoDB correctly
+#TODO: Hit, Miss, etc
