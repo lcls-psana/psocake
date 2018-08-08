@@ -26,7 +26,6 @@ class Labeling(object):
         self.labelParam_grp = 'Labeler'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_pluginDir_str = 'Plugin directory'
-        self.labelParam_outDir_str = 'Output directory'
         self.labelParam_runs_str = 'Run(s)'
         self.labelParam_queue_str = 'queue'
         self.labelParam_cpu_str = 'CPUs'
@@ -46,7 +45,6 @@ class Labeling(object):
         self.labelParam_add_str = 'Add'
         self.labelParam_remove_str = 'Remove'
         self.labelParam_loadName_str = 'Label Load Name'
-        self.labelParam_saveName_str = 'Label Save Name'
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
@@ -63,7 +61,7 @@ class Labeling(object):
         self.tag = ''
         self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
         self.labelParam_loadName = ''
-        self.labelParam_saveName = None
+        self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
         self.algorithm_name = 0
         self.lastEventNumber = 0
@@ -108,10 +106,6 @@ class Labeling(object):
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
                      'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
-                     'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
-                    {'name': self.labelParam_outDir_str, 'type': 'str', 'value': self.labelParam_outDir,
-                     'tip': "Output Directory for save files"},
                     {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
                     {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
                                                                                  self.labelParam_psnehhiprioq_str: 'psnehhiprioq',
@@ -125,8 +119,8 @@ class Labeling(object):
                     {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
                     {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
-                    {'name': self.labelParam_saveName_str, 'type': 'str', 'value': self.labelParam_saveName, 
-                     'tip': "Input the name you want to save these labels as"},
+                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
+                     'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
                     {'name': self.labelParam_save_str, 'type': 'action'},
                     {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName, 
                      'tip': "Input the name of the label save post you want to load"},
@@ -207,10 +201,7 @@ class Labeling(object):
     ##############################
     def paramUpdate(self, path, change, data):
         if path[0] == self.labelParam_grp:
-            if path[1] == self.labelParam_outDir_str:
-                self.labelParam_outDir = data
-                self.labelParam_outDir_overridden = True
-            elif path[1] == self.labelParam_pluginDir_str:
+            if path[1] == self.labelParam_pluginDir_str:
                 self.algorithm_name = data
                 self.updateAlgorithm()
                 self.drawLabels()
@@ -237,8 +228,6 @@ class Labeling(object):
                 self.mode = data
             elif path[1] == self.labelParam_loadName_str:
                 self.labelParam_loadName = data
-            elif path[1] == self.labelParam_saveName_str:
-                self.labelParam_saveName = data
             elif path[1] == self.labelParam_load_str:
                 self.loadLabelsFromDatabase(self.labelParam_loadName)
 
@@ -255,7 +244,8 @@ class Labeling(object):
         Arguments:
         data - tag name
         """
-        self.tag = data
+        self.labelParam_saveName = self.labelParam_saveName + "_" + data
+        print(self.labelParam_saveName)
 
     def setAlgorithm(self):
         """ sets the algorithm based on Plugin Paramaters
@@ -339,7 +329,7 @@ class Labeling(object):
             self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
         self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-    def createROI(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'g'):
+    def createROI(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'm'):
         """ creates a ROI shape/label based on the input set of parameters
 
         Arguments:
@@ -370,9 +360,10 @@ class Labeling(object):
                 roiRect.addScaleHandle([0, 1], [1, 0])
                 roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
                 roiRect.sigClicked.connect(self.removeROI)
-                self.rectRois.append(roiRect)
                 if (algorithm == True):
                     self.algRois.append(roiRect)
+                else:
+                    self.rectRois.append(roiRect)
                 self.parent.img.win.getView().addItem(roiRect)
                 print("Rectangle added at x = %d, y = %d" % (x, y))
             elif(self.shapes == "Circle"):
@@ -497,7 +488,8 @@ class Labeling(object):
             polyAttributes = []
             circleAttributes = []
             rectAttributes = []
-            for roi in self.eventLabels[event]:
+            translatedEventLabels["%s"%event] = {}
+            for roi in self.eventLabels[event]["Algorithm"]:
                 print(roi)
                 if type(roi) is pg.graphicsItems.ROI.ROI:
                     rectAttributes.append(self.getAttributesRectangle(roi))
@@ -507,7 +499,21 @@ class Labeling(object):
                     polyAttributes.append(self.getAttributesPolygon(roi))
                 else:
                     print("Cant use this type: %s" % type(roi))
-            translatedEventLabels["%s"%event] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+            translatedEventLabels["%s"%event]["Algorithm"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+            polyAttributes = []
+            circleAttributes = []
+            rectAttributes = []
+            for roi in self.eventLabels[event]["User"]:
+                print(roi)
+                if type(roi) is pg.graphicsItems.ROI.ROI:
+                    rectAttributes.append(self.getAttributesRectangle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.CircleROI:
+                    circleAttributes.append(self.getAttributesCircle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+                    polyAttributes.append(self.getAttributesPolygon(roi))
+                else:
+                    print("Cant use this type: %s" % type(roi))
+            translatedEventLabels["%s"%event]["User"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
         return translatedEventLabels
 
     def postLabels(self):
@@ -526,18 +532,24 @@ class Labeling(object):
             shapes = self.db.findPost(loadName)[loadName]["%d"%self.parent.eventNumber]
         except TypeError:
             print("Invalid Load Name")
-        circles = shapes["Circles"]
-        rectangles = shapes["Rectangles"]
-        polygons = shapes["Polygons"]
-        for circle in circles:
-            self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"])
-        for rectangle in rectangles:
-            self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1])
-        for polygon in polygons:
-            self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"])
+        for shapeType in shapes:
+            color = None
+            if shapeType == "Algorithm":
+                color = 'b'
+            elif shapeType == "User":
+                color = 'm'
+            circles = shapes[shapeType]["Circles"]
+            rectangles = shapes[shapeType]["Rectangles"]
+            polygons = shapes[shapeType]["Polygons"]
+            for circle in circles:
+                self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"], color)
+            for rectangle in rectangles:
+                self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1], color)
+            for polygon in polygons:
+                self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"], color)
     
 
-    def loadRectangleFromDatabase(self, x, y, w, h):
+    def loadRectangleFromDatabase(self, x, y, w, h, color):
         """ Used to draw labels on an image based on locations saved
         in a database.
 
@@ -548,14 +560,18 @@ class Labeling(object):
         h - height
         """
         roiRect = pg.ROI(pos = [x,y], size=[w, h], snapSize=1.0, scaleSnap=True, translateSnap=True,
-                         pen={'color': 'r', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                         pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
         roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         roiRect.sigClicked.connect(self.removeROI)
+        roiRect.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
+        roiRect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+        roiRect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+        roiRect.addScaleHandle([0, 1], [1, 0])
         self.rectRois.append(roiRect)
         self.parent.img.win.getView().addItem(roiRect)
         print("Rectangle added at x = %d, y = %d" % (x, y))
 
-    def loadCircleFromDatabase(self, x, y, d):
+    def loadCircleFromDatabase(self, x, y, d, color):
         """ Used to draw labels on an image based on locations saved
         in a database.
 
@@ -565,14 +581,16 @@ class Labeling(object):
         d - diameter
         """
         roiCircle = pg.CircleROI(pos = [x, y], size=[d, d], snapSize=0.1, scaleSnap=False, translateSnap=False,
-                                 pen={'color': 'r', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                                 pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
         roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         roiCircle.sigClicked.connect(self.removeROI)
+        roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
+        roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
         self.circleRois.append(roiCircle)
         self.parent.img.win.getView().addItem(roiCircle)
         print("Circle added at x = %d, y = %d" % (x, y))
 
-    def loadPolygonFromDatabase(self, pos, coords):
+    def loadPolygonFromDatabase(self, pos, coords, color):
         """ Used to draw labels on an image based on locations saved
         in a database.
 
@@ -582,7 +600,7 @@ class Labeling(object):
         """
         roiPoly = pg.PolyLineROI(coords, pos=pos,
                                  closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                 pen={'color': 'r', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                                 pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
         roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         roiPoly.sigClicked.connect(self.removeROI)
         self.polyRois.append(roiPoly)
@@ -638,35 +656,43 @@ class Labeling(object):
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
 
-    def removeLabels(self):
+    def removeLabels(self, clearAll = True):
         """ Remove the labels from the last event from the screen.
         """
-        for roi in self.algRois:
-            self.parent.img.win.getView().removeItem(roi)
-        self.algRois = []
-        for roi in self.rectRois:
-            self.parent.img.win.getView().removeItem(roi)
-        self.rectRois = []
-        for roi in self.circleRois:
-            self.parent.img.win.getView().removeItem(roi)
-        self.circleRois = []
-        for roi in self.polyRois:
-            self.parent.img.win.getView().removeItem(roi)
-        self.polyRois = []
+        if(clearAll == True):
+            for roi in self.algRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.algRois = []
+            for roi in self.rectRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.rectRois = []
+            for roi in self.circleRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.circleRois = []
+            for roi in self.polyRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.polyRois = []
+        else:
+            for roi in self.algRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.algRois = []
+
 
     def saveLabelsFromEvent(self, eventNum):
         """ Save the labels from the last event.
         """
-        self.eventLabels["%d"%eventNum] = []
+        self.eventLabels["%d"%eventNum] = {"Algorithm" : [], "User": []}
+        
         for roi in self.algRois:
-            self.eventLabels["%d"%eventNum].append(roi)
+            self.eventLabels["%d"%eventNum]["Algorithm"].append(roi)
         for roi in self.rectRois:
-            self.eventLabels["%d"%eventNum].append(roi)
+            self.eventLabels["%d"%eventNum]["User"].append(roi)
         for roi in self.circleRois:
-            self.eventLabels["%d"%eventNum].append(roi)
+            self.eventLabels["%d"%eventNum]["User"].append(roi)
         for roi in self.polyRois:
-            self.eventLabels["%d"%eventNum].append(roi)
-        self.eventLabels["%d"%eventNum] = tuple(set(self.eventLabels["%d"%eventNum]))
+            self.eventLabels["%d"%eventNum]["User"].append(roi)
+        self.eventLabels["%d"%eventNum]["Algorithm"] = list(tuple(set(self.eventLabels["%d"%eventNum]["Algorithm"])))
+        self.eventLabels["%d"%eventNum]["User"] = list(tuple(set(self.eventLabels["%d"%eventNum]["User"])))
 
     def checkLabels(self):
         """ If an algorithm has been used to load labels for the current
@@ -699,7 +725,10 @@ class Labeling(object):
         """ Show the labels for an event that has already been evaluated
         with an algorithm.
         """
-        for roi in self.eventLabels["%d"%self.parent.eventNumber]:
+        for roi in self.eventLabels["%d"%self.parent.eventNumber]["Algorithm"]:
+            self.parent.img.win.getView().addItem(roi)
+            self.algRois.append(roi)
+        for roi in self.eventLabels["%d"%self.parent.eventNumber]["User"]:
             self.parent.img.win.getView().addItem(roi)
             self.algRois.append(roi)
 
@@ -716,6 +745,5 @@ class Labeling(object):
         self.removeLabels()
         self.loadLabelsEventChange()
         self.saveEventNumber()
-        print self.eventLabels
 
 #TODO: Hit, Miss, etc
