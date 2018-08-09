@@ -32,7 +32,7 @@ class Labeling(object):
         self.labelParam_classifier = 'Classifier'
         self.labelParam_saveload = 'Save or Load Work'
         self.labelParam_shapes_str = 'Shape'
-        self.labelParam_pluginDir_str = 'Plugin directory'
+        self.labelParam_algorithm_name_str = 'Plugin directory'
         self.labelParam_classificationOptions_str = 'Classifications'
         self.labelParam_runs_str = 'Run(s)'
         self.labelParam_queue_str = 'queue'
@@ -65,16 +65,17 @@ class Labeling(object):
 
         self.shape = None
         self.mode = self.labelParam_add_str
-        self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30,\"amax_thr\":300, \"atot_thr\":600,\"son_min\":10, \"rank\":3, \"r0\":3, \"dr\":2, \"nsigm\":5 }"
+        self.labelParam_pluginParam = None
         self.tag = ''
-        self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
+        self.labelParam_algorithm_name = '' #"adaptiveAlgorithm"
         self.labelParam_classificationOptions = '' 
         self.labelParam_loadName = ''
         self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
-        self.algorithm_name = 0
         self.lastEventNumber = 0
         self.algInitDone = False
+
+        self.algorithm = None
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -102,6 +103,13 @@ class Labeling(object):
 
         self.eventClassifications = {}
 
+        self.updateMenu()
+
+    ##############################
+    # Parameter Update Functions #
+    ##############################
+
+    def updateMenu(self):
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
                 {'name': self.labelParam_labeler, 'type': 'group', 'children': [
@@ -113,9 +121,9 @@ class Labeling(object):
                                                                                     self.labelParam_rect_str: 'Rectangle',
                                                                                     self.labelParam_none_str: 'None'},
                      'value': self.shape, 'tip': "Choose label shape"},
-                    {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
+                    {'name': self.labelParam_algorithm_name_str, 'type': 'str', 'value': self.labelParam_algorithm_name, 
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
-                    {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
+                    {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.updateParametersOnMenu(),
                      'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
                     {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
                     {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
@@ -148,27 +156,42 @@ class Labeling(object):
             ]
         elif self.parent.facility == self.parent.facilityPAL:
             pass
-
         self.paramWidget = Parameter.create(name='paramsLabel', type='group', \
                                    children=self.params, expanded=True)
         self.win.setParameters(self.paramWidget, showTop=False)
         self.paramWidget.sigTreeStateChanged.connect(self.change)
 
-    ##############################
-    # Parameter Update Functions #
-    ##############################
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        self.updateParametersOnMenu()
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
+
+
     def paramUpdate(self, path, change, data):
         if path[0] == self.labelParam_labeler:
             if path[1] == self.labelParam_mode_str:
                 self.mode = data
             elif path[1] == self.labelParam_shapes_str:
                 self.shapes = data
-            elif path[1] == self.labelParam_pluginDir_str:
-                self.algorithm_name = data
+            elif path[1] == self.labelParam_algorithm_name_str:
+                self.removeLabels(clearAll= False)
+                self.labelParam_algorithm_name = data
                 self.updateAlgorithm()
                 self.drawLabels()
+                if(self.labelParam_pluginParam == None):
+                    self.labelParam_pluginParam = self.algorithm.getDefaultParams()
             elif path[1] == self.labelParam_pluginParam_str:
+                self.removeLabels(clearAll= False)
                 self.labelParam_pluginParam = data
+                self.updateAlgorithm()
+                self.drawLabels()
             elif path[1] == self.labelParam_runs_str:
                 self.labelParam_runs = data
             elif path[1] == self.labelParam_queue_str:
@@ -193,6 +216,7 @@ class Labeling(object):
                 self.labelParam_loadName = data
             elif path[1] == self.labelParam_load_str:
                 self.loadLabelsFromDatabase(self.labelParam_loadName)
+        self.updateMenu()
 
     def updateClassificationOptions(self, data):
         self.labelParam_classificationOptions = self.splitWords(data)
@@ -251,24 +275,13 @@ class Labeling(object):
             if self.tag: pluginParamFname += '_'+self.tag
             pluginParamFname += '.json'
             if self.parent.facility == self.parent.facilityLCLS:
-                d = {self.labelParam_pluginDir_str: self.labelParam_pluginParam,
+                d = {self.labelParam_algorithm_name_str: self.labelParam_pluginParam,
                      self.labelParam_pluginParam_str: self.labelParam_pluginParam}
             elif self.parent.facility == self.parent.facilityPAL:
                 pass
             if not os.path.exists(self.parent.psocakeDir+'/r'+str(run).zfill(4)):
                 os.mkdir(self.parent.psocakeDir+'/r'+str(run).zfill(4))
             self.writeStatus(pluginParamFname, d)
-
-    # If anything changes in the parameter tree, print a message
-    def change(self, panel, changes):
-        for param, change, data in changes:
-            path = panel.childPath(param)
-            if self.parent.args.v >= 1:
-                print('  path: %s' % path)
-                print('  change:    %s' % change)
-                print('  data:      %s' % str(data))
-                print('  ----------')
-            self.paramUpdate(path, change, data)
 
     def setupRunDir(self):
         """ Set up directory to run in
@@ -466,7 +479,7 @@ class Labeling(object):
         """
         self.algInitDone = False
         self.setAlgorithm()
-        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
+        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.labelParam_algorithm_name
 
     def setAlgorithm(self):
         """ sets the algorithm based on Plugin Paramaters
@@ -493,21 +506,25 @@ class Labeling(object):
                 self.parent.mk.combinedMask *= self.parent.mk.psanaMask
 
             # Compute
-            if self.algorithm_name == 0: # No algorithm
+            if self.labelParam_algorithm_name == 0: # No algorithm
                 self.centers = None
                 self.drawCenters()
             else:
                 if self.parent.facility == self.parent.facilityLCLS:
                     # Only initialize the hit finder algorithm once
                     if self.algInitDone is False:
-                        if (self.labelParam_pluginParam is not None):
-                            print("Loading %s!" % self.algorithm_name)
-                            kwargs = json.loads(self.labelParam_pluginParam)
-                            self.labelRadius = kwargs["r0"]
-                            self.labels = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
-                            self.numLabelsFound = self.labels.shape[0]
+                        print("Loading %s!" % self.labelParam_algorithm_name)
+                        if self.labelParam_pluginParam == None:
+                            kw = None
+                            self.labelRadius = 1 #TODO: Fix this!
                         else:
-                            print("Enter plug-in parameters")
+                            kw = json.loads(self.labelParam_pluginParam)
+                            self.labelRadius = kw["r0"]
+                        print(self.labelParam_algorithm_name)
+                        self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
+                        print(self.algorithm)
+                        self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
+                        self.numLabelsFound = self.labels.shape[0]
                         self.algInitDone = True
                         self.algorithmEvaluated[self.parent.eventNumber] = True
                 elif self.parent.facility == self.parent.facilityPAL:
@@ -845,5 +862,8 @@ class Labeling(object):
         self.eventClassifications["%d"%self.parent.eventNumber].append(val)
         self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
         print(self.eventClassifications["%d"%self.parent.eventNumber])
+
+    def updateParametersOnMenu(self):
+        return self.labelParam_pluginParam
 
 #TODO: Hit, Miss, etc

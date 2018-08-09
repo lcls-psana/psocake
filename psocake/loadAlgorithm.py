@@ -13,4 +13,4 @@ def load_model(modname): # module name only known at runtime
         return classObj
     except Exception as e:
         print("No Model : "+modname, "Error : "+e.message)
-        raise e
+        #raise e
