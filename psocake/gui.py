@@ -98,6 +98,17 @@ class Window(QtGui.QMainWindow):
                 elif event.key() == QtCore.Qt.Key_P:
                     if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
                 ex.evtLabels.refresh()
+        elif args.mode == "label":
+            if type(event) == QtGui.QKeyEvent:
+                numberKeys = [QtCore.Qt.Key_1, QtCore.Qt.Key_2, QtCore.Qt.Key_3,
+                              QtCore.Qt.Key_4, QtCore.Qt.Key_5, QtCore.Qt.Key_6, 
+                              QtCore.Qt.Key_7, QtCore.Qt.Key_8, QtCore.Qt.Key_9]
+                for i,key in enumerate(numberKeys):
+                    if event.key() == key:
+                        try:
+                            ex.labeling.keyPressed(ex.labeling.labelParam_classificationOptions[i])
+                        except IndexError:
+                            print("Key %d does not correspond to classification"%(i+1))
 
 class MainFrame(QtGui.QWidget):
     """

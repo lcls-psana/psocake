@@ -14,6 +14,11 @@ elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 
 class Labeling(object):
+
+    ##############################
+    # Initialize Menu Parameters #
+    ##############################
+
     def __init__(self, parent = None):
         self.parent = parent
         self.setupRunDir()
@@ -23,9 +28,12 @@ class Labeling(object):
         self.dock.addWidget(self.win)
 
         #String Names for Buttons and Menus
-        self.labelParam_grp = 'Labeler'
+        self.labelParam_labeler = 'Labeler'
+        self.labelParam_classifier = 'Classifier'
+        self.labelParam_saveload = 'Save or Load Work'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_pluginDir_str = 'Plugin directory'
+        self.labelParam_classificationOptions_str = 'Classifications'
         self.labelParam_runs_str = 'Run(s)'
         self.labelParam_queue_str = 'queue'
         self.labelParam_cpu_str = 'CPUs'
@@ -60,6 +68,7 @@ class Labeling(object):
         self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30,\"amax_thr\":300, \"atot_thr\":600,\"son_min\":10, \"rank\":3, \"r0\":3, \"dr\":2, \"nsigm\":5 }"
         self.tag = ''
         self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
+        self.labelParam_classificationOptions = '' 
         self.labelParam_loadName = ''
         self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
@@ -91,9 +100,11 @@ class Labeling(object):
 
         self.db = LabelDatabase()
 
+        self.eventClassifications = {}
+
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
-                {'name': self.labelParam_grp, 'type': 'group', 'children': [
+                {'name': self.labelParam_labeler, 'type': 'group', 'children': [
                     {'name': self.labelParam_mode_str, 'type': 'list', 'values': {self.labelParam_add_str: 'Add',
                                                                                     self.labelParam_remove_str: 'Remove'},
                      'value': self.mode, 'tip': "Choose labelling mode"},
@@ -119,13 +130,20 @@ class Labeling(object):
                     {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
                     {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
+                    {'name': self.labelParam_launch_str, 'type': 'action'},
+                ]},
+                {'name': self.labelParam_classifier, 'type': 'group', 'children': [
+                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions, 
+                     'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
+                ]},
+                {'name': self.labelParam_saveload, 'type': 'group', 'children': [
                     {'name': self.tag_str, 'type': 'str', 'value': self.tag,
                      'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
                     {'name': self.labelParam_save_str, 'type': 'action'},
                     {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName, 
                      'tip': "Input the name of the label save post you want to load"},
                     {'name': self.labelParam_load_str, 'type': 'action'},
-                    {'name': self.labelParam_launch_str, 'type': 'action'},
+
                 ]},
             ]
         elif self.parent.facility == self.parent.facilityPAL:
@@ -135,6 +153,62 @@ class Labeling(object):
                                    children=self.params, expanded=True)
         self.win.setParameters(self.paramWidget, showTop=False)
         self.paramWidget.sigTreeStateChanged.connect(self.change)
+
+    ##############################
+    # Parameter Update Functions #
+    ##############################
+    def paramUpdate(self, path, change, data):
+        if path[0] == self.labelParam_labeler:
+            if path[1] == self.labelParam_mode_str:
+                self.mode = data
+            elif path[1] == self.labelParam_shapes_str:
+                self.shapes = data
+            elif path[1] == self.labelParam_pluginDir_str:
+                self.algorithm_name = data
+                self.updateAlgorithm()
+                self.drawLabels()
+            elif path[1] == self.labelParam_pluginParam_str:
+                self.labelParam_pluginParam = data
+            elif path[1] == self.labelParam_runs_str:
+                self.labelParam_runs = data
+            elif path[1] == self.labelParam_queue_str:
+                self.labelParam_queue = data
+            elif path[1] == self.labelParam_cpu_str:
+                self.labelParam_cpus = data
+            elif path[1] == self.labelParam_noe_str:
+                self.labelParam_noe = data
+            elif path[1] == self.labelParam_launch_str:
+                pass
+                #self.findLabels()
+        elif path[0] == self.labelParam_classifier:
+            if path[1] == self.labelParam_classificationOptions_str:
+                self.updateClassificationOptions(data)
+        elif path[0] == self.labelParam_saveload:
+            if path[1] == self.tag_str:
+                self.updateTag(data)
+            elif path[1] == self.labelParam_save_str:
+                self.saveLabelsFromEvent(self.parent.eventNumber)
+                self.postLabels()
+            elif path[1] == self.labelParam_loadName_str:
+                self.labelParam_loadName = data
+            elif path[1] == self.labelParam_load_str:
+                self.loadLabelsFromDatabase(self.labelParam_loadName)
+
+    def updateClassificationOptions(self, data):
+        self.labelParam_classificationOptions = self.splitWords(data)
+
+    def updateTag(self, data):
+        """ updates Tag for directory
+  
+        Arguments:
+        data - tag name
+        """
+        self.labelParam_saveName = self.labelParam_saveName + "_" + data
+        print(self.labelParam_saveName)
+
+    ##############################
+    #      Launch Functions      #
+    ##############################
 
     def digestRunList(self, runList):
         runsToDo = []
@@ -196,108 +270,23 @@ class Labeling(object):
                 print('  ----------')
             self.paramUpdate(path, change, data)
 
+    def setupRunDir(self):
+        """ Set up directory to run in
+        """
+        # Set up psocake directory in scratch
+        if self.parent.args.outDir is None:
+            self.parent.rootDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
+            self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.parent.username + '/psocake'
+        else:
+            self.parent.rootDir = self.parent.args.outDir
+            self.parent.elogDir = self.parent.rootDir + '/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
+        self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
+
     ##############################
-    # Mandatory parameter update #
+    #      Shape  Functions      #
     ##############################
-    def paramUpdate(self, path, change, data):
-        if path[0] == self.labelParam_grp:
-            if path[1] == self.labelParam_pluginDir_str:
-                self.algorithm_name = data
-                self.updateAlgorithm()
-                self.drawLabels()
-            elif path[1] == self.labelParam_runs_str:
-                self.labelParam_runs = data
-            elif path[1] == self.labelParam_queue_str:
-                self.labelParam_queue = data
-            elif path[1] == self.labelParam_cpu_str:
-                self.labelParam_cpus = data
-            elif path[1] == self.labelParam_noe_str:
-                self.labelParam_noe = data
-            elif path[1] == self.labelParam_launch_str:
-                self.findLabels()
-            elif path[1] == self.labelParam_save_str:
-                self.saveLabelsFromEvent(self.parent.eventNumber)
-                self.postLabels()
-            elif path[1] == self.tag_str:
-                self.updateTag(data)
-            elif path[1] == self.labelParam_pluginParam_str:
-                self.labelParam_pluginParam = data
-            elif path[1] == self.labelParam_shapes_str:
-                self.shapes = data
-            elif path[1] == self.labelParam_mode_str:
-                self.mode = data
-            elif path[1] == self.labelParam_loadName_str:
-                self.labelParam_loadName = data
-            elif path[1] == self.labelParam_load_str:
-                self.loadLabelsFromDatabase(self.labelParam_loadName)
-
-    def updateAlgorithm(self): #TODO: merge with setAlgorithm
-        """updates the Algorithm based on Plugin Parameters
-        """
-        self.algInitDone = False
-        self.setAlgorithm()
-        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
-
-    def updateTag(self, data):
-        """ updates Tag for directory
-  
-        Arguments:
-        data - tag name
-        """
-        self.labelParam_saveName = self.labelParam_saveName + "_" + data
-        print(self.labelParam_saveName)
-
-    def setAlgorithm(self):
-        """ sets the algorithm based on Plugin Paramaters
-        """
-        if self.parent.calib is not None:
-            if self.parent.mk.streakMaskOn:
-                self.parent.mk.initMask()
-                self.parent.mk.streakMask = self.parent.mk.StreakMask.getStreakMaskCalib(self.parent.evt)
-                if self.parent.mk.streakMask is None:
-                    self.parent.mk.streakMaskAssem = None
-                else:
-                    self.parent.mk.streakMaskAssem = self.parent.det.image(self.parent.evt, self.parent.mk.streakMask)
-                self.algInitDone = False
-
-            self.parent.mk.displayMask()
-
-            # update combined mask
-            self.parent.mk.combinedMask = np.ones_like(self.parent.calib)
-            if self.parent.mk.streakMask is not None and self.parent.mk.streakMaskOn is True:
-                self.parent.mk.combinedMask *= self.parent.mk.streakMask
-            if self.parent.mk.userMask is not None and self.parent.mk.userMaskOn is True:
-                self.parent.mk.combinedMask *= self.parent.mk.userMask
-            if self.parent.mk.psanaMask is not None and self.parent.mk.psanaMaskOn is True:
-                self.parent.mk.combinedMask *= self.parent.mk.psanaMask
-
-            # Compute
-            if self.algorithm_name == 0: # No algorithm
-                self.centers = None
-                self.drawCenters()
-            else:
-                if self.parent.facility == self.parent.facilityLCLS:
-                    # Only initialize the hit finder algorithm once
-                    if self.algInitDone is False:
-                        if (self.labelParam_pluginParam is not None):
-                            print("Loading %s!" % self.algorithm_name)
-                            kwargs = json.loads(self.labelParam_pluginParam)
-                            self.labelRadius = kwargs["r0"]
-                            self.labels = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
-                            self.numLabelsFound = self.labels.shape[0]
-                        else:
-                            print("Enter plug-in parameters")
-                        self.algInitDone = True
-                        self.algorithmEvaluated[self.parent.eventNumber] = True
-                elif self.parent.facility == self.parent.facilityPAL:
-                    pass
-                if self.parent.args.v >= 1: print "Labels found: ", self.centers
-                self.drawCenters()
-            if self.parent.args.v >= 1: print "Done setAlgorithm"
-
-    def drawCenters(self):
-        if self.parent.args.v >= 1: print "Done drawCenters"
-        self.parent.geom.drawCentre()
 
     def action(self, x, y, coords, w, h, d):
         """ When mouse is clicked in Add mode, an ROI is created
@@ -314,20 +303,6 @@ class Labeling(object):
             self.createROI(x,y, coords, w,h,d)
         elif(self.mode == "Remove"):
             pass
-
-    def setupRunDir(self):
-        """ Set up directory to run in
-        """
-        # Set up psocake directory in scratch
-        if self.parent.args.outDir is None:
-            self.parent.rootDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
-            self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
-            self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.parent.username + '/psocake'
-        else:
-            self.parent.rootDir = self.parent.args.outDir
-            self.parent.elogDir = self.parent.rootDir + '/psocake'
-            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
-        self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
     def createROI(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'm'):
         """ creates a ROI shape/label based on the input set of parameters
@@ -482,6 +457,122 @@ class Labeling(object):
         """
         return {"Position" : self.getPosition(roi), "Coordinates" : self.getPoints(roi)}
 
+    ##############################
+    #      Plugin Functions      #
+    ##############################
+
+    def updateAlgorithm(self): #TODO: merge with setAlgorithm
+        """updates the Algorithm based on Plugin Parameters
+        """
+        self.algInitDone = False
+        self.setAlgorithm()
+        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
+
+    def setAlgorithm(self):
+        """ sets the algorithm based on Plugin Paramaters
+        """
+        if self.parent.calib is not None:
+            if self.parent.mk.streakMaskOn:
+                self.parent.mk.initMask()
+                self.parent.mk.streakMask = self.parent.mk.StreakMask.getStreakMaskCalib(self.parent.evt)
+                if self.parent.mk.streakMask is None:
+                    self.parent.mk.streakMaskAssem = None
+                else:
+                    self.parent.mk.streakMaskAssem = self.parent.det.image(self.parent.evt, self.parent.mk.streakMask)
+                self.algInitDone = False
+
+            self.parent.mk.displayMask()
+
+            # update combined mask
+            self.parent.mk.combinedMask = np.ones_like(self.parent.calib)
+            if self.parent.mk.streakMask is not None and self.parent.mk.streakMaskOn is True:
+                self.parent.mk.combinedMask *= self.parent.mk.streakMask
+            if self.parent.mk.userMask is not None and self.parent.mk.userMaskOn is True:
+                self.parent.mk.combinedMask *= self.parent.mk.userMask
+            if self.parent.mk.psanaMask is not None and self.parent.mk.psanaMaskOn is True:
+                self.parent.mk.combinedMask *= self.parent.mk.psanaMask
+
+            # Compute
+            if self.algorithm_name == 0: # No algorithm
+                self.centers = None
+                self.drawCenters()
+            else:
+                if self.parent.facility == self.parent.facilityLCLS:
+                    # Only initialize the hit finder algorithm once
+                    if self.algInitDone is False:
+                        if (self.labelParam_pluginParam is not None):
+                            print("Loading %s!" % self.algorithm_name)
+                            kwargs = json.loads(self.labelParam_pluginParam)
+                            self.labelRadius = kwargs["r0"]
+                            self.labels = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
+                            self.numLabelsFound = self.labels.shape[0]
+                        else:
+                            print("Enter plug-in parameters")
+                        self.algInitDone = True
+                        self.algorithmEvaluated[self.parent.eventNumber] = True
+                elif self.parent.facility == self.parent.facilityPAL:
+                    pass
+                if self.parent.args.v >= 1: print "Labels found: ", self.centers
+                self.drawCenters()
+            if self.parent.args.v >= 1: print "Done setAlgorithm"
+
+    def drawCenters(self):
+        if self.parent.args.v >= 1: print "Done drawCenters"
+        self.parent.geom.drawCentre()
+
+    def assembleLabelPos(self, label):
+        """ Determine position of labels from an algorithm
+        
+        Arguments:
+        label - the array of label found in an image
+        """
+        self.ix = self.parent.det.indexes_x(self.parent.evt)
+        self.iy = self.parent.det.indexes_y(self.parent.evt)
+        if self.ix is None:
+            (_, dim0, dim1) = self.parent.calib.shape
+            self.iy = np.tile(np.arange(dim0), [dim1, 1])
+            self.ix = np.transpose(self.iy)
+        self.iX = np.array(self.ix, dtype=np.int64)
+        self.iY = np.array(self.iy, dtype=np.int64)
+        if len(self.iX.shape) == 2:
+            self.iX = np.expand_dims(self.iX, axis=0)
+            self.iY = np.expand_dims(self.iY, axis=0)
+        cenX = self.iX[np.array(label[:, 0], dtype=np.int64), np.array(label[:, 1], dtype=np.int64), np.array(
+            label[:, 2], dtype=np.int64)] + 0.5
+        cenY = self.iY[np.array(label[:, 0], dtype=np.int64), np.array(label[:, 1], dtype=np.int64), np.array(
+            label[:, 2], dtype=np.int64)] + 0.5
+        return cenX, cenY
+
+    def drawLabels(self):
+        """ Draw Labels from an algorithm.
+        """
+        self.parent.img.clearPeakMessage()
+        if self.labels is not None and self.numLabelsFound > 0:
+            if self.parent.facility == self.parent.facilityLCLS:
+                cenX, cenY = self.assembleLabelPos(self.labels)
+            elif self.parent.facility == self.parent.facilityPAL:
+                (dim0, dim1) = self.parent.calib.shape
+                self.iy = np.tile(np.arange(dim0), [dim1, 1])
+                self.ix = np.transpose(self.iy)
+                self.iX = np.array(self.ix, dtype=np.int64)
+                self.iY = np.array(self.iy, dtype=np.int64)
+                cenX = self.iX[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+            diameter = self.labelRadius*2+1
+            for i,x in enumerate(cenX):
+                self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
+        else:
+            self.parent.img.peak_feature.setData([], [], pxMode=False)
+            self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+            self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+            self.parent.img.peak_text.setPos(0,0)
+        if self.parent.args.v >= 1: print "Done drawLabels"
+        self.parent.geom.drawCentre()
+
+    ##############################
+    #  Label Database Functions  #
+    ##############################
+
     def saveLabelsToDictionary(self):
         translatedEventLabels = {}
         for event in self.eventLabels:
@@ -607,54 +698,9 @@ class Labeling(object):
         self.parent.img.win.getView().addItem(roiPoly)
         print("Polygon added at x = %d, y = %d" % (coords[0][0], coords[0][1]))
 
-    def assembleLabelPos(self, label):
-        """ Determine position of labels from an algorithm
-        
-        Arguments:
-        label - the array of label found in an image
-        """
-        self.ix = self.parent.det.indexes_x(self.parent.evt)
-        self.iy = self.parent.det.indexes_y(self.parent.evt)
-        if self.ix is None:
-            (_, dim0, dim1) = self.parent.calib.shape
-            self.iy = np.tile(np.arange(dim0), [dim1, 1])
-            self.ix = np.transpose(self.iy)
-        self.iX = np.array(self.ix, dtype=np.int64)
-        self.iY = np.array(self.iy, dtype=np.int64)
-        if len(self.iX.shape) == 2:
-            self.iX = np.expand_dims(self.iX, axis=0)
-            self.iY = np.expand_dims(self.iY, axis=0)
-        cenX = self.iX[np.array(label[:, 0], dtype=np.int64), np.array(label[:, 1], dtype=np.int64), np.array(
-            label[:, 2], dtype=np.int64)] + 0.5
-        cenY = self.iY[np.array(label[:, 0], dtype=np.int64), np.array(label[:, 1], dtype=np.int64), np.array(
-            label[:, 2], dtype=np.int64)] + 0.5
-        return cenX, cenY
-
-    def drawLabels(self):
-        """ Draw Labels from an algorithm.
-        """
-        self.parent.img.clearPeakMessage()
-        if self.labels is not None and self.numLabelsFound > 0:
-            if self.parent.facility == self.parent.facilityLCLS:
-                cenX, cenY = self.assembleLabelPos(self.labels)
-            elif self.parent.facility == self.parent.facilityPAL:
-                (dim0, dim1) = self.parent.calib.shape
-                self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                self.ix = np.transpose(self.iy)
-                self.iX = np.array(self.ix, dtype=np.int64)
-                self.iY = np.array(self.iy, dtype=np.int64)
-                cenX = self.iX[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
-                cenY = self.iY[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
-            diameter = self.labelRadius*2+1
-            for i,x in enumerate(cenX):
-                self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
-        else:
-            self.parent.img.peak_feature.setData([], [], pxMode=False)
-            self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
-            self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-            self.parent.img.peak_text.setPos(0,0)
-        if self.parent.args.v >= 1: print "Done drawLabels"
-        self.parent.geom.drawCentre()
+    ##############################
+    #     Save/Remove Labels     #
+    ##############################
 
     def removeLabels(self, clearAll = True):
         """ Remove the labels from the last event from the screen.
@@ -745,5 +791,59 @@ class Labeling(object):
         self.removeLabels()
         self.loadLabelsEventChange()
         self.saveEventNumber()
+
+    ##############################
+    #       Classification       #
+    #    Database  Functions     #
+    ##############################
+
+    def postClassifications(self):
+        """ Post a set of labels to MongoDB
+        """
+        self.db.post(self.labelParam_saveName, self.saveClassificationsToDictionary())
+        self.db.printDatabase()
+
+    def saveClassificationsToDictionary(self):
+        pass
+
+
+    ##############################
+    #   Additional  Functions    #
+    ##############################
+
+    def splitWords(self, string):
+        """ Splits the words in a string and returns an array where each index
+        corresponds to words in the original string.
+        For ex:
+        input  ---> string = "Here is my sentence"
+        output ---> stringarray = ["Here", "is", "my", "sentence"]
+        stringarray[1] = "is"
+
+        Arguments:
+        string - string of words with spaces separating each word
+        """
+        stringarray = []
+        beginningLetter = 0
+        endingLetter = 0
+        for i,ascii in enumerate(string):
+            if (ascii == " "):
+                endingLetter = i
+                stringarray.append(string[beginningLetter:endingLetter])
+                beginningLetter = i+1
+            elif i == len(string)-1:
+                endingLetter = i+1
+                stringarray.append(string[beginningLetter:endingLetter])
+            else:
+                pass
+        return stringarray
+
+    def keyPressed(self, val):
+        if("%d"%self.parent.eventNumber) in self.eventClassifications:
+            pass
+        else:
+            self.eventClassifications["%d"%self.parent.eventNumber] = []
+        self.eventClassifications["%d"%self.parent.eventNumber].append(val)
+        self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
+        print(self.eventClassifications["%d"%self.parent.eventNumber])
 
 #TODO: Hit, Miss, etc
