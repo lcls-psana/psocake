@@ -1,17 +1,12 @@
 import numpy as np
 import pyqtgraph as pg
-import h5py
 from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
 import json, os, time
-from scipy.spatial.distance import cdist #TODO: clean up unneeded imports
-from scipy.spatial import distance
-import subprocess
 from database import LabelDatabase
 import runAlgorithm
-#import ImagePanel
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
@@ -19,6 +14,11 @@ elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 
 class Labeling(object):
+
+    ##############################
+    # Initialize Menu Parameters #
+    ##############################
+
     def __init__(self, parent = None):
         self.parent = parent
         self.setupRunDir()
@@ -27,10 +27,13 @@ class Labeling(object):
         self.win = ParameterTree()
         self.dock.addWidget(self.win)
 
-        self.labelParam_grp = 'Labeler'
+        #String Names for Buttons and Menus
+        self.labelParam_labeler = 'Labeler'
+        self.labelParam_classifier = 'Classifier'
+        self.labelParam_saveload = 'Save or Load Work'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_pluginDir_str = 'Plugin directory'
-        self.labelParam_outDir_str = 'Output directory'
+        self.labelParam_classificationOptions_str = 'Classifications'
         self.labelParam_runs_str = 'Run(s)'
         self.labelParam_queue_str = 'queue'
         self.labelParam_cpu_str = 'CPUs'
@@ -50,11 +53,9 @@ class Labeling(object):
         self.labelParam_add_str = 'Add'
         self.labelParam_remove_str = 'Remove'
         self.labelParam_loadName_str = 'Label Load Name'
-        self.labelParam_saveName_str = 'Label Save Name'
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
-        self.labelParam_showPeaks_str = 'Show labels from Plug-in'
 
 
         self.labelParam_poly_str = 'Polygon'
@@ -67,10 +68,13 @@ class Labeling(object):
         self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30,\"amax_thr\":300, \"atot_thr\":600,\"son_min\":10, \"rank\":3, \"r0\":3, \"dr\":2, \"nsigm\":5 }"
         self.tag = ''
         self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
+        self.labelParam_classificationOptions = '' 
         self.labelParam_loadName = ''
-        self.labelParam_saveName = None
-        self.showPeaks = False
-        self.numPeaksFound = 0
+        self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
+        self.numLabelsFound = 0
+        self.algorithm_name = 0
+        self.lastEventNumber = 0
+        self.algInitDone = False
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -85,16 +89,22 @@ class Labeling(object):
         self.rectRois = []
         self.circleRois = []
         self.polyRois = []
+        self.algRois = []
 
         self.rectAttributes = []
         self.circleAttributes = []
         self.polyAttributes = []
 
+        self.eventLabels = {}
+        self.algorithmEvaluated = {}
+
         self.db = LabelDatabase()
+
+        self.eventClassifications = {}
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
-                {'name': self.labelParam_grp, 'type': 'group', 'children': [
+                {'name': self.labelParam_labeler, 'type': 'group', 'children': [
                     {'name': self.labelParam_mode_str, 'type': 'list', 'values': {self.labelParam_add_str: 'Add',
                                                                                     self.labelParam_remove_str: 'Remove'},
                      'value': self.mode, 'tip': "Choose labelling mode"},
@@ -103,16 +113,10 @@ class Labeling(object):
                                                                                     self.labelParam_rect_str: 'Rectangle',
                                                                                     self.labelParam_none_str: 'None'},
                      'value': self.shape, 'tip': "Choose label shape"},
-                    {'name': self.labelParam_showPeaks_str, 'type': 'bool', 'value': self.showPeaks,
-                     'tip': "Show peaks found shot-to-shot"},
                     {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
                      'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
-                     'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
-                    {'name': self.labelParam_outDir_str, 'type': 'str', 'value': self.labelParam_outDir,
-                     'tip': "Output Directory for save files"},
                     {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
                     {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
                                                                                  self.labelParam_psnehhiprioq_str: 'psnehhiprioq',
@@ -126,13 +130,20 @@ class Labeling(object):
                     {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
                     {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
-                    {'name': self.labelParam_saveName_str, 'type': 'str', 'value': self.labelParam_saveName, 
-                     'tip': "Input the name you want to save these labels as"},
+                    {'name': self.labelParam_launch_str, 'type': 'action'},
+                ]},
+                {'name': self.labelParam_classifier, 'type': 'group', 'children': [
+                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions, 
+                     'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
+                ]},
+                {'name': self.labelParam_saveload, 'type': 'group', 'children': [
+                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
+                     'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
                     {'name': self.labelParam_save_str, 'type': 'action'},
                     {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName, 
                      'tip': "Input the name of the label save post you want to load"},
                     {'name': self.labelParam_load_str, 'type': 'action'},
-                    {'name': self.labelParam_launch_str, 'type': 'action'},
+
                 ]},
             ]
         elif self.parent.facility == self.parent.facilityPAL:
@@ -142,6 +153,62 @@ class Labeling(object):
                                    children=self.params, expanded=True)
         self.win.setParameters(self.paramWidget, showTop=False)
         self.paramWidget.sigTreeStateChanged.connect(self.change)
+
+    ##############################
+    # Parameter Update Functions #
+    ##############################
+    def paramUpdate(self, path, change, data):
+        if path[0] == self.labelParam_labeler:
+            if path[1] == self.labelParam_mode_str:
+                self.mode = data
+            elif path[1] == self.labelParam_shapes_str:
+                self.shapes = data
+            elif path[1] == self.labelParam_pluginDir_str:
+                self.algorithm_name = data
+                self.updateAlgorithm()
+                self.drawLabels()
+            elif path[1] == self.labelParam_pluginParam_str:
+                self.labelParam_pluginParam = data
+            elif path[1] == self.labelParam_runs_str:
+                self.labelParam_runs = data
+            elif path[1] == self.labelParam_queue_str:
+                self.labelParam_queue = data
+            elif path[1] == self.labelParam_cpu_str:
+                self.labelParam_cpus = data
+            elif path[1] == self.labelParam_noe_str:
+                self.labelParam_noe = data
+            elif path[1] == self.labelParam_launch_str:
+                pass
+                #self.findLabels()
+        elif path[0] == self.labelParam_classifier:
+            if path[1] == self.labelParam_classificationOptions_str:
+                self.updateClassificationOptions(data)
+        elif path[0] == self.labelParam_saveload:
+            if path[1] == self.tag_str:
+                self.updateTag(data)
+            elif path[1] == self.labelParam_save_str:
+                self.saveLabelsFromEvent(self.parent.eventNumber)
+                self.postLabels()
+            elif path[1] == self.labelParam_loadName_str:
+                self.labelParam_loadName = data
+            elif path[1] == self.labelParam_load_str:
+                self.loadLabelsFromDatabase(self.labelParam_loadName)
+
+    def updateClassificationOptions(self, data):
+        self.labelParam_classificationOptions = self.splitWords(data)
+
+    def updateTag(self, data):
+        """ updates Tag for directory
+  
+        Arguments:
+        data - tag name
+        """
+        self.labelParam_saveName = self.labelParam_saveName + "_" + data
+        print(self.labelParam_saveName)
+
+    ##############################
+    #      Launch Functions      #
+    ##############################
 
     def digestRunList(self, runList):
         runsToDo = []
@@ -203,56 +270,207 @@ class Labeling(object):
                 print('  ----------')
             self.paramUpdate(path, change, data)
 
-    ##############################
-    # Mandatory parameter update #
-    ##############################
-    def paramUpdate(self, path, change, data):
-        if path[0] == self.labelParam_grp:
-            if path[1] == self.labelParam_outDir_str:
-                self.labelParam_outDir = data
-                self.labelParam_outDir_overridden = True
-            elif path[1] == self.labelParam_pluginDir_str:
-                self.updateAlgorithm(data)
-            elif path[1] == self.labelParam_runs_str:
-                self.labelParam_runs = data
-            elif path[1] == self.labelParam_queue_str:
-                self.labelParam_queue = data
-            elif path[1] == self.labelParam_cpu_str:
-                self.labelParam_cpus = data
-            elif path[1] == self.labelParam_noe_str:
-                self.labelParam_noe = data
-            elif path[1] == self.labelParam_launch_str:
-                self.findLabels()
-            elif path[1] == self.labelParam_save_str:
-                self.postLabels()
-            elif path[1] == self.tag_str:
-                self.updateTag(data)
-            elif path[1] == self.labelParam_pluginParam_str:
-                self.labelParam_pluginParam = data
-            elif path[1] == self.labelParam_shapes_str:
-                self.shapes = data
-            elif path[1] == self.labelParam_mode_str:
-                self.mode = data
-            elif path[1] == self.labelParam_loadName_str:
-                self.labelParam_loadName = data
-            elif path[1] == self.labelParam_saveName_str:
-                self.labelParam_saveName = data
-            elif path[1] == self.labelParam_load_str:
-                self.loadLabels(self.labelParam_loadName)
-            elif path[1] == self.labelParam_showPeaks_str:
-                self.showPeaks = data
-                self.drawPeaks()
+    def setupRunDir(self):
+        """ Set up directory to run in
+        """
+        # Set up psocake directory in scratch
+        if self.parent.args.outDir is None:
+            self.parent.rootDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
+            self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.parent.username + '/psocake'
+        else:
+            self.parent.rootDir = self.parent.args.outDir
+            self.parent.elogDir = self.parent.rootDir + '/psocake'
+            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
+        self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
 
-    def updateAlgorithm(self, data):
-        self.algorithm_name = data
+    ##############################
+    #      Shape  Functions      #
+    ##############################
+
+    def action(self, x, y, coords, w, h, d):
+        """ When mouse is clicked in Add mode, an ROI is created
+
+        Arguments:
+        x - x position
+        y - y position
+        coords - coordinates of polygon corners
+        w - width of rectangle
+        h - height of rectangle
+        d - diameter of circle
+        """
+        if(self.mode == "Add"):
+            self.createROI(x,y, coords, w,h,d)
+        elif(self.mode == "Remove"):
+            pass
+
+    def createROI(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'm'):
+        """ creates a ROI shape/label based on the input set of parameters
+
+        Arguments:
+        x - x position
+        y - y position
+        **coords - coordinates for a polygon
+        **w - width of rectangle
+        **h - height of rectangle
+        **d - diameter of circle
+        **algorithm - Boolean value, True if these labels are loaded
+                      from an algorithm, and not from a click event
+        **color - color of ROI, green if click event, blue if 
+                  loaded from algorithm
+        """
+        try:
+            if((algorithm == True) or (self.shapes == "Rectangle")):
+                width = w
+                height = h
+                roiRect = pg.ROI(pos=[x-(width/2), y-(height/2)], size=[width, height], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                          pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                roiRect.addScaleHandle([1, 0.5], [0.5, 0.5])
+                roiRect.addScaleHandle([0.5, 0], [0.5, 0.5])
+                roiRect.addScaleHandle([0.5, 1], [0.5, 0.5])
+                roiRect.addScaleHandle([0, 0.5], [0.5, 0.5])
+                roiRect.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
+                roiRect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+                roiRect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+                roiRect.addScaleHandle([0, 1], [1, 0])
+                roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+                roiRect.sigClicked.connect(self.removeROI)
+                if (algorithm == True):
+                    self.algRois.append(roiRect)
+                else:
+                    self.rectRois.append(roiRect)
+                self.parent.img.win.getView().addItem(roiRect)
+                print("Rectangle added at x = %d, y = %d" % (x, y))
+            elif(self.shapes == "Circle"):
+                xd = d
+                yd = d
+                roiCircle = pg.CircleROI([x- (xd/2), y - (yd/2)], size=[xd, yd], snapSize=0.1, scaleSnap=False, translateSnap=False,
+                                        pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
+                roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
+                roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
+                roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
+                roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
+                roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+                roiCircle.sigClicked.connect(self.removeROI)
+                self.circleRois.append(roiCircle)
+                self.parent.img.win.getView().addItem(roiCircle)
+                print("Circle added at x = %d, y = %d" % (x, y))
+            elif(self.shapes == "Polygon"):
+                roiPoly = pg.PolyLineROI(coords, pos = [x-375,y+150],
+                                      closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                      pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+                roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+                roiPoly.sigClicked.connect(self.removeROI)
+                roiPoly.sigHoverEvent.connect(self.removeROI)
+                roiPoly.sigRegionChanged.connect(self.removeROI)
+                self.polyRois.append(roiPoly)
+                self.parent.img.win.getView().addItem(roiPoly)
+                print("Polygon added at x = %d, y = %d" % (x, y))
+            else:
+                print("Choose a Shape.")
+        except AttributeError:
+            pass
+
+    def removeROI(self, roi):
+        """ signal called when an ROI is clicked on in remove mode, will remove
+        roi from screen and from family array
+
+        Arguments:
+        roi - ROI variable that was clicked on
+        """
+        if(self.mode == "Remove"):
+            self.parent.img.win.getView().removeItem(roi)
+            try:
+                self.polyRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+            try:
+                self.circleRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+            try:
+                self.rectRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+            try:
+                self.algRois.remove(roi)
+                print(roi, "removed.")
+            except ValueError:
+                pass
+        elif(self.mode == "Add"):
+            pass
+        else:
+            pass
+    
+    def getPosition(self, roi):
+        """ returns the position of a circle or a rectangle
+
+        Arguments:
+        roi - circle or rectangle variable
+        """
+        return [roi.pos()[0],roi.pos()[1]]
+
+    def getSize(self, roi):
+        """ returns the size of a circle or a rectangle
+
+        Arguments:
+        roi - circle or rectangle variable
+        """
+        return [roi.size()[0],roi.size()[1]]
+
+    def getPoints(self, roi):
+        """ returns the coordinates of the corners of a polygon
+
+        Arguments:
+        roi - polygon variable
+        """
+        coords = []
+        for point in roi.getState()["points"]:
+            coords.append([point[0],point[1]])
+        return coords
+
+    def getAttributesRectangle(self, roi):
+        """ returns the Position and Size of a Rectangle
+
+        Arguments:
+        roi - rectangle variable
+        """
+        return {"Position" : self.getPosition(roi), "Size" : self.getSize(roi)}
+
+    def getAttributesCircle(self, roi):
+        """ returns the Position and Size of a Circle
+
+        Arguments:
+        roi - circle variable
+        """
+        return {"Position" : self.getPosition(roi), "Diameter" : self.getSize(roi)[0]} ##only return radius
+
+    def getAttributesPolygon(self, roi):
+        """ returns the Position and Cooridinates of a Polygon
+
+        Arguments:
+        roi - polygon variable
+        """
+        return {"Position" : self.getPosition(roi), "Coordinates" : self.getPoints(roi)}
+
+    ##############################
+    #      Plugin Functions      #
+    ##############################
+
+    def updateAlgorithm(self): #TODO: merge with setAlgorithm
+        """updates the Algorithm based on Plugin Parameters
+        """
         self.algInitDone = False
-        self.updateLabel()
+        self.setAlgorithm()
         if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
 
-    def updateTag(self, data):
-        self.tag = data
-
-    def updateLabel(self):
+    def setAlgorithm(self):
+        """ sets the algorithm based on Plugin Paramaters
+        """
         if self.parent.calib is not None:
             if self.parent.mk.streakMaskOn:
                 self.parent.mk.initMask()
@@ -276,8 +494,8 @@ class Labeling(object):
 
             # Compute
             if self.algorithm_name == 0: # No algorithm
-                self.labels = None
-                self.drawLabels()
+                self.centers = None
+                self.drawCenters()
             else:
                 if self.parent.facility == self.parent.facilityLCLS:
                     # Only initialize the hit finder algorithm once
@@ -285,200 +503,29 @@ class Labeling(object):
                         if (self.labelParam_pluginParam is not None):
                             print("Loading %s!" % self.algorithm_name)
                             kwargs = json.loads(self.labelParam_pluginParam)
-                            self.peakRadius = kwargs["r0"]
-                            self.peaks = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
-                            self.numPeaksFound = self.peaks.shape[0]
+                            self.labelRadius = kwargs["r0"]
+                            self.labels = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
+                            self.numLabelsFound = self.labels.shape[0]
                         else:
                             print("Enter plug-in parameters")
                         self.algInitDone = True
+                        self.algorithmEvaluated[self.parent.eventNumber] = True
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
-                if self.parent.args.v >= 1: print "Labels found: ", self.labels
-                self.drawLabels()
-            if self.parent.args.v >= 1: print "Done updateLabel"
+                if self.parent.args.v >= 1: print "Labels found: ", self.centers
+                self.drawCenters()
+            if self.parent.args.v >= 1: print "Done setAlgorithm"
 
-    def drawLabels(self):
-        if self.parent.args.v >= 1: print "Done drawLabels"
+    def drawCenters(self):
+        if self.parent.args.v >= 1: print "Done drawCenters"
         self.parent.geom.drawCentre()
 
-    def action(self,x,y):
-        if(self.mode == "Add"):
-            self.clickCreateShape(x,y)
-        elif(self.mode == "Remove"):
-            pass
-
-    def setupRunDir(self):
-        # Set up psocake directory in scratch
-        if self.parent.args.outDir is None:
-            self.parent.rootDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName
-            self.parent.elogDir = self.parent.rootDir + '/scratch/psocake'
-            self.parent.psocakeDir = self.parent.rootDir + '/scratch/' + self.parent.username + '/psocake'
-        else:
-            self.parent.rootDir = self.parent.args.outDir
-            self.parent.elogDir = self.parent.rootDir + '/psocake'
-            self.parent.psocakeDir = self.parent.rootDir + '/' + self.parent.experimentName + '/' + self.parent.username + '/psocake'
-        self.parent.psocakeRunDir = self.parent.psocakeDir + '/r' + str(self.parent.runNumber).zfill(4)
-
-    def clickCreateShape(self,x,y):
-        try:
-            if(self.shapes == "Rectangle"):
-                width = 200
-                height = 200
-                roiRect = pg.ROI(pos=[x-(width/2), y-(height/2)], size=[width, height], snapSize=1.0, scaleSnap=True, translateSnap=True,
-                          pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-                roiRect.addScaleHandle([1, 0.5], [0.5, 0.5])
-                roiRect.addScaleHandle([0.5, 0], [0.5, 0.5])
-                roiRect.addScaleHandle([0.5, 1], [0.5, 0.5])
-                roiRect.addScaleHandle([0, 0.5], [0.5, 0.5])
-                roiRect.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
-                roiRect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
-                roiRect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
-                roiRect.addScaleHandle([0, 1], [1, 0])
-                roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-                roiRect.sigClicked.connect(self.update)
-                self.rectRois.append(roiRect)
-                self.parent.img.win.getView().addItem(roiRect)
-                print("Rectangle added at x = %d, y = %d" % (x, y))
-            elif(self.shapes == "Circle"):
-                xrad = 200
-                yrad = 200
-                roiCircle = pg.CircleROI([x- (xrad/2), y - (yrad/2)], size=[xrad, yrad], snapSize=0.1, scaleSnap=False, translateSnap=False,
-                                        pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-                roiCircle.addScaleHandle([0.1415, 0.707*1.2], [0.5, 0.5])
-                roiCircle.addScaleHandle([0.707 * 1.2, 0.1415], [0.5, 0.5])
-                roiCircle.addScaleHandle([0.1415, 0.1415], [0.5, 0.5])
-                roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
-                roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
-                roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-                roiCircle.sigClicked.connect(self.update)
-                self.circleRois.append(roiCircle)
-                self.parent.img.win.getView().addItem(roiCircle)
-                print("Circle added at x = %d, y = %d" % (x, y))
-            elif(self.shapes == "Polygon"):
-                roiPoly = pg.PolyLineROI([[x-75, y-100], [x-75,y+100], [x+125,y+100], [x+125,y], [x,y], [x,y-100]], pos = [0,0],
-                                      closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                      pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-                roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-                roiPoly.sigClicked.connect(self.update)
-                roiPoly.sigHoverEvent.connect(self.update)
-                roiPoly.sigRegionChanged.connect(self.update)
-                self.polyRois.append(roiPoly)
-                self.parent.img.win.getView().addItem(roiPoly)
-                print("Polygon added at x = %d, y = %d" % (x, y))
-            else:
-                print("Choose a Shape.")
-        except AttributeError:
-            pass
-
-    def update(self, roi):
-        if(self.mode == "Remove"):
-            self.parent.img.win.getView().removeItem(roi)
-            try:
-                self.polyRois.remove(roi)
-                print(roi, "removed.")
-            except ValueError:
-                pass
-            try:
-                self.circleRois.remove(roi)
-                print(roi, "removed.")
-            except ValueError:
-                pass
-            try:
-                self.rectRois.remove(roi)
-                print(roi, "removed.")
-            except ValueError:
-                pass
-        elif(self.mode == "Add"):
-            pass
-        else:
-            pass
-    
-    def getPosition(self, roi):
-        return [roi.pos()[0],roi.pos()[1]]
-
-    def getSize(self, roi):
-        return [roi.size()[0],roi.size()[1]]
-
-    def getPoints(self, roi):
-            coords = []
-            for point in roi.getState()["points"]:
-                coords.append([point[0],point[1]])
-            return coords
-
-    def getAttributesRectangle(self, roi):
-        return {"Position" : self.getPosition(roi), "Size" : self.getSize(roi)}
-
-    def getAttributesCircle(self, roi):
-        return {"Position" : self.getPosition(roi), "Radius" : self.getSize(roi)[0]} ##only return radius
-
-    def getAttributesPolygon(self, roi):
-        return {"Position" : self.getPosition(roi), "Coordinates" : self.getPoints(roi)}
-
-    def saveLabels(self):
-        self.rectAttributes = []
-        self.circleAttributes = []
-        self.polyAttributes = []
-        for roi in self.polyRois:
-            self.polyAttributes.append(self.getAttributesPolygon(roi))
-        for roi in self.rectRois:
-            self.rectAttributes.append(self.getAttributesRectangle(roi))
-        for roi in self.circleRois:
-            self.circleAttributes.append(self.getAttributesCircle(roi))
-        return {"Polygons" : self.polyAttributes, "Circles" : self.circleAttributes, "Rectangles" : self.rectAttributes}
-
-    def postLabels(self):
-        self.db.post(self.labelParam_saveName, self.saveLabels())
-        self.db.printDatabase()
-
-    def loadLabels(self, loadName):
-        try:
-            shapes = self.db.findPost(loadName)[loadName]
-        except TypeError:
-            print("Invalid Load Name")
-        circles = shapes["Circles"]
-        rectangles = shapes["Rectangles"]
-        polygons = shapes["Polygons"]
-        for circle in circles:
-            self.loadCircle(circle["Position"][0],circle["Position"][1],circle["Radius"])
-        for rectangle in rectangles:
-            self.loadRectangle(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1])
-        for polygon in polygons:
-            self.loadPolygon(polygon["Position"], polygon["Coordinates"])
-
-    def loadRectangle(self, x, y, w, h):
-        roiRect = pg.ROI(pos = [x,y], size=[w, h], snapSize=1.0, scaleSnap=True, translateSnap=True,
-                         pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-        roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-        roiRect.sigClicked.connect(self.update)
-        self.rectRois.append(roiRect)
-        self.parent.img.win.getView().addItem(roiRect)
-        print("Rectangle added at x = %d, y = %d" % (x, y))
-
-    def loadCircle(self, x, y, r):
-        roiCircle = pg.CircleROI(pos = [x, y], size=[r, r], snapSize=0.1, scaleSnap=False, translateSnap=False,
-                                 pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-        roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-        roiCircle.sigClicked.connect(self.update)
-        self.circleRois.append(roiCircle)
-        self.parent.img.win.getView().addItem(roiCircle)
-        print("Circle added at x = %d, y = %d" % (x, y))
-
-    def loadPolygon(self, pos, coords):
-        roiPoly = pg.PolyLineROI(coords, pos=pos,
-                                 closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
-                                 pen={'color': 'g', 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
-        roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-        roiPoly.sigClicked.connect(self.update)
-        self.polyRois.append(roiPoly)
-        self.parent.img.win.getView().addItem(roiPoly)
-        print("Polygon added at x = %d, y = %d" % (coords[0][0], coords[0][1]))
-
-    def getMaxRes(self, posX, posY, centerX, centerY):
-        maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
-        if self.parent.args.v >= 1: print "maxRes: ", maxRes
-        return maxRes # in pixels
-
-    def assemblePeakPos(self, peaks):
+    def assembleLabelPos(self, label):
+        """ Determine position of labels from an algorithm
+        
+        Arguments:
+        label - the array of label found in an image
+        """
         self.ix = self.parent.det.indexes_x(self.parent.evt)
         self.iy = self.parent.det.indexes_y(self.parent.evt)
         if self.ix is None:
@@ -490,44 +537,313 @@ class Labeling(object):
         if len(self.iX.shape) == 2:
             self.iX = np.expand_dims(self.iX, axis=0)
             self.iY = np.expand_dims(self.iY, axis=0)
-        cenX = self.iX[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
-            peaks[:, 2], dtype=np.int64)] + 0.5
-        cenY = self.iY[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
-            peaks[:, 2], dtype=np.int64)] + 0.5
+        cenX = self.iX[np.array(label[:, 0], dtype=np.int64), np.array(label[:, 1], dtype=np.int64), np.array(
+            label[:, 2], dtype=np.int64)] + 0.5
+        cenY = self.iY[np.array(label[:, 0], dtype=np.int64), np.array(label[:, 1], dtype=np.int64), np.array(
+            label[:, 2], dtype=np.int64)] + 0.5
         return cenX, cenY
 
-    def drawPeaks(self): #TODO: Change so that peak labels come up at rois (this way they can be deleted or saved to MongoDB)
+    def drawLabels(self):
+        """ Draw Labels from an algorithm.
+        """
         self.parent.img.clearPeakMessage()
-        if self.showPeaks:
-            if self.peaks is not None and self.numPeaksFound > 0:
-                if self.parent.facility == self.parent.facilityLCLS:
-                    cenX, cenY = self.assemblePeakPos(self.peaks)
-                elif self.parent.facility == self.parent.facilityPAL:
-                    (dim0, dim1) = self.parent.calib.shape
-                    self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                    self.ix = np.transpose(self.iy)
-                    self.iX = np.array(self.ix, dtype=np.int64)
-                    self.iY = np.array(self.iy, dtype=np.int64)
-                    cenX = self.iX[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
-                    cenY = self.iY[np.array(self.peaks[:, 1], dtype=np.int64), np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
-                self.peaksMaxRes = self.getMaxRes(cenX, cenY, self.parent.cx, self.parent.cy)
-                diameter = self.peakRadius*2+1
-                self.parent.img.peak_feature.setData(cenX, cenY, symbol='s', \
-                                          size=diameter, brush=(255,255,255,0), \
-                                          pen=pg.mkPen({'color': "c", 'width': 4}), pxMode=False) #FF0
-                # Write number of peaks found
-                xMargin = 5 # pixels
-                yMargin = 0  # pixels
-                maxX = np.max(self.ix) + xMargin
-                maxY = np.max(self.iy) - yMargin
-                self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-                self.parent.img.peak_text.setPos(maxX, maxY)
-            else:
-                self.parent.img.peak_feature.setData([], [], pxMode=False)
-                self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
-                self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-                self.parent.img.peak_text.setPos(0,0)
+        if self.labels is not None and self.numLabelsFound > 0:
+            if self.parent.facility == self.parent.facilityLCLS:
+                cenX, cenY = self.assembleLabelPos(self.labels)
+            elif self.parent.facility == self.parent.facilityPAL:
+                (dim0, dim1) = self.parent.calib.shape
+                self.iy = np.tile(np.arange(dim0), [dim1, 1])
+                self.ix = np.transpose(self.iy)
+                self.iX = np.array(self.ix, dtype=np.int64)
+                self.iY = np.array(self.iy, dtype=np.int64)
+                cenX = self.iX[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+                cenY = self.iY[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+            diameter = self.labelRadius*2+1
+            for i,x in enumerate(cenX):
+                self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
         else:
             self.parent.img.peak_feature.setData([], [], pxMode=False)
-        if self.parent.args.v >= 1: print "Done drawPeaks"
+            self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+            self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+            self.parent.img.peak_text.setPos(0,0)
+        if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
+
+    ##############################
+    #  Label Database Functions  #
+    ##############################
+
+    def saveLabelsToDictionary(self):
+        translatedEventLabels = {}
+        for event in self.eventLabels:
+            polyAttributes = []
+            circleAttributes = []
+            rectAttributes = []
+            translatedEventLabels["%s"%event] = {}
+            for roi in self.eventLabels[event]["Algorithm"]:
+                print(roi)
+                if type(roi) is pg.graphicsItems.ROI.ROI:
+                    rectAttributes.append(self.getAttributesRectangle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.CircleROI:
+                    circleAttributes.append(self.getAttributesCircle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+                    polyAttributes.append(self.getAttributesPolygon(roi))
+                else:
+                    print("Cant use this type: %s" % type(roi))
+            translatedEventLabels["%s"%event]["Algorithm"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+            polyAttributes = []
+            circleAttributes = []
+            rectAttributes = []
+            for roi in self.eventLabels[event]["User"]:
+                print(roi)
+                if type(roi) is pg.graphicsItems.ROI.ROI:
+                    rectAttributes.append(self.getAttributesRectangle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.CircleROI:
+                    circleAttributes.append(self.getAttributesCircle(roi))
+                elif type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+                    polyAttributes.append(self.getAttributesPolygon(roi))
+                else:
+                    print("Cant use this type: %s" % type(roi))
+            translatedEventLabels["%s"%event]["User"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+        return translatedEventLabels
+
+    def postLabels(self):
+        """ Post a set of labels to MongoDB
+        """
+        self.db.post(self.labelParam_saveName, self.saveLabelsToDictionary())
+        self.db.printDatabase()
+
+    def loadLabelsFromDatabase(self, loadName):
+        """Load a saved set of labels from MongoDB
+
+        Arguments:
+        loadName - name of the saved set of labels
+        """
+        try:
+            shapes = self.db.findPost(loadName)[loadName]["%d"%self.parent.eventNumber]
+        except TypeError:
+            print("Invalid Load Name")
+        for shapeType in shapes:
+            color = None
+            if shapeType == "Algorithm":
+                color = 'b'
+            elif shapeType == "User":
+                color = 'm'
+            circles = shapes[shapeType]["Circles"]
+            rectangles = shapes[shapeType]["Rectangles"]
+            polygons = shapes[shapeType]["Polygons"]
+            for circle in circles:
+                self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"], color)
+            for rectangle in rectangles:
+                self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1], color)
+            for polygon in polygons:
+                self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"], color)
+    
+
+    def loadRectangleFromDatabase(self, x, y, w, h, color):
+        """ Used to draw labels on an image based on locations saved
+        in a database.
+
+        Arguments:
+        x - x axis center position
+        y - y axis center position
+        w - width
+        h - height
+        """
+        roiRect = pg.ROI(pos = [x,y], size=[w, h], snapSize=1.0, scaleSnap=True, translateSnap=True,
+                         pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+        roiRect.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        roiRect.sigClicked.connect(self.removeROI)
+        roiRect.addScaleHandle([0, 0], [1, 1]) # bottom,left handles scaling both vertically and horizontally
+        roiRect.addScaleHandle([1, 1], [0, 0])  # top,right handles scaling both vertically and horizontally
+        roiRect.addScaleHandle([1, 0], [0, 1])  # bottom,right handles scaling both vertically and horizontally
+        roiRect.addScaleHandle([0, 1], [1, 0])
+        self.rectRois.append(roiRect)
+        self.parent.img.win.getView().addItem(roiRect)
+        print("Rectangle added at x = %d, y = %d" % (x, y))
+
+    def loadCircleFromDatabase(self, x, y, d, color):
+        """ Used to draw labels on an image based on locations saved
+        in a database.
+
+        Arguments:
+        x - x axis center position
+        y - y axis center position
+        d - diameter
+        """
+        roiCircle = pg.CircleROI(pos = [x, y], size=[d, d], snapSize=0.1, scaleSnap=False, translateSnap=False,
+                                 pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+        roiCircle.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        roiCircle.sigClicked.connect(self.removeROI)
+        roiCircle.addScaleHandle([0.5, 0.0], [0.5, 0.5]) # south
+        roiCircle.addScaleHandle([0.5, 1.0], [0.5, 0.5]) # north
+        self.circleRois.append(roiCircle)
+        self.parent.img.win.getView().addItem(roiCircle)
+        print("Circle added at x = %d, y = %d" % (x, y))
+
+    def loadPolygonFromDatabase(self, pos, coords, color):
+        """ Used to draw labels on an image based on locations saved
+        in a database.
+
+        Arguments:
+        pos - position of the polygon
+        coords - coordinates of the corners
+        """
+        roiPoly = pg.PolyLineROI(coords, pos=pos,
+                                 closed=True, snapSize=1.0, scaleSnap=True, translateSnap=True,
+                                 pen={'color': color, 'width': 4, 'style': QtCore.Qt.DashLine}, removable = True)
+        roiPoly.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        roiPoly.sigClicked.connect(self.removeROI)
+        self.polyRois.append(roiPoly)
+        self.parent.img.win.getView().addItem(roiPoly)
+        print("Polygon added at x = %d, y = %d" % (coords[0][0], coords[0][1]))
+
+    ##############################
+    #     Save/Remove Labels     #
+    ##############################
+
+    def removeLabels(self, clearAll = True):
+        """ Remove the labels from the last event from the screen.
+        """
+        if(clearAll == True):
+            for roi in self.algRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.algRois = []
+            for roi in self.rectRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.rectRois = []
+            for roi in self.circleRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.circleRois = []
+            for roi in self.polyRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.polyRois = []
+        else:
+            for roi in self.algRois:
+                self.parent.img.win.getView().removeItem(roi)
+            self.algRois = []
+
+
+    def saveLabelsFromEvent(self, eventNum):
+        """ Save the labels from the last event.
+        """
+        self.eventLabels["%d"%eventNum] = {"Algorithm" : [], "User": []}
+        
+        for roi in self.algRois:
+            self.eventLabels["%d"%eventNum]["Algorithm"].append(roi)
+        for roi in self.rectRois:
+            self.eventLabels["%d"%eventNum]["User"].append(roi)
+        for roi in self.circleRois:
+            self.eventLabels["%d"%eventNum]["User"].append(roi)
+        for roi in self.polyRois:
+            self.eventLabels["%d"%eventNum]["User"].append(roi)
+        self.eventLabels["%d"%eventNum]["Algorithm"] = list(tuple(set(self.eventLabels["%d"%eventNum]["Algorithm"])))
+        self.eventLabels["%d"%eventNum]["User"] = list(tuple(set(self.eventLabels["%d"%eventNum]["User"])))
+
+    def checkLabels(self):
+        """ If an algorithm has been used to load labels for the current
+        event, then checkLabels returns True, otherwise, it returns
+        false.
+        """
+        if self.parent.eventNumber in self.algorithmEvaluated:
+            if self.algorithmEvaluated[self.parent.eventNumber] == True:
+                return True
+        else:
+            return False
+
+    def loadLabelsEventChange(self):
+        """ Either load labels from a previous event or use an algorithm
+        to load new labels.
+        """
+        if self.algInitDone == True:
+            if self.checkLabels():
+                self.loadLabelsFromPreviousEvent()
+            else:
+                self.updateAlgorithm()
+                self.drawLabels()
+        else:
+            try:
+                self.loadLabelsFromPreviousEvent()
+            except KeyError:
+                pass
+
+    def loadLabelsFromPreviousEvent(self):
+        """ Show the labels for an event that has already been evaluated
+        with an algorithm.
+        """
+        for roi in self.eventLabels["%d"%self.parent.eventNumber]["Algorithm"]:
+            self.parent.img.win.getView().addItem(roi)
+            self.algRois.append(roi)
+        for roi in self.eventLabels["%d"%self.parent.eventNumber]["User"]:
+            self.parent.img.win.getView().addItem(roi)
+            self.algRois.append(roi)
+
+    def saveEventNumber(self):
+        """ Save the last event's number
+        """
+        self.lastEventNumber = self.parent.eventNumber
+
+    def actionEventChange(self):
+        """ When an event changes, First save the labels from the previous
+        event, remove them from the screen, then load the next labels.
+        """
+        self.saveLabelsFromEvent(self.lastEventNumber)
+        self.removeLabels()
+        self.loadLabelsEventChange()
+        self.saveEventNumber()
+
+    ##############################
+    #       Classification       #
+    #    Database  Functions     #
+    ##############################
+
+    def postClassifications(self):
+        """ Post a set of labels to MongoDB
+        """
+        self.db.post(self.labelParam_saveName, self.saveClassificationsToDictionary())
+        self.db.printDatabase()
+
+    def saveClassificationsToDictionary(self):
+        pass
+
+
+    ##############################
+    #   Additional  Functions    #
+    ##############################
+
+    def splitWords(self, string):
+        """ Splits the words in a string and returns an array where each index
+        corresponds to words in the original string.
+        For ex:
+        input  ---> string = "Here is my sentence"
+        output ---> stringarray = ["Here", "is", "my", "sentence"]
+        stringarray[1] = "is"
+
+        Arguments:
+        string - string of words with spaces separating each word
+        """
+        stringarray = []
+        beginningLetter = 0
+        endingLetter = 0
+        for i,ascii in enumerate(string):
+            if (ascii == " "):
+                endingLetter = i
+                stringarray.append(string[beginningLetter:endingLetter])
+                beginningLetter = i+1
+            elif i == len(string)-1:
+                endingLetter = i+1
+                stringarray.append(string[beginningLetter:endingLetter])
+            else:
+                pass
+        return stringarray
+
+    def keyPressed(self, val):
+        if("%d"%self.parent.eventNumber) in self.eventClassifications:
+            pass
+        else:
+            self.eventClassifications["%d"%self.parent.eventNumber] = []
+        self.eventClassifications["%d"%self.parent.eventNumber].append(val)
+        self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
+        print(self.eventClassifications["%d"%self.parent.eventNumber])
+
+#TODO: Hit, Miss, etc

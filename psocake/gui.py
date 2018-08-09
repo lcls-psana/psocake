@@ -98,6 +98,17 @@ class Window(QtGui.QMainWindow):
                 elif event.key() == QtCore.Qt.Key_P:
                     if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
                 ex.evtLabels.refresh()
+        elif args.mode == "label":
+            if type(event) == QtGui.QKeyEvent:
+                numberKeys = [QtCore.Qt.Key_1, QtCore.Qt.Key_2, QtCore.Qt.Key_3,
+                              QtCore.Qt.Key_4, QtCore.Qt.Key_5, QtCore.Qt.Key_6, 
+                              QtCore.Qt.Key_7, QtCore.Qt.Key_8, QtCore.Qt.Key_9]
+                for i,key in enumerate(numberKeys):
+                    if event.key() == key:
+                        try:
+                            ex.labeling.keyPressed(ex.labeling.labelParam_classificationOptions[i])
+                        except IndexError:
+                            print("Key %d does not correspond to classification"%(i+1))
 
 class MainFrame(QtGui.QWidget):
     """
@@ -476,7 +487,7 @@ class MainFrame(QtGui.QWidget):
                 # Mouse click
                 if indexX >= 0 and indexX < self.data.shape[0] \
                         and indexY >= 0 and indexY < self.data.shape[1]:
-                    self.labeling.action(indexX,indexY)
+                    self.labeling.action(indexX,indexY, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]
                     if self.mk.maskingMode > 0:
                         self.initMask()
