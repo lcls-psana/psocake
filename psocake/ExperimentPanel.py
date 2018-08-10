@@ -446,13 +446,13 @@ class ExperimentInfo(object):
         self.parent.pk.numPeaksFound = 0
         self.parent.pk.peaksMaxRes = 0
 
-        self.parent.labeling.actionEventChange()
-
         if self.parent.eventNumber >= self.eventTotal and self.eventTotal > 0:
             self.parent.eventNumber = self.eventTotal - 1
 
         if self.parent.doneInit and self.hasExpRunDetInfo():
             self.getEventAndDisplay()
+
+        self.parent.labeling.actionEventChange()
 
         if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 

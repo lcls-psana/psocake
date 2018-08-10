@@ -68,7 +68,8 @@ class Labeling(object):
         self.labelParam_pluginParam = None
         self.tag = ''
         self.labelParam_algorithm_name = '' #"adaptiveAlgorithm"
-        self.labelParam_classificationOptions = '' 
+        self.labelParam_classificationOptions_display = '' 
+        self.labelParam_classificationOptions_memory = ''
         self.labelParam_loadName = ''
         self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
@@ -141,7 +142,7 @@ class Labeling(object):
                     {'name': self.labelParam_launch_str, 'type': 'action'},
                 ]},
                 {'name': self.labelParam_classifier, 'type': 'group', 'children': [
-                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions, 
+                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions_display, 
                      'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
                 ]},
                 {'name': self.labelParam_saveload, 'type': 'group', 'children': [
@@ -212,14 +213,17 @@ class Labeling(object):
             elif path[1] == self.labelParam_save_str:
                 self.saveLabelsFromEvent(self.parent.eventNumber)
                 self.postLabels()
+                self.postClassifications()
             elif path[1] == self.labelParam_loadName_str:
                 self.labelParam_loadName = data
             elif path[1] == self.labelParam_load_str:
                 self.loadLabelsFromDatabase(self.labelParam_loadName)
+                self.loadClassificationsFromDatabase(self.labelParam_loadName)
         self.updateMenu()
 
     def updateClassificationOptions(self, data):
-        self.labelParam_classificationOptions = self.splitWords(data)
+        self.labelParam_classificationOptions_display = data
+        self.labelParam_classificationOptions_memory = self.splitWords(data)
 
     def updateTag(self, data):
         """ updates Tag for directory
@@ -228,7 +232,11 @@ class Labeling(object):
         data - tag name
         """
         self.labelParam_saveName = self.labelParam_saveName + "_" + data
+        self.tag = data
         print(self.labelParam_saveName)
+
+    def updateParametersOnMenu(self):
+        return self.labelParam_pluginParam
 
     ##############################
     #      Launch Functions      #
@@ -627,7 +635,8 @@ class Labeling(object):
     def postLabels(self):
         """ Post a set of labels to MongoDB
         """
-        self.db.post(self.labelParam_saveName, self.saveLabelsToDictionary())
+        string = "Label"
+        self.db.post(self.labelParam_saveName, string, self.saveLabelsToDictionary())
         self.db.printDatabase()
 
     def loadLabelsFromDatabase(self, loadName):
@@ -637,24 +646,26 @@ class Labeling(object):
         loadName - name of the saved set of labels
         """
         try:
-            shapes = self.db.findPost(loadName)[loadName]["%d"%self.parent.eventNumber]
+            shapes = self.db.findPost(loadName)[loadName]["Label"]["%d"%self.parent.eventNumber]
+            for shapeType in shapes:
+                color = None
+                if shapeType == "Algorithm":
+                    color = 'b'
+                elif shapeType == "User":
+                    color = 'm'
+                circles = shapes[shapeType]["Circles"]
+                rectangles = shapes[shapeType]["Rectangles"]
+                polygons = shapes[shapeType]["Polygons"]
+                for circle in circles:
+                    self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"], color)
+                for rectangle in rectangles:
+                    self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1], color)
+                for polygon in polygons:
+                    self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"], color)
         except TypeError:
             print("Invalid Load Name")
-        for shapeType in shapes:
-            color = None
-            if shapeType == "Algorithm":
-                color = 'b'
-            elif shapeType == "User":
-                color = 'm'
-            circles = shapes[shapeType]["Circles"]
-            rectangles = shapes[shapeType]["Rectangles"]
-            polygons = shapes[shapeType]["Polygons"]
-            for circle in circles:
-                self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"], color)
-            for rectangle in rectangles:
-                self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1], color)
-            for polygon in polygons:
-                self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"], color)
+        except KeyError:
+            print("Labels Do Not Exist For This Event")
     
 
     def loadRectangleFromDatabase(self, x, y, w, h, color):
@@ -756,6 +767,7 @@ class Labeling(object):
             self.eventLabels["%d"%eventNum]["User"].append(roi)
         self.eventLabels["%d"%eventNum]["Algorithm"] = list(tuple(set(self.eventLabels["%d"%eventNum]["Algorithm"])))
         self.eventLabels["%d"%eventNum]["User"] = list(tuple(set(self.eventLabels["%d"%eventNum]["User"])))
+        print(self.eventLabels)
 
     def checkLabels(self):
         """ If an algorithm has been used to load labels for the current
@@ -793,7 +805,7 @@ class Labeling(object):
             self.algRois.append(roi)
         for roi in self.eventLabels["%d"%self.parent.eventNumber]["User"]:
             self.parent.img.win.getView().addItem(roi)
-            self.algRois.append(roi)
+            #self.algRois.append(roi) #TODO
 
     def saveEventNumber(self):
         """ Save the last event's number
@@ -808,6 +820,7 @@ class Labeling(object):
         self.removeLabels()
         self.loadLabelsEventChange()
         self.saveEventNumber()
+        self.updateText()
 
     ##############################
     #       Classification       #
@@ -817,12 +830,26 @@ class Labeling(object):
     def postClassifications(self):
         """ Post a set of labels to MongoDB
         """
-        self.db.post(self.labelParam_saveName, self.saveClassificationsToDictionary())
+        string = "Classification"
+        self.db.post(self.labelParam_saveName, string, self.returnClassificationsDictionary())
         self.db.printDatabase()
 
-    def saveClassificationsToDictionary(self):
-        pass
+    def returnClassificationsDictionary(self):
+        self.eventClassifications["Options"] = self.labelParam_classificationOptions_memory
+        return self.eventClassifications
 
+    def returnClassificationOptionsForDisplay(self):
+        return self.labelParam_classificationOptions_display
+
+    def loadClassificationsFromDatabase(self, loadName):
+        try:
+            self.eventClassifications = self.db.findPost(loadName)[loadName]["Classification"]
+            self.labelParam_classificationOptions_display = ' '.join(self.eventClassifications["Options"])
+        except TypeError:
+            print("Invalid Load Name")
+        except KeyError:
+            print("Classifications Do Not Exist For This Event")
+        self.updateText()
 
     ##############################
     #   Additional  Functions    #
@@ -859,11 +886,50 @@ class Labeling(object):
             pass
         else:
             self.eventClassifications["%d"%self.parent.eventNumber] = []
-        self.eventClassifications["%d"%self.parent.eventNumber].append(val)
+        if val in self.eventClassifications["%d"%self.parent.eventNumber]:
+            self.eventClassifications["%d"%self.parent.eventNumber].remove(val)
+        else:
+            self.eventClassifications["%d"%self.parent.eventNumber].append(val)
         self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
-        print(self.eventClassifications["%d"%self.parent.eventNumber])
+        self.updateText()
 
-    def updateParametersOnMenu(self):
-        return self.labelParam_pluginParam
+    def updateText(self):
+        self.clearText()
+        self.displayText()
+        print(self.eventClassifications)
 
-#TODO: Hit, Miss, etc
+    def displayText(self):
+        try:
+            self.ix = self.parent.det.indexes_x(self.parent.evt)
+            self.iy = self.parent.det.indexes_y(self.parent.evt)
+            xMargin = 5 # pixels
+            yMargin = 0 # pixels
+            maxX = np.max(self.ix) + xMargin
+            maxY = np.max(self.iy) - yMargin
+            if(("%d"%self.parent.eventNumber) in self.eventClassifications):
+                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications=' + \
+                            ' <br>' + (' '.join(self.eventClassifications["%d"%self.parent.eventNumber])) + \
+                            '<br></span></div>'
+            else:
+                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications='+ \
+                            '<br></span></div>'
+            self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+            self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+            self.parent.img.peak_text.setPos(maxX, maxY)
+        except AttributeError:
+            pass
+
+
+    def clearText(self):
+        self.parent.img.win.getView().removeItem(self.parent.img.peak_text)
+        self.parent.img.peak_text = ''
+
+#BUGS TO FIX:
+#TODO: Fix bug to always show text with event changes -- tricky not sure why this isnt working...
+#TODO: Algorithm/User shapes not correctly saved --> Leads to load color issue
+#TODO: Database save issue --> if one event was not loaded from database, then it will not be resaved to database
+      #Need to restructure how shapes are saved for each event, maybe set up a similar 
+      #dicitonary to the one for classifications, temporary for memory, saved to database.
+#TODO: Database save issue --> shapes lost on events revisited.
+#TODO: Fetch button to allow multiple users to get the next event to label (so 
+     # that multiple users to not double label an event/ overlap work)

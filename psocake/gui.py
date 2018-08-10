@@ -106,7 +106,7 @@ class Window(QtGui.QMainWindow):
                 for i,key in enumerate(numberKeys):
                     if event.key() == key:
                         try:
-                            ex.labeling.keyPressed(ex.labeling.labelParam_classificationOptions[i])
+                            ex.labeling.keyPressed(ex.labeling.labelParam_classificationOptions_memory[i])
                         except IndexError:
                             print("Key %d does not correspond to classification"%(i+1))
 
