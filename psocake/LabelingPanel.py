@@ -63,7 +63,7 @@ class Labeling(object):
         self.labelParam_rect_str = 'Rectangle'
         self.labelParam_none_str = 'None'
 
-        self.shape = None
+        self.shapes = None
         self.mode = self.labelParam_add_str
         self.labelParam_pluginParam = None
         self.tag = ''
@@ -88,6 +88,8 @@ class Labeling(object):
         elif self.parent.facility == self.parent.facilityPAL:
             pass
 
+        self.loadName = None
+
         self.rectRois = []
         self.circleRois = []
         self.polyRois = []
@@ -103,6 +105,8 @@ class Labeling(object):
         self.db = LabelDatabase()
 
         self.eventClassifications = {}
+
+        self.eventsSeen = []
 
         self.updateMenu()
 
@@ -121,7 +125,7 @@ class Labeling(object):
                                                                                     self.labelParam_circ_str: 'Circle',
                                                                                     self.labelParam_rect_str: 'Rectangle',
                                                                                     self.labelParam_none_str: 'None'},
-                     'value': self.shape, 'tip': "Choose label shape"},
+                     'value': self.shapes, 'tip': "Choose label shape"},
                     {'name': self.labelParam_algorithm_name_str, 'type': 'str', 'value': self.labelParam_algorithm_name, 
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
                     {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.updateParametersOnMenu(),
@@ -223,7 +227,7 @@ class Labeling(object):
 
     def updateClassificationOptions(self, data):
         self.labelParam_classificationOptions_display = data
-        self.labelParam_classificationOptions_memory = self.splitWords(data)
+        self.labelParam_classificationOptions_memory = self.splitWords(data, " ")
 
     def updateTag(self, data):
         """ updates Tag for directory
@@ -231,9 +235,8 @@ class Labeling(object):
         Arguments:
         data - tag name
         """
-        self.labelParam_saveName = self.labelParam_saveName + "_" + data
         self.tag = data
-        print(self.labelParam_saveName)
+        print(self.labelParam_saveName + "_" + data) #TODO: TATE when tag grabbed, this is not saved properly
 
     def updateParametersOnMenu(self):
         return self.labelParam_pluginParam
@@ -528,9 +531,7 @@ class Labeling(object):
                         else:
                             kw = json.loads(self.labelParam_pluginParam)
                             self.labelRadius = kw["r0"]
-                        print(self.labelParam_algorithm_name)
                         self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
-                        print(self.algorithm)
                         self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
                         self.numLabelsFound = self.labels.shape[0]
                         self.algInitDone = True
@@ -571,7 +572,6 @@ class Labeling(object):
     def drawLabels(self):
         """ Draw Labels from an algorithm.
         """
-        self.parent.img.clearPeakMessage()
         if self.labels is not None and self.numLabelsFound > 0:
             if self.parent.facility == self.parent.facilityLCLS:
                 cenX, cenY = self.assembleLabelPos(self.labels)
@@ -587,7 +587,7 @@ class Labeling(object):
             for i,x in enumerate(cenX):
                 self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
         else:
-            self.parent.img.peak_feature.setData([], [], pxMode=False)
+            #self.parent.img.peak_feature.setData([], [], pxMode=False)
             self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
             self.parent.img.win.getView().addItem(self.parent.img.peak_text)
             self.parent.img.peak_text.setPos(0,0)
@@ -598,7 +598,14 @@ class Labeling(object):
     #  Label Database Functions  #
     ##############################
 
+    def grabTag(self,loadName):
+        self.tag = self.splitWords(loadName, "_")[2]
+
+    def attachTag(self):
+        return self.labelParam_saveName + "_" + self.tag
+
     def saveLabelsToDictionary(self):
+        unseenEvents = self.checkLoadEvents()
         translatedEventLabels = {}
         for event in self.eventLabels:
             polyAttributes = []
@@ -630,14 +637,28 @@ class Labeling(object):
                 else:
                     print("Cant use this type: %s" % type(roi))
             translatedEventLabels["%s"%event]["User"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+        translatedEventLabels.update(unseenEvents)
         return translatedEventLabels
 
     def postLabels(self):
         """ Post a set of labels to MongoDB
         """
         string = "Label"
-        self.db.post(self.labelParam_saveName, string, self.saveLabelsToDictionary())
-        self.db.printDatabase()
+        self.db.post(self.attachTag(), string, self.saveLabelsToDictionary())
+
+    def checkLoadEvents(self):
+        unseenEvents = {}
+        if(self.loadName is not None):
+            try:
+                allShapes = self.db.findPost(self.loadName)[self.loadName]["Label"]
+                for event in allShapes:
+                    if event in self.eventsSeen:
+                        continue
+                    else:
+                        unseenEvents[event] = allShapes[event]
+            except TypeError:
+                pass
+        return unseenEvents
 
     def loadLabelsFromDatabase(self, loadName):
         """Load a saved set of labels from MongoDB
@@ -646,7 +667,10 @@ class Labeling(object):
         loadName - name of the saved set of labels
         """
         try:
+            self.loadName = loadName
+            self.grabTag(loadName)
             shapes = self.db.findPost(loadName)[loadName]["Label"]["%d"%self.parent.eventNumber]
+            self.eventsSeen.append("%d"%self.parent.eventNumber)
             for shapeType in shapes:
                 color = None
                 if shapeType == "Algorithm":
@@ -767,7 +791,6 @@ class Labeling(object):
             self.eventLabels["%d"%eventNum]["User"].append(roi)
         self.eventLabels["%d"%eventNum]["Algorithm"] = list(tuple(set(self.eventLabels["%d"%eventNum]["Algorithm"])))
         self.eventLabels["%d"%eventNum]["User"] = list(tuple(set(self.eventLabels["%d"%eventNum]["User"])))
-        print(self.eventLabels)
 
     def checkLabels(self):
         """ If an algorithm has been used to load labels for the current
@@ -805,7 +828,14 @@ class Labeling(object):
             self.algRois.append(roi)
         for roi in self.eventLabels["%d"%self.parent.eventNumber]["User"]:
             self.parent.img.win.getView().addItem(roi)
-            #self.algRois.append(roi) #TODO
+            if type(roi) is pg.graphicsItems.ROI.ROI:
+                self.rectRois.append(roi)
+            elif type(roi) is pg.graphicsItems.ROI.CircleROI:
+                self.circleRois.append(roi)
+            elif type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+                self.polyRois.append(roi)
+            else:
+                print("Type Error While Reloading Labels")
 
     def saveEventNumber(self):
         """ Save the last event's number
@@ -855,7 +885,7 @@ class Labeling(object):
     #   Additional  Functions    #
     ##############################
 
-    def splitWords(self, string):
+    def splitWords(self, string, delimiter):
         """ Splits the words in a string and returns an array where each index
         corresponds to words in the original string.
         For ex:
@@ -870,7 +900,7 @@ class Labeling(object):
         beginningLetter = 0
         endingLetter = 0
         for i,ascii in enumerate(string):
-            if (ascii == " "):
+            if (ascii == delimiter):
                 endingLetter = i
                 stringarray.append(string[beginningLetter:endingLetter])
                 beginningLetter = i+1
@@ -896,7 +926,6 @@ class Labeling(object):
     def updateText(self):
         self.clearText()
         self.displayText()
-        print(self.eventClassifications)
 
     def displayText(self):
         try:
@@ -919,17 +948,12 @@ class Labeling(object):
         except AttributeError:
             pass
 
-
     def clearText(self):
-        self.parent.img.win.getView().removeItem(self.parent.img.peak_text)
-        self.parent.img.peak_text = ''
+        self.parent.img.clearPeakMessage()
+        #self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+        #self.parent.img.win.getView().addItem(self.parent.img.peak_text)
 
 #BUGS TO FIX:
-#TODO: Fix bug to always show text with event changes -- tricky not sure why this isnt working...
-#TODO: Algorithm/User shapes not correctly saved --> Leads to load color issue
-#TODO: Database save issue --> if one event was not loaded from database, then it will not be resaved to database
-      #Need to restructure how shapes are saved for each event, maybe set up a similar 
-      #dicitonary to the one for classifications, temporary for memory, saved to database.
-#TODO: Database save issue --> shapes lost on events revisited.
 #TODO: Fetch button to allow multiple users to get the next event to label (so 
      # that multiple users to not double label an event/ overlap work)
+#TODO: Fix bug to always show text with event changes -- tricky, not sure why this isnt working...
