@@ -1,21 +1,12 @@
 import os
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-elif 'CFEL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-else:
-    print "Unknown facility name: ", os.environ['PSOCAKE_FACILITY']
-    exit()
+
 # Import the rest of the packages
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.console
 import numpy as np
 from pyqtgraph.dockarea import *
-
 import argparse
 import _colorScheme as color
 from _version import __version__
@@ -30,22 +21,33 @@ import SmallDataPanel, ImageControlPanel
 import HitFinderPanel, LabelingPanel
 
 parser = argparse.ArgumentParser()
-parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")
-parser.add_argument("-e","--exp", help="Experiment name (e.g. cxis0813 ). This option is ignored if expRun option is used.", default="", type=str)
-parser.add_argument("-r","--run", help="Run number. This option is ignored if expRun option is used.",default=0, type=int)
-parser.add_argument("-d","--det", help="Detector alias or DAQ name (e.g. DscCsPad or CxiDs1.0:Cspad.0), default=''",default="", type=str)
-parser.add_argument("-n","--evt", help="Event number (e.g. 1), default=0",default=0, type=int)
-parser.add_argument("--localCalib", help="Use local calib directory. A calib directory must exist in your current working directory.", action='store_true')
-parser.add_argument("-o","--outDir", help="Use this directory for output instead.", default=None, type=str)
-parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
+parser.add_argument('expRun', nargs='?', default=None,
+                    help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). "
+                         "This option trumps -e and -r options.")
+parser.add_argument("-e","--exp", default="", type=str,
+                    help="Experiment name (e.g. cxis0813 ). This option is ignored if expRun option is used.")
+parser.add_argument("-r","--run", default=0, type=int,
+                    help="Run number. This option is ignored if expRun option is used.")
+parser.add_argument("-d","--det", default="", type=str,
+                    help="Detector alias or DAQ name (e.g. DscCsPad or CxiDs1.0:Cspad.0), default=''")
+parser.add_argument("-n","--evt", default=0, type=int,
+                    help="Event number (e.g. 1), default=0")
+parser.add_argument("--localCalib", action='store_true',
+                    help="Use local calib directory. A calib directory must exist in your current working directory.")
+parser.add_argument("-o","--outDir", default=None, type=str,
+                    help="Use this directory for output instead.")
+parser.add_argument("-v", default=0, type=int,
+                    help="verbosity level, default=0")
 parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
-parser.add_argument("-m","--mode", help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}",default="lite", type=str)
+parser.add_argument("-m","--mode", default="lite", type=str,
+                    help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}")
 # LCLS specific
-parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
-parser.add_argument("--noInfiniband", help="Do not use infiniband.", action='store_true')
+parser.add_argument("-a","--access", default="ana", type=str,
+                    help="Set data node access: {ana,ffb}")
+parser.add_argument("--noInfiniband", action='store_true', help="Do not use infiniband.")
 # PAL specific
-parser.add_argument("--debug", help="Debug mode of PAL at LCLS.", action='store_true')
+parser.add_argument("--debug", action='store_true', help="Debug mode of PAL at LCLS.")
 args = parser.parse_args()
 
 class Window(QtGui.QMainWindow):
@@ -227,15 +229,12 @@ class MainFrame(QtGui.QWidget):
         self.hf = HitFinderPanel.HitFinder(self)
         self.labeling = LabelingPanel.Labeling(self)
 
-        self.initUI()
+        self.scheme()
 
     def getUsername(self):
         return os.environ['USER']
-        #process = subprocess.Popen('whoami', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        #out, err = process.communicate()
-        #self.username = out.strip()
 
-    def initUI(self):
+    def scheme(self):
         # Set the color scheme
         def updateStyle(self):
             r = '2px'
@@ -513,8 +512,7 @@ class MainFrame(QtGui.QWidget):
 
 def main():
     global ex
-#    import sys
-    app = QtGui.QApplication(sys.argv)#([])
+    app = QtGui.QApplication(sys.argv)
     win = Window()
     ex = MainFrame(sys.argv)
     win.setCentralWidget(ex.area)
@@ -523,9 +521,5 @@ def main():
     win.show()
     sys.exit(app.exec_())
 
-## Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':
-#    import sys
-#    if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
-#        QtGui.QApplication.instance().exec_()
     main()
