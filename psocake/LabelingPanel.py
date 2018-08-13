@@ -30,9 +30,10 @@ class Labeling(object):
         #String Names for Buttons and Menus
         self.labelParam_labeler = 'Labeler'
         self.labelParam_classifier = 'Classifier'
+        self.labelParam_fetcher = 'Fetch Next Unanalyzed Event'
         self.labelParam_saveload = 'Save or Load Work'
         self.labelParam_shapes_str = 'Shape'
-        self.labelParam_pluginDir_str = 'Plugin directory'
+        self.labelParam_algorithm_name_str = 'Plugin directory'
         self.labelParam_classificationOptions_str = 'Classifications'
         self.labelParam_runs_str = 'Run(s)'
         self.labelParam_queue_str = 'queue'
@@ -56,6 +57,7 @@ class Labeling(object):
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
+        self.labelParam_fetchbutton_str = 'Go to Event'
 
 
         self.labelParam_poly_str = 'Polygon'
@@ -63,18 +65,20 @@ class Labeling(object):
         self.labelParam_rect_str = 'Rectangle'
         self.labelParam_none_str = 'None'
 
-        self.shape = None
+        self.shapes = None
         self.mode = self.labelParam_add_str
-        self.labelParam_pluginParam = "{\"npix_min\": 2,\"npix_max\":30,\"amax_thr\":300, \"atot_thr\":600,\"son_min\":10, \"rank\":3, \"r0\":3, \"dr\":2, \"nsigm\":5 }"
+        self.labelParam_pluginParam = None
         self.tag = ''
-        self.labelParam_pluginDir = '' #"adaptiveAlgorithm"
-        self.labelParam_classificationOptions = '' 
+        self.labelParam_algorithm_name = '' #"adaptiveAlgorithm"
+        self.labelParam_classificationOptions_display = '' 
+        self.labelParam_classificationOptions_memory = ''
         self.labelParam_loadName = ''
         self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
-        self.algorithm_name = 0
         self.lastEventNumber = 0
         self.algInitDone = False
+
+        self.algorithm = None
 
         if self.parent.facility == self.parent.facilityLCLS:
             self.labelParam_outDir = self.parent.psocakeDir
@@ -85,6 +89,8 @@ class Labeling(object):
             self.labelParam_noe = -1
         elif self.parent.facility == self.parent.facilityPAL:
             pass
+
+        self.loadName = None
 
         self.rectRois = []
         self.circleRois = []
@@ -102,6 +108,15 @@ class Labeling(object):
 
         self.eventClassifications = {}
 
+        self.eventsSeen = []
+
+        self.updateMenu()
+
+    ##############################
+    # Parameter Update Functions #
+    ##############################
+
+    def updateMenu(self):
         if self.parent.facility == self.parent.facilityLCLS:
             self.params = [
                 {'name': self.labelParam_labeler, 'type': 'group', 'children': [
@@ -112,10 +127,10 @@ class Labeling(object):
                                                                                     self.labelParam_circ_str: 'Circle',
                                                                                     self.labelParam_rect_str: 'Rectangle',
                                                                                     self.labelParam_none_str: 'None'},
-                     'value': self.shape, 'tip': "Choose label shape"},
-                    {'name': self.labelParam_pluginDir_str, 'type': 'str', 'value': self.labelParam_pluginDir, 
+                     'value': self.shapes, 'tip': "Choose label shape"},
+                    {'name': self.labelParam_algorithm_name_str, 'type': 'str', 'value': self.labelParam_algorithm_name, 
                      'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
-                    {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.labelParam_pluginParam,
+                    {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.updateParametersOnMenu(),
                      'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
                     {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
                     {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
@@ -133,8 +148,11 @@ class Labeling(object):
                     {'name': self.labelParam_launch_str, 'type': 'action'},
                 ]},
                 {'name': self.labelParam_classifier, 'type': 'group', 'children': [
-                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions, 
+                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions_display, 
                      'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
+                ]},
+                {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
+                    {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
                 ]},
                 {'name': self.labelParam_saveload, 'type': 'group', 'children': [
                     {'name': self.tag_str, 'type': 'str', 'value': self.tag,
@@ -148,27 +166,42 @@ class Labeling(object):
             ]
         elif self.parent.facility == self.parent.facilityPAL:
             pass
-
         self.paramWidget = Parameter.create(name='paramsLabel', type='group', \
                                    children=self.params, expanded=True)
         self.win.setParameters(self.paramWidget, showTop=False)
         self.paramWidget.sigTreeStateChanged.connect(self.change)
 
-    ##############################
-    # Parameter Update Functions #
-    ##############################
+    # If anything changes in the parameter tree, print a message
+    def change(self, panel, changes):
+        self.updateParametersOnMenu()
+        for param, change, data in changes:
+            path = panel.childPath(param)
+            if self.parent.args.v >= 1:
+                print('  path: %s' % path)
+                print('  change:    %s' % change)
+                print('  data:      %s' % str(data))
+                print('  ----------')
+            self.paramUpdate(path, change, data)
+
+
     def paramUpdate(self, path, change, data):
         if path[0] == self.labelParam_labeler:
             if path[1] == self.labelParam_mode_str:
                 self.mode = data
             elif path[1] == self.labelParam_shapes_str:
                 self.shapes = data
-            elif path[1] == self.labelParam_pluginDir_str:
-                self.algorithm_name = data
+            elif path[1] == self.labelParam_algorithm_name_str:
+                self.removeLabels(clearAll= False)
+                self.labelParam_algorithm_name = data
                 self.updateAlgorithm()
                 self.drawLabels()
+                if(self.labelParam_pluginParam == None):
+                    self.labelParam_pluginParam = self.algorithm.getDefaultParams()
             elif path[1] == self.labelParam_pluginParam_str:
+                self.removeLabels(clearAll= False)
                 self.labelParam_pluginParam = data
+                self.updateAlgorithm()
+                self.drawLabels()
             elif path[1] == self.labelParam_runs_str:
                 self.labelParam_runs = data
             elif path[1] == self.labelParam_queue_str:
@@ -183,19 +216,27 @@ class Labeling(object):
         elif path[0] == self.labelParam_classifier:
             if path[1] == self.labelParam_classificationOptions_str:
                 self.updateClassificationOptions(data)
+        elif path[0] == self.labelParam_fetcher:
+            if path[1] == self.labelParam_fetchbutton_str:
+                self.buttonPressed()
         elif path[0] == self.labelParam_saveload:
             if path[1] == self.tag_str:
                 self.updateTag(data)
             elif path[1] == self.labelParam_save_str:
                 self.saveLabelsFromEvent(self.parent.eventNumber)
                 self.postLabels()
+                self.postClassifications()
             elif path[1] == self.labelParam_loadName_str:
                 self.labelParam_loadName = data
             elif path[1] == self.labelParam_load_str:
-                self.loadLabelsFromDatabase(self.labelParam_loadName)
+                self.getDatabasePost(self.labelParam_loadName)
+                self.loadLabelsFromDatabase()
+                self.loadClassificationsFromDatabase()
+        self.updateMenu()
 
     def updateClassificationOptions(self, data):
-        self.labelParam_classificationOptions = self.splitWords(data)
+        self.labelParam_classificationOptions_display = data
+        self.labelParam_classificationOptions_memory = self.splitWords(data, " ")
 
     def updateTag(self, data):
         """ updates Tag for directory
@@ -203,8 +244,14 @@ class Labeling(object):
         Arguments:
         data - tag name
         """
-        self.labelParam_saveName = self.labelParam_saveName + "_" + data
-        print(self.labelParam_saveName)
+        self.tag = data
+        print(self.labelParam_saveName + "_" + data)
+
+    def updateParametersOnMenu(self):
+        return self.labelParam_pluginParam
+
+    def returnClassificationOptionsForDisplay(self):
+        return self.labelParam_classificationOptions_display
 
     ##############################
     #      Launch Functions      #
@@ -251,24 +298,13 @@ class Labeling(object):
             if self.tag: pluginParamFname += '_'+self.tag
             pluginParamFname += '.json'
             if self.parent.facility == self.parent.facilityLCLS:
-                d = {self.labelParam_pluginDir_str: self.labelParam_pluginParam,
+                d = {self.labelParam_algorithm_name_str: self.labelParam_pluginParam,
                      self.labelParam_pluginParam_str: self.labelParam_pluginParam}
             elif self.parent.facility == self.parent.facilityPAL:
                 pass
             if not os.path.exists(self.parent.psocakeDir+'/r'+str(run).zfill(4)):
                 os.mkdir(self.parent.psocakeDir+'/r'+str(run).zfill(4))
             self.writeStatus(pluginParamFname, d)
-
-    # If anything changes in the parameter tree, print a message
-    def change(self, panel, changes):
-        for param, change, data in changes:
-            path = panel.childPath(param)
-            if self.parent.args.v >= 1:
-                print('  path: %s' % path)
-                print('  change:    %s' % change)
-                print('  data:      %s' % str(data))
-                print('  ----------')
-            self.paramUpdate(path, change, data)
 
     def setupRunDir(self):
         """ Set up directory to run in
@@ -461,16 +497,10 @@ class Labeling(object):
     #      Plugin Functions      #
     ##############################
 
-    def updateAlgorithm(self): #TODO: merge with setAlgorithm
-        """updates the Algorithm based on Plugin Parameters
-        """
-        self.algInitDone = False
-        self.setAlgorithm()
-        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm_name
-
-    def setAlgorithm(self):
+    def updateAlgorithm(self):
         """ sets the algorithm based on Plugin Paramaters
         """
+        self.algInitDone = False
         if self.parent.calib is not None:
             if self.parent.mk.streakMaskOn:
                 self.parent.mk.initMask()
@@ -493,28 +523,31 @@ class Labeling(object):
                 self.parent.mk.combinedMask *= self.parent.mk.psanaMask
 
             # Compute
-            if self.algorithm_name == 0: # No algorithm
+            if self.labelParam_algorithm_name == 0: # No algorithm
                 self.centers = None
                 self.drawCenters()
             else:
                 if self.parent.facility == self.parent.facilityLCLS:
                     # Only initialize the hit finder algorithm once
                     if self.algInitDone is False:
-                        if (self.labelParam_pluginParam is not None):
-                            print("Loading %s!" % self.algorithm_name)
-                            kwargs = json.loads(self.labelParam_pluginParam)
-                            self.labelRadius = kwargs["r0"]
-                            self.labels = runAlgorithm.invoke_model(self.algorithm_name, self.parent.calib,self.parent.mk.combinedMask.astype(np.uint16), **kwargs)
-                            self.numLabelsFound = self.labels.shape[0]
+                        print("Loading %s!" % self.labelParam_algorithm_name)
+                        if self.labelParam_pluginParam == None:
+                            kw = None
+                            self.labelRadius = 1 #TODO: Fix this!
                         else:
-                            print("Enter plug-in parameters")
+                            kw = json.loads(self.labelParam_pluginParam)
+                            self.labelRadius = kw["r0"]
+                        self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
+                        self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
+                        self.numLabelsFound = self.labels.shape[0]
                         self.algInitDone = True
                         self.algorithmEvaluated[self.parent.eventNumber] = True
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
                 if self.parent.args.v >= 1: print "Labels found: ", self.centers
                 self.drawCenters()
-            if self.parent.args.v >= 1: print "Done setAlgorithm"
+            if self.parent.args.v >= 1: print "Done updateAlgorithm"
+        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.labelParam_algorithm_name
 
     def drawCenters(self):
         if self.parent.args.v >= 1: print "Done drawCenters"
@@ -546,7 +579,6 @@ class Labeling(object):
     def drawLabels(self):
         """ Draw Labels from an algorithm.
         """
-        self.parent.img.clearPeakMessage()
         if self.labels is not None and self.numLabelsFound > 0:
             if self.parent.facility == self.parent.facilityLCLS:
                 cenX, cenY = self.assembleLabelPos(self.labels)
@@ -562,7 +594,7 @@ class Labeling(object):
             for i,x in enumerate(cenX):
                 self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
         else:
-            self.parent.img.peak_feature.setData([], [], pxMode=False)
+            #self.parent.img.peak_feature.setData([], [], pxMode=False)
             self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
             self.parent.img.win.getView().addItem(self.parent.img.peak_text)
             self.parent.img.peak_text.setPos(0,0)
@@ -573,7 +605,14 @@ class Labeling(object):
     #  Label Database Functions  #
     ##############################
 
+    def grabTag(self,loadName):
+        self.tag = self.splitWords(loadName, "_")[2]
+
+    def attachTag(self):
+        return self.labelParam_saveName + "_" + self.tag
+
     def saveLabelsToDictionary(self):
+        unseenEvents = self.checkLoadEvents()
         translatedEventLabels = {}
         for event in self.eventLabels:
             polyAttributes = []
@@ -605,39 +644,63 @@ class Labeling(object):
                 else:
                     print("Cant use this type: %s" % type(roi))
             translatedEventLabels["%s"%event]["User"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
+        translatedEventLabels.update(unseenEvents)
         return translatedEventLabels
 
     def postLabels(self):
         """ Post a set of labels to MongoDB
         """
-        self.db.post(self.labelParam_saveName, self.saveLabelsToDictionary())
-        self.db.printDatabase()
+        string = "Label"
+        self.db.post(self.attachTag(), string, self.saveLabelsToDictionary())
 
-    def loadLabelsFromDatabase(self, loadName):
-        """Load a saved set of labels from MongoDB
+    def checkLoadEvents(self):
+        unseenEvents = {}
+        if(self.loadName is not None):
+            try:
+                allShapes = self.db.findPost(self.loadName)[self.loadName]["Label"]
+                for event in allShapes:
+                    if event in self.eventsSeen:
+                        continue
+                    else:
+                        unseenEvents[event] = allShapes[event]
+            except TypeError:
+                pass
+        return unseenEvents
 
+    def getDatabasePost(self,loadName):
+        """
         Arguments:
         loadName - name of the saved set of labels
         """
+        self.databasePost = self.db.findPost(loadName)[loadName]
+        self.grabTag(loadName)
+        self.checkLabeledOrClassifiedEventsFromDatabase()
+
+    def loadLabelsFromDatabase(self):
+        """Load a saved set of labels from MongoDB
+        """
         try:
-            shapes = self.db.findPost(loadName)[loadName]["%d"%self.parent.eventNumber]
+            shapes = self.databasePost["Label"]["%d"%self.parent.eventNumber]
+            self.eventsSeen.append("%d"%self.parent.eventNumber)
+            for shapeType in shapes:
+                color = None
+                if shapeType == "Algorithm":
+                    color = 'b'
+                elif shapeType == "User":
+                    color = 'm'
+                circles = shapes[shapeType]["Circles"]
+                rectangles = shapes[shapeType]["Rectangles"]
+                polygons = shapes[shapeType]["Polygons"]
+                for circle in circles:
+                    self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"], color)
+                for rectangle in rectangles:
+                    self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1], color)
+                for polygon in polygons:
+                    self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"], color)
         except TypeError:
             print("Invalid Load Name")
-        for shapeType in shapes:
-            color = None
-            if shapeType == "Algorithm":
-                color = 'b'
-            elif shapeType == "User":
-                color = 'm'
-            circles = shapes[shapeType]["Circles"]
-            rectangles = shapes[shapeType]["Rectangles"]
-            polygons = shapes[shapeType]["Polygons"]
-            for circle in circles:
-                self.loadCircleFromDatabase(circle["Position"][0],circle["Position"][1],circle["Diameter"], color)
-            for rectangle in rectangles:
-                self.loadRectangleFromDatabase(rectangle["Position"][0],rectangle["Position"][1],rectangle["Size"][0],rectangle["Size"][1], color)
-            for polygon in polygons:
-                self.loadPolygonFromDatabase(polygon["Position"], polygon["Coordinates"], color)
+        except KeyError:
+            print("Labels Do Not Exist For This Event")
     
 
     def loadRectangleFromDatabase(self, x, y, w, h, color):
@@ -776,7 +839,14 @@ class Labeling(object):
             self.algRois.append(roi)
         for roi in self.eventLabels["%d"%self.parent.eventNumber]["User"]:
             self.parent.img.win.getView().addItem(roi)
-            self.algRois.append(roi)
+            if type(roi) is pg.graphicsItems.ROI.ROI:
+                self.rectRois.append(roi)
+            elif type(roi) is pg.graphicsItems.ROI.CircleROI:
+                self.circleRois.append(roi)
+            elif type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+                self.polyRois.append(roi)
+            else:
+                print("Type Error While Reloading Labels")
 
     def saveEventNumber(self):
         """ Save the last event's number
@@ -791,6 +861,7 @@ class Labeling(object):
         self.removeLabels()
         self.loadLabelsEventChange()
         self.saveEventNumber()
+        self.updateText()
 
     ##############################
     #       Classification       #
@@ -800,22 +871,83 @@ class Labeling(object):
     def postClassifications(self):
         """ Post a set of labels to MongoDB
         """
-        self.db.post(self.labelParam_saveName, self.saveClassificationsToDictionary())
+        string = "Classification"
+        self.db.post(self.labelParam_saveName, string, self.returnClassificationsDictionary())
         self.db.printDatabase()
 
-    def saveClassificationsToDictionary(self):
-        pass
+    def returnClassificationsDictionary(self):
+        """ First adds the options for classifications (based on user input to field)
+        to the eventClassifications dictionary, and next returns the eventClassifications
+        dictionary.
+        """
+        self.eventClassifications["Options"] = self.labelParam_classificationOptions_memory
+        return self.eventClassifications
 
+    def loadClassificationsFromDatabase(self):
+        try:
+            self.eventClassifications = self.databasePost["Classification"]
+            self.labelParam_classificationOptions_display = ' '.join(self.eventClassifications["Options"])
+        except TypeError:
+            print("Invalid Load Name")
+        except KeyError:
+            print("Classifications Do Not Exist For This Event")
+        self.updateText()
+
+    ##############################
+    #          Fetcher           #
+    ##############################
+
+    def initEventsToDo(self):
+        """ Create an array/pseudo-queue of events to label
+        """
+        self.eventsToDo = []
+        for i in range(self.parent.exp.eventTotal+1):
+            self.eventsToDo.append(i)
+
+    def removeThisEvent(self):
+        """ If an even has been labeled, removed this from the "queue"
+        """
+        try:
+            self.eventsToDo.remove(self.parent.eventNumber)
+        except ValueError:
+            pass
+
+    def getNextAvailableEvent(self):
+        """ Return the top event from the "queue"
+        """
+        return self.eventsToDo[0]
+
+    def buttonPressed(self):
+        """ When the fetcher button is pressed, remove the last event from
+        the "queue" then change the event to the next event in the "queue"
+        """
+        self.removeThisEvent()
+        self.parent.exp.updateEventNumber(self.getNextAvailableEvent())
+
+    def checkLabeledOrClassifiedEventsFromDatabase(self):
+        """ If a database is loaded, then there may have been events that
+        are already labeled. These events can be removed from the "queue"
+        so that a user would skip over these events.
+        """
+        options = ["Classification", "Label"]
+        for option in options:
+            if option in self.databasePost:
+                for event in self.databasePost[option]:
+                    try:
+                        self.eventsToDo.remove(int(event))
+                    except ValueError:
+                        pass
+        
 
     ##############################
     #   Additional  Functions    #
     ##############################
 
-    def splitWords(self, string):
+    def splitWords(self, string, delimiter):
         """ Splits the words in a string and returns an array where each index
         corresponds to words in the original string.
         For ex:
-        input  ---> string = "Here is my sentence"
+        input  ---> string = "Here_is_my_sentence", delimiter = "_"
         output ---> stringarray = ["Here", "is", "my", "sentence"]
         stringarray[1] = "is"
 
@@ -826,7 +958,7 @@ class Labeling(object):
         beginningLetter = 0
         endingLetter = 0
         for i,ascii in enumerate(string):
-            if (ascii == " "):
+            if (ascii == delimiter):
                 endingLetter = i
                 stringarray.append(string[beginningLetter:endingLetter])
                 beginningLetter = i+1
@@ -838,12 +970,57 @@ class Labeling(object):
         return stringarray
 
     def keyPressed(self, val):
+        """ When a number key is pressed, a corresponding classification is saved.
+
+        For ex: if a user types the string "a b c" into the classifications field,
+        pressing the 1 key will save a, 2 will save b, and 3 will save c.
+
+        Arguments:
+        val - value associated with number key
+        """
         if("%d"%self.parent.eventNumber) in self.eventClassifications:
             pass
         else:
             self.eventClassifications["%d"%self.parent.eventNumber] = []
-        self.eventClassifications["%d"%self.parent.eventNumber].append(val)
+        if val in self.eventClassifications["%d"%self.parent.eventNumber]:
+            self.eventClassifications["%d"%self.parent.eventNumber].remove(val)
+        else:
+            self.eventClassifications["%d"%self.parent.eventNumber].append(val)
         self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
-        print(self.eventClassifications["%d"%self.parent.eventNumber])
+        self.updateText()
 
-#TODO: Hit, Miss, etc
+    def updateText(self):
+        self.clearText()
+        self.displayText()
+
+    def displayText(self):
+        try:
+            self.ix = self.parent.det.indexes_x(self.parent.evt)
+            self.iy = self.parent.det.indexes_y(self.parent.evt)
+            xMargin = 5 # pixels
+            yMargin = 0 # pixels
+            maxX = np.max(self.ix) + xMargin
+            maxY = np.max(self.iy) - yMargin
+            if(("%d"%self.parent.eventNumber) in self.eventClassifications):
+                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications=' + \
+                            ' <br>' + (' '.join(self.eventClassifications["%d"%self.parent.eventNumber])) + \
+                            '<br></span></div>'
+            else:
+                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications='+ \
+                            '<br></span></div>'
+            self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+            self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+            self.parent.img.peak_text.setPos(maxX, maxY)
+        except AttributeError:
+            pass
+
+    def clearText(self):
+        self.parent.img.clearPeakMessage()
+        #self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
+        #self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+
+
+#BUGS TO FIX:
+#TODO: Fetch button to allow multiple users to get the next event to label (so 
+     # that multiple users to not double label an event/ overlap work)
+#TODO: Fix bug to always show text with event changes -- tricky, not sure why this isnt working...

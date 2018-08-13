@@ -11,7 +11,7 @@ class LabelDatabase:
         Arguments:
         kwargs -- peakfinding parameters, host and server name, client name
         """
-        server = "psanagpu114"#########TODO
+        server = "psanagpu114"#########TODO: automate this!!
         self.client = MongoClient('mongodb://%s:27017/'%server)
         dbname = "Labels"
         self.db = self.client[dbname]
@@ -19,15 +19,20 @@ class LabelDatabase:
         self.clientName = datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S")
 
 
-    def post(self, name, labels):
+    def post(self, name, data_type, data):
+        """ Post data to this database
+
+        Arguments:
+        name -- post name
+        data_type -- the type of data to be posted, as of now, either labels or classifications
+        data -- the data to be posted
+        """
         if(name == None):
-            dictionary = {self.clientName:labels}
-            self.theid = self.poster.insert_one(dictionary).inserted_id
-            print(self.theid)
+            dictionary = {"$set":{"%s.%s"%(clientName,data_type):data}}
+            self.poster.find_one_and_update({clientName:{"$exists":True}},dictionary,upsert = True) 
         else:
-            dictionary = {name:labels}
-            self.theid = self.poster.insert_one(dictionary).inserted_id
-            print(self.theid)
+            dictionary = {"$set":{"%s.%s"%(name,data_type):data}}
+            self.poster.find_one_and_update({name:{"$exists":True}},dictionary,upsert = True) 
 
     def printDatabase(self):
         """ Pretty prints each dictionary stored within the database.

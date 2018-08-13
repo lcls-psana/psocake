@@ -37,6 +37,9 @@ class PeakDatabase:
                                         upsert = True,
                                         return_document=ReturnDocument.AFTER)
 
+    def addModel(self, **kwargs):
+        pass
+
     def printDatabase(self):
         """ Pretty prints each dictionary stored within the database.
         """
@@ -77,3 +80,4 @@ class PeakDatabase:
 
     def resetDatabase(self):
         self.poster.delete_many({})
+        self.printDatabase()

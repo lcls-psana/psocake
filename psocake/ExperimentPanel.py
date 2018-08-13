@@ -446,13 +446,13 @@ class ExperimentInfo(object):
         self.parent.pk.numPeaksFound = 0
         self.parent.pk.peaksMaxRes = 0
 
-        self.parent.labeling.actionEventChange()
-
         if self.parent.eventNumber >= self.eventTotal and self.eventTotal > 0:
             self.parent.eventNumber = self.eventTotal - 1
 
         if self.parent.doneInit and self.hasExpRunDetInfo():
             self.getEventAndDisplay()
+
+        self.parent.labeling.actionEventChange()
 
         if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 
@@ -853,6 +853,7 @@ class ExperimentInfo(object):
     def setupTotalEvents(self):
         if self.parent.facility == self.parent.facilityLCLS:
             self.eventTotal = len(self.times)
+            self.parent.labeling.initEventsToDo()
             self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
             self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
             self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)

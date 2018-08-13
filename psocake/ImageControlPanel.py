@@ -89,6 +89,7 @@ class ImageControl(object):
         #self.parent.pk.userUpdate = None
         self.parent.img.updateImage(self.parent.calib)
         self.parent.pk.updateClassification()
+        self.parent.label.updateText()
 
 
 

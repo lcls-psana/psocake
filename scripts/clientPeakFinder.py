@@ -289,19 +289,20 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         socket = clientSocket(**kwargs)
         peakDB = PeakDatabase(**kwargs) #create database to store good event info in
         evaluateinfo = self.evaluateRun(alg, peakDB)
-        goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
+        ##goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
 
         #Master gets the number of peaks found
-        socket.push(totalNumPeaks)
-        socket.push(numGoodEvents)
+        ##socket.push(totalNumPeaks)
+        ##socket.push(numGoodEvents)
 
         #Train PeakNet on the good events
-        #for i,element in enumerate(ndalist):
-        #    self.psnet.train(element, goodlist[i])
+        for i,element in enumerate(ndalist):
+            a = self.psnet.train(None, element, goodlist[i])
+            print(a)
 
         #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
-        a = np.array([[1, 2],[3, 4]])
-        b = self.bitwise_array(a)
-        socket.push(b)
+        ##a = np.array([[1, 2],[3, 4]])
+        ##b = self.bitwise_array(a)
+        ##socket.push(b)
 
         #socket.push("Done!")
