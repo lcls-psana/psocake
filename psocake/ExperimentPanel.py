@@ -853,6 +853,7 @@ class ExperimentInfo(object):
     def setupTotalEvents(self):
         if self.parent.facility == self.parent.facilityLCLS:
             self.eventTotal = len(self.times)
+            self.parent.labeling.initEventsToDo()
             self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
             self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
             self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)

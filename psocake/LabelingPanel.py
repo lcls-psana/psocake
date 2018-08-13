@@ -30,6 +30,7 @@ class Labeling(object):
         #String Names for Buttons and Menus
         self.labelParam_labeler = 'Labeler'
         self.labelParam_classifier = 'Classifier'
+        self.labelParam_fetcher = 'Fetch Next Unanalyzed Event'
         self.labelParam_saveload = 'Save or Load Work'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_algorithm_name_str = 'Plugin directory'
@@ -56,6 +57,7 @@ class Labeling(object):
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
+        self.labelParam_fetchbutton_str = 'Go to Event'
 
 
         self.labelParam_poly_str = 'Polygon'
@@ -149,6 +151,9 @@ class Labeling(object):
                     {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions_display, 
                      'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
                 ]},
+                {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
+                    {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
+                ]},
                 {'name': self.labelParam_saveload, 'type': 'group', 'children': [
                     {'name': self.tag_str, 'type': 'str', 'value': self.tag,
                      'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
@@ -211,6 +216,9 @@ class Labeling(object):
         elif path[0] == self.labelParam_classifier:
             if path[1] == self.labelParam_classificationOptions_str:
                 self.updateClassificationOptions(data)
+        elif path[0] == self.labelParam_fetcher:
+            if path[1] == self.labelParam_fetchbutton_str:
+                self.buttonPressed()
         elif path[0] == self.labelParam_saveload:
             if path[1] == self.tag_str:
                 self.updateTag(data)
@@ -221,8 +229,9 @@ class Labeling(object):
             elif path[1] == self.labelParam_loadName_str:
                 self.labelParam_loadName = data
             elif path[1] == self.labelParam_load_str:
-                self.loadLabelsFromDatabase(self.labelParam_loadName)
-                self.loadClassificationsFromDatabase(self.labelParam_loadName)
+                self.getDatabasePost(self.labelParam_loadName)
+                self.loadLabelsFromDatabase()
+                self.loadClassificationsFromDatabase()
         self.updateMenu()
 
     def updateClassificationOptions(self, data):
@@ -236,10 +245,13 @@ class Labeling(object):
         data - tag name
         """
         self.tag = data
-        print(self.labelParam_saveName + "_" + data) #TODO: TATE when tag grabbed, this is not saved properly
+        print(self.labelParam_saveName + "_" + data)
 
     def updateParametersOnMenu(self):
         return self.labelParam_pluginParam
+
+    def returnClassificationOptionsForDisplay(self):
+        return self.labelParam_classificationOptions_display
 
     ##############################
     #      Launch Functions      #
@@ -485,16 +497,10 @@ class Labeling(object):
     #      Plugin Functions      #
     ##############################
 
-    def updateAlgorithm(self): #TODO: merge with setAlgorithm
-        """updates the Algorithm based on Plugin Parameters
-        """
-        self.algInitDone = False
-        self.setAlgorithm()
-        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.labelParam_algorithm_name
-
-    def setAlgorithm(self):
+    def updateAlgorithm(self):
         """ sets the algorithm based on Plugin Paramaters
         """
+        self.algInitDone = False
         if self.parent.calib is not None:
             if self.parent.mk.streakMaskOn:
                 self.parent.mk.initMask()
@@ -540,7 +546,8 @@ class Labeling(object):
                     pass
                 if self.parent.args.v >= 1: print "Labels found: ", self.centers
                 self.drawCenters()
-            if self.parent.args.v >= 1: print "Done setAlgorithm"
+            if self.parent.args.v >= 1: print "Done updateAlgorithm"
+        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.labelParam_algorithm_name
 
     def drawCenters(self):
         if self.parent.args.v >= 1: print "Done drawCenters"
@@ -660,16 +667,20 @@ class Labeling(object):
                 pass
         return unseenEvents
 
-    def loadLabelsFromDatabase(self, loadName):
-        """Load a saved set of labels from MongoDB
-
+    def getDatabasePost(self,loadName):
+        """
         Arguments:
         loadName - name of the saved set of labels
         """
+        self.databasePost = self.db.findPost(loadName)[loadName]
+        self.grabTag(loadName)
+        self.checkLabeledOrClassifiedEventsFromDatabase()
+
+    def loadLabelsFromDatabase(self):
+        """Load a saved set of labels from MongoDB
+        """
         try:
-            self.loadName = loadName
-            self.grabTag(loadName)
-            shapes = self.db.findPost(loadName)[loadName]["Label"]["%d"%self.parent.eventNumber]
+            shapes = self.databasePost["Label"]["%d"%self.parent.eventNumber]
             self.eventsSeen.append("%d"%self.parent.eventNumber)
             for shapeType in shapes:
                 color = None
@@ -865,21 +876,68 @@ class Labeling(object):
         self.db.printDatabase()
 
     def returnClassificationsDictionary(self):
+        """ First adds the options for classifications (based on user input to field)
+        to the eventClassifications dictionary, and next returns the eventClassifications
+        dictionary.
+        """
         self.eventClassifications["Options"] = self.labelParam_classificationOptions_memory
         return self.eventClassifications
 
-    def returnClassificationOptionsForDisplay(self):
-        return self.labelParam_classificationOptions_display
-
-    def loadClassificationsFromDatabase(self, loadName):
+    def loadClassificationsFromDatabase(self):
         try:
-            self.eventClassifications = self.db.findPost(loadName)[loadName]["Classification"]
+            self.eventClassifications = self.databasePost["Classification"]
             self.labelParam_classificationOptions_display = ' '.join(self.eventClassifications["Options"])
         except TypeError:
             print("Invalid Load Name")
         except KeyError:
             print("Classifications Do Not Exist For This Event")
         self.updateText()
+
+    ##############################
+    #          Fetcher           #
+    ##############################
+
+    def initEventsToDo(self):
+        """ Create an array/pseudo-queue of events to label
+        """
+        self.eventsToDo = []
+        for i in range(self.parent.exp.eventTotal+1):
+            self.eventsToDo.append(i)
+
+    def removeThisEvent(self):
+        """ If an even has been labeled, removed this from the "queue"
+        """
+        try:
+            self.eventsToDo.remove(self.parent.eventNumber)
+        except ValueError:
+            pass
+
+    def getNextAvailableEvent(self):
+        """ Return the top event from the "queue"
+        """
+        return self.eventsToDo[0]
+
+    def buttonPressed(self):
+        """ When the fetcher button is pressed, remove the last event from
+        the "queue" then change the event to the next event in the "queue"
+        """
+        self.removeThisEvent()
+        self.parent.exp.updateEventNumber(self.getNextAvailableEvent())
+
+    def checkLabeledOrClassifiedEventsFromDatabase(self):
+        """ If a database is loaded, then there may have been events that
+        are already labeled. These events can be removed from the "queue"
+        so that a user would skip over these events.
+        """
+        options = ["Classification", "Label"]
+        for option in options:
+            if option in self.databasePost:
+                for event in self.databasePost[option]:
+                    try:
+                        self.eventsToDo.remove(int(event))
+                    except ValueError:
+                        pass
+        
 
     ##############################
     #   Additional  Functions    #
@@ -889,7 +947,7 @@ class Labeling(object):
         """ Splits the words in a string and returns an array where each index
         corresponds to words in the original string.
         For ex:
-        input  ---> string = "Here is my sentence"
+        input  ---> string = "Here_is_my_sentence", delimiter = "_"
         output ---> stringarray = ["Here", "is", "my", "sentence"]
         stringarray[1] = "is"
 
@@ -912,6 +970,14 @@ class Labeling(object):
         return stringarray
 
     def keyPressed(self, val):
+        """ When a number key is pressed, a corresponding classification is saved.
+
+        For ex: if a user types the string "a b c" into the classifications field,
+        pressing the 1 key will save a, 2 will save b, and 3 will save c.
+
+        Arguments:
+        val - value associated with number key
+        """
         if("%d"%self.parent.eventNumber) in self.eventClassifications:
             pass
         else:
@@ -952,6 +1018,7 @@ class Labeling(object):
         self.parent.img.clearPeakMessage()
         #self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
         #self.parent.img.win.getView().addItem(self.parent.img.peak_text)
+
 
 #BUGS TO FIX:
 #TODO: Fetch button to allow multiple users to get the next event to label (so 
