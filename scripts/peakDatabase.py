@@ -31,14 +31,12 @@ class PeakDatabase:
         Arguments:
         kwargs -- Exp, Run, Event, Peaks
         """
-        header = self.clientName + "." + kwargs["Exp"] + "." + kwargs["RunNum"] + "." + kwargs["Event"]
+        header1 = self.clientName + "." + kwargs["Exp"] + "." + kwargs["RunNum"] + "." + kwargs["Event"] + "." +"Peaks"
+        header2 = self.clientName + "." + kwargs["Exp"] + "." + kwargs["RunNum"] + "." + kwargs["Event"] + "." +"Labels"
         self.poster.find_one_and_update({u'_id': self.theid},
-                                        {"$set":{header: kwargs["Peaks"]}},
+                                        {"$set":{header1: kwargs["Peaks"], header2: kwargs["Labels"]}},
                                         upsert = True,
                                         return_document=ReturnDocument.AFTER)
-
-    def addModel(self, **kwargs):
-        pass
 
     def printDatabase(self):
         """ Pretty prints each dictionary stored within the database.

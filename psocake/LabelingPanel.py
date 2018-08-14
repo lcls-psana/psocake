@@ -877,7 +877,7 @@ class Labeling(object):
         """
         string = "Classification"
         self.db.post(self.labelParam_saveName, string, self.returnClassificationsDictionary())
-        self.db.printDatabase()
+        #self.db.printDatabase()
 
     def returnClassificationsDictionary(self):
         """ First adds the options for classifications (based on user input to field)

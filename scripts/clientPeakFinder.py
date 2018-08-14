@@ -9,7 +9,7 @@ import json
 import base64
 from psana import *
 import random
-from peaknet import Peaknet
+#from peaknet import Peaknet #commented out until PeakNet is ready
 from crawler import Crawler
 import clientAbstract
 from clientSocket import clientSocket
@@ -30,9 +30,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Minimum number of events to be found before peak finding on 1000 events of a run
     minEvents = 3
     #Initialization of Peaknet
-    psnet = Peaknet()
+    #psnet = Peaknet()
     #Max runtime
     #maxRunTime = 3600
+    #If the last run was a good run:
+    goodRun = False
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -51,7 +53,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         alg.set_peak_selection_pars(npix_min=npxmin, npix_max=npxmax, amax_thr=amaxthr, atot_thr=atotthr, son_min=sonmin) #(npix_min=2, npix_max=30, amax_thr=300, atot_thr=600, son_min=10)
         self.runClient(alg, **kwargs)
 
-    def createDictionary(self, exp, runnum, event, peaks):
+    def createDictionary(self, exp, runnum, event, peaks, labels):
         """Create a dictionary that holds the important information of events with crystals
 
         Arguments:
@@ -59,11 +61,13 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         runnum -- run number
         event -- event number
         peaks -- number of peaks found
+        labels -- location of peaks
         """
         post = {"Exp":exp,
                 "RunNum":runnum,
                 "Event":event,
-                "Peaks":peaks}
+                "Peaks":peaks,
+                "Labels":labels}
         return post
 
     #converts a numpy array to be sent through json
@@ -227,7 +231,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             if(len(goodlist) >= self.batchSize):
                 break
             #Use the crawler to fetch a random experiment+run
-            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
+            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
             #exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
             print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
             runnum = int(strrunnum)
@@ -268,9 +272,10 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                     goodlist.append(np.array(eventList))
                     ndalist.append(nda)
                     numGoodEvents += 1
-                    kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound)
+                    kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound, eventList)
                     peakDB.addExpRunEventPeaks(**kwargs)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
+                #if(j above some threshold): self.goodRun = True
             timeafter = time.time()
             clientEndTime = time.time()
             print("This took %d seconds" % (timeafter-timebefore))
@@ -286,23 +291,28 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         alg -- the peakfinding algorithm
         kwargs -- peakfinding parameters, host and server name, client name
         """
-        socket = clientSocket(**kwargs)
-        peakDB = PeakDatabase(**kwargs) #create database to store good event info in
-        evaluateinfo = self.evaluateRun(alg, peakDB)
-        ##goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
+        while(True):
+            socket = clientSocket(**kwargs)
+            peakDB = PeakDatabase(**kwargs) #create database to store good event info in
+            evaluateinfo = self.evaluateRun(alg, peakDB)
+            goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
 
-        #Master gets the number of peaks found
-        ##socket.push(totalNumPeaks)
-        ##socket.push(numGoodEvents)
+            #print(goodlist)
 
-        #Train PeakNet on the good events
-        for i,element in enumerate(ndalist):
-            a = self.psnet.train(None, element, goodlist[i])
-            print(a)
+            #Master gets the number of peaks found
+            socket.push(totalNumPeaks)
+            socket.push(numGoodEvents)
 
-        #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
-        ##a = np.array([[1, 2],[3, 4]])
-        ##b = self.bitwise_array(a)
-        ##socket.push(b)
+            #Train PeakNet on the good events
+            #for i,element in enumerate(ndalist):
+            #    a = self.psnet.train(None, element, goodlist[i])
+            #    print(a)
 
-        #socket.push("Done!")
+            #TODO: System Call...
+
+            #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
+            a = np.array([[1, 2],[3, 4]])
+            b = self.bitwise_array(a)
+            socket.push(b)
+
+            #socket.push("Done!")
