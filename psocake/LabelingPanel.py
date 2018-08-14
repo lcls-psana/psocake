@@ -30,8 +30,8 @@ class Labeling(object):
         #String Names for Buttons and Menus
         self.labelParam_labeler = 'Labeler'
         self.labelParam_classifier = 'Classifier'
-        self.labelParam_fetcher = 'Fetch Next Unanalyzed Event'
-        self.labelParam_saveload = 'Save or Load Work'
+        self.labelParam_fetcher = 'Save and Continue'
+        self.labelParam_saveload = 'Load Work'
         self.labelParam_shapes_str = 'Shape'
         self.labelParam_algorithm_name_str = 'Plugin directory'
         self.labelParam_classificationOptions_str = 'Classifications'
@@ -48,7 +48,6 @@ class Labeling(object):
         self.labelParam_psdebugq_str = 'psdebugq'
         self.labelParam_noQueue_str = 'N/A'
         self.labelParam_noe_str = 'Number of events to process'
-        self.labelParam_launch_str = 'Launch labeler'
         self.labelParam_pluginParam_str = 'Plugin parameters'
         self.labelParam_mode_str = 'Mode'
         self.labelParam_add_str = 'Add'
@@ -57,7 +56,7 @@ class Labeling(object):
         self.labelParam_load_str = 'Load Labels'
         self.labelParam_save_str = 'Save Labels'
         self.tag_str = 'Tag'
-        self.labelParam_fetchbutton_str = 'Go to Event'
+        self.labelParam_fetchbutton_str = 'Continue to Next Event'
 
 
         self.labelParam_poly_str = 'Polygon'
@@ -72,7 +71,7 @@ class Labeling(object):
         self.labelParam_algorithm_name = '' #"adaptiveAlgorithm"
         self.labelParam_classificationOptions_display = '' 
         self.labelParam_classificationOptions_memory = ''
-        self.labelParam_loadName = ''
+        self.labelParam_loadName = None
         self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
         self.lastEventNumber = 0
@@ -145,23 +144,19 @@ class Labeling(object):
                     {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
                     {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
                      'tip': "number of events to process, default=-1 means process all events"},
-                    {'name': self.labelParam_launch_str, 'type': 'action'},
                 ]},
                 {'name': self.labelParam_classifier, 'type': 'group', 'children': [
                     {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions_display, 
                      'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
                 ]},
-                {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
-                    {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
-                ]},
                 {'name': self.labelParam_saveload, 'type': 'group', 'children': [
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
-                     'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
-                    {'name': self.labelParam_save_str, 'type': 'action'},
                     {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName, 
                      'tip': "Input the name of the label save post you want to load"},
-                    {'name': self.labelParam_load_str, 'type': 'action'},
-
+                ]},
+                {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
+                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
+                     'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
+                    {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
                 ]},
             ]
         elif self.parent.facility == self.parent.facilityPAL:
@@ -210,28 +205,18 @@ class Labeling(object):
                 self.labelParam_cpus = data
             elif path[1] == self.labelParam_noe_str:
                 self.labelParam_noe = data
-            elif path[1] == self.labelParam_launch_str:
-                pass
-                #self.findLabels()
         elif path[0] == self.labelParam_classifier:
             if path[1] == self.labelParam_classificationOptions_str:
                 self.updateClassificationOptions(data)
-        elif path[0] == self.labelParam_fetcher:
-            if path[1] == self.labelParam_fetchbutton_str:
-                self.buttonPressed()
         elif path[0] == self.labelParam_saveload:
+            if path[1] == self.labelParam_loadName_str:
+                self.labelParam_loadName = data
+                self.loadInformationFromDatabase()
+        elif path[0] == self.labelParam_fetcher:
             if path[1] == self.tag_str:
                 self.updateTag(data)
-            elif path[1] == self.labelParam_save_str:
-                self.saveLabelsFromEvent(self.parent.eventNumber)
-                self.postLabels()
-                self.postClassifications()
-            elif path[1] == self.labelParam_loadName_str:
-                self.labelParam_loadName = data
-            elif path[1] == self.labelParam_load_str:
-                self.getDatabasePost(self.labelParam_loadName)
-                self.loadLabelsFromDatabase()
-                self.loadClassificationsFromDatabase()
+            elif path[1] == self.labelParam_fetchbutton_str:
+                self.buttonPressed()
         self.updateMenu()
 
     def updateClassificationOptions(self, data):
@@ -339,6 +324,7 @@ class Labeling(object):
             self.createROI(x,y, coords, w,h,d)
         elif(self.mode == "Remove"):
             pass
+        self.saveInformationToDatabase()
 
     def createROI(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'm'):
         """ creates a ROI shape/label based on the input set of parameters
@@ -600,13 +586,30 @@ class Labeling(object):
             self.parent.img.peak_text.setPos(0,0)
         if self.parent.args.v >= 1: print "Done drawLabels"
         self.parent.geom.drawCentre()
+        self.saveInformationToDatabase()
 
     ##############################
     #  Label Database Functions  #
     ##############################
 
+    def loadInformationFromDatabase(self):
+        if self.labelParam_loadName is not None:
+            self.getDatabasePost(self.labelParam_loadName)
+            self.loadLabelsFromDatabase()
+            self.loadClassificationsFromDatabase()
+        else:
+            pass
+
+    def saveInformationToDatabase(self):
+        self.saveLabelsFromEvent(self.parent.eventNumber)
+        self.postLabels()
+        self.postClassifications()
+
     def grabTag(self,loadName):
-        self.tag = self.splitWords(loadName, "_")[2]
+        if loadName is not None:
+            self.tag = self.splitWords(loadName, "_")[2]
+        else:
+            pass
 
     def attachTag(self):
         return self.labelParam_saveName + "_" + self.tag
@@ -862,6 +865,7 @@ class Labeling(object):
         self.loadLabelsEventChange()
         self.saveEventNumber()
         self.updateText()
+        self.loadInformationFromDatabase()
 
     ##############################
     #       Classification       #
@@ -922,6 +926,7 @@ class Labeling(object):
         the "queue" then change the event to the next event in the "queue"
         """
         self.removeThisEvent()
+        self.loadInformationFromDatabase()
         self.parent.exp.updateEventNumber(self.getNextAvailableEvent())
 
     def checkLabeledOrClassifiedEventsFromDatabase(self):
@@ -992,6 +997,7 @@ class Labeling(object):
     def updateText(self):
         self.clearText()
         self.displayText()
+        self.saveInformationToDatabase()
 
     def displayText(self):
         try:
@@ -1021,6 +1027,4 @@ class Labeling(object):
 
 
 #BUGS TO FIX:
-#TODO: Fetch button to allow multiple users to get the next event to label (so 
-     # that multiple users to not double label an event/ overlap work)
 #TODO: Fix bug to always show text with event changes -- tricky, not sure why this isnt working...
