@@ -9,7 +9,7 @@ import json
 import base64
 from psana import *
 import random
-#from peaknet import Peaknet
+#from peaknet import Peaknet #commented out until PeakNet is ready
 from crawler import Crawler
 import clientAbstract
 from clientSocket import clientSocket
@@ -275,6 +275,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                     kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound, eventList)
                     peakDB.addExpRunEventPeaks(**kwargs)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
+                #if(j above some threshold): self.goodRun = True
             timeafter = time.time()
             clientEndTime = time.time()
             print("This took %d seconds" % (timeafter-timebefore))
@@ -291,16 +292,16 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         kwargs -- peakfinding parameters, host and server name, client name
         """
         while(True):
-            #socket = clientSocket(**kwargs)
+            socket = clientSocket(**kwargs)
             peakDB = PeakDatabase(**kwargs) #create database to store good event info in
             evaluateinfo = self.evaluateRun(alg, peakDB)
             goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
 
-            print(goodlist)
+            #print(goodlist)
 
             #Master gets the number of peaks found
-            ##socket.push(totalNumPeaks)
-            ##socket.push(numGoodEvents)
+            socket.push(totalNumPeaks)
+            socket.push(numGoodEvents)
 
             #Train PeakNet on the good events
             #for i,element in enumerate(ndalist):
@@ -310,8 +311,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             #TODO: System Call...
 
             #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
-            ##a = np.array([[1, 2],[3, 4]])
-            ##b = self.bitwise_array(a)
-            ##socket.push(b)
+            a = np.array([[1, 2],[3, 4]])
+            b = self.bitwise_array(a)
+            socket.push(b)
 
             #socket.push("Done!")
