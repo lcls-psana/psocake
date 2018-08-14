@@ -33,6 +33,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     psnet = Peaknet()
     #Max runtime
     #maxRunTime = 3600
+    #If the last run was a good run:
+    goodRun = False
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -227,7 +229,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             if(len(goodlist) >= self.batchSize):
                 break
             #Use the crawler to fetch a random experiment+run
-            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet()
+            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
             #exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
             print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
             runnum = int(strrunnum)

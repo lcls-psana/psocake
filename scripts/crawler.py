@@ -91,7 +91,8 @@ class Crawler:
         #choice = random.choice(os.listdir("/reg/d/psdm/mfx"))
         if ("cxi" in choice):
             try:
-                randomRun = random.choice(os.listdir('/reg/d/psdm/cxi/' + choice + '/xtc'))
+                self.runList = os.listdir('/reg/d/psdm/cxi/' + choice + '/xtc')
+                randomRun = random.choice(self.runList)
                 if(".xtc.inprogress" in randomRun):
                     return [False, 0, 0]
                 elif(".xtc" in randomRun):
@@ -158,17 +159,23 @@ class Crawler:
             else:
                  return [False, 0, 0, 0]
             
-    def returnOneRandomExpRunDet(self):
+    def returnOneRandomExpRunDet(self, goodRun):
         """returns one single, random Experiment, Run Number, and Detector set.
         """
-        loopCondition = True
-        while loopCondition:
-            boolean, name, run, det = self.detectorValidator()
-            if(boolean):
-                if(not self.inList(name, run, det)):
-                    self.addToList(name, run, det)
-                    loopCondition = False
-                    return [name, run, det]
+        if(not goodRun):
+            loopCondition = True
+            while loopCondition:
+                boolean, name, run, det = self.detectorValidator()
+                if(boolean):
+                    if(not self.inList(name, run, det)):
+                        self.addToList(name, run, det)
+                        loopCondition = False
+                        self.name =  name
+                        self.runnum = run
+                        self.det = det
+                        return [name, run, det]
+        else:
+            return self.lastRunWasGood()
 
     def printSome(self,n):
         """prints n random Experiment, Run Number, and Detector sets.
@@ -178,6 +185,23 @@ class Crawler:
         """
         for i in range(n):
             print(self.returnOneRandomExpRunDet())
+
+    def lastRunWasGood(self):
+        if(self.checkIfRunExists(int(self.runnum))):
+            return [self.name, self.runnum, self.det]
+        else:
+            return self.returnOneRandomExpRunDet(False)
+
+    def checkIfRunExists(self, runNum):
+        boolean = False
+        for files in self.runList:
+            if (("%d"%(runNum+1)) in files):
+                self.runnum = ("%d"%(runNum+1))
+                boolean = True
+                break
+            else:
+                continue
+        return boolean
 
 #myCrawler = Crawler()
 #print(myCrawler.badList)
