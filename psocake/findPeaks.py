@@ -1,7 +1,7 @@
 # Find Bragg peaks
 from peakFinderMaster import runmaster
 from peakFinderClientAuto import runclient as runclientAuto
-from peakFinderClient import runclient
+from utils import *
 import h5py
 import glob
 import numpy as np
@@ -32,14 +32,6 @@ parser.add_argument("--alg1_thr_high",help="number of events to process",default
 parser.add_argument("--alg1_rank",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg1_radius",help="number of events to process",default=3, type=int)
 parser.add_argument("--alg1_dr",help="number of events to process",default=1., type=float)
-# parser.add_argument("--alg3_rank",help="number of events to process",default=3, type=int)
-# parser.add_argument("--alg3_r0",help="number of events to process",default=5., type=float)
-# parser.add_argument("--alg3_dr",help="number of events to process",default=0.05, type=float)
-# parser.add_argument("--alg4_thr_low",help="number of events to process",default=10., type=float)
-# parser.add_argument("--alg4_thr_high",help="number of events to process",default=150., type=float)
-# parser.add_argument("--alg4_rank",help="number of events to process",default=3, type=int)
-# parser.add_argument("--alg4_r0",help="number of events to process",default=5, type=int)
-# parser.add_argument("--alg4_dr",help="number of events to process",default=0.05, type=float)
 parser.add_argument("--streakMask_on",help="streak mask on",default="False", type=str)
 parser.add_argument("--streakMask_sigma",help="streak mask sigma above background",default=0., type=float)
 parser.add_argument("--streakMask_width",help="streak mask width",default=0, type=float)
@@ -52,15 +44,12 @@ parser.add_argument("--psanaMask_central",help="psana central on",default="False
 parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default="False", type=str)
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
 parser.add_argument("--mask",help="static mask",default='', type=str)
-#parser.add_argument("-m","--maxNumPeaks",help="maximum number of peaks to store per event",default=2048, type=int)
 parser.add_argument("-n","--noe",help="number of events to process",default=-1, type=int)
 parser.add_argument("--medianBackground",help="subtract median background",default=0, type=int)
 parser.add_argument("--medianRank",help="median background window size",default=0, type=int)
 parser.add_argument("--radialBackground",help="subtract radial background",default=0, type=int)
-#parser.add_argument("--distance",help="detector distance used for radial background",default=0, type=float)
 parser.add_argument("--sample",help="sample name (e.g. lysozyme)",default='', type=str)
 parser.add_argument("--instrument",help="instrument name (e.g. CXI)", default=None, type=str)
-#parser.add_argument("--facility", help="facility name (e.g. LCLS or PAL)", default='LCLS', type=str)
 parser.add_argument("--clen", help="camera length epics name (e.g. CXI:DS1:MMS:06.RBV or CXI:DS2:MMS:06.RBV)", type=str)
 parser.add_argument("--coffset", help="camera offset, CXI home position to sample (m)", default=0, type=float)
 parser.add_argument("--detectorDistance", help="detector distance from interaction point (m)", default=0, type=float)
@@ -80,8 +69,6 @@ parser.add_argument("-t","--tag", help="Set tag for cxi filename",default="", ty
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)
 args = parser.parse_args()
-
-def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'LCLS'
@@ -182,33 +169,33 @@ if rank == 0:
         ds_lclsDet_1.attrs["axes"] = "experiment_identifier"
 
         ds_ebeamCharge_1 = lcls_detector_1.create_dataset("electronBeamEnergy",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                          maxshape=(None,),
+                                                          dtype=float)
         ds_ebeamCharge_1.attrs["axes"] = "experiment_identifier"
 
         ds_beamRepRate_1 = lcls_detector_1.create_dataset("beamRepRate",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                          maxshape=(None,),
+                                                          dtype=float)
         ds_beamRepRate_1.attrs["axes"] = "experiment_identifier"
 
         ds_particleN_electrons_1 = lcls_detector_1.create_dataset("particleN_electrons",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                                  maxshape=(None,),
+                                                                  dtype=float)
         ds_particleN_electrons_1.attrs["axes"] = "experiment_identifier"
 
         ds_eVernier_1 = lcls_1.create_dataset("eVernier",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                              maxshape=(None,),
+                                              dtype=float)
         ds_eVernier_1.attrs["axes"] = "experiment_identifier"
 
         ds_charge_1 = lcls_1.create_dataset("charge",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                            maxshape=(None,),
+                                            dtype=float)
         ds_charge_1.attrs["axes"] = "experiment_identifier"
 
         ds_peakCurrentAfterSecondBunchCompressor_1 = lcls_1.create_dataset("peakCurrentAfterSecondBunchCompressor",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                                           maxshape=(None,),
+                                                                           dtype=float)
         ds_peakCurrentAfterSecondBunchCompressor_1.attrs["axes"] = "experiment_identifier"
 
         ds_pulseLength_1 = lcls_1.create_dataset("pulseLength",(0,),
@@ -217,43 +204,43 @@ if rank == 0:
         ds_pulseLength_1.attrs["axes"] = "experiment_identifier"
 
         ds_ebeamEnergyLossConvertedToPhoton_mJ_1 = lcls_1.create_dataset("ebeamEnergyLossConvertedToPhoton_mJ",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                                         maxshape=(None,),
+                                                                         dtype=float)
         ds_ebeamEnergyLossConvertedToPhoton_mJ_1.attrs["axes"] = "experiment_identifier"
 
         ds_calculatedNumberOfPhotons_1 = lcls_1.create_dataset("calculatedNumberOfPhotons",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                               maxshape=(None,),
+                                                               dtype=float)
         ds_calculatedNumberOfPhotons_1.attrs["axes"] = "experiment_identifier"
 
         ds_photonBeamEnergy_1 = lcls_1.create_dataset("photonBeamEnergy",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                      maxshape=(None,),
+                                                      dtype=float)
         ds_photonBeamEnergy_1.attrs["axes"] = "experiment_identifier"
 
         ds_wavelength_1 = lcls_1.create_dataset("wavelength",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                maxshape=(None,),
+                                                dtype=float)
         ds_wavelength_1.attrs["axes"] = "experiment_identifier"
 
         ds_sec_1 = lcls_1.create_dataset("machineTime",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=int)
+                                         maxshape=(None,),
+                                         dtype=int)
         ds_sec_1.attrs["axes"] = "experiment_identifier"
 
         ds_nsec_1 = lcls_1.create_dataset("machineTimeNanoSeconds",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=int)
+                                          maxshape=(None,),
+                                          dtype=int)
         ds_nsec_1.attrs["axes"] = "experiment_identifier"
 
         ds_fid_1 = lcls_1.create_dataset("fiducial",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=int)
+                                         maxshape=(None,),
+                                         dtype=int)
         ds_fid_1.attrs["axes"] = "experiment_identifier"
 
         ds_photonEnergy_1 = lcls_1.create_dataset("photon_energy_eV",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float) # photon energy in eV
+                                                  maxshape=(None,),
+                                                  dtype=float) # photon energy in eV
         ds_photonEnergy_1.attrs["axes"] = "experiment_identifier"
 
         ds_wavelengthA_1 = lcls_1.create_dataset("photon_wavelength_A",(0,),
@@ -263,18 +250,18 @@ if rank == 0:
 
         #### Datasets not in Cheetah ###
         ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=int)
+                                            maxshape=(None,),
+                                            dtype=int)
         ds_evtNum_1.attrs["axes"] = "experiment_identifier"
 
         ds_evr0_1 = lcls_detector_1.create_dataset("evr0",(0,),
-                                                      maxshape=(None,),
-                                                      dtype=dti)
+                                                   maxshape=(None,),
+                                                   dtype=dti)
         ds_evr0_1.attrs["axes"] = "experiment_identifier"
 
         ds_evr1_1 = lcls_detector_1.create_dataset("evr1",(0,),
-                                                      maxshape=(None,),
-                                                      dtype=dti)
+                                                   maxshape=(None,),
+                                                   dtype=dti)
         ds_evr1_1.attrs["axes"] = "experiment_identifier"
 
         ds_ttspecAmpl_1 = lcls_1.create_dataset("ttspecAmpl",(0,),
@@ -283,38 +270,38 @@ if rank == 0:
         ds_ttspecAmpl_1.attrs["axes"] = "experiment_identifier"
 
         ds_ttspecAmplNxt_1 = lcls_1.create_dataset("ttspecAmplNxt",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                   maxshape=(None,),
+                                                   dtype=float)
         ds_ttspecAmplNxt_1.attrs["axes"] = "experiment_identifier"
 
         ds_ttspecFltpos_1 = lcls_1.create_dataset("ttspecFltPos",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                  maxshape=(None,),
+                                                  dtype=float)
         ds_ttspecFltpos_1.attrs["axes"] = "experiment_identifier"
 
         ds_ttspecFltposFwhm_1 = lcls_1.create_dataset("ttspecFltPosFwhm",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                      maxshape=(None,),
+                                                      dtype=float)
         ds_ttspecFltposFwhm_1.attrs["axes"] = "experiment_identifier"
 
         ds_ttspecFltposPs_1 = lcls_1.create_dataset("ttspecFltPosPs",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                    maxshape=(None,),
+                                                    dtype=float)
         ds_ttspecFltposPs_1.attrs["axes"] = "experiment_identifier"
 
         ds_ttspecRefAmpl_1 = lcls_1.create_dataset("ttspecRefAmpl",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                   maxshape=(None,),
+                                                   dtype=float)
         ds_ttspecRefAmpl_1.attrs["axes"] = "experiment_identifier"
 
         lcls_injector_1 = lcls_1.create_group("injector_1")
         ds_pressure_1 = lcls_injector_1.create_dataset("pressureSDS",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                       maxshape=(None,),
+                                                       dtype=float)
         ds_pressure_1.attrs["axes"] = "experiment_identifier"
         ds_pressure_2 = lcls_injector_1.create_dataset("pressureSDSB",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=float)
+                                                       maxshape=(None,),
+                                                       dtype=float)
         ds_pressure_2.attrs["axes"] = "experiment_identifier"
 
         myHdf5.flush()
@@ -349,8 +336,8 @@ if rank == 0:
         myHdf5.create_dataset("/entry_1/result_1/peakXPosRawAll", (numJobs,2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs,2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
-	myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
-	myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs,2048), dtype=float, chunks=(1,2048))
+        myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
+        myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs,2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs,)*-1, dtype=int)
         myHdf5.create_dataset("/entry_1/result_1/likelihoodAll", data=np.ones(numJobs, ) * -1, dtype=float)
 
@@ -370,8 +357,8 @@ if rank == 0:
             myHdf5.flush()
 
         ds_nPeaks = myHdf5.create_dataset("/entry_1/result_1/nPeaks",(0,),
-                                                 maxshape=(None,),
-                                                 dtype=int)
+                                          maxshape=(None,),
+                                          dtype=int)
         ds_nPeaks.attrs["axes"] = "experiment_identifier"
 
         ds_nPeaks.attrs["minPeaks"] = args.minPeaks
@@ -400,14 +387,13 @@ if rank == 0:
                                                  compression_opts=1,
                                                  dtype=float)
         ds_atot.attrs["axes"] = "experiment_identifier:peaks"
-
-	ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0,2048),
-						maxshape = (None,2048),
-						chunks = (1,2048),
-						compression='gzip',
-						compression_opts=1,
-						dtype=float)
-	ds_amax.attrs["axes"] = "experiment_identifier:peaks"
+        ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0,2048),
+                                        maxshape = (None,2048),
+                                        chunks = (1,2048),
+                                        compression='gzip',
+                                        compression_opts=1,
+                                        dtype=float)
+        ds_amax.attrs["axes"] = "experiment_identifier:peaks"
 
         ds_radius = myHdf5.create_dataset("/entry_1/result_1/peakRadius",(0,2048),
                                                  maxshape=(None,2048),
@@ -513,11 +499,6 @@ if rank == 0:
 
         # Add mask in cheetah format
         if args.mask is not None:
-            #f = h5py.File(args.mask,'r')
-            #mask = f['/entry_1/data_1/mask'].value
-            #data_1["mask"] = mask
-            #f.close()
-
             ds_mask_1 = data_1.create_dataset("mask", (0, dim0, dim1),
                                         chunks=(1, dim0, dim1),
                                         maxshape=(None, dim0, dim1),
@@ -553,7 +534,7 @@ if rank == 0:
         myHdf5.create_dataset("/entry_1/result_1/nPeaksAll", data=np.ones(numJobs, ) * -1, dtype=int)
         myHdf5.create_dataset("/entry_1/result_1/peakXPosRawAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
         myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
-	myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs, 2048), dtype=float, chunks=(1,2048))
+        myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs, 2048), dtype=float, chunks=(1,2048))
         myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
         myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs, ) * -1, dtype=int)
@@ -592,13 +573,13 @@ if rank == 0:
                                         dtype=float)
         ds_posY.attrs["axes"] = "experiment_identifier:peaks"
 
-	ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity", (0, 2048),
-					maxshape = (None, 2048),
-					chunks=(1,2048),
-					compression = 'gzip',
-					compression_opts=1,
-					dtype=float)
-	ds_atot.attrs["axes"] = "experiment_identifier:peaks"
+        ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity", (0, 2048),
+                                        maxshape = (None, 2048),
+                                        chunks=(1,2048),
+                                        compression = 'gzip',
+                                        compression_opts=1,
+                                        dtype=float)
+        ds_atot.attrs["axes"] = "experiment_identifier:peaks"
 
         ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0, 2048),
                                         maxshape=(None, 2048),
@@ -620,11 +601,7 @@ if rank == 0:
                                           maxshape=(None,),
                                           dtype=int)
         ds_maxRes.attrs["axes"] = "experiment_identifier:peaks"
-
         myHdf5.flush()
-
-        #entry_1.create_dataset("start_time", data=ps.getStartTime())
-        #myHdf5.flush()
 
         sample_1 = entry_1.create_group("sample_1")
         sample_1.create_dataset("name", data=args.sample)
@@ -633,23 +610,6 @@ if rank == 0:
         instrument_1 = entry_1.create_group("instrument_1")
         instrument_1.create_dataset("name", data='PAL') #FIXME: change to beamline name
         myHdf5.flush()
-
-        #source_1 = instrument_1.create_group("source_1")
-        #ds_photonEnergy = source_1.create_dataset("energy", (0,),
-        #                                          maxshape=(None,),
-        #                                          dtype=float)  # photon energy in J
-        #ds_photonEnergy.attrs["axes"] = "experiment_identifier"
-
-        #ds_pulseEnergy = source_1.create_dataset("pulse_energy", (0,),
-        #                                         maxshape=(None,),
-        #                                         dtype=float)  # in J
-        #ds_pulseEnergy.attrs["axes"] = "experiment_identifier"
-
-        #ds_pulseWidth = source_1.create_dataset("pulse_width", (0,),
-        #                                        maxshape=(None,),
-        #                                        dtype=float)  # in s
-        #ds_pulseWidth.attrs["axes"] = "experiment_identifier"
-        #myHdf5.flush()
 
         detector_1 = instrument_1.create_group("detector_1")
         ds_data_1 = detector_1.create_dataset("data", (0, dim0, dim1),
@@ -663,19 +623,8 @@ if rank == 0:
         data_1 = entry_1.create_group("data_1")
         data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
 
-        # Add x,y,z coordinates
-        #cx, cy, cz = ps.det.coords_xyz(ps.evt)
-        #data_1["x"] = ps.getCheetahImg(calib=cx)
-        #data_1["y"] = ps.getCheetahImg(calib=cy)
-        #data_1["z"] = ps.getCheetahImg(calib=cz)
-
         # Add mask in cheetah format
         if args.mask is not None:
-            #f = h5py.File(args.mask,'r')
-            #mask = f['/entry_1/data_1/mask'].value
-            #data_1["mask"] = mask
-            #f.close()
-
             ds_mask_1 = data_1.create_dataset("mask", (0, dim0, dim1),
                                         chunks=(1, dim0, dim1),
                                         maxshape=(None, dim0, dim1),
@@ -688,18 +637,6 @@ if rank == 0:
                                               dtype=float)  # in meters
         ds_dist_1.attrs["axes"] = "experiment_identifier"
 
-        #ds_x_pixel_size_1 = detector_1.create_dataset("x_pixel_size", (0,),
-        #                                              maxshape=(None,),
-        #                                              dtype=float)
-        #ds_x_pixel_size_1.attrs["axes"] = "experiment_identifier"
-
-        #ds_y_pixel_size_1 = detector_1.create_dataset("y_pixel_size", (0,),
-        #                                              maxshape=(None,),
-        #                                              dtype=float)
-        #ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
-
-        #detector_1.create_dataset("description", data=args.det)
-        #myHdf5.flush()
     # Close hdf5 file
     myHdf5.close()
 

@@ -231,8 +231,7 @@ class MainFrame(QtGui.QWidget):
 
         self.scheme()
 
-    def getUsername(self):
-        return os.environ['USER']
+    def getUsername(self): return os.environ['USER']
 
     def scheme(self):
         # Set the color scheme
