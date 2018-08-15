@@ -333,11 +333,11 @@ if rank == 0:
         ds_expId.attrs["axes"] = "experiment_identifier"
 
         myHdf5.create_dataset("/entry_1/result_1/nPeaksAll", data=np.ones(numJobs,)*-1, dtype=int)
-        myHdf5.create_dataset("/entry_1/result_1/peakXPosRawAll", (numJobs,2048), dtype=float, chunks=(1,2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs,2048), dtype=float, chunks=(1,2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs,2048), dtype=float, chunks=(1,2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs,2048), dtype=float, chunks=(1,2048))
+        myHdf5.create_dataset("/entry_1/result_1/peakXPosRawAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs,)*-1, dtype=int)
         myHdf5.create_dataset("/entry_1/result_1/likelihoodAll", data=np.ones(numJobs, ) * -1, dtype=float)
 
@@ -364,40 +364,40 @@ if rank == 0:
         ds_nPeaks.attrs["minPeaks"] = args.minPeaks
         ds_nPeaks.attrs["maxPeaks"] = args.maxPeaks
         ds_nPeaks.attrs["minRes"] = args.minRes
-        ds_posX = myHdf5.create_dataset("/entry_1/result_1/peakXPosRaw",(0,2048),
-                                                 maxshape=(None,2048),
-                                                 chunks = (1, 2048),
+        ds_posX = myHdf5.create_dataset("/entry_1/result_1/peakXPosRaw",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks = (1, args.maxPeaks),
                                                  compression='gzip',
                                                  compression_opts=1,
                                                  dtype=float)
         ds_posX.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_posY = myHdf5.create_dataset("/entry_1/result_1/peakYPosRaw",(0,2048),
-                                                 maxshape=(None,2048),
-                                                 chunks=(1, 2048),
+        ds_posY = myHdf5.create_dataset("/entry_1/result_1/peakYPosRaw",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
                                                  compression='gzip',
                                                  compression_opts=1,
                                                  dtype=float)
         ds_posY.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity",(0,2048),
-                                                 maxshape=(None,2048),
-                                                 chunks=(1, 2048),
+        ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
                                                  compression='gzip',
                                                  compression_opts=1,
                                                  dtype=float)
         ds_atot.attrs["axes"] = "experiment_identifier:peaks"
-        ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0,2048),
-                                        maxshape = (None,2048),
-                                        chunks = (1,2048),
+        ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0,args.maxPeaks),
+                                        maxshape = (None,args.maxPeaks),
+                                        chunks = (1,args.maxPeaks),
                                         compression='gzip',
                                         compression_opts=1,
                                         dtype=float)
         ds_amax.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_radius = myHdf5.create_dataset("/entry_1/result_1/peakRadius",(0,2048),
-                                                 maxshape=(None,2048),
-                                                 chunks=(1, 2048),
+        ds_radius = myHdf5.create_dataset("/entry_1/result_1/peakRadius",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
                                                  compression='gzip',
                                                  compression_opts=1,
                                                  dtype=float)
@@ -532,11 +532,11 @@ if rank == 0:
         ds_expId.attrs["axes"] = "experiment_identifier"
 
         myHdf5.create_dataset("/entry_1/result_1/nPeaksAll", data=np.ones(numJobs, ) * -1, dtype=int)
-        myHdf5.create_dataset("/entry_1/result_1/peakXPosRawAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs, 2048), dtype=float, chunks=(1,2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
-        myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs, 2048), dtype=float, chunks=(1, 2048))
+        myHdf5.create_dataset("/entry_1/result_1/peakXPosRawAll", (numJobs, args.maxPeaks), dtype=float, chunks=(1, args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakYPosRawAll", (numJobs, args.maxPeaks), dtype=float, chunks=(1, args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs, args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs, args.maxPeaks), dtype=float, chunks=(1, args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs, args.maxPeaks), dtype=float, chunks=(1, args.maxPeaks))
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs, ) * -1, dtype=int)
         myHdf5.flush()
 
@@ -557,41 +557,41 @@ if rank == 0:
         ds_nPeaks.attrs["minPeaks"] = args.minPeaks
         ds_nPeaks.attrs["maxPeaks"] = args.maxPeaks
         ds_nPeaks.attrs["minRes"] = args.minRes
-        ds_posX = myHdf5.create_dataset("/entry_1/result_1/peakXPosRaw", (0, 2048),
-                                        maxshape=(None, 2048),
-                                        chunks=(1, 2048),
+        ds_posX = myHdf5.create_dataset("/entry_1/result_1/peakXPosRaw", (0, args.maxPeaks),
+                                        maxshape=(None, args.maxPeaks),
+                                        chunks=(1, args.maxPeaks),
                                         compression='gzip',
                                         compression_opts=1,
                                         dtype=float)
         ds_posX.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_posY = myHdf5.create_dataset("/entry_1/result_1/peakYPosRaw", (0, 2048),
-                                        maxshape=(None, 2048),
-                                        chunks=(1, 2048),
+        ds_posY = myHdf5.create_dataset("/entry_1/result_1/peakYPosRaw", (0, args.maxPeaks),
+                                        maxshape=(None, args.maxPeaks),
+                                        chunks=(1, args.maxPeaks),
                                         compression='gzip',
                                         compression_opts=1,
                                         dtype=float)
         ds_posY.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity", (0, 2048),
-                                        maxshape = (None, 2048),
-                                        chunks=(1,2048),
+        ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity", (0, args.maxPeaks),
+                                        maxshape = (None, args.maxPeaks),
+                                        chunks=(1,args.maxPeaks),
                                         compression = 'gzip',
                                         compression_opts=1,
                                         dtype=float)
         ds_atot.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0, 2048),
-                                        maxshape=(None, 2048),
-                                        chunks=(1, 2048),
+        ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (0, args.maxPeaks),
+                                        maxshape=(None, args.maxPeaks),
+                                        chunks=(1, args.maxPeaks),
                                         compression='gzip',
                                         compression_opts=1,
                                         dtype=float)
         ds_amax.attrs["axes"] = "experiment_identifier:peaks"
 
-        ds_radius = myHdf5.create_dataset("/entry_1/result_1/peakRadius", (0, 2048),
-                                        maxshape=(None, 2048),
-                                        chunks=(1, 2048),
+        ds_radius = myHdf5.create_dataset("/entry_1/result_1/peakRadius", (0, args.maxPeaks),
+                                        maxshape=(None, args.maxPeaks),
+                                        chunks=(1, args.maxPeaks),
                                         compression='gzip',
                                         compression_opts=1,
                                         dtype=float)
