@@ -18,7 +18,7 @@ import MousePanel, ImagePanel, ImageStackPanel
 import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
-import HitFinderPanel, LabelingPanel
+import HitFinderPanel
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
@@ -227,7 +227,11 @@ class MainFrame(QtGui.QWidget):
         self.small = SmallDataPanel.SmallData(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.hf = HitFinderPanel.HitFinder(self)
-        self.labeling = LabelingPanel.Labeling(self)
+        try:
+            import LabelingPanel
+            self.labeling = LabelingPanel.Labeling(self)
+        except:
+            self.labeling = None
 
         self.scheme()
 
@@ -485,7 +489,8 @@ class MainFrame(QtGui.QWidget):
                 # Mouse click
                 if indexX >= 0 and indexX < self.data.shape[0] \
                         and indexY >= 0 and indexY < self.data.shape[1]:
-                    self.labeling.action(indexX,indexY, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
+                    if self.labeling is not None:
+                        self.labeling.action(indexX,indexY, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]
                     if self.mk.maskingMode > 0:
                         self.initMask()
