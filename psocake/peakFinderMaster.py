@@ -19,23 +19,6 @@ elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'PAL'
     import glob
 
-def getNoe(args):
-    if facility == 'LCLS':
-        runStr = "%04d" % args.run
-        access = "exp=" + args.exp + ":run=" + runStr + ':idx'
-        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
-        ds = psana.DataSource(access)
-        run = ds.runs().next()
-        times = run.times()
-        numJobs = len(times)
-    elif facility == 'PAL':
-        _temp = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/data/run' + str(args.run).zfill(4) + '/*.h5'
-        numJobs = len(glob.glob(_temp))
-    # check if the user requested specific number of events
-    if args.noe > -1 and args.noe <= numJobs:
-        numJobs = args.noe
-    return numJobs
-
 def runmaster(args, nClients):
 
     runStr = "%04d" % args.run
@@ -82,7 +65,7 @@ def runmaster(args, nClients):
     laserTimeZero = 0.0
     laserTimeDelay = 0.0
     laserTimePhaseLocked = 0.0
-    numEvents = getNoe(args)
+    numEvents = getNoe(args, facility)
     d = {"numHits": numHits, "hitRate(%)": hitRate, "fracDone(%)": fracDone, "projected": projected}
     try:
         writeStatus(statusFname, d)
