@@ -6,6 +6,7 @@ import PeakFinder as pf
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import h5py
+from utils import *
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -28,8 +29,6 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
         value = exceptReturn
     return value
 
-def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
-
 def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
     d.peakFinder.findPeaks(detarr, evt)
     # Likelihood
@@ -48,7 +47,6 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
         x = cenX - d.ipx  # args.center[0]
         y = cenY - d.ipy  # args.center[1]
         radius = np.sqrt((x**2)+(y**2))
-
         pixSize = float(d.pixel_size(evt))
         detdis = float(args.detectorDistance)
         z = detdis / pixSize * np.ones(x.shape)  # pixels

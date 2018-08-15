@@ -1,8 +1,25 @@
 import json
 import h5py
+import psana
 
-def str2bool(v):
-    return v.lower() in ("yes", "true", "t", "1")
+def getNoe(args, facility):
+    if facility == 'LCLS':
+        runStr = "%04d" % args.run
+        access = "exp=" + args.exp + ":run=" + runStr + ':idx'
+        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+        ds = psana.DataSource(access)
+        run = ds.runs().next()
+        times = run.times()
+        numJobs = len(times)
+    elif facility == 'PAL':
+        _temp = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/data/run' + str(args.run).zfill(4) + '/*.h5'
+        numJobs = len(glob.glob(_temp))
+    # check if the user requested specific number of events
+    if args.noe > -1 and args.noe <= numJobs:
+        numJobs = args.noe
+    return numJobs
+
+def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
 def writeStatus(fname, d):
     json.dump(d, open(fname, 'w'))

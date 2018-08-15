@@ -4,6 +4,7 @@ import os
 import numpy as np
 import h5py
 import json
+from utils import *
 
 class LaunchPeakFinder(QtCore.QThread):
     def __init__(self, parent = None):
@@ -86,9 +87,6 @@ class LaunchPeakFinder(QtCore.QThread):
             dset[:, :] = img
             myHdf5.close()
 
-    def writeStatus(self, fname, d):
-        json.dump(d, open(fname, 'w'))
-
     def run(self):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.pk.hitParam_runs)
@@ -114,7 +112,7 @@ class LaunchPeakFinder(QtCore.QThread):
             # Result status_peaks.txt
             fname = runDir + "/status_peaks.txt"
             d = {"numHits": 0, "hitRate": 0, "fracDone": 0}
-            self.writeStatus(fname, d)
+            writeStatus(fname, d)
 
             # Copy powder ring
             import shutil
