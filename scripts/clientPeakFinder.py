@@ -9,7 +9,7 @@ import json
 import base64
 from psana import *
 import random
-#from peaknet import Peaknet #commented out until PeakNet is ready
+#from peaknet import Peaknet 
 from crawler import Crawler
 import clientAbstract
 from clientSocket import clientSocket
@@ -231,8 +231,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             if(len(goodlist) >= self.batchSize):
                 break
             #Use the crawler to fetch a random experiment+run
-            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
-            #exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
+            #exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
+            exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
             print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
             runnum = int(strrunnum)
             eventInfo = self.getDetectorInformation(exp, runnum, det)
@@ -291,24 +291,20 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         alg -- the peakfinding algorithm
         kwargs -- peakfinding parameters, host and server name, client name
         """
+        socket = clientSocket(**kwargs)
+        peakDB = PeakDatabase(**kwargs) #create database to store good event info in
         while(True):
-            socket = clientSocket(**kwargs)
-            peakDB = PeakDatabase(**kwargs) #create database to store good event info in
             evaluateinfo = self.evaluateRun(alg, peakDB)
             goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
-
-            #print(goodlist)
 
             #Master gets the number of peaks found
             socket.push(totalNumPeaks)
             socket.push(numGoodEvents)
 
             #Train PeakNet on the good events
-            #for i,element in enumerate(ndalist):
-            #    a = self.psnet.train(None, element, goodlist[i])
-            #    print(a)
+            #a = self.psnet.train(None, ndalist, goodlist)
+            #print(a)
 
-            #TODO: System Call...
 
             #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
             a = np.array([[1, 2],[3, 4]])

@@ -68,7 +68,7 @@ class Labeling(object):
         self.mode = self.labelParam_add_str
         self.labelParam_pluginParam = None
         self.tag = ''
-        self.labelParam_algorithm_name = '' #"adaptiveAlgorithm"
+        self.labelParam_algorithm_name = None #"adaptiveAlgorithm"
         self.labelParam_classificationOptions_display = '' 
         self.labelParam_classificationOptions_memory = ''
         self.labelParam_loadName = None
@@ -516,18 +516,22 @@ class Labeling(object):
                 if self.parent.facility == self.parent.facilityLCLS:
                     # Only initialize the hit finder algorithm once
                     if self.algInitDone is False:
-                        print("Loading %s!" % self.labelParam_algorithm_name)
-                        if self.labelParam_pluginParam == None:
-                            kw = None
-                            self.labelRadius = 1 #TODO: Fix this!
-                        else:
-                            kw = json.loads(self.labelParam_pluginParam)
-                            self.labelRadius = kw["r0"]
-                        self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
-                        self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
-                        self.numLabelsFound = self.labels.shape[0]
-                        self.algInitDone = True
-                        self.algorithmEvaluated[self.parent.eventNumber] = True
+                        if (self.labelParam_algorithm_name != None):
+                            print("Loading %s!" % self.labelParam_algorithm_name)
+                            if self.labelParam_pluginParam == None:
+                                kw = None
+                                self.labelRadius = 1 #TODO: Fix this!
+                            else:
+                                kw = json.loads(self.labelParam_pluginParam)
+                                self.labelRadius = kw["r0"]
+                            try:
+                                self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
+                                self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
+                                self.numLabelsFound = self.labels.shape[0]
+                            except AttributeError:
+                                pass
+                            self.algInitDone = True
+                            self.algorithmEvaluated[self.parent.eventNumber] = True
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
                 if self.parent.args.v >= 1: print "Labels found: ", self.centers
