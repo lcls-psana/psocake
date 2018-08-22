@@ -7,7 +7,7 @@ class clientSocket:
 
     def __init__(self, **kwargs):
         host = kwargs["host"]
-        self.puller.bind("tcp://*:5560")
+        self.puller.connect("tcp://%s:5560"%host)
         self.pusher.connect("tcp://%s:5559"%host)
         
 
@@ -16,7 +16,7 @@ class clientSocket:
         When called, the program will wait until information 
         has been pushed by the master zmq socket.
         """
-        result = self.puller.recv_json()    
+        result = self.puller.recv_pyobj()    
         print("I just pulled:", result)  
         return result
 
@@ -27,4 +27,4 @@ class clientSocket:
         val -- The information/value that will be pushed to the master zmq socket.
         """
         print("I am pushing:", val)
-        self.pusher.send_json(val)
+        self.pusher.send_pyobj(val)

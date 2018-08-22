@@ -31,4 +31,5 @@ kwargs = {"npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args
 
 print(kwargs)
 
-invoke_model("clientPeakFinder",**kwargs)
+#invoke_model("clientPeakFinder",**kwargs)
+invoke_model("testClient",**kwargs)
