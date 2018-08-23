@@ -60,7 +60,8 @@ runClients.py runs a single client which is able to find experiment/run events w
 Master/Client Peaknet Steps:
 
 1. Both Queen and Clients make their own Peaknet instances.
-2. Queen loads DN weights
+2. Queen and Client load DN weights
+   Client also calls peaknet.model.cuda()
 3. Client tells queen it is ready
 4. Queen sends pn.model to client
 5. Client updateModel(model from queen)
@@ -68,4 +69,4 @@ Master/Client Peaknet Steps:
 7. Client sends pn.model to queen
 8. Queen updateGradient(model from client)
 9. Queen Optimizes
-Steps 3-10 repeat until Clients stop
+10. Steps 3-10 repeat until Clients stop
