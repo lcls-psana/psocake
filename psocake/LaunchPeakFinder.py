@@ -109,11 +109,6 @@ class LaunchPeakFinder(QtCore.QThread):
             except AttributeError:
                 print "e-Log table does not exist"
 
-            # Result status_peaks.txt
-            fname = runDir + "/status_peaks.txt"
-            d = {"numHits": 0, "hitRate": 0, "fracDone": 0}
-            writeStatus(fname, d)
-
             # Copy powder ring
             import shutil
             src = self.parent.psocakeDir+'/r'+str(self.parent.runNumber).zfill(4)+'/background.npy'

@@ -9,7 +9,7 @@ import json
 import base64
 from psana import *
 import random
-#from peaknet import Peaknet #commented out until PeakNet is ready
+from peaknet import Peaknet 
 from crawler import Crawler
 import clientAbstract
 from clientSocket import clientSocket
@@ -17,10 +17,10 @@ from peakDatabase import PeakDatabase
 
 class clientPeakFinder(clientAbstract.clientAbstract):
 
-    #Intialize global variables
+    #Intialize variables
 
     #Amount of events sent to PeakNet
-    batchSize = 64
+    batchSize = 3
     #Calculated Likelihood that counts as a "good event"
     goodLikelihood = .03
     #Limit of events iterated through in a run
@@ -29,12 +29,25 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     goodNumPeaks = 15
     #Minimum number of events to be found before peak finding on 1000 events of a run
     minEvents = 3
-    #Initialization of Peaknet
-    #psnet = Peaknet()
-    #Max runtime
-    #maxRunTime = 3600
     #If the last run was a good run:
     goodRun = False
+    #If batch size reached in the middle of a good run, have the worker return to this run
+    useLastRun = False
+    det = None
+    exp = None
+    runnum = None
+    eventNum = None
+    
+
+    #Step 1: Both Queen and Clients make their own Peaknet instances. 
+    peaknet = Peaknet()
+    print("Made a peaknet instance!")
+    peaknet.loadDNWeights()
+    print("Loaded arbitrary weights!")
+    #Step 2: Client loads arbitrary DN weights and connects to GPU
+    print("Connecting to GPU... this may take a few minutes")
+    peaknet.model.cuda()
+    print("Connected!")
     
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
@@ -212,107 +225,193 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         return the list peaks in good events,  the list of corresponding images for the good events, 
         the total number of peaks found by this function, and the total number of hits found 
         """
-        # Initialize local variables
-        d = 0 #Will be psana.Detector(det)
-        evt = 0 #Will be run.event(this event)
-        goodlist = [] # List of good peaks - their segment, row, and column
-        ndalist = [] # Image of event
-        totalNumPeaks = 0 #Number of peaks found during this function's call
-        myCrawler = Crawler() # Crawler used to fetch a random experiment + run
-        # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
-        clientBeginTime = time.time()
-        runTime = 0
-        clientEndTime = 0
+        # Will be psana.Detector(det)
+        d = 0 
+
+        # Will be run.event(this event)
+        evt = 0
+
+        # List labels from good events
+        labels = [] 
+
+        # List of images of good event
+        imgs = [] 
+
+        # Number of peaks found during this function's call
+        totalNumPeaks = 0 
+
+        # Number of events found during this function's call
+        numGoodEvents = 0
+
+        # Crawler used to fetch a random experiment + run
+        myCrawler = Crawler() 
+
+        # Time when the client began working
+        clientBeginTime = time.time() 
+
+        #Time when the client finished working. Hasnt began yet so it is not set
+        currentTime = clientBeginTime 
+
+        #How long the client has been running for
+        runTime = (currentTime - clientBeginTime)
+
         while True:
-            timebefore = time.time()
-            runTime = (clientEndTime - clientBeginTime)
-            #if(runTime >= self.maxRunTime):
-            #    break
-            if(len(goodlist) >= self.batchSize):
+            #Time when the client began working on this event, used in print statement only
+            beginTimeForThisEvent = time.time()
+
+            runTime = (currentTime - clientBeginTime)
+
+            # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
+            if(len(labels) >= self.batchSize):
+                self.useLastRun = True
                 break
+
+            #Keep working on the previous experiment/run
+            if((self.useLastRun) and (self.exp is not None)): #TODO: dont redo information functions
+                j = self.eventNum
+                exp = self.exp
+                runnum = self.runnum
+                det = self.det
+                strrunnum = str(runnum)
             #Use the crawler to fetch a random experiment+run
-            exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
-            #exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
+            else:
+                exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
+                ####exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
+                runnum = int(strrunnum)
+                self.exp = exp
+                self.runnum = runnum
+                self.det = det
+                j = 0
+
             print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
-            runnum = int(strrunnum)
             eventInfo = self.getDetectorInformation(exp, runnum, det)
             d, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
             print("%d Events to find peaks on"%numEvents)
-            numGoodEvents = 0
+
+            #Initialize the number of good events/hits for this event
+            # If less than 3 in the first 1000 events, this run is skipped
+            numGoodEventsInThisRun = 0
             #Peak find for each event in an experiment+run
-            for j in range(numEvents):
-                if(len(goodlist) >= self.batchSize):
+            while (j < numEvents):
+
+                self.eventNum = j
+
+                # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
+                if(len(labels) >= self.batchSize):
+                    self.useLastRun = True
                     break
-                clientEndTime = time.time()
-                runTime = (clientEndTime - clientBeginTime)
-                #if(runTime >= self.maxRunTime):
-                #    print(runTime)
-                #    break
+
                 #If the amount of good events found is less than minEvents before the eventLimit, then 
                 #stop and try peak finding on a new experiment+run
-                if((j >= self.eventLimit) and (numGoodEvents < self.minEvents)):
+                if((j >= self.eventLimit) and (numGoodEventsInThisRun < self.minEvents)):
+                    self.useLastRun = False
                     break
-                #print(j)
-                eventList = [[],[],[]]
+
+                # [[list of segments], [list of rows], [list of columns]] ... labelsForThisEvent[0:2][0] corresponds to one label
+                labelsForThisEvent = [np.array([]),np.array([]),np.array([])]
+
+                #Get Peak Info
                 peakInfo = self.getPeaks(d, alg, hdr, fmt, mask, times, env, run, j)
                 evt, nda, peaks, numPeaksFound = peakInfo[:]
                 if nda is None:
 	            continue
+
+                #Get Likelihood
                 pairsFoundPerSpot = self.getLikelihood(d, evt, peaks, numPeaksFound)
-                #If this event is a good event, save the location of the peaks to train PeakNet
+
+                #If this event is a good event, save the labels to train PeakNet
                 if (pairsFoundPerSpot > self.goodLikelihood):
                     print hdr
                     for peak in peaks:
                         totalNumPeaks += 1 #number of peaks
                         seg,row,col,npix,amax,atot = peak[0:6]
-                        eventList[0].append([seg])
-                        eventList[1].append([row])
-                        eventList[2].append([col])
+                        labelsForThisEvent[0] = np.append(labelsForThisEvent[0],np.array([seg]),axis = 0)
+                        labelsForThisEvent[1] = np.append(labelsForThisEvent[1],np.array([row]),axis = 0)
+                        labelsForThisEvent[2] = np.append(labelsForThisEvent[2],np.array([col]),axis = 0)
 	                print fmt % (seg, row, col, npix, atot)
-                    goodlist.append(np.array(eventList))
-                    ndalist.append(nda)
-                    numGoodEvents += 1
-                    kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound, eventList)
-                    peakDB.addExpRunEventPeaks(**kwargs)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
-                #if(j above some threshold): self.goodRun = True
-            timeafter = time.time()
-            clientEndTime = time.time()
-            print("This took %d seconds" % (timeafter-timebefore))
-        peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents)
+                    
+                    # labels[0:j] corresponds to each event in labels, 
+                    # for each event in labels there is a tuple:
+                    # [[list of segments], [list of rows], [list of columns]]
+                    # That is: labels =
+                    # [ [[list of segments], [list of rows], [list of columns]] , 
+                    #   [[list of segments], [list of rows], [list of columns]] ... ]
+                    labels.append(np.array(labelsForThisEvent))
+
+                    # Shape of imgs = (j <= (batchsize = 64), m = 32 tiles per nda, h = 185, w = 388)
+                    imgs.append(nda)
+
+                    #increase the skip condition value
+                    numGoodEventsInThisRun += 1
+
+                    #increase the database number of hits value
+                    numGoodEvents += 1
+
+                    #create a dictionary to be posted on the database
+                    kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound, labelsForThisEvent)
+                    #peakDB.addExpRunEventPeaks(**kwargs) #TODO: MongoDB doesnt like the numpy array
+
+                    j += 1
+
+            if(j >= numEvents):
+                 self.useLastRun = False
+            
+            #update runTime
+            currentTime = time.time()
+            runTime = (currentTime - clientBeginTime)
+
+            #Time when the client ended working on this event, used in print statement only
+            endTimeForThisEvent = time.time()
+            print("This took %d seconds" % (endTimeForThisEvent-beginTimeForThisEvent))
+
+        #add total peaks and hits value to database when finished
+        #TODO: confirm that this updates the values and does not overwrite the values...
+        peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents) 
         print("Peaks", totalNumPeaks, "Events", numGoodEvents)
         print(runTime)
-        return [goodlist, ndalist, totalNumPeaks, numGoodEvents]
+        return [labels, imgs, totalNumPeaks, numGoodEvents]
 
     def runClient(self, alg, **kwargs):
-        """ Runs the peakfinder, adds values to the database, trains peaknet, and reports values to the master
+        """ Runs the peakfinder, adds values to the database, trains peaknet, and reports model to the master
 
         Arguments:
         alg -- the peakfinding algorithm
         kwargs -- peakfinding parameters, host and server name, client name
         """
+        socket = clientSocket(**kwargs)
+        peakDB = PeakDatabase(**kwargs) #create database to store good event info in
         while(True):
-            socket = clientSocket(**kwargs)
-            peakDB = PeakDatabase(**kwargs) #create database to store good event info in
+            #The client generates data.
             evaluateinfo = self.evaluateRun(alg, peakDB)
-            goodlist, ndalist, totalNumPeaks, numGoodEvents = evaluateinfo[:]
 
-            #print(goodlist)
+            labels, imgs, totalNumPeaks, numGoodEvents = evaluateinfo[:]
 
-            #Master gets the number of peaks found
-            socket.push(totalNumPeaks)
-            socket.push(numGoodEvents)
+            #print(len(labels), "events in labels")
+            #print(len(labels[0]), "lists in tuples of an event")
+            #print(len(labels[0][0]), "values in first list in tuple")
 
-            #Train PeakNet on the good events
-            #for i,element in enumerate(ndalist):
-            #    a = self.psnet.train(None, element, goodlist[i])
-            #    print(a)
+            imgs = np.array(imgs)
 
-            #TODO: System Call...
+            #Step 3: Client tells queen it is ready
+            socket.push("Im Ready!")
 
-            #for now, send an random numpy array to the master (this will eventually be used to send the weights to the master)
-            a = np.array([[1, 2],[3, 4]])
-            b = self.bitwise_array(a)
-            socket.push(b)
+            #Step 4: Client recieves model from queen 
+            model = socket.pull()
 
-            #socket.push("Done!")
+            #Step 5: Client updateModel(model from queen)
+            self.peaknet.updateModel(model)
+
+            self.peaknet.model.cuda()
+
+            #Step 6: Client trains its Peaknet instance
+            a = self.peaknet.train(imgs, labels, batch_size=1, box_size = 7, use_cuda=True)
+            print(a)
+
+            #Step 7: Client sends the new model to queen
+            socket.push(self.peaknet.model)
+
+            #Step 8: Queen does updateGradient(new model from client)
+            #Step 9: Queen Optimizes
+            #Step 10: Repeat Steps 3-10
+
