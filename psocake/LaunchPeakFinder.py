@@ -110,9 +110,11 @@ class LaunchPeakFinder(QtCore.QThread):
                 print "e-Log table does not exist"
 
             # Result status_peaks.txt
-            fname = runDir + "/status_peaks.txt"
-            d = {"numHits": 0, "hitRate": 0, "fracDone": 0}
-            writeStatus(fname, d)
+            #fname = runDir + "/status_peaks" 
+            #if self.parent.peaks.args.tag: fname += '_'+args.tag
+            #fname += ".txt"
+            #d = {"numHits": 0, "hitRate": 0, "fracDone": 0}
+            #writeStatus(fname, d) #TODO: Heres where the tag bug comes from
 
             # Copy powder ring
             import shutil

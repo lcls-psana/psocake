@@ -31,7 +31,10 @@ def runmaster(args,nClients):
     fname = args.outDir +"/"+ args.exp +"_"+ runStr + ".cxi"
     grpName = "/entry_1/result_1"
     dset_nHits = "/nHitsAll"
-    statusFname = args.outDir + "/status_hits.txt"
+    if(args.tag):
+        statusFname = args.outDir + "/status_hits" + "_" + args.tag + ".txt"
+    else:
+        statusFname = args.outDir + "/status_hits.txt"
 
     powderHits = None
     powderMisses = None

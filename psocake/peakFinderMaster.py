@@ -67,7 +67,7 @@ def runmaster(args, nClients):
     laserTimePhaseLocked = 0.0
     numEvents = getNoe(args, facility)
     d = {"numHits": numHits, "hitRate(%)": hitRate, "fracDone(%)": fracDone, "projected": projected}
-    try:
+    try:  
         writeStatus(statusFname, d)
     except:
         pass

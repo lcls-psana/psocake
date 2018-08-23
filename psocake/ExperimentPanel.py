@@ -817,7 +817,10 @@ class ExperimentInfo(object):
         self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(
             self.parent.runNumber)
         # Update quantifier filename
-        fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
+        if self.parent.pk.tag: 
+            fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + "_" + self.parent.pk.tag + '.cxi'
+        else:
+            fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
         if self.parent.args.mode == 'sfx':
             dsetname = '/entry_1/result_1/nPeaksAll'
         elif self.parent.args.mode == 'spi':
