@@ -40,15 +40,15 @@ on separate GPUs.
 
 LCLS Tutorial/Example:
 
-- Open at least 3 terminals, two in psanagpu115, one in psanagpu114
+- Open at least 3 terminals, two in psanagpu114, one in psanagpu115
 - use the following line in each terminal to activate the LCLS environment:
 $ conda activate /reg/neh/home/takeller/.conda/envs/antfarmTest2
-- In your first psanagpu115 terminal use the following line to start a server:
+- In your first psanagpu114 terminal use the following line to start a server:
 ./startMongoServer.sh
-- In your second psanagpu115 terminal use the following line to start your "Queen":
+- In your second psanagpu114 terminal use the following line to start your "Queen":
 python master.py
-- In your psanagpu114 terminal use the following line to start a "Worker":
-python runClients.py -host psanagpu115 -server psanagpu115
+- In your psanagpu115 terminal use the following line to start a "Worker":
+python runClients.py -host psanagpu114 -server psanagpu114
 - Now there is one worker running. You may add more workers on other GPUs by running
 the previous line in a new terminal.
 
