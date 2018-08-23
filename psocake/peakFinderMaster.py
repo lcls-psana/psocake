@@ -17,6 +17,7 @@ if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'PAL'
+    import glob
 
 def runmaster(args, nClients):
 
@@ -79,35 +80,6 @@ def runmaster(args, nClients):
         f.close()
         mask = -1*(mask-1)
 
-    def savePeaks(f, md, facility):
-        if facility == 'LCLS':
-            for i, peak in enumerate(md.peaks):
-                # seg, row, col, npix, atot, son = peak
-                seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[
-                                                                                                                        0:17]
-                cheetahRow, cheetahCol = convert_peaks_to_cheetah(seg, row, col)
-                f[grpName + dset_posX][md.small.eventNum, i] = cheetahCol
-                f[grpName + dset_posY][md.small.eventNum, i] = cheetahRow
-                f[grpName + dset_atot][md.small.eventNum, i] = atot
-                f[grpName + dset_amax][md.small.eventNum, i] = amax
-                f[grpName + dset_radius][md.small.eventNum, i] = rad[i]
-                f.flush()
-        elif facility == 'PAL':
-            for i, peak in enumerate(md.peaks):
-                seg, row, col, npix, atot, son = peak
-                f[grpName + dset_posX][md.small.eventNum, i] = col
-                f[grpName + dset_posY][md.small.eventNum, i] = row
-                f[grpName + dset_atot][md.small.eventNum, i] = atot
-                f.flush()
-
-    def saveLaserTime(f, md, facility):
-        if facility == 'LCLS':
-            f[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay
-            f[grpName + dset_laserTimeZero][md.small.eventNum] = md.small.laserTimeZero
-            f[grpName + dset_laserTimeDelay][md.small.eventNum] = md.small.laserTimeDelay
-            f[grpName + dset_laserTimePhaseLocked][md.small.eventNum] = md.small.laserTimePhaseLocked
-        f.flush()
-
     myHdf5 = h5py.File(fname, 'r+')
     numLeft = 1
     while nClients > 0 and numLeft > 0:
@@ -156,15 +128,38 @@ def runmaster(args, nClients):
 
             if args.profile: tic = time.time()
 
-            savePeaks(myHdf5, md, facility)
-            myHdf5[grpName + dset_nPeaks][md.small.eventNum] = nPeaks
-            myHdf5[grpName + dset_maxRes][md.small.eventNum] = maxRes
+            if facility == 'LCLS':
+                for i,peak in enumerate(md.peaks):
+                    #seg, row, col, npix, atot, son = peak
+                    seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
+                    cheetahRow,cheetahCol = convert_peaks_to_cheetah(seg,row,col)
+                    myHdf5[grpName+dset_posX][md.small.eventNum,i] = cheetahCol
+                    myHdf5[grpName+dset_posY][md.small.eventNum,i] = cheetahRow
+                    myHdf5[grpName+dset_atot][md.small.eventNum,i] = atot
+                    myHdf5[grpName+dset_amax][md.small.eventNum,i] = amax
+                    myHdf5[grpName+dset_radius][md.small.eventNum,i] = rad[i]
+                    myHdf5.flush()
+            elif facility == 'PAL':
+                for i, peak in enumerate(md.peaks):
+                    seg, row, col, npix, atot, son = peak
+                    myHdf5[grpName + dset_posX][md.small.eventNum, i] = col
+                    myHdf5[grpName + dset_posY][md.small.eventNum, i] = row
+                    myHdf5[grpName + dset_atot][md.small.eventNum, i] = atot
+                    myHdf5.flush()
+            myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
+            myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
 
             numLeft = len(np.where(myHdf5[grpName + dset_nPeaks].value == -1)[0])
+
             likelihood = md.small.likelihood
             myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood
 
-            saveLaserTime(myHdf5, md, facility)
+            if facility == 'LCLS':
+                myHdf5[grpName + dset_timeToolDelay][md.small.eventNum] = md.small.timeToolDelay
+                myHdf5[grpName + dset_laserTimeZero][md.small.eventNum] = md.small.laserTimeZero
+                myHdf5[grpName + dset_laserTimeDelay][md.small.eventNum] = md.small.laserTimeDelay
+                myHdf5[grpName + dset_laserTimePhaseLocked][md.small.eventNum] = md.small.laserTimePhaseLocked
+            myHdf5.flush()
 
             if args.profile:
                 saveTime = time.time() - tic # Time to save the peaks found per event

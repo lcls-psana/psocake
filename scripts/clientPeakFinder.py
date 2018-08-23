@@ -275,8 +275,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 strrunnum = str(runnum)
             #Use the crawler to fetch a random experiment+run
             else:
-                ####exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
-                exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
+                exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
+                ####exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
                 runnum = int(strrunnum)
                 self.exp = exp
                 self.runnum = runnum
@@ -392,13 +392,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             #print(len(labels[0][0]), "values in first list in tuple")
 
             imgs = np.array(imgs)
-            print(len(imgs), "imgs")
-            print(len(imgs[0]), "imgs[0]")
-            print(len(imgs[0][0]), "imgs[0][0]")
-            print(len(imgs[0][0][0]), "imgs[0][0][0]")
-            print(len(labels), "labels")
-            print(len(labels[0]), "labels[0]")
-            print(len(labels[0][0]), "labels[0][0]")
 
             #Step 3: Client tells queen it is ready
             socket.push("Im Ready!")
