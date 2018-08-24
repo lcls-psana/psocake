@@ -154,7 +154,7 @@ class Labeling(object):
                      'tip': "Input the name of the label save post you want to load"},
                 ]},
                 {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
-                    {'name': self.tag_str, 'type': 'str', 'value': self.parent.username,
+                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
                      'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
                     {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
                 ]},
