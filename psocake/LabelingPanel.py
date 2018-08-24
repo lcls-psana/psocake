@@ -67,7 +67,7 @@ class Labeling(object):
         self.shapes = None
         self.mode = self.labelParam_add_str
         self.labelParam_pluginParam = None
-        self.tag = ''
+        self.tag = self.parent.username
         self.labelParam_algorithm_name = None #"adaptiveAlgorithm"
         self.labelParam_classificationOptions_display = '' 
         self.labelParam_classificationOptions_memory = ''
@@ -103,7 +103,7 @@ class Labeling(object):
         self.eventLabels = {}
         self.algorithmEvaluated = {}
 
-        self.db = LabelDatabase()
+        self.db = LabelDatabase(self.parent.dir)
 
         self.eventClassifications = {}
 
@@ -154,7 +154,7 @@ class Labeling(object):
                      'tip': "Input the name of the label save post you want to load"},
                 ]},
                 {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
+                    {'name': self.tag_str, 'type': 'str', 'value': self.parent.username,
                      'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
                     {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
                 ]},
@@ -611,12 +611,18 @@ class Labeling(object):
 
     def grabTag(self,loadName):
         if loadName is not None:
-            self.tag = self.splitWords(loadName, "_")[2]
+            try:
+                self.tag = self.splitWords(loadName, "_")[2]
+            except IndexError:
+                pass
         else:
             pass
 
     def attachTag(self):
-        return self.labelParam_saveName + "_" + self.tag
+        if self.tag is not None:
+            return self.labelParam_saveName + "_" + self.tag
+        else:
+            return self.labelParam_saveName
 
     def saveLabelsToDictionary(self):
         unseenEvents = self.checkLoadEvents()
@@ -1001,7 +1007,7 @@ class Labeling(object):
     def updateText(self):
         self.clearText()
         self.displayText()
-        self.saveInformationToDatabase()
+        #self.saveInformationToDatabase()
 
     def displayText(self):
         try:

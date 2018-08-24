@@ -3,15 +3,20 @@ from pymongo import MongoClient
 from pymongo import ReturnDocument
 import datetime
 from pprint import pprint
+import os
 
 class LabelDatabase:
 
-    def __init__(self):
+    def __init__(self, directory):
         """ Connect to the database of peakfinding information, and then start a new log of information from this client.
         Arguments:
         kwargs -- peakfinding parameters, host and server name, client name
         """
-        server = "psanagpu114"#########TODO: automate this!!
+        this_path = os.path.dirname(os.path.realpath(__file__))
+        parentDir = os.path.abspath(os.path.join(this_path, os.pardir))
+        filename = parentDir + "/scripts/databaseLocation.txt"
+        file = open(filename, "r")
+        server = file.read()
         self.client = MongoClient('mongodb://%s:27017/'%server)
         dbname = "Labels"
         self.db = self.client[dbname]
@@ -33,6 +38,7 @@ class LabelDatabase:
         else:
             dictionary = {"$set":{"%s.%s"%(name,data_type):data}}
             self.poster.find_one_and_update({name:{"$exists":True}},dictionary,upsert = True) 
+        self.printDatabase()
 
     def printDatabase(self):
         """ Pretty prints each dictionary stored within the database.

@@ -17,7 +17,7 @@ import sys
 import MousePanel, ImagePanel, ImageStackPanel
 import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
-import SmallDataPanel, ImageControlPanel
+import SmallDataPanel, ImageControlPanel, LabelingPanel
 import HitFinderPanel
 
 parser = argparse.ArgumentParser()
@@ -227,11 +227,7 @@ class MainFrame(QtGui.QWidget):
         self.small = SmallDataPanel.SmallData(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.hf = HitFinderPanel.HitFinder(self)
-        try:
-            import LabelingPanel
-            self.labeling = LabelingPanel.Labeling(self)
-        except:
-            self.labeling = None
+        self.labeling = LabelingPanel.Labeling(self)
 
         self.scheme()
 

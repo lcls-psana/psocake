@@ -4,6 +4,7 @@ import argparse
 #runClient takes an argument "-host", enter the master's host name
 parser = argparse.ArgumentParser()
 parser.add_argument("-host", help="master's host")
+parser.add_argument("-type", default = "clientPeakFinder", help="type of worker/name of plugin, e.g. clientPeakFinder")
 parser.add_argument("-npix_min", default = 2, type = int, help = "minimum number of pixels for a peak")
 parser.add_argument("-npix_max", default = 30, type = int, help = "maximum number of pixels for a peak")
 parser.add_argument("-amax_thr", default = 300, type = int, help = "maximum value threshold")
@@ -15,15 +16,15 @@ args = parser.parse_args()
 
 class runClients(object):
     def __init__(self, args):
-    self.runClient = True
-    self.clientType = "clientPeakFinder"
-    self.filename = "databaseLocation.txt"
-    self.databaseLocation = locateDatabase()
-    kwargs = {"npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args.amax_thr, 
-          "atot_thr": args.atot_thr, "son_min" : args.son_min, "host" : args.host, "name" : args.name,
-          "server" : self.databaseLocation, "dbname" : args.dbname}
-    print(kwargs)
-    self.invoke_model(**kwargs)
+        self.runClient = True
+        self.clientType = args.type
+        self.filename = "databaseLocation.txt"
+        self.databaseLocation = self.locateDatabase()
+        kwargs = {"npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args.amax_thr, 
+              "atot_thr": args.atot_thr, "son_min" : args.son_min, "host" : args.host, "name" : args.name,
+              "server" : self.databaseLocation, "dbname" : args.dbname}
+        print(kwargs)
+        self.invoke_model(**kwargs)
 
     def locateDatabase(self):
         try:
@@ -33,10 +34,6 @@ class runClients(object):
             self.runClient = False
         return file.read()
 
-<<<<<<< HEAD
-invoke_model("clientPeakFinder",**kwargs) # TODO: move clientPeakFinder to args
-#invoke_model("testClient",**kwargs)
-=======
     def invoke_model(self, **kwargs):
         """Load a plugin client by giving a client name, and entering arguments for corresponding algorithms
     
@@ -49,5 +46,4 @@ invoke_model("clientPeakFinder",**kwargs) # TODO: move clientPeakFinder to args
         else:
             print("Start database and rerun client")
             
-runClient(args)
->>>>>>> 43d2e56447d50facd0039f5806354ca999d329e6
+runClients(args)
