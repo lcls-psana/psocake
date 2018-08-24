@@ -16,16 +16,15 @@ conda activate antfarm
 conda install --channel lcls-rhel7 psana-conda --force
 conda install pymongo mongodb
 
-3) If the MongoDB server is not running*, then run startMongoServer.sh in one
-of the terminals. Keep track of the database's host address,
-it will be used as an argument when running the client. (-server)
+3) If the MongoDB server is not running*, then run startMongoServer.py in one
+of the terminals. 
 
 4) In a second terminal, run "python master.py".
 Keep track of the master's host address,
 it will be used as an argument when running the client. (-host)
 
 5) Finally, in a third terminal, run "python runClients.py" with 
-the arguments -host [master host address] -server [MongoDB server host address]
+the arguments -host [master host address]
 Use -h to read all possible arguments
 
 6) When you are ready, you may open more terminals to run more "Workers"
@@ -44,11 +43,11 @@ LCLS Tutorial/Example:
 - use the following line in each terminal to activate the LCLS environment:
 $ conda activate /reg/neh/home/takeller/.conda/envs/antfarmTest2
 - In your first psanagpu114 terminal use the following line to start a server:
-./startMongoServer.sh
+./startMongoServer.py
 - In your second psanagpu114 terminal use the following line to start your "Queen":
 python master.py
 - In your psanagpu115 terminal use the following line to start a "Worker":
-python runClients.py -host psanagpu114 -server psanagpu114
+python runClients.py -host psanagpu114
 - Now there is one worker running. You may add more workers on other GPUs by running
 the previous line in a new terminal.
 
@@ -56,9 +55,9 @@ the previous line in a new terminal.
 
 To use this client/master setup with an alternative algorithm,
 a few function calls within "clientPeakFinder.py" will need to be changed.
-Within the algorithm() function, on lines 48 and 49, PyAlgos and
+Within the algorithm() function, PyAlgos and
 set_peak_selection_pars() are called. In addtion, within the getPeaks()
-function (within lines 152-154), PyAlgos and alg.peak_finder_v3r3() are
+function, PyAlgos and alg.peak_finder_v3r3() are
 called to find peaks in an nda file. These function calls could be replaced
 with alternative functions, given that the argument parameters given to
 runClients.py are sufficient. If you would like to save your information to
@@ -76,7 +75,6 @@ In the other terminal, run "python runClients.py" with these arguments:
 
 arguments for runClients.py:
   -host HOST          master's host address
-  -server SERVER      Host address of the MongoDB server
   -npix_min NPIX_MIN  minimum number of pixels for a peak ***Optional, there is a default value
   -npix_max NPIX_MAX  maximum number of pixels for a peak ***Optional, there is a default value
   -amax_thr AMAX_THR  maximum value threshold             ***Optional, there is a default value
