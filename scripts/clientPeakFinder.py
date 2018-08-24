@@ -24,11 +24,12 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     #Calculated Likelihood that counts as a "good event"
     goodLikelihood = .03
     #Limit of events iterated through in a run
-    eventLimit = 1000
+    eventLimit = 100
     #Minimum number of peaks to be found to calculate likelihood
     goodNumPeaks = 15
     #Minimum number of events to be found before peak finding on 1000 events of a run
     minEvents = 3
+
     #If the last run was a good run:
     goodRun = False
     #If batch size reached in the middle of a good run, have the worker return to this run
