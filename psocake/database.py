@@ -38,7 +38,7 @@ class LabelDatabase:
         else:
             dictionary = {"$set":{"%s.%s"%(name,data_type):data}}
             self.poster.find_one_and_update({name:{"$exists":True}},dictionary,upsert = True) 
-        self.printDatabase()
+        #self.printDatabase()
 
     def printDatabase(self):
         """ Pretty prints each dictionary stored within the database.
