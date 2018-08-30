@@ -13,9 +13,10 @@ Or:
 
 conda create --name antfarm python=2.7 pytorch=0.1.12 torchvision numpy h5py
 conda activate antfarm
-conda install --channel lcls-rhel7 psana-conda --force
-conda install pymongo mongodb
-conda install pytorch=0.1.12 torchvision cuda80 -c soumith
+conda install --channel lcls-rhel7 psana-conda pymongo mongodb --force
+conda uninstall pytorch libtorch
+conda install pytorch cuda80 torchvision -c soumith
+
 
 3) cd psocake/scripts
 If the MongoDB server is not running*, then run startMongoServer.py in one
