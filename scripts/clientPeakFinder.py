@@ -38,18 +38,19 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     exp = None
     runnum = None
     eventNum = None
-    
 
     #Step 1: Both Queen and Clients make their own Peaknet instances. 
     peaknet = Peaknet()
     print("Made a peaknet instance!")
+    # FIXME: fetch weights from mongoDB: peaknet.updateModel(model)
     peaknet.loadDNWeights()
     print("Loaded arbitrary weights!")
     #Step 2: Client loads arbitrary DN weights and connects to GPU
     print("Connecting to GPU... this may take a few minutes")
     peaknet.model.cuda()
     print("Connected!")
-    
+
+    # @Abstract method
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
         arguments given by the user, then run the peakfinding 
@@ -84,7 +85,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 "Labels":labels}
         return post
 
-    #converts a numpy array to be sent through json
     def bitwise_array(self, value):
         """ Convert a numpy array to a form that can be sent through json.
         
@@ -126,7 +126,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         pairsFoundPerSpot = pairsFound / float(nPeaks)
         return [meanClosestNeighborDist, pairsFoundPerSpot]
 
-    #gets detector information
     def getDetectorInformation(self, exp, runnum, det):
         """ Returns the detector and the number of events for
         this run.
@@ -216,8 +215,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         else:
             return 0
 
-
-
     def evaluateRun(self, alg, peakDB):
         """ Finds a random experiment run, finds peaks, and determines likelihood of events. If an event is
         likely to be a crystal, it will be used to train PeakNet. This function continues until the amount of 
@@ -276,8 +273,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 strrunnum = str(runnum)
             #Use the crawler to fetch a random experiment+run
             else:
-                exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
-                ####exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
+                ###exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
+                exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
                 runnum = int(strrunnum)
                 self.exp = exp
                 self.runnum = runnum
@@ -296,6 +293,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             while (j < numEvents):
 
                 self.eventNum = j
+                print("eventNum: ", self.eventNum)
 
                 # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
                 if(len(labels) >= self.batchSize):
@@ -314,11 +312,14 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 #Get Peak Info
                 peakInfo = self.getPeaks(d, alg, hdr, fmt, mask, times, env, run, j)
                 evt, nda, peaks, numPeaksFound = peakInfo[:]
+                print("numPeaksFound: ", numPeaksFound)
                 if nda is None:
-	            continue
+                    j+=1
+                    continue
 
                 #Get Likelihood
                 pairsFoundPerSpot = self.getLikelihood(d, evt, peaks, numPeaksFound)
+                print("pairsFoundPerSpot: ", pairsFoundPerSpot, self.goodLikelihood)
 
                 #If this event is a good event, save the labels to train PeakNet
                 if (pairsFoundPerSpot > self.goodLikelihood):
@@ -329,7 +330,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                         labelsForThisEvent[0] = np.append(labelsForThisEvent[0],np.array([seg]),axis = 0)
                         labelsForThisEvent[1] = np.append(labelsForThisEvent[1],np.array([row]),axis = 0)
                         labelsForThisEvent[2] = np.append(labelsForThisEvent[2],np.array([col]),axis = 0)
-	                print fmt % (seg, row, col, npix, atot)
+                    print fmt % (seg, row, col, npix, atot)
                     print ("Event Likelihood: %f" % pairsFoundPerSpot)
                     
                     # labels[0:j] corresponds to each event in labels, 
@@ -353,7 +354,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                     kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound, labelsForThisEvent)
                     #peakDB.addExpRunEventPeaks(**kwargs) #TODO: MongoDB doesnt like the numpy array
 
-                    j += 1
+                j += 1
+                print("Done ", j, numEvents)
 
             if(j >= numEvents):
                  self.useLastRun = False
@@ -405,12 +407,18 @@ class clientPeakFinder(clientAbstract.clientAbstract):
 
             self.peaknet.model.cuda()
 
+            #print("#### model.w before: ", next(self.peaknet.model.parameters())[-1,0,:,:])
+
             #Step 6: Client trains its Peaknet instance
-            a = self.peaknet.train(imgs, labels, batch_size=1, box_size = 7, use_cuda=True)
-            print(a)
+            self.peaknet.train(imgs, labels, batch_size=1, box_size = 7, use_cuda=True)
+
+            #print("#### model.w after: ", next(self.peaknet.model.parameters())[-1,0,:,:])
+            #print("#### model.grad: ", next(self.peaknet.model.parameters()).grad[-1,0,:,:])
 
             #Step 7: Client sends the new model to queen
-            socket.push(self.peaknet.model)
+            socket.push(self.peaknet.getGrad())
+
+            #print("#### model.grad push: ", next(self.peaknet.model.parameters()).grad[-1,0,:,:])
 
             #Step 8: Queen does updateGradient(new model from client)
             #Step 9: Queen Optimizes

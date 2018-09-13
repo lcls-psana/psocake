@@ -2,6 +2,7 @@ import loadClients
 import argparse
 
 #runClient takes an argument "-host", enter the master's host name
+# FIXME: remove the peak finding parameters from input argument
 parser = argparse.ArgumentParser()
 parser.add_argument("-host", help="master's host")
 parser.add_argument("-type", default = "clientPeakFinder", help="type of worker/name of plugin, e.g. clientPeakFinder")
@@ -20,6 +21,7 @@ class runClients(object):
         self.clientType = args.type
         self.filename = "databaseLocation.txt"
         self.databaseLocation = self.locateDatabase()
+        # FIXME: these kwargs belong to clientPeakFinder
         kwargs = {"npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args.amax_thr, 
               "atot_thr": args.atot_thr, "son_min" : args.son_min, "host" : args.host, "name" : args.name,
               "server" : self.databaseLocation, "dbname" : args.dbname}
@@ -41,7 +43,7 @@ class runClients(object):
         **kwargs -- arguments for peakFinding algorithm, master host name, and client name
         """
         if(self.runClient):
-            model_module_obj = loadClients.load_model(self.clientType)
+            model_module_obj = loadClients.load_module(self.clientType)
             model_module_obj.algorithm(**kwargs)
         else:
             print("Start database and rerun client")

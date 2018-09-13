@@ -38,6 +38,12 @@ class PeakDatabase:
                                         upsert = True,
                                         return_document=ReturnDocument.AFTER)
 
+    def addPeaknetModel(self):
+        pass
+
+    def returnPeaknetModel(self):
+        pass
+
     def printDatabase(self):
         """ Pretty prints each dictionary stored within the database.
         """

@@ -25,8 +25,7 @@ socket = masterSocket()
 peaknet = Peaknet()
 
 #Step 2: Queen loads DN weights
-peaknet.loadDNWeights()
-
+peaknet.loadDNWeights() # FIXME: load latest weights
 
 #Communication with clients begins.
 while (boolean):
@@ -45,10 +44,13 @@ while (boolean):
         #Step 6: Client trains its Peaknet instance
     else:
         #Step 7: Queen recieves new model from client
-        model = val
+        grads = val
         #Step 8: Queen does updateGradient(new model from client)
-        peaknet.updateGrad(model)
+        #print("###### model gradients: ", grads['models.8.bn6.weight'], type(grads))
+        peaknet.updateGrad(grads)
         #Step 9: Queen Optimizes
         peaknet.optimize()
+        #print("###### model weights: ", next(peaknet.model.parameters())[-1])
         #Step 10: Repeat Steps 3-10
-    #TODO: Every checkpoint # models, the model will be saved to MongoDB
+        model_dict = dict(peaknet.model.named_parameters())
+        #TODO: Every checkpoint # models, the model will be saved to MongoDB

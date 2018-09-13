@@ -13,9 +13,9 @@ Or:
 
 conda create --name antfarm python=2.7 pytorch=0.1.12 torchvision numpy h5py
 conda activate antfarm
-conda install --channel lcls-rhel7 psana-conda pymongo mongodb --force
+conda install --channel lcls-rhel7 psana-conda psgeom pymongo mongodb pyqtgraph scikit-image --force
 conda uninstall pytorch libtorch
-conda install pytorch cuda80 torchvision -c soumith
+conda install pytorch=0.1.12 cuda80 torchvision -c soumith
 
 
 3) cd psocake/scripts
@@ -25,7 +25,7 @@ of the terminals.
 4) In a second terminal,
 Export peaknet4antfarm paths:
 $export PYTHONPATH=/reg/neh/home/liponan/ai/peaknet4antfarm:$PYTHONPATH
-$export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo2:$PYTHONPATH
+$export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo3:$PYTHONPATH
 $cd psocake/scripts
 $python master.py
 Keep track of the master's host node name,
@@ -33,9 +33,9 @@ it will be used as an argument when running the client. (-host)
 
 5) Finally, in a third terminal,
 $export PYTHONPATH=/reg/neh/home/liponan/ai/peaknet4antfarm:$PYTHONPATH
-$export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo2:$PYTHONPATH
+$export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo3:$PYTHONPATH
 $cd psocake/scripts
-$python runClients.py -host [master host node]
+$python runClients.py -host [masterNode]
 -host is a required argument
 Use -h to read all possible arguments
 
@@ -59,11 +59,11 @@ $ cd psocake/scripts
 $export PYTHONPATH=/reg/neh/home/liponan/ai/peaknet4antfarm:$PYTHONPATH
 $export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo2:$PYTHONPATH
 - In your first psanagpu114 terminal use the following line to start a server:
-./startMongoServer.py
+$python startMongoServer.py
 - In your second psanagpu114 terminal use the following line to start your "Queen":
-python master.py
+$python master.py
 - In your psanagpu115 terminal use the following line to start a "Worker":
-python runClients.py -host psanagpu114
+$python runClients.py -host psanagpu114
 - Now there is one worker running. You may add more workers on other GPUs by running
 the previous line in a new terminal.
 
