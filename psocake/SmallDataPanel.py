@@ -47,7 +47,7 @@ class SmallData(object):
             {'name': self.quantifier_grp, 'type': 'group', 'children': [
                 {'name': self.quantifier_filename_str, 'type': 'str', 'value': self.quantifier_filename, 'tip': "Full path Hdf5 filename"},
                 {'name': self.quantifier_dataset_str, 'type': 'str', 'value': self.quantifier_dataset, 'tip': "Hdf5 dataset metric, nPeaksAll or nHitsAll"},
-                {'name': self.quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Ascending sort metric"},
+                {'name': self.quantifier_sort_str, 'type': 'bool', 'value': self.quantifier_sort, 'tip': "Descending sort metric"},
             ]},
         ]
 
@@ -122,7 +122,7 @@ class SmallData(object):
         self.quantifier_sort = data
         try:
             if self.quantifier_sort is True:
-                self.quantifierIndSorted = np.argsort(self.quantifierMetric)
+                self.quantifierIndSorted = np.argsort(self.quantifierMetric)[::-1]
                 self.quantifierMetricSorted = self.quantifierMetric[self.quantifierIndSorted]
                 #self.quantifierEventSorted = self.quantifierMetric[self.quantifierInd]
                 self.updateQuantifierPlot(self.quantifierMetricSorted)
