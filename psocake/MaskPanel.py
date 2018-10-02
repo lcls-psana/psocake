@@ -67,7 +67,6 @@ class MaskMaker(object):
         self.mask_central_str = 'central pixels'
         self.mask_unbond_str = 'unbonded pixels'
         self.mask_unbondnrs_str = 'unbonded pixel neighbors'
-        #self.mask_generous_str = 'bad readout channels'
         self.mask_tag_str = 'Tag'
         self.powder_grp = 'Generate Average Image'
         self.powder_outDir_str = 'Output directory'
@@ -87,14 +86,13 @@ class MaskMaker(object):
             self.streakMaskOn = False
             self.streak_sigma = 1
             self.streak_width = 250
-            self.psanaMaskOn = False
+            self.psanaMaskOn = True
             self.mask_calibOn = True
             self.mask_statusOn = True
             self.mask_edgesOn = True
             self.mask_centralOn = True
             self.mask_unbondOn = True
             self.mask_unbondnrsOn = True
-            #self.mask_generousOn = True
             self.mask_tag = ''
             self.display_data = None
             self.mask_rect = None
@@ -112,7 +110,7 @@ class MaskMaker(object):
             self.streakMaskOn = False
             self.streak_sigma = 1
             self.streak_width = 250
-            self.psanaMaskOn = False
+            self.psanaMaskOn = True
             self.mask_calibOn = False
             self.mask_statusOn = False
             self.mask_edgesOn = False
@@ -134,7 +132,7 @@ class MaskMaker(object):
         ###########################
         # Mask variables
         ###########################
-        self.psanaMask = None # psana mask
+        self.psanaMask = True # psana mask
         self.psanaMaskAssem = None
         self.userMask = None # user-defined mask
         self.userMaskAssem = None
@@ -347,12 +345,12 @@ class MaskMaker(object):
         self.gapAssemInd = None
         self.gapAssem = None
         self.userMaskOn = False
-        self.psanaMaskOn = False
+        self.psanaMaskOn = True
         self.streakMaskOn = False
         self.maskingMode = 0
         self.p6.param(self.mask_grp, self.user_mask_str, self.mask_mode_str).setValue(0)
         self.p6.param(self.mask_grp, self.user_mask_str).setValue(0)
-        self.p6.param(self.mask_grp, self.psana_mask_str).setValue(0)
+        self.p6.param(self.mask_grp, self.psana_mask_str).setValue(1)
         self.p6.param(self.mask_grp, self.streak_mask_str).setValue(0)
 
     def updateUserMask(self, data):
@@ -450,8 +448,6 @@ class MaskMaker(object):
             self.mask_unbondOn = data
         elif flag == self.mask_unbondnrs_str:
             self.mask_unbondnrsOn = data
-        #elif flag == self.mask_generous_str:
-        #    self.mask_generousOn = data
         self.updatePsanaMaskOn()
 
     def updatePsanaMaskOn(self):
@@ -460,8 +456,6 @@ class MaskMaker(object):
             self.psanaMask = self.parent.det.mask(self.parent.evt, calib=self.mask_calibOn, status=self.mask_statusOn,
                                            edges=self.mask_edgesOn, central=self.mask_centralOn,
                                            unbond=self.mask_unbondOn, unbondnbrs=self.mask_unbondnrsOn)
-            #if self.mask_generousOn:
-            #    self.psanaMask *= self.generousBadPixel(self.psanaMask)
             if self.psanaMask is not None:
                 self.psanaMaskAssem = self.parent.det.image(self.parent.evt, self.psanaMask)
             else:
@@ -473,17 +467,6 @@ class MaskMaker(object):
                 self.parent.labeling.drawLabels()
             except AttributeError:
                 pass
-
-
-    #def generousBadPixel(self, unassemMask, n=10):
-    #    generousBadPixelMask = unassemMask
-    #    (numAsic, numFs, numSs) = unassemMask.shape
-    #    for i in range(numAsic):
-    #        for a in range(numSs):
-    #            numBadPixels = len(np.where(unassemMask[i, :, a] == 0)[0])
-    #            if numBadPixels >= n:
-    #                generousBadPixelMask[i, :, a] = 0
-    #    return generousBadPixelMask
 
     def updateMaskTag(self, data):
         self.mask_tag = data
@@ -639,9 +622,6 @@ class MaskMaker(object):
         if self.parent.args.v >= 1: print "done makeMaskThresh!!!!!!"
 
     def makeMaskPoly(self):
-        print "Warning: pyqtgraph polyROI.getArrayRegion doesn't work. Temporariliy disable this function"
-        return
-
         self.initMask()
         if self.parent.data is not None and self.maskingMode > 0:
             calib = np.ones_like(self.parent.calib)
@@ -649,24 +629,20 @@ class MaskMaker(object):
                 img = self.parent.det.image(self.parent.evt, calib)
             elif self.parent.facility == self.parent.facilityPAL:
                 img = np.ones_like(calib)
-            # FIXME: pyqtgraph getArrayRegion doesn't work for masks with -x or -y
-            self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.win.getImageItem(), returnMappedCoords=True)
+
+            self.selected = self.mask_poly.getArrayRegion(img, self.parent.img.win.getImageItem()) #, returnMappedCoords=True)
 
             self.selected = 1 - self.selected
 
-            x = self.mask_poly.parentBounds().x()
-            y = self.mask_poly.parentBounds().y()
-            #sx = self.mask_poly.parentBounds().size().height()
-            #sy = self.mask_poly.parentBounds().size().width()
-            #print "x,y: ", x, y, self.selected.shape#, sx, sy#, self.parent.data.shape[0], self.parent.data.shape[1]
+            x = int(self.mask_poly.parentBounds().x())
+            y = int(self.mask_poly.parentBounds().y())
 
-            _mask = np.ones_like(img, dtype='int')
-            if x >= 0 and y >= 0:
-                _mask[x:x+self.selected.shape[0],y:y+self.selected.shape[1]] = self.selected
-            else:
-                print "##################################"
-                print "Polygon mask has negative indices."
-                print "##################################"
+            # _mask is size of img padded by selected
+            _mask = np.ones((img.shape[0]+2*self.selected.shape[0],img.shape[1]+2*self.selected.shape[1]), dtype='int')
+            # transfer selected onto _mask
+            _mask[x+ self.selected.shape[0]:x + 2*self.selected.shape[0], y+ self.selected.shape[1]:y + 2*self.selected.shape[1]] = self.selected
+            # remove padding
+            _mask = _mask[self.selected.shape[0]:self.selected.shape[0]+img.shape[0], self.selected.shape[1]:self.selected.shape[1]+img.shape[1]]
 
             if self.maskingMode >= 1:  # masking mode
                 self.userMaskAssem *= _mask

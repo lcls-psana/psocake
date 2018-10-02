@@ -7,6 +7,7 @@ import LaunchPeakFinder
 import json, os, time
 from database import LabelDatabase
 import runAlgorithm
+from pprint import pprint
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
@@ -67,16 +68,15 @@ class Labeling(object):
         self.shapes = None
         self.mode = self.labelParam_add_str
         self.labelParam_pluginParam = None
-        self.tag = self.parent.username
+        self.tag = None
         self.labelParam_algorithm_name = None #"adaptiveAlgorithm"
-        self.labelParam_classificationOptions_display = '' 
+        self.labelParam_loadName = '%s_%d' % (self.parent.experimentName, self.parent.runNumber)
+        self.labelParam_saveName = self.labelParam_loadName
+        self.labelParam_classificationOptions_display = ''
         self.labelParam_classificationOptions_memory = ''
-        self.labelParam_loadName = None
-        self.labelParam_saveName = '%s_%d'%(self.parent.experimentName, self.parent.runNumber)
         self.numLabelsFound = 0
         self.lastEventNumber = 0
         self.algInitDone = False
-
         self.algorithm = None
 
         if self.parent.facility == self.parent.facilityLCLS:
@@ -103,11 +103,18 @@ class Labeling(object):
         self.eventLabels = {}
         self.algorithmEvaluated = {}
 
-        self.db = LabelDatabase(self.parent.dir)
+        self.db = LabelDatabase()
 
         self.eventClassifications = {}
+        self.eventDocument = {}
+        self.eventClasses = []
 
         self.eventsSeen = []
+
+        self.eventsToDo = []
+
+        self.loadInformationFromDatabase()
+        self.loadClassificationsFromDatabase()
 
         self.updateMenu()
 
@@ -222,6 +229,10 @@ class Labeling(object):
     def updateClassificationOptions(self, data):
         self.labelParam_classificationOptions_display = data
         self.labelParam_classificationOptions_memory = self.splitWords(data, " ")
+        classes = {
+            "classes": self.labelParam_classificationOptions_memory
+        }
+        self.postClassificationOptions(classes)
 
     def updateTag(self, data):
         """ updates Tag for directory
@@ -230,7 +241,6 @@ class Labeling(object):
         data - tag name
         """
         self.tag = data
-        print(self.labelParam_saveName + "_" + data)
 
     def updateParametersOnMenu(self):
         return self.labelParam_pluginParam
@@ -322,8 +332,6 @@ class Labeling(object):
         """
         if(self.mode == "Add"):
             self.createROI(x,y, coords, w,h,d)
-        elif(self.mode == "Remove"):
-            pass
         self.saveInformationToDatabase()
 
     def createROI(self,x,y,coords = [], w = 8, h = 8, d = 9, algorithm = False, color = 'm'):
@@ -511,7 +519,7 @@ class Labeling(object):
             # Compute
             if self.labelParam_algorithm_name == 0: # No algorithm
                 self.centers = None
-                self.drawCenters()
+                self.parent.geom.drawCentre()
             else:
                 if self.parent.facility == self.parent.facilityLCLS:
                     # Only initialize the hit finder algorithm once
@@ -535,13 +543,10 @@ class Labeling(object):
                 elif self.parent.facility == self.parent.facilityPAL:
                     pass
                 if self.parent.args.v >= 1: print "Labels found: ", self.centers
-                self.drawCenters()
+                self.parent.geom.drawCentre()
+
             if self.parent.args.v >= 1: print "Done updateAlgorithm"
         if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.labelParam_algorithm_name
-
-    def drawCenters(self):
-        if self.parent.args.v >= 1: print "Done drawCenters"
-        self.parent.geom.drawCentre()
 
     def assembleLabelPos(self, label):
         """ Determine position of labels from an algorithm
@@ -597,17 +602,29 @@ class Labeling(object):
     ##############################
 
     def loadInformationFromDatabase(self):
-        if self.labelParam_loadName is not None:
-            self.getDatabasePost(self.labelParam_loadName)
-            self.loadLabelsFromDatabase()
-            self.loadClassificationsFromDatabase()
-        else:
-            pass
+        # Load classes if exists
+        result = self.db.poster.find({"classes": {"$exists": True}})
+        if result.count() == 1:
+            self.eventClasses = result[0]["classes"]
+        # Update GUI
+        self.labelParam_classificationOptions_display = ' '.join(self.eventClasses)
+        self.labelParam_classificationOptions_memory = self.splitWords(self.labelParam_classificationOptions_display,
+                                                                       " ")
+        # Load current class if exists
+
+
+        #if self.labelParam_loadName is not None:
+        #    self.getDatabasePost(self.labelParam_loadName)
+        #    if self.databasePost is not None:
+        #        self.loadLabelsFromDatabase()
+        #        self.loadClassificationsFromDatabase()
+        #else:
+        #    pass
 
     def saveInformationToDatabase(self):
         self.saveLabelsFromEvent(self.parent.eventNumber)
         self.postLabels()
-        self.postClassifications()
+        #self.postClassifications()
 
     def grabTag(self,loadName):
         if loadName is not None:
@@ -658,13 +675,15 @@ class Labeling(object):
                     print("Cant use this type: %s" % type(roi))
             translatedEventLabels["%s"%event]["User"] = {"Polygons" : polyAttributes, "Circles" : circleAttributes, "Rectangles" : rectAttributes}
         translatedEventLabels.update(unseenEvents)
+        pprint(translatedEventLabels)
         return translatedEventLabels
 
     def postLabels(self):
         """ Post a set of labels to MongoDB
         """
         string = "Label"
-        self.db.post(self.attachTag(), string, self.saveLabelsToDictionary())
+        self.saveLabelsToDictionary()
+        #self.db.post(self.attachTag(), string, self.saveLabelsToDictionary())
 
     def checkLoadEvents(self):
         unseenEvents = {}
@@ -685,9 +704,14 @@ class Labeling(object):
         Arguments:
         loadName - name of the saved set of labels
         """
-        self.databasePost = self.db.findPost(loadName)[loadName]
-        self.grabTag(loadName)
-        self.checkLabeledOrClassifiedEventsFromDatabase()
+        post = self.db.findPost(loadName)
+        if post is not None:
+            self.databasePost = self.db.findPost(loadName)[loadName]
+            self.grabTag(loadName)
+            self.checkLabeledOrClassifiedEventsFromDatabase()
+        else:
+            print("Warning: No database, mostly likely reset by someone")
+            self.databasePost = None
 
     def loadLabelsFromDatabase(self):
         """Load a saved set of labels from MongoDB
@@ -714,7 +738,6 @@ class Labeling(object):
             print("Invalid Load Name")
         except KeyError:
             print("Labels Do Not Exist For This Event")
-    
 
     def loadRectangleFromDatabase(self, x, y, w, h, color):
         """ Used to draw labels on an image based on locations saved
@@ -816,6 +839,25 @@ class Labeling(object):
         self.eventLabels["%d"%eventNum]["Algorithm"] = list(tuple(set(self.eventLabels["%d"%eventNum]["Algorithm"])))
         self.eventLabels["%d"%eventNum]["User"] = list(tuple(set(self.eventLabels["%d"%eventNum]["User"])))
 
+        self.eventLabelsDocument = {
+            'exp' : self.parent.experimentName,
+            'run' : self.parent.runNumber,
+            'event' : self.parent.eventNumber,
+            'user' : self.parent.username,
+            'algorithm' : [],
+            'label' : []
+        }
+        for roi in self.algRois:
+            self.eventLabelsDocument["algorithm"].append(roi)
+        for roi in self.rectRois:
+            self.eventLabelsDocument["label"].append(roi)
+        for roi in self.circleRois:
+            self.eventLabelsDocument["label"].append(roi)
+        for roi in self.polyRois:
+            self.eventLabelsDocument["label"].append(roi)
+        print("labelsDoc:")
+        pprint(self.eventLabelsDocument)
+
     def checkLabels(self):
         """ If an algorithm has been used to load labels for the current
         event, then checkLabels returns True, otherwise, it returns
@@ -870,41 +912,60 @@ class Labeling(object):
         """ When an event changes, First save the labels from the previous
         event, remove them from the screen, then load the next labels.
         """
-        self.saveLabelsFromEvent(self.lastEventNumber)
-        self.removeLabels()
-        self.loadLabelsEventChange()
-        self.saveEventNumber()
-        self.updateText()
+        print("!!!! actionEventChange")
+        #if not self.eventsToDo: self.initEventsToDo()
+        #self.saveLabelsFromEvent(self.lastEventNumber)
+        #self.removeLabels()
+        #self.loadLabelsEventChange()
+        #self.saveEventNumber()
         self.loadInformationFromDatabase()
+        self.loadClassificationsFromDatabase()
+        self.updateText()
 
     ##############################
     #       Classification       #
     #    Database  Functions     #
     ##############################
 
-    def postClassifications(self):
+    def postClassificationOptions(self, data):
+        """ Post a set of classes to MongoDB
+        """
+        self.db.postClasses(data)
+
+    def postClassifications(self, data):
         """ Post a set of labels to MongoDB
         """
-        string = "Classification"
-        self.db.post(self.labelParam_saveName, string, self.returnClassificationsDictionary())
-        #self.db.printDatabase()
+        self.db.post(data)
 
     def returnClassificationsDictionary(self):
         """ First adds the options for classifications (based on user input to field)
         to the eventClassifications dictionary, and next returns the eventClassifications
         dictionary.
         """
-        self.eventClassifications["Options"] = self.labelParam_classificationOptions_memory
+        self.eventClassifications["classes"] = self.labelParam_classificationOptions_memory
         return self.eventClassifications
 
     def loadClassificationsFromDatabase(self):
-        try:
-            self.eventClassifications = self.databasePost["Classification"]
-            self.labelParam_classificationOptions_display = ' '.join(self.eventClassifications["Options"])
-        except TypeError:
-            print("Invalid Load Name")
-        except KeyError:
-            print("Classifications Do Not Exist For This Event")
+        cursor = self.db.poster.find({'$and': [{'user': self.parent.username},
+                                               {'exp': self.parent.experimentName},
+                                               {'run': self.parent.runNumber},
+                                               {'event': self.parent.eventNumber}]})
+        if cursor.count() == 1:
+            self.eventDocument = cursor[0]
+        else:
+            self.eventDocument = {}
+        print("loadClass: ", self.eventDocument)
+
+        #try:
+        #    self.eventClasses = self.db["classes"]
+        #    print("$$ loadClassificationsFromDatabase: ", self.eventClasses)
+        #    self.eventClassifications = self.databasePost["classifications"]
+        #    self.labelParam_classificationOptions_display = ' '.join(self.eventClassifications["classes"])
+        #    self.labelParam_classificationOptions_memory = self.splitWords(self.labelParam_classificationOptions_display, " ")
+        #except TypeError:
+        #    print("Invalid Load Name")
+        #except KeyError:
+        #    print("Classifications Do Not Exist For This Event")
         self.updateText()
 
     ##############################
@@ -944,14 +1005,14 @@ class Labeling(object):
         are already labeled. These events can be removed from the "queue"
         so that a user would skip over these events.
         """
-        options = ["Classification", "Label"]
-        for option in options:
-            if option in self.databasePost:
-                for event in self.databasePost[option]:
-                    try:
-                        self.eventsToDo.remove(int(event))
-                    except ValueError:
-                        pass
+        for option in self.databasePost:
+            print("option avail: ", option)
+            for event in self.databasePost[option]:
+                print("event: ", event)
+                try:
+                    self.eventsToDo.remove(int(event))
+                except ValueError:
+                    pass
         
 
     ##############################
@@ -992,16 +1053,25 @@ class Labeling(object):
 
         Arguments:
         val - value associated with number key
+        username - user ID who provided the label
         """
-        if("%d"%self.parent.eventNumber) in self.eventClassifications:
-            pass
-        else:
-            self.eventClassifications["%d"%self.parent.eventNumber] = []
-        if val in self.eventClassifications["%d"%self.parent.eventNumber]:
-            self.eventClassifications["%d"%self.parent.eventNumber].remove(val)
-        else:
-            self.eventClassifications["%d"%self.parent.eventNumber].append(val)
-        self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
+        self.eventDocument = {
+            'exp' : self.parent.experimentName,
+            'run' : self.parent.runNumber,
+            'event' : self.parent.eventNumber,
+            'user' : self.parent.username,
+            'class' : val
+        }
+
+        #if("%d"%self.parent.eventNumber) in self.eventClassifications:
+        #    pass
+        #else:
+        #    self.eventClassifications["%d"%self.parent.eventNumber] = []
+        #if val in self.eventClassifications["%d"%self.parent.eventNumber]:
+        #    self.eventClassifications["%d"%self.parent.eventNumber].remove(val)
+        #else:
+        #    self.eventClassifications["%d"%self.parent.eventNumber].append(val)
+        #self.eventClassifications["%d"%self.parent.eventNumber] = list(tuple(set(self.eventClassifications["%d"%self.parent.eventNumber])))
         self.updateText()
 
     def updateText(self):
@@ -1017,24 +1087,27 @@ class Labeling(object):
             yMargin = 0 # pixels
             maxX = np.max(self.ix) + xMargin
             maxY = np.max(self.iy) - yMargin
-            if(("%d"%self.parent.eventNumber) in self.eventClassifications):
-                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications=' + \
-                            ' <br>' + (' '.join(self.eventClassifications["%d"%self.parent.eventNumber])) + \
-                            '<br></span></div>'
+            #if(("%d"%self.parent.eventNumber) in self.eventClassifications):
+            tmp = []
+            if "class" in self.eventDocument:
+                tmp = self.eventDocument["class"]
             else:
-                myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications='+ \
-                            '<br></span></div>'
+                tmp = 'None'
+            myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications=' + \
+                        ' <br>' + tmp + \
+                        '<br></span></div>'
+            #else:
+            #    myMessage = '<div style="text-align: center"><span style="color: cyan; font-size: 12pt;">Classifications='+ \
+            #                ' <br>' + 'None' + \
+            #                '<br></span></div>'
             self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
             self.parent.img.win.getView().addItem(self.parent.img.peak_text)
             self.parent.img.peak_text.setPos(maxX, maxY)
         except AttributeError:
+            print("No displayText")
             pass
 
     def clearText(self):
         self.parent.img.clearPeakMessage()
         #self.parent.img.peak_text = pg.TextItem(html='', anchor=(0, 0))
         #self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-
-
-#BUGS TO FIX:
-#TODO: Fix bug to always show text with event changes -- tricky, not sure why this isnt working...

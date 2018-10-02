@@ -44,8 +44,8 @@ class ImageControl(object):
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
             self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
-
-
+        if 'label' in self.parent.args.mode:
+            self.parent.labeling.updateText()
 
     def prevEvt(self):
         self.parent.eventNumber -= 1
@@ -55,6 +55,8 @@ class ImageControl(object):
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
             self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
+        if 'label' in self.parent.args.mode:
+            self.parent.labeling.updateText()
 
     def save(self):
         output = self.parent.psocakeRunDir+"/psocake_"+str(self.parent.experimentName)+"_"+str(self.parent.runNumber)+"_"+str(self.parent.detInfo)+"_" \
@@ -89,7 +91,8 @@ class ImageControl(object):
         #self.parent.pk.userUpdate = None
         self.parent.img.updateImage(self.parent.calib)
         self.parent.pk.updateClassification()
-        self.parent.label.updateText()
+        if 'label' in self.parent.args.mode:
+            self.parent.label.updateText()
 
 
 

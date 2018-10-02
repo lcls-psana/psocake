@@ -683,6 +683,8 @@ class DiffractionGeometry(object):
                 self.updateRings()
                 self.parent.index.updateIndex()
                 self.drawCentre()
+                # Show mask
+                self.parent.mk.updatePsanaMaskOn()
             elif self.parent.facility == self.parent.facilityPAL:
                 print "deploy::geom = ", self.parent.psocakeRunDir + '/.temp.geom'
                 # deploy CrystFEL geometry
@@ -714,6 +716,8 @@ class DiffractionGeometry(object):
                 self.updateRings()
                 self.parent.index.updateIndex()
                 self.drawCentre()
+                # Show mask
+                self.parent.mk.updatePsanaMaskOn()
 
     def autoDeploy(self):
         if self.parent.facility == self.parent.facilityLCLS:
@@ -772,5 +776,7 @@ class DiffractionGeometry(object):
                     self.updateRings()
                     self.parent.index.updateIndex()
                     self.drawCentre()
+                    # Show mask
+                    self.parent.mk.updatePsanaMaskOn()
         elif self.parent.facility == self.parent.facilityPAL:
             print "autoDeploy is not implemented for PAL"

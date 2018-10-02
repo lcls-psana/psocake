@@ -126,7 +126,7 @@ class CrystalIndexing(object):
                     {'name': self.index_tolerance_str, 'type': 'str', 'value': self.tolerance,
                      'tip': "Indexing tolerance, default: 5,5,5,1.5"},
                     {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
-                     'tip': "Other indexing parameters"},
+                     'tip': "Other indexing parameters, comma separated (e.g. --multi,--no-check-peaks)"},
                     {'name': self.index_condition_str, 'type': 'str', 'value': self.condition,
                      'tip': "indexing condition e.g. 41 in #evr1# and #eventNumber# > 3"},
                 ]},
@@ -159,7 +159,7 @@ class CrystalIndexing(object):
                     {'name': self.index_tolerance_str, 'type': 'str', 'value': self.tolerance,
                      'tip': "Indexing tolerance, default: 5,5,5,1.5"},
                     {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
-                     'tip': "Other indexing parameters"},
+                     'tip': "Other CrystFEL indexing parameters"},
                 ]},
                 {'name': self.launch_grp, 'type': 'group', 'children': [
                     {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
@@ -237,6 +237,8 @@ class CrystalIndexing(object):
                 self.parent.geom.updateRings()
                 self.parent.index.updateIndex()
                 self.parent.geom.drawCentre()
+                # Show mask
+                self.parent.mk.updatePsanaMaskOn()
         elif self.parent.facility == self.parent.facilityPAL:
             print "deploy crystfel geom is not implemented for PAL"
 
@@ -324,7 +326,7 @@ class CrystalIndexing(object):
         self.updateIndex()
 
     def updateExtra(self, data):
-        self.extra = data
+        self.extra = data.replace(" ","")
         self.updateIndex()
 
     def updateCondition(self, data):
@@ -634,7 +636,9 @@ class IndexHandler(QtCore.QThread):
                       " -o " + self.parent.index.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
                       self.runNumber).zfill(4) + " --tolerance=" + str(self.tolerance)
                 if self.pdb: cmd += " --pdb=" + self.pdb
-                if self.extra: cmd += " " + self.extra
+                if self.extra:
+                    _extra = self.extra.replace(",", " ")
+                    cmd += " " + _extra
 
                 print "cmd: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

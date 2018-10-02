@@ -191,6 +191,9 @@ class ImageViewer(object):
         if 'sfx' in self.parent.args.mode and self.parent.pk.userUpdate is None:
             self.parent.pk.updateParam()
 
+        if 'label' in self.parent.args.mode:
+            self.parent.labeling.updateText()
+
         if self.parent.args.v >= 1: print "Done updateImage"
 
     def getCalib(self, evtNumber):

@@ -162,12 +162,11 @@ class SmallData(object):
             if self.quantifier_sort:
                 ind = self.quantifierIndSorted[ind]
 
-            # temp
-            self.parent.eventNumber = self.quantifierEvent[ind]
-
-            self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
-            self.parent.img.win.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
-            self.parent.exp.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
+            if self.parent.eventNumber != self.quantifierEvent[ind]:
+                self.parent.eventNumber = self.quantifierEvent[ind]
+                self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
+                self.parent.img.win.setImage(self.parent.data, autoRange=False, autoLevels=False, autoHistogramRange=False)
+                self.parent.exp.p.param(self.parent.exp.exp_grp, self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
 
     def showPeakogram(self):
         if os.path.isfile(self.quantifier_filename):

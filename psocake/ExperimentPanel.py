@@ -210,6 +210,7 @@ class ExperimentInfo(object):
             elif path[1] == self.exp_evt_str and len(path) == 2 and change is 'value':
                 self.updateEventNumber(data)
                 if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
+                if self.parent.args.mode == 'label': self.parent.labeling.updateText()
         elif path[0] == self.disp_grp:
             if path[1] == self.disp_log_str:
                 self.updateLogscale(data)
@@ -257,7 +258,6 @@ class ExperimentInfo(object):
         self.parent.hasExperimentName = True
         self.parent.detInfoList = None
         self.resetVariables()
-
         if self.parent.doneInit and self.hasExpRunDetInfo():
             # Setup elog
             self.setupRunTable()
@@ -287,6 +287,8 @@ class ExperimentInfo(object):
             self.getEventAndDisplay()
             # Indicate centre of detector
             self.parent.geom.drawCentre()
+            # Show mask
+            self.parent.mk.updatePsanaMaskOn()
 
         #self.parent.detInfoList = None
 
@@ -310,10 +312,6 @@ class ExperimentInfo(object):
 
             if self.parent.doneInit and self.hasExpRunInfo():
                 self.getDatasource()
-
-
-
-
                 self.printDetectorNames()
 
                 if self.hasExpRunDetInfo():
@@ -344,6 +342,8 @@ class ExperimentInfo(object):
                     self.getEventAndDisplay()
                     # Indicate centre of detector
                     self.parent.geom.drawCentre()
+                    # Show mask
+                    self.parent.mk.updatePsanaMaskOn()
 
         if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
 
@@ -384,6 +384,8 @@ class ExperimentInfo(object):
             self.getEventAndDisplay()
             # Indicate centre of detector
             self.parent.geom.drawCentre()
+            # Show mask
+            self.parent.mk.updatePsanaMaskOn()
 
         #if self.parent.doneInit:
         #    self.setupDetGeom()
@@ -440,7 +442,7 @@ class ExperimentInfo(object):
 
     def updateEventNumber(self, data):
         self.parent.eventNumber = data
-        if self.parent.labeling is not None: 
+        if self.parent.args.mode == 'label' and self.parent.labeling is not None:
             self.parent.labeling.labels = None
             self.parent.labeling.numLabelsFound = 0
         self.parent.pk.peaks = None
@@ -453,7 +455,8 @@ class ExperimentInfo(object):
         if self.parent.doneInit and self.hasExpRunDetInfo():
             self.getEventAndDisplay()
 
-        if self.parent.labeling is not None: self.parent.labeling.actionEventChange()
+        if self.parent.args.mode == 'label' and self.parent.labeling is not None:
+            self.parent.labeling.actionEventChange()
 
         if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 
@@ -857,7 +860,8 @@ class ExperimentInfo(object):
     def setupTotalEvents(self):
         if self.parent.facility == self.parent.facilityLCLS:
             self.eventTotal = len(self.times)
-            if self.parent.labeling is not None: self.parent.labeling.initEventsToDo()
+            if self.parent.args.mode == 'label' and self.parent.labeling is not None:
+                self.parent.labeling.initEventsToDo()
             self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
             self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
             self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
@@ -998,6 +1002,8 @@ class ExperimentInfo(object):
             self.getEventAndDisplay()
             # Indicate centre of detector
             self.parent.geom.drawCentre()
+            # Show mask
+            self.parent.mk.updatePsanaMaskOn()
 
         if self.parent.args.v >= 1: print "Done setupExperiment"
 

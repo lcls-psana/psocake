@@ -163,7 +163,6 @@ if facility == 'LCLS':
                     print '*** failed to get detarr'
                     continue
                 if args.threshold is not None:
-                    print "Applying threshold: ", args.threshold
                     detarr[detarr < args.threshold] = 0
                 d.stats.update(detarr)
                 nevent+=1

@@ -17,7 +17,7 @@ import sys
 import MousePanel, ImagePanel, ImageStackPanel
 import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
-import SmallDataPanel, ImageControlPanel, LabelingPanel
+import SmallDataPanel, ImageControlPanel
 import HitFinderPanel
 
 parser = argparse.ArgumentParser()
@@ -50,6 +50,8 @@ parser.add_argument("--noInfiniband", action='store_true', help="Do not use infi
 parser.add_argument("--debug", action='store_true', help="Debug mode of PAL at LCLS.")
 args = parser.parse_args()
 
+if 'label' in args.mode: import LabelingPanel
+
 class Window(QtGui.QMainWindow):
     global ex
 
@@ -61,46 +63,7 @@ class Window(QtGui.QMainWindow):
 
     def keyPressEvent(self, event):
         super(Window, self).keyPressEvent(event)
-        if args.mode == "all":
-            if type(event) == QtGui.QKeyEvent:
-                path = ["", ""]
-                if event.key() == QtCore.Qt.Key_1:
-                    path[1] = "Single"
-                    data = True
-                    if ex.evtLabels.labelA == True : data = False
-                    ex.evtLabels.paramUpdate(path, data)
-                elif event.key() == QtCore.Qt.Key_2:
-                    path[1] = "Multi"
-                    data = True
-                    if ex.evtLabels.labelB == True : data = False
-                    ex.evtLabels.paramUpdate(path, data)
-                elif event.key() == QtCore.Qt.Key_3:
-                    path[1] = "Dunno"
-                    data = True
-                    if ex.evtLabels.labelC == True : data = False
-                    ex.evtLabels.paramUpdate(path, data)
-                elif event.key() == QtCore.Qt.Key_Period:
-                    if ex.small.w9.getPlotItem().listDataItems() != []:
-                        idx = -1
-                        array = np.where(ex.small.quantifierEvent >= ex.eventNumber)
-                        if array[0].size != 0:
-                            idx = array[0][0]
-                            if ex.small.quantifierEvent[idx] == ex.eventNumber: idx += 1
-                            if idx < (ex.small.quantifierEvent.size): self.previewEvent(ex.small.quantifierEvent[idx])
-                elif event.key() == QtCore.Qt.Key_N:
-                    if ex.eventNumber < (ex.exp.eventTotal - 1): self.previewEvent(ex.eventNumber+1)
-                elif event.key() == QtCore.Qt.Key_Comma:
-                    if ex.small.w9.getPlotItem().listDataItems() != []:
-                        idx = -1
-                        array = np.where(ex.small.quantifierEvent <= ex.eventNumber)
-                        if array[0].size != 0:
-                            idx = array[0][array[0].size - 1]
-                            if ex.small.quantifierEvent[idx] == ex.eventNumber: idx -= 1
-                            if ex.small.quantifierEvent[idx] != 0: self.previewEvent(ex.small.quantifierEvent[idx])
-                elif event.key() == QtCore.Qt.Key_P:
-                    if ex.eventNumber != 0: self.previewEvent(ex.eventNumber-1)
-                ex.evtLabels.refresh()
-        elif args.mode == "label":
+        if args.mode == "label":
             if type(event) == QtGui.QKeyEvent:
                 numberKeys = [QtCore.Qt.Key_1, QtCore.Qt.Key_2, QtCore.Qt.Key_3,
                               QtCore.Qt.Key_4, QtCore.Qt.Key_5, QtCore.Qt.Key_6, 
@@ -108,7 +71,10 @@ class Window(QtGui.QMainWindow):
                 for i,key in enumerate(numberKeys):
                     if event.key() == key:
                         try:
+                            # Generate a new eventDocument
                             ex.labeling.keyPressed(ex.labeling.labelParam_classificationOptions_memory[i])
+                            # Post eventDocument to database
+                            ex.labeling.postClassifications(ex.labeling.eventDocument)
                         except IndexError:
                             print("Key %d does not correspond to classification"%(i+1))
 
@@ -227,7 +193,8 @@ class MainFrame(QtGui.QWidget):
         self.small = SmallDataPanel.SmallData(self)
         self.control = ImageControlPanel.ImageControl(self)
         self.hf = HitFinderPanel.HitFinder(self)
-        self.labeling = LabelingPanel.Labeling(self)
+        if 'label' in args.mode:
+            self.labeling = LabelingPanel.Labeling(self)
 
         self.scheme()
 
@@ -404,7 +371,6 @@ class MainFrame(QtGui.QWidget):
         # Making powder patterns
         self.thread = []
         self.threadCounter = 0
-
         # Initial setup of input parameters
         if self.experimentName is not "":
             self.exp.p.param(self.exp.exp_grp, self.exp.exp_name_str).setValue(self.experimentName)
@@ -417,7 +383,6 @@ class MainFrame(QtGui.QWidget):
             self.exp.updateDetInfo(self.detInfo)
         self.exp.p.param(self.exp.exp_grp, self.exp.exp_evt_str).setValue(self.eventNumber)
         self.exp.updateEventNumber(self.eventNumber)
-
         if self.exp.hasExpRunInfo():
             # Setup elog
             self.exp.setupRunTable()
@@ -438,9 +403,12 @@ class MainFrame(QtGui.QWidget):
             self.exp.setupDetGeom()
             self.img.updateDetectorCentre(self.facility)
             self.exp.getEventAndDisplay()
-
         # Indicate centre of detector
         self.geom.drawCentre()
+        # Show mask
+        self.mk.updatePsanaMaskOn()
+
+        if self.args.mode == 'label': self.labeling.updateText()
 
         self.doneInit = True
 
@@ -485,7 +453,7 @@ class MainFrame(QtGui.QWidget):
                 # Mouse click
                 if indexX >= 0 and indexX < self.data.shape[0] \
                         and indexY >= 0 and indexY < self.data.shape[1]:
-                    if self.labeling is not None:
+                    if self.labeling is not None and self.args.mode == 'label':
                         self.labeling.action(indexX,indexY, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
                     print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]
                     if self.mk.maskingMode > 0:
