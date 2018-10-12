@@ -15,6 +15,10 @@ import clientAbstract
 from clientSocket import clientSocket
 from peakDatabase import PeakDatabase
 
+from scipy import signal as sg
+from skimage.measure import label, regionprops
+from skimage import morphology
+
 class clientPeakFinder(clientAbstract.clientAbstract):
 
     #Intialize variables
@@ -46,11 +50,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
     peaknet.loadDNWeights()
     print("Loaded arbitrary weights!")
     #Step 2: Client loads arbitrary DN weights and connects to GPU
-    print("Connecting to GPU... this may take a few minutes")
+    print("Connecting to GPU...")
     peaknet.model.cuda()
     print("Connected!")
 
-    # @Abstract method
+    # @Abstract method (this is the only required method for a plugin)
     def algorithm(self, **kwargs):
         """ Initialize the peakfinding algorithim with keyword 
         arguments given by the user, then run the peakfinding 
@@ -59,6 +63,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         Arguments:
         **kwargs -- a dictionary of arguments containing peakfinding parameters
         """
+        print("In clientPeakFinder algorithm")
         npxmin = kwargs["npix_min"]
         npxmax = kwargs["npix_max"]
         amaxthr = kwargs["amax_thr"]
@@ -66,7 +71,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         sonmin = kwargs["son_min"]
         alg = PyAlgos(mask = None, pbits = 0)
         alg.set_peak_selection_pars(npix_min=npxmin, npix_max=npxmax, amax_thr=amaxthr, atot_thr=atotthr, son_min=sonmin) #(npix_min=2, npix_max=30, amax_thr=300, atot_thr=600, son_min=10)
-        self.runClient(alg, **kwargs)
+        self.run(alg, **kwargs)
 
     def createDictionary(self, exp, runnum, event, peaks, labels):
         """Create a dictionary that holds the important information of events with crystals
@@ -138,8 +143,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         ds = psana.DataSource('exp=%s:run=%d:idx'%(exp,runnum))
         d = psana.Detector(det)
         d.do_reshape_2d_to_3d(flag=True)
-        hdr = '\nSeg  Row  Col  Npix    Amptot'
-        fmt = '%3d %4d %4d  %4d  %8.1f'
+        hdr = '\nClass  Seg  Row  Col  Height  Width  Npix    Amptot'
+        fmt = '%5d %4d %4d %4d  %6d %6d %5d  %8.1f'
         run = ds.runs().next()
         times = run.times()
         env = ds.env()
@@ -168,10 +173,10 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         except TypeError:
             nda = d.calib(evt)
         if (nda is not None):
-            peaks = alg.peak_finder_v3r3(nda, rank=3, r0=3, dr=2, nsigm =5)
+            peaks = alg.peak_finder_v3r3(nda, rank=3, r0=3, dr=2, nsigm =10)
             numPeaksFound = len(peaks)
-            alg = PA()
-            thr = 20
+            #alg = PA()
+            #thr = 20
             return [evt, nda, peaks, numPeaksFound]
         else:
             return[None,None,None,None]
@@ -215,12 +220,87 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         else:
             return 0
 
+    def getStreaks(self, det, times, run, j):
+        """Finds peaks within an event, and returns the event information, peaks found, and hits found
+
+        Arguments:
+        det -- psana.Detector() of this experiment's detector
+        times -- all the events for this run
+        run -- ds.runs().next(), the run information
+        j -- this event's number
+
+        """
+        evt = run.event(times[j])
+
+        width = 300  # crop width
+        sigma = 1
+        smallObj = 15 # delete streaks if num pixels less than this
+        calib = det.calib(evt)
+        if calib is None:
+            return [None, None, None]
+        img = det.image(evt, calib)
+
+        # Edge pixels
+        edgePixels = np.zeros_like(calib)
+        for i in range(edgePixels.shape[0]):
+            edgePixels[i, 0, :] = 1
+            edgePixels[i, -1, :] = 1
+            edgePixels[i, :, 0] = 1
+            edgePixels[i, :, -1] = 1
+        imgEdges = det.image(evt, edgePixels)
+
+        # Crop centre of image
+        (ix, iy) = det.point_indexes(evt)
+        halfWidth = int(width // 2)  # pixels
+        imgCrop = img[ix - halfWidth:ix + halfWidth, iy - halfWidth:iy + halfWidth]
+        imgEdges = imgEdges[ix - halfWidth:ix + halfWidth, iy - halfWidth:iy + halfWidth]
+        myInd = np.where(imgEdges == 1)
+
+        # Blur image
+        imgBlur = sg.convolve(imgCrop, np.ones((2, 2)), mode='same')
+        mean = imgBlur[imgBlur > 0].mean()
+        std = imgBlur[imgBlur > 0].std()
+
+        # Mask out pixels above 1 sigma
+        mask = imgBlur > mean + sigma * std
+        mask = mask.astype(int)
+        signalOnEdge = mask * imgEdges
+        mySigInd = np.where(signalOnEdge == 1)
+        mask[myInd[0].ravel(), myInd[1].ravel()] = 1
+
+        # Connected components
+        myLabel = label(mask, neighbors=4, connectivity=1, background=0)
+        # All pixels connected to edge pixels is masked out
+        myMask = np.ones_like(mask)
+        myParts = np.unique(myLabel[myInd])
+        for i in myParts:
+            myMask[np.where(myLabel == i)] = 0
+
+        # Delete edges
+        myMask[myInd] = 1
+        myMask[mySigInd] = 0
+
+        # Delete small objects
+        myMask = morphology.remove_small_objects(np.invert(myMask.astype('bool')), smallObj)
+
+        # Convert assembled to unassembled
+        wholeMask = np.zeros_like(img)
+        wholeMask[ix - halfWidth:ix + halfWidth, iy - halfWidth:iy + halfWidth] = myMask
+        calibMask = det.ndarray_from_image(evt, wholeMask)
+        streaks = []
+        for i in range(calib.shape[0]):
+            for j in regionprops(calibMask[i].astype('int')):
+                xmin, ymin, xmax, ymax = j.bbox
+                print i, xmin, ymin, xmax - xmin, ymax - ymin
+                streaks.append([i, ymin, xmin, ymax - ymin, xmax - xmin])
+        return [evt, calib, streaks]
+
     def evaluateRun(self, alg, peakDB):
-        """ Finds a random experiment run, finds peaks, and determines likelihood of events. If an event is
+        """ Finds a random experiment run, finds peaks, and determines likelihood of crystal event. If an event is
         likely to be a crystal, it will be used to train PeakNet. This function continues until the amount of 
         events found is equal to the batchSize.
        
-        return the list peaks in good events,  the list of corresponding images for the good events, 
+        return the list of peaks in good events,  the list of corresponding images for the good events,
         the total number of peaks found by this function, and the total number of hits found 
         """
         # Will be psana.Detector(det)
@@ -251,13 +331,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         currentTime = clientBeginTime 
 
         #How long the client has been running for
-        runTime = (currentTime - clientBeginTime)
+        runTime = 0
 
         while True:
             #Time when the client began working on this event, used in print statement only
             beginTimeForThisEvent = time.time()
-
-            runTime = (currentTime - clientBeginTime)
 
             # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
             if(len(labels) >= self.batchSize):
@@ -266,23 +344,18 @@ class clientPeakFinder(clientAbstract.clientAbstract):
 
             #Keep working on the previous experiment/run
             if((self.useLastRun) and (self.exp is not None)): #TODO: dont redo information functions
-                j = self.eventNum
                 exp = self.exp
                 runnum = self.runnum
                 det = self.det
-                strrunnum = str(runnum)
             #Use the crawler to fetch a random experiment+run
             else:
-                ###exp, strrunnum, det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
-                exp, strrunnum, det = ["cxif5315", "0128", "DsaCsPad"] #A good run to use to quickly test if the client works
-                runnum = int(strrunnum)
-                self.exp = exp
-                self.runnum = runnum
-                self.det = det
-                j = 0
+                self.exp, self.runnum, self.det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
+                #self.exp, self.runnum, self.det = ["cxif5315", 128, "DsaCsPad"] #A good run to use to quickly test if the client works
+                #self.exp, strrunnum, self.det = ["cxitut13", "0010", "DscCsPad"]  # A good run to use to quickly test if the client works
+                self.eventNum = 0
 
-            print("\nExperiment: %s, Run: %s, Detector: %s"%(exp, strrunnum, det))
-            eventInfo = self.getDetectorInformation(exp, runnum, det)
+            print("\nExperiment: %s, Run: %s, Detector: %s"%(self.exp, str(self.runnum), self.det))
+            eventInfo = self.getDetectorInformation(self.exp, self.runnum, self.det)
             d, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
             print("%d Events to find peaks on"%numEvents)
 
@@ -290,54 +363,76 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             # If less than 3 in the first 1000 events, this run is skipped
             numGoodEventsInThisRun = 0
             #Peak find for each event in an experiment+run
-            while (j < numEvents):
+            while (self.eventNum < numEvents):
 
-                self.eventNum = j
                 print("eventNum: ", self.eventNum)
 
                 # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
                 if(len(labels) >= self.batchSize):
                     self.useLastRun = True
+                    print("1")
                     break
 
                 #If the amount of good events found is less than minEvents before the eventLimit, then 
                 #stop and try peak finding on a new experiment+run
-                if((j >= self.eventLimit) and (numGoodEventsInThisRun < self.minEvents)):
+                if((self.eventNum >= self.eventLimit) and (numGoodEventsInThisRun < self.minEvents)):
                     self.useLastRun = False
+                    print("2")
                     break
 
-                # [[list of segments], [list of rows], [list of columns]] ... labelsForThisEvent[0:2][0] corresponds to one label
-                labelsForThisEvent = [np.array([]),np.array([]),np.array([])]
-
-                #Get Peak Info
-                peakInfo = self.getPeaks(d, alg, hdr, fmt, mask, times, env, run, j)
-                evt, nda, peaks, numPeaksFound = peakInfo[:]
-                print("numPeaksFound: ", numPeaksFound)
+                #Get jet streak
+                evt, nda, streaks = self.getStreaks(d, times, run, self.eventNum)
+                print("jet streak found: ", streaks)
                 if nda is None:
-                    j+=1
+                    print("3")
+                    self.eventNum+=1
                     continue
 
+                #Get Peak Info
+                evt, nda, peaks, numPeaksFound = self.getPeaks(d, alg, hdr, fmt, mask, times, env, run, self.eventNum)
+                print("numPeaksFound: ", numPeaksFound)
+
                 #Get Likelihood
-                pairsFoundPerSpot = self.getLikelihood(d, evt, peaks, numPeaksFound)
-                print("pairsFoundPerSpot: ", pairsFoundPerSpot, self.goodLikelihood)
+                likelihood = self.getLikelihood(d, evt, peaks, numPeaksFound)
+                print("likelihood: ", likelihood, self.goodLikelihood)
+
+                # [[list of seg], [list of row], [list of col]] ... labelsForThisEvent[0:2][0] corresponds to one label
+                labelsForThisEvent = [np.array([]),np.array([]),np.array([]),np.array([]),np.array([]),np.array([])]
+
+                # Add jet streak labels
+                cls = 1
+                for streak in streaks:
+                    seg, row, col, height, width = streak
+                    labelsForThisEvent[0] = np.append(labelsForThisEvent[0], np.array([cls]), axis=0)  # class
+                    labelsForThisEvent[1] = np.append(labelsForThisEvent[1], np.array([seg]), axis=0)  # seg
+                    labelsForThisEvent[2] = np.append(labelsForThisEvent[2], np.array([row]), axis=0)  # row
+                    labelsForThisEvent[3] = np.append(labelsForThisEvent[3], np.array([col]), axis=0)  # col
+                    labelsForThisEvent[4] = np.append(labelsForThisEvent[4], np.array([height]), axis=0)  # height
+                    labelsForThisEvent[5] = np.append(labelsForThisEvent[5], np.array([width]), axis=0)  # width
 
                 #If this event is a good event, save the labels to train PeakNet
-                if (pairsFoundPerSpot > self.goodLikelihood):
+                if (likelihood >= self.goodLikelihood):
                     print hdr
+                    cls = 0
+                    height = 7
+                    width = 7
                     for peak in peaks:
                         totalNumPeaks += 1 #number of peaks
                         seg,row,col,npix,amax,atot = peak[0:6]
-                        labelsForThisEvent[0] = np.append(labelsForThisEvent[0],np.array([seg]),axis = 0)
-                        labelsForThisEvent[1] = np.append(labelsForThisEvent[1],np.array([row]),axis = 0)
-                        labelsForThisEvent[2] = np.append(labelsForThisEvent[2],np.array([col]),axis = 0)
-                    print fmt % (seg, row, col, npix, atot)
-                    print ("Event Likelihood: %f" % pairsFoundPerSpot)
-                    
-                    # labels[0:j] corresponds to each event in labels, 
+                        labelsForThisEvent[0] = np.append(labelsForThisEvent[0], np.array([cls]), axis = 0) # class
+                        labelsForThisEvent[1] = np.append(labelsForThisEvent[1], np.array([seg]), axis = 0) # seg
+                        labelsForThisEvent[2] = np.append(labelsForThisEvent[2], np.array([row]), axis = 0) # row
+                        labelsForThisEvent[3] = np.append(labelsForThisEvent[3], np.array([col]), axis=0) # col
+                        labelsForThisEvent[4] = np.append(labelsForThisEvent[4], np.array([height]), axis=0) # height
+                        labelsForThisEvent[5] = np.append(labelsForThisEvent[5], np.array([width]), axis=0) # width
+                    print fmt % (cls, seg, row, col, height, width, npix, atot)
+
+                if len(labelsForThisEvent) > 0:
+                    # labels[0:j] corresponds to each event in labels,
                     # for each event in labels there is a tuple:
                     # [[list of segments], [list of rows], [list of columns]]
                     # That is: labels =
-                    # [ [[list of segments], [list of rows], [list of columns]] , 
+                    # [ [[list of segments], [list of rows], [list of columns]] ,
                     #   [[list of segments], [list of rows], [list of columns]] ... ]
                     labels.append(np.array(labelsForThisEvent))
 
@@ -350,19 +445,19 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                     #increase the database number of hits value
                     numGoodEvents += 1
 
-                    #create a dictionary to be posted on the database
-                    kwargs = self.createDictionary(exp, strrunnum, str(j+1), numPeaksFound, labelsForThisEvent)
-                    #peakDB.addExpRunEventPeaks(**kwargs) #TODO: MongoDB doesnt like the numpy array
+                #create a dictionary to be posted on the database
+                #kwargs = self.createDictionary(self.exp, strrunnum, str(self.eventNum+1), numPeaksFound, labelsForThisEvent)
+                #peakDB.addExpRunEventPeaks(**kwargs) #TODO: MongoDB doesnt like the numpy array
 
-                j += 1
-                print("Done ", j, numEvents)
+                self.eventNum += 1
+                print("Done ", self.eventNum, numEvents)
 
-            if(j >= numEvents):
+            if(self.eventNum >= numEvents):
                  self.useLastRun = False
             
             #update runTime
             currentTime = time.time()
-            runTime = (currentTime - clientBeginTime)
+            runTime = currentTime - clientBeginTime
 
             #Time when the client ended working on this event, used in print statement only
             endTimeForThisEvent = time.time()
@@ -370,12 +465,13 @@ class clientPeakFinder(clientAbstract.clientAbstract):
 
         #add total peaks and hits value to database when finished
         #TODO: confirm that this updates the values and does not overwrite the values...
-        peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents) 
+        peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents)
         print("Peaks", totalNumPeaks, "Events", numGoodEvents)
         print(runTime)
+        print("Labels: ", labels)
         return [labels, imgs, totalNumPeaks, numGoodEvents]
 
-    def runClient(self, alg, **kwargs):
+    def run(self, alg, **kwargs):
         """ Runs the peakfinder, adds values to the database, trains peaknet, and reports model to the master
 
         Arguments:
@@ -385,10 +481,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         socket = clientSocket(**kwargs)
         peakDB = PeakDatabase(**kwargs) #create database to store good event info in
         while(True):
-            #The client generates data.
-            evaluateinfo = self.evaluateRun(alg, peakDB)
-
-            labels, imgs, totalNumPeaks, numGoodEvents = evaluateinfo[:]
+            # Randomly choose an experiment:run and look for crystal diffraction pattern and return with batchSize labels
+            labels, imgs, totalNumPeaks, numGoodEvents = self.evaluateRun(alg, peakDB)
 
             #print(len(labels), "events in labels")
             #print(len(labels[0]), "lists in tuples of an event")
@@ -410,6 +504,12 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             #print("#### model.w before: ", next(self.peaknet.model.parameters())[-1,0,:,:])
 
             #Step 6: Client trains its Peaknet instance
+            print("###### training: ", labels, len(labels), self.eventNum)
+            import pickle
+            outfile = "/reg/neh/home/yoon82/peaknetLabels.pkl"
+            with open(outfile, 'wb') as outfd:
+                pickle.dump(labels, outfd, protocol=pickle.HIGHEST_PROTOCOL)
+            exit()
             self.peaknet.train(imgs, labels, batch_size=1, box_size = 7, use_cuda=True)
 
             #print("#### model.w after: ", next(self.peaknet.model.parameters())[-1,0,:,:])

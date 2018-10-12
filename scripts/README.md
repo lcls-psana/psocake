@@ -7,20 +7,11 @@ Instructions for using the AntFarm (tentative name for this program)
 + pymongo/mongodb is required to use MongoDB.
 
 At LCLS, use the following conda environment:
-$conda activate /reg/neh/home/takeller/.conda/envs/antfarmTest2
-
-Or:
-
-conda create --name antfarm python=2.7 pytorch=0.1.12 torchvision numpy h5py
-conda activate antfarm
-conda install --channel lcls-rhel7 psana-conda psgeom pymongo mongodb pyqtgraph scikit-image --force
-conda uninstall pytorch libtorch
-conda install pytorch=0.1.12 cuda80 torchvision -c soumith
-
+$conda activate ~yoon82/.conda/envs/antfarm
 
 3) cd psocake/scripts
-If the MongoDB server is not running*, then run startMongoServer.py in one
-of the terminals. 
+If the MongoDB server is not running*, then run it in one of the terminals.
+$python startMongoServer.py
 
 4) In a second terminal,
 Export peaknet4antfarm paths:
@@ -53,11 +44,11 @@ LCLS Tutorial/Example:
 
 - Open at least 3 terminals, two in psanagpu114, one in psanagpu115
 - use the following line in each terminal to activate the LCLS environment, then change directories:
-$ conda activate /reg/neh/home/takeller/.conda/envs/antfarmTest2
+$ conda activate ~yoon82/.conda/envs/antfarm
 $ cd psocake/scripts
 - Export the right peaknet4antfarm paths:
 $export PYTHONPATH=/reg/neh/home/liponan/ai/peaknet4antfarm:$PYTHONPATH
-$export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo2:$PYTHONPATH
+$export PYTHONPATH=/reg/neh/home/liponan/ai/pytorch-yolo3:$PYTHONPATH
 - In your first psanagpu114 terminal use the following line to start a server:
 $python startMongoServer.py
 - In your second psanagpu114 terminal use the following line to start your "Queen":
@@ -135,3 +126,9 @@ To print the database, run Python interpretor:
 To use the Psocake Labeling tool, use:
 $conda activate /reg/neh/home/takeller/.conda/envs/Tate2
 
+Conda recipe for antfarm:
+conda create --name antfarm python=2.7 pytorch=0.1.12 torchvision numpy h5py
+conda activate antfarm
+conda install --channel lcls-rhel7 psana-conda psgeom pymongo mongodb pyqtgraph scikit-image --force
+conda uninstall pytorch libtorch
+conda install pytorch=0.1.12 cuda80 torchvision -c soumith

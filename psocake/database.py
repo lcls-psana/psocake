@@ -24,7 +24,6 @@ class LabelDatabase:
         self.db = self.client[dbname] # creates a database named "labels"
         self.poster = self.db[collectionName]
         self.printDatabase()
-        #self.clientName = datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S")
 
     def postClasses(self, data):
         cursor = self.poster.find_one_and_replace({'classes':{"$exists" : True}},

@@ -173,7 +173,7 @@ class Crawler:
                         self.name =  name
                         self.runnum = run
                         self.det = det
-                        return [name, run, det]
+                        return [name, int(run), det]
         else:
             return self.lastRunWasGood()
 

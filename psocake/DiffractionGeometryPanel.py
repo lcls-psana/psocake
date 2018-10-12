@@ -456,7 +456,7 @@ class DiffractionGeometry(object):
 
                     # Replace coffset value in geometry file
                     if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
-                        for line in fileinput.input(self.parent.index.geom, inplace=True):
+                        for line in fileinput.FileInput(self.parent.index.geom, inplace=True):
                             if 'coffset' in line and line.strip()[0] is not ';':
                                 coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
                                 print coffsetStr, # comma is required

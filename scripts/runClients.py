@@ -5,7 +5,7 @@ import argparse
 # FIXME: remove the peak finding parameters from input argument
 parser = argparse.ArgumentParser()
 parser.add_argument("-host", help="master's host")
-parser.add_argument("-type", default = "clientPeakFinder", help="type of worker/name of plugin, e.g. clientPeakFinder")
+parser.add_argument("-type", default = "clientPeakFinder", help="type of worker/name of plugin, e.g. clientPeakFinder") # FIXME: empty default
 parser.add_argument("-npix_min", default = 2, type = int, help = "minimum number of pixels for a peak")
 parser.add_argument("-npix_max", default = 30, type = int, help = "maximum number of pixels for a peak")
 parser.add_argument("-amax_thr", default = 300, type = int, help = "maximum value threshold")

@@ -1,5 +1,11 @@
 import os, sys
-def load_module(modname): # module name only known at runtime
+
+def load_module(modname):
+    """Load a plugin by module name at runtime
+
+    Arguments:
+    modname -- python module name
+    """
     try:
         if modname not in sys.modules: # if not already loaded
             module = __import__(modname) 
