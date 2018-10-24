@@ -202,6 +202,8 @@ class PeakFinder:
                 calib = self.rb.subtract_bkgd(calib * self.pf)
                 calib.shape = self.userPsanaMask.shape  # FIXME: shape is 1d
 
+            self.calib = calib # save background subtracted calib as an attribute
+
             if self.streakMask is not None:
                 self.combinedMask = self.userPsanaMask * self.streakMask
             else:

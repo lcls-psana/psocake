@@ -30,7 +30,7 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
     return value
 
 def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
-    d.peakFinder.findPeaks(detarr, evt)
+    d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
     # Likelihood
     numPeaksFound = d.peakFinder.peaks.shape[0]
     radius = np.zeros((1,1))
@@ -162,7 +162,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
            d.peakFinder.maxRes >= args.minRes:
            #and pairsFoundPerSpot >= likelihoodThresh:
            # Write image in cheetah format
-            img = ps.getCheetahImg()
+            img = ps.getCheetahImg(d.peakFinder.calib)
             if img is not None:
                 md.addarray('data', img)
 

@@ -84,15 +84,25 @@ class psanaWhisperer():
         elif 'cspad' in self.detInfo.lower():
             if calib is None:
                 _calib = self.det.calib(self.evt) # (32,185,388)
-            if _calib is None:
-                return None
+                if _calib is None:
+                    return None
+                else:
+                    img = np.zeros((8 * 185, 4 * 388))
+                    try:
+                        counter = 0
+                        for quad in range(4):
+                            for seg in range(8):
+                                img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = _calib[counter, :, :]
+                                counter += 1
+                    except:
+                        pass
             else:
                 img = np.zeros((8 * 185, 4 * 388))
                 try:
                     counter = 0
                     for quad in range(4):
                         for seg in range(8):
-                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = _calib[counter, :, :]
+                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
                             counter += 1
                 except:
                     pass
