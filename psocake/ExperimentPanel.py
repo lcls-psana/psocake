@@ -682,12 +682,7 @@ class ExperimentInfo(object):
 
     def updatePixelSize(self, arg):
         if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower():  # TODO: increase pixel size list: epix, rayonix
-                self.parent.pixelSize = 110e-6  # metres
-            elif 'pnccd' in self.parent.detInfo.lower():
-                self.parent.pixelSize = 75e-6  # metres
-            elif 'rayonix' in self.parent.detInfo.lower():
-                self.parent.pixelSize = 89e-6  # metres
+            self.parent.pixelSize = self.parent.det.pixel_size(self.parent.runNumber) * 1e-6 # metres
             # Update geometry panel
             self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
                     self.parent.pixelSize)  # pixel size
