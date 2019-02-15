@@ -64,7 +64,7 @@ parser.add_argument("--auto", help="automatically determine peak finding paramet
 # LCLS specific
 parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
 parser.add_argument("-t","--tag", help="Set tag for cxi filename",default="", type=str)
-
+parser.add_argument("-c","--compression",help="compressed calibrated images in hdf5",default='', type=str)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)

@@ -2,6 +2,7 @@ import json
 import h5py
 import psana
 import sys
+import numpy as np
 
 ansi_cmap = {"k": '0;30',
         "r": '0;31',
@@ -53,6 +54,41 @@ def convert_peaks_to_cheetah(s, r, c) :
     row2d = (int(s)%8) * rows + int(r) # where s%8 is a segment in quad number [0,7]
     col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
     return row2d, col2d
+
+def pct(calib):
+    # Save cheetah format mask
+    numQuad = 4
+    numAsicsPerQuad = 8
+    numAsics = numQuad * numAsicsPerQuad
+    asicRows = 185
+    asicCols = 388
+
+    # Convert calib image to cheetah image
+    tile = np.zeros((numAsicsPerQuad * asicRows, numQuad * asicCols))
+    counter = 0
+    for quad in range(numQuad):
+        for seg in range(numAsicsPerQuad):
+            tile[seg * asicRows:(seg + 1) * asicRows, quad * asicCols:(quad + 1) * asicCols] = calib[counter, :, :]
+            counter += 1
+    return tile
+
+def ipct(tile):
+    # Save cheetah format mask
+    numQuad = 4
+    numAsicsPerQuad = 8
+    numAsics = numQuad * numAsicsPerQuad
+    asicRows = 185
+    asicCols = 388
+
+    # Convert calib image to cheetah image
+    calib = np.zeros((32,asicRows,asicCols))
+    counter = 0
+    for quad in range(numQuad):
+        for seg in range(numAsicsPerQuad):
+            calib[counter, :, :] = \
+                tile[seg * asicRows:(seg + 1) * asicRows, quad * asicCols:(quad + 1) * asicCols]
+            counter += 1
+    return calib
 
 # HDF5-related
 

@@ -4,6 +4,8 @@ import numpy as np
 import time
 import os
 import datetime
+from utils import ipct
+import h5py
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
@@ -207,10 +209,17 @@ class ImageViewer(object):
                     else: # Algorithms 1 to 4
                         print "### Overriding common mode: ", self.parent.exp.commonMode
                         calib = self.parent.det.calib(self.parent.evt,
-                                                      cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
-                                                              self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
+                                                      cmpars=(
+                                                      self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
+                                                      self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
                 else:
-                    calib = self.parent.det.calib(self.parent.evt)
+                    if not self.parent.compression:
+                        calib = self.parent.det.calib(self.parent.evt)
+                    else:
+                        f = h5py.File(self.parent.compression)
+                        ind = np.where(f['eventNumber'].value == evtNumber)[0][0]
+                        calib = ipct(f['data/data'][ind, :, :])
+                        f.close()
                 return calib
         elif self.parent.facility == self.parent.facilityPAL:
             temp = self.parent.rootDir + '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
@@ -341,6 +350,7 @@ class ImageViewer(object):
                     calib = self.rb.subtract_bkgd(calib * self.pf)
                     calib.shape = self.parent.calib.shape # FIXME: shape is 1d
                 elif self.parent.exp.image_property == self.parent.exp.disp_adu: # gain and hybrid gain corrected
+                    print("getDetImage")
                     calib = self.getCalib(evtNumber)
                     if calib is None: calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
                 elif self.parent.exp.image_property == self.parent.exp.disp_commonModeCorrected: # common mode corrected

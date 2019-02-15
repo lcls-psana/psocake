@@ -34,35 +34,35 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     # Likelihood
     numPeaksFound = d.peakFinder.peaks.shape[0]
     radius = np.zeros((1,1))
-    if numPeaksFound >= args.minPeaks and \
-       numPeaksFound <= args.maxPeaks and \
-       d.peakFinder.maxRes >= args.minRes:
-        cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-        cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+    #if numPeaksFound >= args.minPeaks and \
+    #   numPeaksFound <= args.maxPeaks and \
+    #   d.peakFinder.maxRes >= args.minRes:
+    #    cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+    #                np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+    #                np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+    #    cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+    #                np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+    #                np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
 
-        x = cenX - d.ipx  # args.center[0]
-        y = cenY - d.ipy  # args.center[1]
-        radius = np.sqrt((x**2)+(y**2))
-        pixSize = float(d.pixel_size(evt))
-        detdis = float(args.detectorDistance)
-        z = detdis / pixSize * np.ones(x.shape)  # pixels
+    #    x = cenX - d.ipx  # args.center[0]
+    #    y = cenY - d.ipy  # args.center[1]
+    #    radius = np.sqrt((x**2)+(y**2))
+    #    pixSize = float(d.pixel_size(evt))
+    #    detdis = float(args.detectorDistance)
+    #    z = detdis / pixSize * np.ones(x.shape)  # pixels
 
-        ebeam = ebeamDet.get(evt)
-        try:
-            photonEnergy = ebeam.ebeamPhotonEnergy()
-        except:
-            photonEnergy = 1
+    #    ebeam = ebeamDet.get(evt)
+    #    try:
+    #        photonEnergy = ebeam.ebeamPhotonEnergy()
+    #    except:
+    #        photonEnergy = 1
 
-        wavelength = 12.407002 / float(photonEnergy)  # Angstrom
-        norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-        qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
-        [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
-    else:
-        pairsFoundPerSpot = 0.0
+    #    wavelength = 12.407002 / float(photonEnergy)  # Angstrom
+    #    norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    #    qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+    #    [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
+    #else:
+    #    pairsFoundPerSpot = 0.0
 
     md = mpidata()
     md.addarray('peaks', d.peakFinder.peaks)
@@ -70,7 +70,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     md.small.eventNum = nevent
     md.small.maxRes = d.peakFinder.maxRes
     md.small.powder = 0
-    md.small.likelihood = pairsFoundPerSpot
+    md.small.likelihood = 0#pairsFoundPerSpot
 
     if args.profile:
         md.small.calibTime = calibTime
@@ -182,6 +182,24 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
             md.small.photonEnergy = photonEnergy
             md.send()
 
+def ipct(tile):
+    # Save cheetah format mask
+    numQuad = 4
+    numAsicsPerQuad = 8
+    numAsics = numQuad * numAsicsPerQuad
+    asicRows = 185
+    asicCols = 388
+
+    # Convert calib image to cheetah image
+    calib = np.zeros((32,asicRows,asicCols))
+    counter = 0
+    for quad in range(numQuad):
+        for seg in range(numAsicsPerQuad):
+            calib[counter, :, :] = \
+                tile[seg * asicRows:(seg + 1) * asicRows, quad * asicCols:(quad + 1) * asicCols]
+            counter += 1
+    return calib
+
 def runclient(args):
     pairsFoundPerSpot = 0.0
     highSigma = 3.5
@@ -247,9 +265,14 @@ def runclient(args):
 
         if facility == 'LCLS':
             evt = run.event(times[nevent])
-            detarr = d.calib(evt)
+            if not args.compression:
+                detarr = d.calib(evt)
+            else:
+                f = h5py.File(args.compression)
+                ind = np.where(f['eventNumber'].value == nevent)[0][0]
+                detarr = ipct(f['data/data'][ind,:,:])
+                f.close()
             exp = env.experiment()
-            #run = evt.run()
         elif facility == 'PAL':
             f = h5py.File(_files[nevent], 'r')
             detarr = f['/data'].value

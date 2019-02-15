@@ -42,6 +42,8 @@ parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
 parser.add_argument("-m","--mode", default="lite", type=str,
                     help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}")
+parser.add_argument("-c","--compression", default="", type=str,
+                    help="full path to compressed hdf5 file with calibrated images saved in dataset /data/data.")
 # LCLS specific
 parser.add_argument("-a","--access", default="ana", type=str,
                     help="Set data node access: {ana,ffb}")
@@ -124,6 +126,7 @@ class MainFrame(QtGui.QWidget):
         self.detInfo = args.det
         self.detAlias = None
         self.eventNumber = int(args.evt)
+        self.compression = args.compression
 
         # Directories
         self.psocakeDir = None
