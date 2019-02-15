@@ -9,6 +9,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
 import scipy.spatial.distance as sd
 import glob
+from utils import highlight
 try:
     from PyQt5.QtWidgets import *
     using_pyqt4 = False
@@ -275,7 +276,7 @@ class DiffractionGeometry(object):
                             p.communicate()[0]
                             p.stdout.close()
                         except:
-                            print "Warning! deployCrystfelGeometry() failed."
+                            print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
                         # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
                         with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f: lines = f.readlines()
                         newGeom = []
@@ -304,7 +305,7 @@ class DiffractionGeometry(object):
                             p.communicate()[0]
                             p.stdout.close()
                         except:
-                            print "Warning! deployCrystfelGeometry() failed."
+                            print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
                         # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
                         with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
                             lines = f.readlines()
@@ -335,7 +336,7 @@ class DiffractionGeometry(object):
                             p.communicate()[0]
                             p.stdout.close()
                         except:
-                            print "Warning! deployCrystfelGeometry() failed."
+                            print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
                         # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
                         with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
                             lines = f.readlines()

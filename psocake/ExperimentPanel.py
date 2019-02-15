@@ -2,6 +2,7 @@ import numpy as np
 import subprocess
 import os
 import glob
+from utils import highlight
 try:
     logbook_present = True
     from LogBook.runtables import RunTables
@@ -883,7 +884,7 @@ class ExperimentInfo(object):
                 print "#######################################"
                 print "# Available area detectors: "
                 for k in self.parent.detInfoList:
-                    print "#", k
+                    print "#", highlight(k,'b')
                 print "#######################################"
             elif self.parent.facility == self.parent.facilityPAL:
                 self.parent.detInfoList = ['MX225-HS']  # PAL does not provide detectors available, so hard-code

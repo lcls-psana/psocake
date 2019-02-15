@@ -273,6 +273,7 @@ if hasData:
         myLogList = []
         myJobList = []
         myStreamList = []
+        myLists = []
         for rank in range(numWorkers):
             myJobs = getMyChunkSize(numEvents, numWorkers, chunkSize, rank)
             if tag is '':
@@ -282,6 +283,7 @@ if hasData:
             myList = runDir + "/temp_" + jobName + ".lst"
             myStream = runDir + "/temp_" + jobName + ".stream"
             myStreamList.append(myStream)
+            myLists.append(myList)
 
             # Write list
             isat_event = []
@@ -332,9 +334,11 @@ if hasData:
         else:
             jobName = experimentName + "_" + str(runNumber) + "_" + tag
         myStreamList = []
+        myLists = []
         myList = runDir + "/temp_" + jobName + ".lst"
         myStream = runDir + "/temp_" + jobName + ".stream"
         myStreamList.append(myStream)
+        myLists.append(myList)
 
         # Write list
         with open(myList, "w") as text_file:
@@ -493,6 +497,8 @@ if hasData:
 
         # Clean up temp files
         for fname in myStreamList:
+            os.remove(fname)
+        for fname in myLists:
             os.remove(fname)
 
 hf.close()

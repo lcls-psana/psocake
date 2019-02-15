@@ -132,3 +132,11 @@ conda activate antfarm
 conda install --channel lcls-rhel7 psana-conda psgeom pymongo mongodb pyqtgraph scikit-image --force
 conda uninstall pytorch libtorch
 conda install pytorch=0.1.12 cuda80 torchvision -c soumith
+
+Conda recipe for antfarm2:
+conda create python=2.7 h5py jupyter -p /reg/d/psdm/cxi/cxitut13/res/yoon82/antfarm2
+conda activate /reg/d/psdm/cxi/cxitut13/res/yoon82/antfarm2
+conda install pytorch=0.1.12 torchvision cuda80 -c pytorch
+conda install tensorboardX
+conda install -c lcls-rhel psana-conda psgeom pymongo mongodb pyqtgraph scikit-image
+

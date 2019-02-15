@@ -1,6 +1,25 @@
 import json
 import h5py
 import psana
+import sys
+
+ansi_cmap = {"k": '0;30',
+        "r": '0;31',
+        "g": '0;32',
+        "o": '0;33',
+        'b': '0;34',
+        'p': '0;35',
+        'c': '0;36'}
+
+def highlight(string, status='k', bold=0):
+    attr = []
+    if sys.stdout.isatty():
+        attr.append(ansi_cmap[status])
+        if bold:
+            attr.append('1')
+        return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
+    else:
+        return string
 
 def getNoe(args, facility):
     if facility == 'LCLS':
@@ -24,6 +43,8 @@ def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 def writeStatus(fname, d):
     json.dump(d, open(fname, 'w'))
 
+# Cheetah-related
+
 def convert_peaks_to_cheetah(s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
        to cheetah 2-d table row and col (8*185, 4*388)
@@ -32,6 +53,8 @@ def convert_peaks_to_cheetah(s, r, c) :
     row2d = (int(s)%8) * rows + int(r) # where s%8 is a segment in quad number [0,7]
     col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
     return row2d, col2d
+
+# HDF5-related
 
 def reshapeHdf5(h5file, dataset, ind, numAppend):
     h5file[dataset].resize((ind + numAppend,))

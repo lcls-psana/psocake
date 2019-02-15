@@ -1,6 +1,7 @@
 # Operates in two modes; interactive mode and batch mode
 # Interactive mode: temporary list, cxi, geom files are written per update
 # Batch mode: Creates a CXIDB file containing hits, turbo index the file, save single stream and delete CXIDB
+# TODO: special display for systematic absences given spacegroup (to check peak finding parameters produce zero)
 import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
@@ -11,6 +12,7 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchIndexer
 import os, time
 import pandas as pd
+from utils import highlight
 try:
     from PyQt5.QtWidgets import *
     using_pyqt4 = False
@@ -645,8 +647,8 @@ class IndexHandler(QtCore.QThread):
                 out, err = process.communicate()
                 if 'command not found' in err:
                     print "######################################################################"
-                    print "FATAL ERROR: I can't find indexamajig on this machine. Refer to:      "
-                    print "https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial"
+                    print highlight("FATAL ERROR: I can't find indexamajig on this machine. Refer to:      ",'r',1)
+                    print highlight("https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial",'r',1)
                     print "######################################################################"
 
                 mySuccessString = "1 had crystals"
