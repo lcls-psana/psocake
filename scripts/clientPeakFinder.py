@@ -1,4 +1,5 @@
 import psana
+import os
 import numpy as np
 from psalgos.pypsalgos import PyAlgos
 from ImgAlgos.PyAlgos import PyAlgos as PA
@@ -19,40 +20,51 @@ from scipy import signal as sg
 from skimage.measure import label, regionprops
 from skimage import morphology
 
+from peaknet_utils import json_parser, psanaRun, nEvents
+import pandas
+import Utils
+
+import torch
+
+#random.seed(9876)
+
 class clientPeakFinder(clientAbstract.clientAbstract):
 
-    #Intialize variables
+    def __init__(self):
+        #Amount of events sent to PeakNet (For future, rayonix batchSize = 7 would be GPU memory efficient)
+        self.batchSize = 6
+        self.goodLikelihood = .003
+        #Limit of events iterated through in a run
+        self.eventLimit = self.batchSize * 10
+        #Minimum number of peaks to be found to calculate likelihood
+        self.goodNumPeaks = 10
+        #Minimum number of events to be found before peak finding on 1000 events of a run
+        self.minEvents = 1
 
-    #Amount of events sent to PeakNet
-    batchSize = 3
-    #Calculated Likelihood that counts as a "good event"
-    goodLikelihood = .03
-    #Limit of events iterated through in a run
-    eventLimit = 100
-    #Minimum number of peaks to be found to calculate likelihood
-    goodNumPeaks = 15
-    #Minimum number of events to be found before peak finding on 1000 events of a run
-    minEvents = 3
+        #If the last run was a good run:
+        self.goodRun = False
+        #If batch size reached in the middle of a good run, have the worker return to this run
+        self.useLastRun = False
+        self.det = None
+        self.exp = None
+        self.runnum = None
+        self.eventNum = 0
 
-    #If the last run was a good run:
-    goodRun = False
-    #If batch size reached in the middle of a good run, have the worker return to this run
-    useLastRun = False
-    det = None
-    exp = None
-    runnum = None
-    eventNum = None
-
-    #Step 1: Both Queen and Clients make their own Peaknet instances. 
-    peaknet = Peaknet()
-    print("Made a peaknet instance!")
-    # FIXME: fetch weights from mongoDB: peaknet.updateModel(model)
-    peaknet.loadDNWeights()
-    print("Loaded arbitrary weights!")
-    #Step 2: Client loads arbitrary DN weights and connects to GPU
-    print("Connecting to GPU...")
-    peaknet.model.cuda()
-    print("Connected!")
+        #Step 1: Both Queen and Clients make their own Peaknet instances.
+        self.peaknet = Peaknet()
+        print("Made a peaknet instance!")
+        #Step 1a
+        logdir = "/reg/d/psdm/cxi/cxitut13/res/autosfx/tensorboard"
+        self.peaknet.set_writer(project_name=os.path.join(logdir,"test"))
+        # FIXME: fetch weights from mongoDB: peaknet.updateModel(model)
+        self.peaknet.loadCfg("/reg/neh/home/liponan/ai/pytorch-yolo2/cfg/newpeaksv10-asic.cfg")
+        print("Loaded arbitrary weights!")
+        #Step 2: Client loads arbitrary DN weights and connects to GPU
+        print("Connecting to GPU...")
+        self.peaknet.init_model()
+        #self.peaknet.model = torch.load("/reg/d/psdm/cxi/cxic0415/res/liponan/antfarm_backup/api_demo_psana_model_000086880")
+        self.peaknet.model.cuda()
+        print("Connected!")
 
     # @Abstract method (this is the only required method for a plugin)
     def algorithm(self, **kwargs):
@@ -63,7 +75,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         Arguments:
         **kwargs -- a dictionary of arguments containing peakfinding parameters
         """
-        print("In clientPeakFinder algorithm")
         npxmin = kwargs["npix_min"]
         npxmax = kwargs["npix_max"]
         amaxthr = kwargs["amax_thr"]
@@ -73,7 +84,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         alg.set_peak_selection_pars(npix_min=npxmin, npix_max=npxmax, amax_thr=amaxthr, atot_thr=atotthr, son_min=sonmin) #(npix_min=2, npix_max=30, amax_thr=300, atot_thr=600, son_min=10)
         self.run(alg, **kwargs)
 
-    def createDictionary(self, exp, runnum, event, peaks, labels):
+    def createDictionary(self, exp, runnum, event, peaks, likelihood):
         """Create a dictionary that holds the important information of events with crystals
 
         Arguments:
@@ -87,7 +98,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 "RunNum":runnum,
                 "Event":event,
                 "Peaks":peaks,
-                "Labels":labels}
+                "Likelihood":likelihood}
         return post
 
     def bitwise_array(self, value):
@@ -131,26 +142,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         pairsFoundPerSpot = pairsFound / float(nPeaks)
         return [meanClosestNeighborDist, pairsFoundPerSpot]
 
-    def getDetectorInformation(self, exp, runnum, det):
-        """ Returns the detector and the number of events for
-        this run.
-        
-        Arguments:
-        exp -- the experiment name
-        runnum -- the run number for this experiment
-        det -- the detector used for this experiment
-        """
-        ds = psana.DataSource('exp=%s:run=%d:idx'%(exp,runnum))
-        d = psana.Detector(det)
-        d.do_reshape_2d_to_3d(flag=True)
-        hdr = '\nClass  Seg  Row  Col  Height  Width  Npix    Amptot'
-        fmt = '%5d %4d %4d %4d  %6d %6d %5d  %8.1f'
-        run = ds.runs().next()
-        times = run.times()
-        env = ds.env()
-        numEvents = len(times)
-        mask = d.mask(runnum,calib=True,status=True,edges=True,central=True,unbond=True,unbondnbrs=True)
-        return [d, hdr, fmt, numEvents, mask, times, env, run]
 
     def getPeaks(self, d, alg, hdr, fmt, mask, times, env, run, j):
         """Finds peaks within an event, and returns the event information, peaks found, and hits found
@@ -175,8 +166,6 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         if (nda is not None):
             peaks = alg.peak_finder_v3r3(nda, rank=3, r0=3, dr=2, nsigm =10)
             numPeaksFound = len(peaks)
-            #alg = PA()
-            #thr = 20
             return [evt, nda, peaks, numPeaksFound]
         else:
             return[None,None,None,None]
@@ -291,24 +280,16 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         for i in range(calib.shape[0]):
             for j in regionprops(calibMask[i].astype('int')):
                 xmin, ymin, xmax, ymax = j.bbox
-                print i, xmin, ymin, xmax - xmin, ymax - ymin
                 streaks.append([i, ymin, xmin, ymax - ymin, xmax - xmin])
         return [evt, calib, streaks]
 
-    def evaluateRun(self, alg, peakDB):
+    def evaluateExpRunDet(self, crawler, alg, peakDB, verbose):
         """ Finds a random experiment run, finds peaks, and determines likelihood of crystal event. If an event is
         likely to be a crystal, it will be used to train PeakNet. This function continues until the amount of 
         events found is equal to the batchSize.
        
-        return the list of peaks in good events,  the list of corresponding images for the good events,
-        the total number of peaks found by this function, and the total number of hits found 
+        return the list of peaks in good events,  the list of corresponding images for the good events
         """
-        # Will be psana.Detector(det)
-        d = 0 
-
-        # Will be run.event(this event)
-        evt = 0
-
         # List labels from good events
         labels = [] 
 
@@ -321,14 +302,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         # Number of events found during this function's call
         numGoodEvents = 0
 
-        # Crawler used to fetch a random experiment + run
-        myCrawler = Crawler() 
-
         # Time when the client began working
-        clientBeginTime = time.time() 
-
-        #Time when the client finished working. Hasnt began yet so it is not set
-        currentTime = clientBeginTime 
+        clientBeginTime = time.time()
 
         #How long the client has been running for
         runTime = 0
@@ -338,81 +313,68 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             beginTimeForThisEvent = time.time()
 
             # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
-            if(len(labels) >= self.batchSize):
+            if(len(labels) == self.batchSize):
                 self.useLastRun = True
+                if verbose > 2: print("### (outer) This run has some hits.")
                 break
 
             #Keep working on the previous experiment/run
-            if((self.useLastRun) and (self.exp is not None)): #TODO: dont redo information functions
-                exp = self.exp
-                runnum = self.runnum
-                det = self.det
-            #Use the crawler to fetch a random experiment+run
-            else:
-                self.exp, self.runnum, self.det = myCrawler.returnOneRandomExpRunDet(self.goodRun)
+            #if((self.useLastRun) and (self.exp is not None)): #TODO: dont redo information functions
+            #    pass
+            #Use the crawler to fetch a random experiment+run+det
+            #else:
+            #    self.exp, self.runnum, self.det, self.eventNum = crawler.next(self.eventNum)
                 #self.exp, self.runnum, self.det = ["cxif5315", 128, "DsaCsPad"] #A good run to use to quickly test if the client works
-                #self.exp, strrunnum, self.det = ["cxitut13", "0010", "DscCsPad"]  # A good run to use to quickly test if the client works
-                self.eventNum = 0
+                #eventInfo = self.getDetectorInformation(self.exp, self.runnum, self.det)
+                #self.d, self.hdr, self.fmt, self.mask, self.times, self.env, self.run, self.numEvents = eventInfo[:]
+            #    if verbose > 0: print("\nExperiment: %s, Run: %s, Detector: %s, NumEvents: %d"%(self.exp, str(self.runnum), self.det, self.numEvents))
+                #Initialize the number of good events/hits for this event
+                # If less than 3 in the first 1000 events, this run is skipped
+            print("#### here")
+            self.exp, self.runnum, self.det, self.eventNum = crawler.next(self.eventNum, self.useLastRun)
 
-            print("\nExperiment: %s, Run: %s, Detector: %s"%(self.exp, str(self.runnum), self.det))
-            eventInfo = self.getDetectorInformation(self.exp, self.runnum, self.det)
-            d, hdr, fmt, numEvents, mask, times, env, run = eventInfo[:]
-            print("%d Events to find peaks on"%numEvents)
-
-            #Initialize the number of good events/hits for this event
-            # If less than 3 in the first 1000 events, this run is skipped
-            numGoodEventsInThisRun = 0
             #Peak find for each event in an experiment+run
-            while (self.eventNum < numEvents):
-
-                print("eventNum: ", self.eventNum)
+            
+            while (self.eventNum < crawler.numEvents):
+                print("#### there")
+                if verbose > 0: print("eventNum: ", self.eventNum)
 
                 # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
-                if(len(labels) >= self.batchSize):
+                if(len(labels) == self.batchSize):
                     self.useLastRun = True
-                    print("1")
+                    if verbose >= 0: print("### (inner) This run has some hits.")
                     break
 
                 #If the amount of good events found is less than minEvents before the eventLimit, then 
                 #stop and try peak finding on a new experiment+run
-                if((self.eventNum >= self.eventLimit) and (numGoodEventsInThisRun < self.minEvents)):
+                if((self.eventNum >= self.eventLimit) and (crawler.numGoodEventsInThisRun < self.minEvents)):
                     self.useLastRun = False
-                    print("2")
+                    if verbose >= 0: print("### This run is mostly misses. Skipping this run.")
                     break
 
-                #Get jet streak
-                evt, nda, streaks = self.getStreaks(d, times, run, self.eventNum)
-                print("jet streak found: ", streaks)
-                if nda is None:
-                    print("3")
-                    self.eventNum+=1
-                    continue
+                if((self.eventNum >= self.eventLimit) and crawler.numGoodEventsInThisRun/float(self.eventNum) < 0.01):
+                    self.useLastRun = False
+                    if verbose >= 0: print("### Hit rate is too low. Skipping this run: ", crawler.numGoodEventsInThisRun/float(self.eventNum))
+                    break
 
                 #Get Peak Info
-                evt, nda, peaks, numPeaksFound = self.getPeaks(d, alg, hdr, fmt, mask, times, env, run, self.eventNum)
-                print("numPeaksFound: ", numPeaksFound)
+                evt, nda, peaks, numPeaksFound = self.getPeaks(crawler.d, alg, crawler.hdr, crawler.fmt, crawler.mask,
+                                                               crawler.times, crawler.env, crawler.run, self.eventNum)
+                if verbose > 1: print("numPeaksFound: ", numPeaksFound)
 
                 #Get Likelihood
-                likelihood = self.getLikelihood(d, evt, peaks, numPeaksFound)
-                print("likelihood: ", likelihood, self.goodLikelihood)
-
-                # [[list of seg], [list of row], [list of col]] ... labelsForThisEvent[0:2][0] corresponds to one label
+                likelihood = self.getLikelihood(crawler.d, evt, peaks, numPeaksFound)
+                if verbose > 1: print("likelihood: ", likelihood, self.goodLikelihood)
+                if (likelihood >= self.goodLikelihood):
+                    print("Crystal hit found: ", self.exp, self.runnum, self.eventNum, likelihood)
+                else:
+                    print("Miss: ", self.exp, self.runnum, self.eventNum, likelihood)
+                # [[list of seg], [list of row], [list of col]], ... labelsForThisEvent[0:2][0] corresponds to one label
                 labelsForThisEvent = [np.array([]),np.array([]),np.array([]),np.array([]),np.array([]),np.array([])]
-
-                # Add jet streak labels
-                cls = 1
-                for streak in streaks:
-                    seg, row, col, height, width = streak
-                    labelsForThisEvent[0] = np.append(labelsForThisEvent[0], np.array([cls]), axis=0)  # class
-                    labelsForThisEvent[1] = np.append(labelsForThisEvent[1], np.array([seg]), axis=0)  # seg
-                    labelsForThisEvent[2] = np.append(labelsForThisEvent[2], np.array([row]), axis=0)  # row
-                    labelsForThisEvent[3] = np.append(labelsForThisEvent[3], np.array([col]), axis=0)  # col
-                    labelsForThisEvent[4] = np.append(labelsForThisEvent[4], np.array([height]), axis=0)  # height
-                    labelsForThisEvent[5] = np.append(labelsForThisEvent[5], np.array([width]), axis=0)  # width
 
                 #If this event is a good event, save the labels to train PeakNet
                 if (likelihood >= self.goodLikelihood):
-                    print hdr
+                    if verbose > 2: print crawler.hdr
                     cls = 0
                     height = 7
                     width = 7
@@ -425,51 +387,43 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                         labelsForThisEvent[3] = np.append(labelsForThisEvent[3], np.array([col]), axis=0) # col
                         labelsForThisEvent[4] = np.append(labelsForThisEvent[4], np.array([height]), axis=0) # height
                         labelsForThisEvent[5] = np.append(labelsForThisEvent[5], np.array([width]), axis=0) # width
-                    print fmt % (cls, seg, row, col, height, width, npix, atot)
+                    if verbose > 2: print crawler.fmt % (cls, seg, row, col, height, width, npix, atot)
 
-                if len(labelsForThisEvent) > 0:
-                    # labels[0:j] corresponds to each event in labels,
-                    # for each event in labels there is a tuple:
-                    # [[list of segments], [list of rows], [list of columns]]
-                    # That is: labels =
-                    # [ [[list of segments], [list of rows], [list of columns]] ,
-                    #   [[list of segments], [list of rows], [list of columns]] ... ]
-                    labels.append(np.array(labelsForThisEvent))
+                    labels.append(labelsForThisEvent)
 
                     # Shape of imgs = (j <= (batchsize = 64), m = 32 tiles per nda, h = 185, w = 388)
                     imgs.append(nda)
 
                     #increase the skip condition value
-                    numGoodEventsInThisRun += 1
+                    crawler.numGoodEventsInThisRun += 1
 
                     #increase the database number of hits value
                     numGoodEvents += 1
 
                 #create a dictionary to be posted on the database
-                #kwargs = self.createDictionary(self.exp, strrunnum, str(self.eventNum+1), numPeaksFound, labelsForThisEvent)
-                #peakDB.addExpRunEventPeaks(**kwargs) #TODO: MongoDB doesnt like the numpy array
+                kwargs = self.createDictionary(self.exp, str(self.runnum), str(self.eventNum), numPeaksFound, likelihood) #, labelsForThisEvent)
+                peakDB.addExpRunEventPeaks(**kwargs) #TODO: MongoDB doesnt like the numpy array
 
                 self.eventNum += 1
-                print("Done ", self.eventNum, numEvents)
 
-            if(self.eventNum >= numEvents):
+            if(self.eventNum >= crawler.numEvents):
                  self.useLastRun = False
-            
-            #update runTime
-            currentTime = time.time()
-            runTime = currentTime - clientBeginTime
 
             #Time when the client ended working on this event, used in print statement only
             endTimeForThisEvent = time.time()
-            print("This took %d seconds" % (endTimeForThisEvent-beginTimeForThisEvent))
+            if verbose > 1: print("This took %d seconds" % (endTimeForThisEvent-beginTimeForThisEvent))
 
         #add total peaks and hits value to database when finished
         #TODO: confirm that this updates the values and does not overwrite the values...
         peakDB.addPeaksAndHits(totalNumPeaks, numGoodEvents)
-        print("Peaks", totalNumPeaks, "Events", numGoodEvents)
-        print(runTime)
-        print("Labels: ", labels)
-        return [labels, imgs, totalNumPeaks, numGoodEvents]
+        #peakDB.printDatabase()
+
+        # update runTime
+        clientRunTime = time.time() - clientBeginTime
+
+        if verbose > 0: print("Peaks", totalNumPeaks, "Events", numGoodEvents)
+        if verbose > 1: print("Run time: ", clientRunTime)
+        return labels, imgs
 
     def run(self, alg, **kwargs):
         """ Runs the peakfinder, adds values to the database, trains peaknet, and reports model to the master
@@ -480,45 +434,82 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         """
         socket = clientSocket(**kwargs)
         peakDB = PeakDatabase(**kwargs) #create database to store good event info in
+        verbose = kwargs["verbose"]
+
+        # Crawler used to fetch a random experiment + run
+        myCrawler = Crawler()
+        counter = 0
+
+        kk = 0
+        jj = 0
+        outdir = "/reg/d/psdm/cxi/cxic0415/res/liponan/antfarm_backup"
+
         while(True):
             # Randomly choose an experiment:run and look for crystal diffraction pattern and return with batchSize labels
-            labels, imgs, totalNumPeaks, numGoodEvents = self.evaluateRun(alg, peakDB)
-
-            #print(len(labels), "events in labels")
-            #print(len(labels[0]), "lists in tuples of an event")
-            #print(len(labels[0][0]), "values in first list in tuple")
+            labels, imgs = self.evaluateExpRunDet(myCrawler, alg, peakDB, verbose)
+            counter += 1
 
             imgs = np.array(imgs)
 
             #Step 3: Client tells queen it is ready
-            socket.push("Im Ready!")
+            socket.push(["Ready", counter])
 
-            #Step 4: Client recieves model from queen 
-            model = socket.pull()
+            fname = os.path.join(outdir, kwargs["name"]+"_"+str(self.peaknet.model.seen) + ".pkl")
+            if kk % 3 == 0:
+                torch.save(self.peaknet.model, fname)
+            kk += 1
+
+            #Step 4: Client receives model from queen
+            print("#### enter the dragon")
+            val = socket.pull()
+            print("#### flag: ", val)
+            flag, model = val
 
             #Step 5: Client updateModel(model from queen)
-            self.peaknet.updateModel(model)
+            self.peaknet.updateModel(model, check=True)
 
             self.peaknet.model.cuda()
 
-            #print("#### model.w before: ", next(self.peaknet.model.parameters())[-1,0,:,:])
+            fname = '/reg/neh/home/liponan/ai/peaknet4antfarm/val_and_test.json' # FIXME: don't hard code
+            df = None
 
-            #Step 6: Client trains its Peaknet instance
-            print("###### training: ", labels, len(labels), self.eventNum)
-            import pickle
-            outfile = "/reg/neh/home/yoon82/peaknetLabels.pkl"
-            with open(outfile, 'wb') as outfd:
-                pickle.dump(labels, outfd, protocol=pickle.HIGHEST_PROTOCOL)
-            exit()
-            self.peaknet.train(imgs, labels, batch_size=1, box_size = 7, use_cuda=True)
+            print("**********************************: ", kwargs["isFirstWorker"], kwargs["isFirstWorker"]==1)
 
-            #print("#### model.w after: ", next(self.peaknet.model.parameters())[-1,0,:,:])
-            #print("#### model.grad: ", next(self.peaknet.model.parameters()).grad[-1,0,:,:])
+            if flag == 'train':
+                # Step 6: Client trains its Peaknet instance
+                numPanels = imgs[0].shape[0]
+                mini_batch_size = numPanels * self.batchSize
+                self.peaknet.train(imgs, labels, mini_batch_size=mini_batch_size, box_size=7, use_cuda=True,
+                                   writer=self.peaknet.writer, verbose=True)
+                if jj == 1:
+                    self.peaknet.snapshot(imgs, labels, tag=kwargs["name"])
+                    jj = 0
+                jj += 1
+                # Step 7: Client sends the new model to queen
+                #print("##### Grad: ", self.peaknet.getGrad())
+                socket.push(["Gradient", self.peaknet.getGrad(), mini_batch_size])
 
-            #Step 7: Client sends the new model to queen
-            socket.push(self.peaknet.getGrad())
+            print("@@@@@@@@@ isFirstWorker: ", kwargs["isFirstWorker"], kwargs["isFirstWorker"]==1)
+            if kwargs["isFirstWorker"]==True:
+                print("@@@@@ client running validation")
+                if flag == 'validate':
+                    # Read json
+                    df = json_parser(fname, mode='validate', subset=False)
+                    counter = 0
+                elif flag == 'validateSubset':
+                    # Read json
+                    df = json_parser(fname, mode='validate', subset=True)
 
-            #print("#### model.grad push: ", next(self.peaknet.model.parameters()).grad[-1,0,:,:])
+                if flag.startswith('validate'):
+                    pdl = Utils.psanaDataLoader(df, self.batchSize)
+                    for i in range(pdl.numMacros):
+                        valImgs, valLabels = pdl[i]
+                        numPanels = valImgs[0].shape[0]
+                        # Step 6: Validation
+                        self.peaknet.validate(valImgs, valLabels, mini_batch_size=numPanels * self.batchSize, box_size=7,
+                                              use_cuda=True, writer=self.peaknet.writer, verbose=True)
+
+
 
             #Step 8: Queen does updateGradient(new model from client)
             #Step 9: Queen Optimizes

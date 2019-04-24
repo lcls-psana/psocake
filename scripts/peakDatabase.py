@@ -12,12 +12,13 @@ class PeakDatabase:
         Arguments:
         kwargs -- peakfinding parameters, host and server name, client name
         """
+        print("###### PeakDatabase init")
         server = kwargs["server"]
         self.client = MongoClient('mongodb://%s:27017/'%server)
         dbname = kwargs["dbname"]
         self.db = self.client[dbname]
         self.poster = self.db.posts
-        self.clientName = kwargs["name"] + datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S")
+        self.clientName = kwargs["name"] #+ datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S")
         dictionary = {self.clientName:{"parameters":{"npxmin" : kwargs["npix_min"],
                                                     "npxmax" : kwargs["npix_max"],
                                                     "amaxthr" : kwargs["amax_thr"],
@@ -32,9 +33,9 @@ class PeakDatabase:
         kwargs -- Exp, Run, Event, Peaks
         """
         header1 = self.clientName + "." + kwargs["Exp"] + "." + kwargs["RunNum"] + "." + kwargs["Event"] + "." +"Peaks"
-        header2 = self.clientName + "." + kwargs["Exp"] + "." + kwargs["RunNum"] + "." + kwargs["Event"] + "." +"Labels"
+        header2 = self.clientName + "." + kwargs["Exp"] + "." + kwargs["RunNum"] + "." + kwargs["Event"] + "." +"Likelihood"
         self.poster.find_one_and_update({u'_id': self.theid},
-                                        {"$set":{header1: kwargs["Peaks"], header2: kwargs["Labels"]}},
+                                        {"$set":{header1: kwargs["Peaks"], header2: kwargs["Likelihood"]}},
                                         upsert = True,
                                         return_document=ReturnDocument.AFTER)
 

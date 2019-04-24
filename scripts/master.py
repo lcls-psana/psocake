@@ -9,11 +9,10 @@ import json
 from peaknet import Peaknet
 from masterSocket import masterSocket
 import zmq
+import torch
 
 #Initialize variables 
-
-#Value that continues the loop of accepting information from clients.
-boolean = True
+runMasterOnGPU = True
 
 #Number of models to pass before saving a model to a database
 checkpoint = 100
@@ -23,34 +22,61 @@ socket = masterSocket()
 
 #Step 1: Both Queen and Clients make their own Peaknet instances.
 peaknet = Peaknet()
+lr = 0.001
 
 #Step 2: Queen loads DN weights
-peaknet.loadDNWeights() # FIXME: load latest weights
+peaknet.loadCfg("/reg/neh/home/liponan/ai/pytorch-yolo2/cfg/newpeaksv10-asic.cfg") # FIXME: load latest weights
+peaknet.init_model()
+#peaknet.model = torch.load("/reg/d/psdm/cxi/cxic0415/res/liponan/antfarm_backup/api_demo_psana_model_000086880")
+
+if runMasterOnGPU: peaknet.model.cuda()
+peaknet.set_optimizer(adagrad=True, lr=lr)
 
 #Communication with clients begins.
-while (boolean):
+kk = 0
+outdir = "/reg/d/psdm/cxi/cxic0415/res/liponan/antfarm_backup"
+
+while 1:
     try:
-        #print(datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S"))
         print("waiting for worker...")
         val = socket.pull()
-        #print(datetime.datetime.now().strftime("--%Y-%m-%d--%H:%M:%S"))
+        print("#### master pulled: ", val)
     except zmq.error.Again:
         break
-    if(val == "Im Ready!"):
+
+    print("^^^^^^^^^^^^^^^^^^^^: ", val)
+
+    if(val[0] == "Ready"):
         #Step 3: Client tells Queen it is ready
         #Step 4: Queen sends model to Client
-        socket.push(peaknet.model)
+        socket.push(['train', peaknet.model])
         #Step 5: Client updateModel(model from queen)
         #Step 6: Client trains its Peaknet instance
-    else:
+        counter = val[1]
+
+        if counter%1200 == 0:
+            socket.push(['validate', peaknet.model])
+        elif counter%60 == 0:
+            socket.push(['validateSubset', peaknet.model])
+
+        fname = os.path.join(outdir, str(kk)+".pkl")
+        if kk%3 == 0:
+            torch.save(peaknet.model, fname)
+        kk += 1
+
+    elif(val[0] == "Gradient"): # val is the gradient
         #Step 7: Queen recieves new model from client
-        grads = val
+        grads = val[1]
+        mini_batch_size = val[2]
         #Step 8: Queen does updateGradient(new model from client)
-        #print("###### model gradients: ", grads['models.8.bn6.weight'], type(grads))
-        peaknet.updateGrad(grads)
+        peaknet.set_optimizer(adagrad=True, lr=lr)
+
+        peaknet.updateGrad(grads, mini_batch_size, useGPU=runMasterOnGPU)
         #Step 9: Queen Optimizes
         peaknet.optimize()
-        #print("###### model weights: ", next(peaknet.model.parameters())[-1])
+
         #Step 10: Repeat Steps 3-10
         model_dict = dict(peaknet.model.named_parameters())
         #TODO: Every checkpoint # models, the model will be saved to MongoDB
+
+

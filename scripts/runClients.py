@@ -13,6 +13,10 @@ parser.add_argument("-atot_thr", default = 600, type = int, help = "integral ins
 parser.add_argument("-son_min", default = 10, type = int, help = "signal over noise ratio")
 parser.add_argument("-name", default = "Client", help = "Name of client for database")
 parser.add_argument("-dbname" , default = "PeakFindingDatabase", help = "The database you would like to save your information to")
+parser.add_argument("-isFirstWorker" , action='store_true', help = "This worker will train and run validation")
+parser.add_argument("-v", action='store_true', help="Print debug information")
+parser.add_argument("-vv", action='store_true', help="Print debug information")
+parser.add_argument("-vvv", action='store_true', help="Print debug information")
 args = parser.parse_args()
 
 class runClients(object):
@@ -21,11 +25,18 @@ class runClients(object):
         self.clientType = args.type
         self.filename = "databaseLocation.txt"
         self.databaseLocation = self.locateDatabase()
+        self.verbose = 0
+        if args.vvv:
+            self.verbose = 3
+        elif args.vv:
+            self.verbose = 2
+        elif args.v:
+            self.verbose = 1
         # FIXME: these kwargs belong to clientPeakFinder
-        kwargs = {"npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args.amax_thr, 
+        kwargs = {"isFirstWorker": args.isFirstWorker, "npix_min": args.npix_min, "npix_max": args.npix_max, "amax_thr": args.amax_thr,
               "atot_thr": args.atot_thr, "son_min" : args.son_min, "host" : args.host, "name" : args.name,
-              "server" : self.databaseLocation, "dbname" : args.dbname}
-        print(kwargs)
+              "server" : self.databaseLocation, "dbname" : args.dbname, "verbose" : self.verbose}
+        #print(kwargs)
         self.invoke_model(**kwargs)
 
     def locateDatabase(self):
@@ -47,5 +58,6 @@ class runClients(object):
             model_module_obj.algorithm(**kwargs)
         else:
             print("Start database and rerun client")
-            
+
+print("### Running runClients")
 runClients(args)
