@@ -54,9 +54,11 @@ while 1:
         #Step 6: Client trains its Peaknet instance
         counter = val[1]
 
-        if counter%1200 == 0:
+        if counter%10000 == 0:
+            print("######### validate")
             socket.push(['validate', peaknet.model])
-        elif counter%60 == 0:
+        elif counter%10 == 0:
+            print("######### validateSubset")
             socket.push(['validateSubset', peaknet.model])
 
         fname = os.path.join(outdir, str(kk)+".pkl")

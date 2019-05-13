@@ -32,7 +32,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
 
     def __init__(self):
         #Amount of events sent to PeakNet (For future, rayonix batchSize = 7 would be GPU memory efficient)
-        self.batchSize = 6
+        self.batchSize = 3
         self.goodLikelihood = .003
         #Limit of events iterated through in a run
         self.eventLimit = self.batchSize * 10
@@ -330,13 +330,11 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             #    if verbose > 0: print("\nExperiment: %s, Run: %s, Detector: %s, NumEvents: %d"%(self.exp, str(self.runnum), self.det, self.numEvents))
                 #Initialize the number of good events/hits for this event
                 # If less than 3 in the first 1000 events, this run is skipped
-            print("#### here")
             self.exp, self.runnum, self.det, self.eventNum = crawler.next(self.eventNum, self.useLastRun)
 
             #Peak find for each event in an experiment+run
             
             while (self.eventNum < crawler.numEvents):
-                print("#### there")
                 if verbose > 0: print("eventNum: ", self.eventNum)
 
                 # Until the amount of good events found is equal to the batchSize, keep finding experiments to find peaks on
@@ -440,9 +438,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
         myCrawler = Crawler()
         counter = 0
 
-        kk = 0
         jj = 0
-        outdir = "/reg/d/psdm/cxi/cxic0415/res/liponan/antfarm_backup"
+        outdir = "/reg/d/psdm/cxi/cxic0415/scratch/liponan/antfarm_backup" # save images for debugging
 
         while(True):
             # Randomly choose an experiment:run and look for crystal diffraction pattern and return with batchSize labels
@@ -455,12 +452,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
             socket.push(["Ready", counter])
 
             fname = os.path.join(outdir, kwargs["name"]+"_"+str(self.peaknet.model.seen) + ".pkl")
-            if kk % 3 == 0:
-                torch.save(self.peaknet.model, fname)
-            kk += 1
 
             #Step 4: Client receives model from queen
-            print("#### enter the dragon")
             val = socket.pull()
             print("#### flag: ", val)
             flag, model = val
@@ -470,10 +463,8 @@ class clientPeakFinder(clientAbstract.clientAbstract):
 
             self.peaknet.model.cuda()
 
-            fname = '/reg/neh/home/liponan/ai/peaknet4antfarm/val_and_test.json' # FIXME: don't hard code
+            fname = '/reg/neh/home/liponan/ai/peaknet4antfarm/val_and_test_cxic0415.json' # FIXME: don't hard code
             df = None
-
-            print("**********************************: ", kwargs["isFirstWorker"], kwargs["isFirstWorker"]==1)
 
             if flag == 'train':
                 # Step 6: Client trains its Peaknet instance
@@ -481,7 +472,7 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 mini_batch_size = numPanels * self.batchSize
                 self.peaknet.train(imgs, labels, mini_batch_size=mini_batch_size, box_size=7, use_cuda=True,
                                    writer=self.peaknet.writer, verbose=True)
-                if jj == 1:
+                if jj == 100:
                     self.peaknet.snapshot(imgs, labels, tag=kwargs["name"])
                     jj = 0
                 jj += 1
@@ -489,14 +480,14 @@ class clientPeakFinder(clientAbstract.clientAbstract):
                 #print("##### Grad: ", self.peaknet.getGrad())
                 socket.push(["Gradient", self.peaknet.getGrad(), mini_batch_size])
 
-            print("@@@@@@@@@ isFirstWorker: ", kwargs["isFirstWorker"], kwargs["isFirstWorker"]==1)
             if kwargs["isFirstWorker"]==True:
-                print("@@@@@ client running validation")
                 if flag == 'validate':
+                    print("######### validate")
                     # Read json
                     df = json_parser(fname, mode='validate', subset=False)
                     counter = 0
                 elif flag == 'validateSubset':
+                    print("######### validateSubset")
                     # Read json
                     df = json_parser(fname, mode='validate', subset=True)
 

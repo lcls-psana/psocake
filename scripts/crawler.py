@@ -71,7 +71,7 @@ class Crawler:
         """searches through the data files and reports a random experiment and run number
         """
         #random.seed(1)
-        debugMode = False
+        debugMode = True
         choice = None
         filetype = random.choice(["cxi"])
         myList = ['cxic0415',]#['cxilr7616']# # FIXME: psana can not handle xtcs with no events
