@@ -138,9 +138,6 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
 
         ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
         try:
-            photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
-            pulseEnergy = ebeam.ebeamL3Energy()  # MeV
-        except:
             photonEnergy = 0
             pulseEnergy = 0
             if md.small.wavelength > 0:
@@ -148,6 +145,9 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
                 c = 2.99792458e8  # m/s
                 joulesPerEv = 1.602176621e-19  # J/eV
                 photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)
+        except:
+            photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
+            pulseEnergy = ebeam.ebeamL3Energy()  # MeV
 
         md.small.photonEnergy = photonEnergy
         md.small.pulseEnergy = pulseEnergy
