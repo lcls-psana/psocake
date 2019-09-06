@@ -136,9 +136,15 @@ class LaunchIndexer(QtCore.QThread):
                     cmd += " --extra [" + self.parent.index.extra + "]"
                 if self.parent.index.condition: cmd += " --condition " + '"'+self.parent.index.condition+'"'
                 cmd += " --run " + str(run)
-                # Launch indexing job
-                print "Launch indexing job: ", cmd
-                subprocess.Popen(shlex.split(cmd))
+                # Check cxi file exists for this run
+                runDir = self.parent.index.outDir + "/r" + str(run).zfill(4)
+                peakFile = runDir + '/' + self.parent.experimentName + '_' + str(run).zfill(4)
+                if self.parent.pk.tag: peakFile += '_'+self.parent.pk.tag
+                peakFile += '.cxi'
+                if os.path.exists(peakFile):
+                    # Launch indexing job
+                    print "Launch indexing job: ", cmd
+                    subprocess.Popen(shlex.split(cmd))
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "indexCrystals" + \
                       " -e " + self.parent.experimentName + \

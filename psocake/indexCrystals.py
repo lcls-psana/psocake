@@ -253,6 +253,7 @@ if hasData:
     # Launch indexing
     try:
         if facility == 'LCLS':
+            print "Reading images from: ", peakFile
             f = h5py.File(peakFile, 'r')
             eventList = f['/LCLS/eventNumber'].value
             if args.likelihood > 0:
@@ -299,7 +300,7 @@ if hasData:
                         if condition_check(hf, val, icondition):
                             text_file.write("{} //{}\n".format(peakFile, val))
                             isat_event.append(val)
-            print 'satisfied event: ', isat_event, '\n'
+            #print 'satisfied event: ', isat_event, '\n'
             isat_event = []
 
             # Submit job
