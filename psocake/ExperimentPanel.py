@@ -695,18 +695,17 @@ class ExperimentInfo(object):
     def updatePhotonEnergy(self, arg):
         if arg == self.parent.facilityLCLS:
             self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-            self.parent.photonEnergy = self.parent.epics.value('SIOC:SYS0:ML00:AO541')
-            if self.parent.photonEnergy is None and self.parent.ebeam:
-                self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
-            else:
-                try:
-                    wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # nanometre
-                    h = 6.626070e-34  # J.m
-                    c = 2.99792458e8  # m/s
-                    joulesPerEv = 1.602176621e-19  # J/eV
-                    self.parent.photonEnergy = (h / joulesPerEv * c) / (wavelength * 1e-9)
-                except:
-                    self.parent.photonEnergy = 0.0
+            try:
+                wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # nanometre
+                h = 6.626070e-34  # J.m
+                c = 2.99792458e8  # m/s
+                joulesPerEv = 1.602176621e-19  # J/eV
+                self.parent.photonEnergy = (h / joulesPerEv * c) / (wavelength * 1e-9)
+            except:
+                self.parent.photonEnergy = self.parent.epics.value('SIOC:SYS0:ML00:AO541')
+                if self.parent.photonEnergy is None and self.parent.ebeam:
+                    self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
+
             self.parent.geom.p1.param(self.parent.geom.geom_grp,
                                  self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
         elif arg == self.parent.facilityPAL:
