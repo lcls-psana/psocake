@@ -632,6 +632,16 @@ class IndexHandler(QtCore.QThread):
                 # Generate a static mask of bad pixels for indexing
                 self.parent.mk.saveCheetahStaticMask()
 
+                # Check indexamajig version
+                cmd = 'indexamajig --version'
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out, err = process.communicate()
+                (major,minor,patch) = out.split('\n')[0].split(': ')[-1].split('.')
+                if int(minor) >= 8:
+                    mySuccessString = "1 crystals"
+                else:
+                    mySuccessString = "1 had crystals"
+
                 # FIXME: convert psana geom to crystfel geom
                 cmd = "indexamajig -j 1 -i " + self.parent.index.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
                       " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
@@ -651,7 +661,6 @@ class IndexHandler(QtCore.QThread):
                     print highlight("https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial",'r',1)
                     print "######################################################################"
 
-                mySuccessString = "1 had crystals"
                 # Read CrystFEL geometry in stream
                 if mySuccessString in err:  # success
                     if self.parent.args.v >= 1: print "Indexing successful!"

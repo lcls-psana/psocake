@@ -9,12 +9,11 @@ import random
 import re
 import zmq
 import time
+import operator
 
 def checkXtcSize(exp, runnum):
     minBytes = 100
     realpath = os.path.realpath('/reg/d/psdm/cxi/' + exp + '/xtc')
-    if '/reg/data/ana13' in realpath:  # FIXME: ana013 is down temporarily
-        return False
     runList = glob.glob('/reg/d/psdm/cxi/' + exp + '/xtc/*-r%04d*' % (runnum))
     idxList = glob.glob('/reg/d/psdm/cxi/' + exp + '/xtc/index/*-r%04d*' % (runnum))
     smdList = glob.glob('/reg/d/psdm/cxi/' + exp + '/xtc/smalldata/*-r%04d*' % (runnum))
@@ -28,7 +27,10 @@ def checkXtcSize(exp, runnum):
 
 def safeDataSource(exp, runnum):
     if checkXtcSize(exp, runnum):
-        _ds = psana.DataSource('exp=%s:run=%s:smd' % (exp, runnum))
+        try:
+            _ds = psana.DataSource('exp=%s:run=%s:smd' % (exp, runnum))
+        except:
+            return None
         evt = None
         for _evt in _ds.events():
             evt = _evt
@@ -82,13 +84,13 @@ def getDetName(exp, run):
 def randExpRunDet():
     while True:
         found, exp, runnum = randExpRun()
-
         if found:
             exists = safeDataSource(exp, runnum)
-
             if exists:
-                det = getDetName(exp, runnum)
-
+                try:
+                    det = getDetName(exp, runnum)
+                except:
+                    continue
                 if det is not None:
                     return exp, runnum, det
 
@@ -109,11 +111,18 @@ def randExpRun():
     if ("cxi" in choice):
         try:
             realpath = os.path.realpath('/reg/d/psdm/cxi/' + choice + '/xtc')
-            if '/reg/data/ana01' in realpath:  # FIXME: ana01 is down temporarily
+            if '/reg/data/ana01'  in realpath:  # FIXME: ana01 is down temporarily, or '/reg/data/ana12'
                 return [False, 0, 0]
             runList = os.listdir(realpath)
+            #numRunList = []
+            #for item in runList:
+            #    try:
+            #        numRunList.append(int(re.findall("-r(\d+)-", item)[0]))
+            #    except:
+            #        print("something went wrong", item)
+            #numRunList.sort()
+            #print(numRunList)
             randomRun = random.choice(runList)
-
             if (".xtc.inprogress" in randomRun):
                 return [False, 0, 0]
             elif (".xtc" in randomRun):
@@ -132,16 +141,65 @@ def randExpRun():
     else:
         return [False, 0, 0]
 
+def returnRunList(exp, run):
+        """returns next valid run in experiment
+        """
+        if ("cxi" in exp):
+            try:
+                realpath = os.path.realpath('/reg/d/psdm/cxi/' + exp + '/xtc')
+                if '/reg/data/ana01' in realpath:  # FIXME: ana01 is down temporarily, or '/reg/data/ana12' 
+                    return [False, 0, 0]
+                runList = os.listdir(realpath)
+                for i,runs in enumerate(runList):
+                    try:
+                        runList[i] = int((re.findall("-r(\d+)-", runList[i]))[0])
+                    except:
+                        continue
+                runList = list(set(runList))
+                runList = filter(operator.isNumberType, runList)
+                runList.remove(run)
+                return runList
+            except OSError:
+                return []
+        else:
+            return []
+
+def nextExpRunDet(exp, runnum):
+    found, exp, runnum = [True, exp, runnum]
+    if found:
+        exists = safeDataSource(exp, runnum)
+        print("passed")
+        if exists:
+            det = getDetName(exp, runnum)
+            print("got det")
+            if det is not None:
+                return exp, runnum, det
+            else:
+                return None, None, None
+        else:
+            return None, None, None
+    else:
+        return None, None, None
+
 class CrystalFindingAnt:
 
     def __init__(self, host):
         self.host = host
         self.outdir = '/reg/d/psdm/cxi/cxitut13/res/autosfx/output'
         self.goodLikelihood = .003
-        #Minimum number of peaks to be found to calculate likelihood
+        #Minimum number of peaks to bev/reg/d/psdm/cxi/cxitut13/res/autosfx/output found to calculate likelihood
         self.goodNumPeaks = 10
         #Minimum number of events to be found considered a good run
         self.minCrystals = 2
+        #List of good experiments with all runs evaluated - This ensures that an experiment will not have all 
+        # of its runs evaluated a second time
+        self.goodList = []
+        #Condition to switch from random crawling to running through each experiment
+        self.lastGood = False
+        #Number of good runs saved by Queen, or num found by an Ant 
+        self.numSaved = 0
+        #Time when Ant is initialized
+        self.startTime = time.time()
 
         self.context = zmq.Context()
         if self.host == "":
@@ -215,12 +273,12 @@ class CrystalFindingAnt:
 
     def respond2Clients(self):
         message = self.socket.recv()
-        mode,exp,runnum,detname = message.split(",")
+        mode,exp,runnum,detname,numFound = message.split(",")
         runnum = int(runnum)
         if mode == "check":
             status = self.checkStatus(exp,runnum,detname)
         elif mode == "update":
-            status = self.updateStatus(exp,runnum,detname)
+            status = self.updateStatus(exp,runnum,detname,int(numFound))
         self.socket.send(str(status))
 
     def checkStatus(self, exp, runnum, detname):
@@ -237,14 +295,14 @@ class CrystalFindingAnt:
                 return False
         else:
             # ask master for status
-            self.socket.send("check,"+exp+","+str(runnum)+","+detname)
+            self.socket.send("check,"+exp+","+str(runnum)+","+detname+","+"-1")
             message = self.socket.recv()
             if message == "True":
                 return True
             else:
                 return False
 
-    def updateStatus(self, exp, runnum, detname):
+    def updateStatus(self, exp, runnum, detname, num):
         if self.host == "":
             outfile = os.path.join(self.outdir, exp + '.npz')
             todo = os.path.join(self.outdir, 'todo.txt')
@@ -254,7 +312,6 @@ class CrystalFindingAnt:
                 ind = np.where(runs == runnum)[0]
                 # Does the run exist?
                 if len(ind) == 0:
-                    print "Found one!"
                     # insert run
                     ind = np.where(runs < runnum)[0]
                     if len(ind) == 0:
@@ -267,13 +324,15 @@ class CrystalFindingAnt:
             except:
                 runs = np.array([runnum],)
                 np.savez(outfile, runs=runs, detname=detname)
-                print "Create new file"
+            self.numSaved+=1
+            print"Good runs found: %d"%self.numSaved
+            timeSince =  time.time() - self.startTime
             with open(todo, "a") as f:
-                msg = exp + " " + str(runnum) + " " + detname + "\n"
+                msg = exp + " " + str(runnum) + " " + detname + " " + str(self.numSaved) + " " + str(timeSince) + "\n"
                 f.write(msg)
         else:
             # ask master to update
-            self.socket.send("update," + exp + "," + str(runnum) + "," + detname)
+            self.socket.send("update," + exp + "," + str(runnum) + "," + detname + "," + str(num))
             message = self.socket.recv()
             if message == "True":
                 return True
@@ -287,18 +346,39 @@ class CrystalFindingAnt:
         alg -- the peakfinding algorithm
         kwargs -- peakfinding parameters, host and server name, client name
         """
+        evaluateAllRuns = False
         while True:
             if self.host == "":
                 # respond to clients
                 self.respond2Clients()
             else:
+                print("Next...")
                 # randomly choose experiment + run
-                self.exp, self.runnum, self.detname = randExpRunDet()
-                print "exp run det: ", self.exp, self.runnum, self.detname
+                if not evaluateAllRuns:
+                    print("Randomly fetching run")
+                    self.exp, self.runnum, self.detname = randExpRunDet()
+                else:
+		    try:
+                        print("Fecthing next run in experiment")
+                        self.exp, self.runnum, self.detname = nextExpRunDet(self.goodExp, self.runList[0])
+                        if self.exp is None:
+                            self.runList.pop(0)
+                            continue
+                    except:
+                        evaluateAllRuns = False
+                        continue
                 if not self.checkStatus(self.exp, self.runnum, self.detname):
-                    self.ds = safeDataSource(self.exp, self.runnum)
+                    print "trying: exp %s, run %s, det %s"%(self.exp,self.runnum,self.detname)
+                    try: #temp
+                        self.ds = safeDataSource(self.exp, self.runnum)
+                    except: #temp
+                        continue #temp
                     self.run = self.ds.runs().next()
                     self.times = self.run.times()
+                    #Start temp code
+                    if self.detname is None:
+                        continue
+                    #End temp code
                     self.det = psana.Detector(self.detname)
                     self.det.do_reshape_2d_to_3d(flag=True)
                     try:
@@ -321,7 +401,26 @@ class CrystalFindingAnt:
                                 if self.likelihood(peaks) >= self.goodLikelihood:
                                     numCrystals += 1
                                 if numCrystals >= self.minCrystals:
-                                    self.updateStatus(self.exp, self.runnum, self.detname)
+                                    self.numSaved +=1
+                                    self.updateStatus(self.exp, self.runnum, self.detname, self.numSaved)
+                                    self.lastGood = True
                                     break
                     except:
                         print "Could not analyse this run"
+                #If an experiment has not had all of its runs evaluated yet
+                # and if the last randomly selected run in this experiment was good
+                # then all the runs in this experiment should be evaluated
+                if (self.exp not in self.goodList) and self.lastGood:
+                    self.goodExp = self.exp #Save the name of this experiment
+                    self.goodRun = self.runnum #Save the run that has already been evaluated
+                    self.lastGood = False #Reset the condition that the last run was "good"
+                    self.goodList.append(self.goodExp) #Add this experiment name to the list of experiments that have had all runs evaluated
+                    self.runList = returnRunList(self.goodExp, self.goodRun) #save list of all runs in this good exp
+                    evaluateAllRuns = True #rerun loop with new algorithm that evaluates each run in an experiment
+                    continue
+                if evaluateAllRuns: #If the loop is currently evaluating all of the runs in an experiment
+                    if(len(self.runList) > 1):
+                        self.runList.pop(0) #Remove runs from the list of runs each time they are evaluated
+                    else:
+                        self.runList.pop(0)#Remove runs until the list is completely empty
+                        evaluateAllRuns = False #Stop evaluated all the runs of an experiment, go back to random fetching

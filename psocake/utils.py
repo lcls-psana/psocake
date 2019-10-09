@@ -2,6 +2,8 @@ import json
 import h5py
 import psana
 import sys
+import numpy as np
+from numba import jit
 
 ansi_cmap = {"k": '0;30',
         "r": '0;31',
@@ -67,3 +69,21 @@ def updateHdf5(h5file, dataset, ind, val):
         h5file[dataset][ind] = val
     except:
         h5file[dataset][ind] = 0
+
+# Upsampling
+@jit(nopython=True)
+def upsample(warr, dim, binr, binc):
+    upCalib = np.zeros(dim)
+    for k in range(dim[0]):
+        for i, ix in enumerate(xrange(0,dim[1],binr)):
+            if ix+binr > dim[1]:
+                er = dim[1]+1
+            else:
+                er = ix+binr
+            for j, jy in enumerate(xrange(0,dim[2],binc)):
+                if jy+binc > dim[2]:
+                    ec = dim[2]+1
+                else:
+                    ec = jy+binc
+                upCalib[k,ix:er,jy:ec] = warr[k,i,j]
+    return upCalib

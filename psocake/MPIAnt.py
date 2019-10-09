@@ -186,7 +186,7 @@ class MPIAnt:
                 nextTask = todo[ind]
                 if self.maxCores-self.numCores >= 0:
                     # Launch next task
-                    exp, runnum, detname = nextTask.rstrip().split(" ")
+                    exp, runnum, detname, ind, procTime = nextTask.rstrip().split(" ")
                     self.launchJob(exp, int(runnum), detname)
                     dq.append(nextTask)
                     o.write(nextTask)
@@ -194,7 +194,7 @@ class MPIAnt:
                 else:
                     # Check for jobs finished
                     for i,val in enumerate(dq):
-                        exp, runnum, detname = val.rstrip().split(" ")
+                        exp, runnum, detname, ind, procTime = val.rstrip().split(" ")
                         runstr = "%04d" % int(runnum)
                         if os.path.exists(os.path.join(self.outdir, exp+"_"+runstr+".cxi")):
                             print "found: ", val

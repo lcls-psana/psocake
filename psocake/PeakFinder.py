@@ -1,6 +1,8 @@
 import numpy as np
 import myskbeam
 import os
+import utils
+import skimage.measure as sm
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     facility = 'LCLS'
@@ -88,22 +90,12 @@ class PeakFinder:
             self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
-        elif algorithm == 2:
+        elif algorithm >= 2:
             self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
             self.hitParam_alg1_thr_high = kwargs["alg1_thr_high"]
             self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
-        elif algorithm == 3:
-            self.hitParam_alg3_rank = kwargs["alg3_rank"]
-            self.hitParam_alg3_r0 = int(kwargs["alg3_r0"])
-            self.hitParam_alg3_dr = kwargs["alg3_dr"]
-        elif algorithm == 4:
-            self.hitParam_alg4_thr_low = kwargs["alg4_thr_low"]
-            self.hitParam_alg4_thr_high = kwargs["alg4_thr_high"]
-            self.hitParam_alg4_rank = int(kwargs["alg4_rank"])
-            self.hitParam_alg4_r0 = int(kwargs["alg4_r0"])
-            self.hitParam_alg4_dr = kwargs["alg4_dr"]
 
         if facility == 'LCLS':
             self.access = kwargs["access"]
@@ -114,7 +106,7 @@ class PeakFinder:
                                                  amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
                                                  son_min=self.son_min)
                 #self.alg = myskbeam.DropletA(self.peakRadius, self.peakRadius+self.hitParam_alg1_dr) #PyAlgos(windows=self.windows, mask=None, pbits=0)
-            elif self.algorithm == 2:
+            elif self.algorithm >= 2:
                 # set peak-selector parameters:
                 self.alg = PyAlgos(mask=None, pbits=0)
                 self.peakRadius = int(self.hitParam_alg1_radius)
@@ -280,12 +272,22 @@ class PeakFinder:
                                                        nsigm=self.son_min,
                                                        mask=self.combinedMask.astype(np.uint16))
         elif self.algorithm == 3:
-            self.peaks = self.alg.peak_finder_v3(calib, rank=self.hitParam_alg3_rank, r0=self.hitParam_alg3_r0, dr=self.hitParam_alg3_dr)
-        elif self.algorithm == 4:
-            # v4 - aka iDroplet Finder - two-threshold peak-finding algorithm in restricted region
-            #                            around pixel with maximal intensity.
-            self.peaks = self.alg.peak_finder_v4(calib, thr_low=self.hitParam_alg4_thr_low, thr_high=self.hitParam_alg4_thr_high, \
-                                   rank=self.hitParam_alg4_rank, r0=self.hitParam_alg4_r0, dr=self.hitParam_alg4_dr)
+            if facility == 'LCLS':
+                # perform binning here
+                binr = 2
+                binc = 2
+                downCalib = sm.block_reduce(calib, block_size=(1, binr, binc), func=np.sum)
+                downWeight = sm.block_reduce(self.combinedMask, block_size=(1, binr, binc), func=np.sum)
+                warr = np.zeros_like(downCalib, dtype='float32')
+                ind = np.where(downWeight > 0)
+                warr[ind] = downCalib[ind] / downWeight[ind]
+                upCalib = utils.upsample(warr, calib.shape, binr, binc)
+                self.peakRadius = int(self.hitParam_alg1_radius)
+                self.peaks = self.alg.peak_finder_v3r3(upCalib, rank=int(self.hitParam_alg1_rank),
+                                                       r0=self.peakRadius, dr=self.hitParam_alg1_dr,
+                                                       nsigm=self.son_min,
+                                                       mask=self.combinedMask.astype(np.uint16))
+
         self.numPeaksFound = self.peaks.shape[0]
 
         if self.numPeaksFound > 0:

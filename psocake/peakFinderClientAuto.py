@@ -390,7 +390,7 @@ def runclient(args):
                                               clen=args.clen,
                                               localCalib=args.localCalib,
                                               geom=_geom)
-            elif args.algorithm == 2:
+            elif args.algorithm >= 2:
                 d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
                                              args.algorithm, args.alg_npix_min,
                                              args.alg_npix_max, args.alg_amax_thr,
