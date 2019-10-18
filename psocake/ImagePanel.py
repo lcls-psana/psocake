@@ -4,6 +4,7 @@ import numpy as np
 import time
 import os
 import datetime
+from utils import *
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
@@ -210,7 +211,16 @@ class ImageViewer(object):
                                                       cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
                                                               self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
                 else:
-                    calib = self.parent.det.calib(self.parent.evt)
+                    if not self.parent.inputImages:
+                        calib = self.parent.det.calib(self.parent.evt)
+                    else:
+                        f = h5py.File(self.parent.inputImages)
+                        ind = np.where(f['eventNumber'].value == evtNumber)[0][0]
+                        if len(f['/data/data'].shape) == 3:
+                            calib = ipct(f['data/data'][ind, :, :])
+                        else:
+                            calib = f['data/data'][ind, :, :, :]
+                        f.close()
                 return calib
         elif self.parent.facility == self.parent.facilityPAL:
             temp = self.parent.rootDir + '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'

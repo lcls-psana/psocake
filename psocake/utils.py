@@ -56,6 +56,28 @@ def convert_peaks_to_cheetah(s, r, c) :
     col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
     return row2d, col2d
 
+def ipct(tile):
+    """
+    Transform cheetah tile to psana unassembled image
+    :param tile: cheetah tile
+    :return: psana unassembled image
+    """
+    # Save cheetah format mask
+    numQuad = 4
+    numAsicsPerQuad = 8
+    asicRows = 185
+    asicCols = 388
+
+    # Convert calib image to cheetah image
+    calib = np.zeros((32,asicRows,asicCols))
+    counter = 0
+    for quad in range(numQuad):
+        for seg in range(numAsicsPerQuad):
+            calib[counter, :, :] = \
+                tile[seg * asicRows:(seg + 1) * asicRows, quad * asicCols:(quad + 1) * asicCols]
+            counter += 1
+    return calib
+
 # HDF5-related
 
 def reshapeHdf5(h5file, dataset, ind, numAppend):

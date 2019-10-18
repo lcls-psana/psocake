@@ -247,9 +247,17 @@ def runclient(args):
 
         if facility == 'LCLS':
             evt = run.event(times[nevent])
-            detarr = d.calib(evt)
+            if not args.inputImages:
+                detarr = d.calib(evt)
+            else:
+                f = h5py.File(args.inputImages)
+                ind = np.where(f['eventNumber'].value == nevent)[0][0]
+                if len(f['/data/data'].shape) == 3:
+                    detarr = ipct(f['data/data'][ind, :, :])
+                else:
+                    detarr = f['data/data'][ind, :, :, :]
+                f.close()
             exp = env.experiment()
-            #run = evt.run()
         elif facility == 'PAL':
             f = h5py.File(_files[nevent], 'r')
             detarr = f['/data'].value

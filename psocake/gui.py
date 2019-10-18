@@ -46,6 +46,7 @@ parser.add_argument("-m","--mode", default="lite", type=str,
 parser.add_argument("-a","--access", default="ana", type=str,
                     help="Set data node access: {ana,ffb}")
 parser.add_argument("--noInfiniband", action='store_true', help="Do not use infiniband.")
+parser.add_argument("-i","--inputImages", default="", type=str, help="full path to hdf5 file with calibrated CsPad images saved as /data/data and /eventNumber. It can be in a cheetah format (3D) or psana unassembled format (4D)")
 # PAL specific
 parser.add_argument("--debug", action='store_true', help="Debug mode of PAL at LCLS.")
 args = parser.parse_args()
@@ -124,6 +125,7 @@ class MainFrame(QtGui.QWidget):
         self.detInfo = args.det
         self.detAlias = None
         self.eventNumber = int(args.evt)
+        self.inputImages = args.inputImages
 
         # Directories
         self.psocakeDir = None
