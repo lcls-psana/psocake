@@ -56,6 +56,19 @@ def convert_peaks_to_cheetah(s, r, c) :
     col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
     return row2d, col2d
 
+def convert_peaks_to_psana(row2d, col2d) :
+    """Converts cheetah 2-d table row and col (8*185, 4*388)
+       to psana seg, row, col assuming (32,185,388)
+    """
+    if isinstance(row2d, np.ndarray):
+        row2d = row2d.astype('int')
+        col2d = col2d.astype('int')
+    segs, rows, cols = (32,185,388)
+    s = (row2d / rows) + (col2d / cols * 8)
+    r = row2d % rows
+    c = col2d % cols
+    return s, r, c
+
 def ipct(tile):
     """
     Transform cheetah tile to psana unassembled image

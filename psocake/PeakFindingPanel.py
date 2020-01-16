@@ -616,7 +616,7 @@ class PeakFinding(object):
                     for i, peak in enumerate(peaks):
                         seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
                         if 'cspad' in self.parent.detInfo.lower():
-                            cheetahRow, cheetahCol = self.convert_peaks_to_cheetah(seg, row, col)
+                            cheetahRow, cheetahCol = utils.convert_peaks_to_cheetah(seg, row, col)
                             myHdf5[grpName + dset_posX][0, i] = cheetahCol
                             myHdf5[grpName + dset_posY][0, i] = cheetahRow
                             myHdf5[grpName + dset_atot][0, i] = atot
@@ -943,28 +943,6 @@ class PeakFinding(object):
 
         return [meanClosestNeighborDist, pairsFoundPerSpot]
 
-    def convert_peaks_to_cheetah(self, s, r, c) :
-        """Converts psana seg, row, col assuming (32,185,388)
-           to cheetah 2-d table row and col (8*185, 4*388)
-        """
-        segs, rows, cols = (32,185,388)
-        row2d = (int(s)%8) * rows + int(r) # where s%8 is a segment in quad number [0,7]
-        col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
-        return row2d, col2d
-
-    def convert_peaks_to_psana(self, row2d, col2d) :
-        """Converts cheetah 2-d table row and col (8*185, 4*388)
-           to psana seg, row, col assuming (32,185,388)
-        """
-        if isinstance(row2d, np.ndarray):
-            row2d = row2d.astype('int')
-            col2d = col2d.astype('int')
-        segs, rows, cols = (32,185,388)
-        s = (row2d / rows) + (col2d / cols * 8)
-        r = row2d % rows
-        c = col2d % cols
-        return s, r, c
-
     def getMaxRes(self, posX, posY, centerX, centerY):
         maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
         if self.parent.args.v >= 1: print "maxRes: ", maxRes
@@ -1036,7 +1014,7 @@ class PeakFinding(object):
             col2d = f['/entry_1/result_1/peakXPosRawAll'][self.parent.eventNumber, :npeaks]
             f.close()
             # Convert cheetah peaks to psana peaks
-            s, r, c = self.convert_peaks_to_psana(row2d, col2d)
+            s, r, c = utils.convert_peaks_to_psana(row2d, col2d)
             peaks = np.array([s, r, c]).T
             # Display peaks
             if peaks is not None and len(peaks) > 0:
