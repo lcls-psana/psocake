@@ -63,7 +63,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 img = np.zeros((dim0, dim1))
                 counter = 0
                 if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
-                    img = utils.pct(self.parent.mk.combinedMask)
+                    img = pct(self.parent.mk.combinedMask)
                 elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
                     img = self.parent.mk.combinedMask[:, :] # psana format
                 #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
@@ -195,9 +195,17 @@ class LaunchPeakFinder(QtCore.QThread):
 
                 if self.parent.inputImages: cmd += " -i " + self.parent.inputImages
 
+                # Override common mode correction
+                if self.parent.exp.applyCommonMode: 
+                    cmd += " --cm0 " + str(self.parent.exp.commonModeParams[0])
+                    cmd += " --cm1 " + str(self.parent.exp.commonModeParams[1])
+                    cmd += " --cm2 " + str(self.parent.exp.commonModeParams[2])
+                    cmd += " --cm3 " + str(self.parent.exp.commonModeParams[3])
+
                 cmd += " -r " + str(run)
                 # Launch peak finding
                 print "Submitting batch job: ", cmd
+
                 subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             elif self.parent.facility == self.parent.facilityPAL:
                 cmd = "mpirun -n "+str(self.parent.pk.hitParam_cpus)

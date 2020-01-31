@@ -65,6 +65,10 @@ parser.add_argument("--auto", help="automatically determine peak finding paramet
 parser.add_argument("-a","--access", help="Set data node access: {ana,ffb}",default="ana", type=str)
 parser.add_argument("-t","--tag", help="Set tag for cxi filename",default="", type=str)
 parser.add_argument("-i","--inputImages", default="", type=str, help="full path to hdf5 file with calibrated CsPad images saved as /data/data and /eventNumber. It can be in a cheetah format (3D) or psana unassembled format (4D)")
+parser.add_argument("--cm0", help="Psana common mode correction parameter 0",default=0, type=int)
+parser.add_argument("--cm1", help="Psana common mode correction parameter 1",default=0, type=int)
+parser.add_argument("--cm2", help="Psana common mode correction parameter 2",default=0, type=int)
+parser.add_argument("--cm3", help="Psana common mode correction parameter 3",default=0, type=int)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)

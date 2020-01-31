@@ -64,6 +64,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     else:
         pairsFoundPerSpot = 0.0
 
+
     md = mpidata()
     md.addarray('peaks', d.peakFinder.peaks)
     md.addarray('radius', radius)
@@ -248,7 +249,13 @@ def runclient(args):
         if facility == 'LCLS':
             evt = run.event(times[nevent])
             if not args.inputImages:
-                detarr = d.calib(evt)
+                if args.cm0 > 0: # override common mode correction
+                    if args.cm0 == 5:  # Algorithm 5
+                        detarr = d.calib(evt, cmpars=(args.cm0, args.cm1))
+                    else:  # Algorithms 1 to 4
+                        detarr = d.calib(evt, cmpars=(args.cm0, args.cm1, args.cm2, args.cm3))
+                else:
+                    detarr = d.calib(evt)
             else:
                 f = h5py.File(args.inputImages)
                 ind = np.where(f['eventNumber'].value == nevent)[0][0]

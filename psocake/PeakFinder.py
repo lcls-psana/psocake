@@ -105,9 +105,7 @@ class PeakFinder:
                 self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
                                                  amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
                                                  son_min=self.son_min)
-                #self.alg = myskbeam.DropletA(self.peakRadius, self.peakRadius+self.hitParam_alg1_dr) #PyAlgos(windows=self.windows, mask=None, pbits=0)
             elif self.algorithm >= 2:
-                # set peak-selector parameters:
                 self.alg = PyAlgos(mask=None, pbits=0)
                 self.peakRadius = int(self.hitParam_alg1_radius)
                 self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
