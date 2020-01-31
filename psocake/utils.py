@@ -69,6 +69,22 @@ def convert_peaks_to_psana(row2d, col2d) :
     c = col2d % cols
     return s, r, c
 
+def pct(unassembled):
+    """
+    Transform psana unassembled image to cheetah tile
+    :param unassembled: psana unassembled image
+    :return: cheetah tile
+    """
+    counter = 0
+    dim0 = 8 * 185
+    dim1 = 4 * 388
+    img = np.zeros((dim0, dim1))
+    for quad in range(4):
+        for seg in range(8):
+            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = unassembled[counter, :, :]
+            counter += 1
+    return img
+
 def ipct(tile):
     """
     Transform cheetah tile to psana unassembled image
