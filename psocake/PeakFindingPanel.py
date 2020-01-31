@@ -591,11 +591,8 @@ class PeakFinding(object):
                     mask = np.zeros((dim0, dim1))
                     counter = 0
                     if 'cspad' in self.parent.detInfo.lower():
-                        for quad in range(4):
-                            for seg in range(8):
-                                img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.calib[counter, :, :]
-                                mask[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.mk.combinedMask[counter, :, :]
-                                counter += 1
+                        img = utils.pct(self.parent.calib)
+                        mask = utils.pct(self.parent.mk.combinedMask)
                     elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                         img = self.parent.calib[:, :] # psana format
                         mask = self.parent.mk.combinedMask[:, :]

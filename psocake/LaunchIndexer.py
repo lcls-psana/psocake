@@ -3,6 +3,7 @@ import subprocess
 import os, shlex
 import numpy as np
 import h5py
+import utils
 
 class LaunchIndexer(QtCore.QThread):
     def __init__(self, parent = None):
@@ -61,10 +62,7 @@ class LaunchIndexer(QtCore.QThread):
                 img = np.zeros((dim0, dim1))
                 counter = 0
                 if 'cspad' in self.parent.detInfo.lower():
-                    for quad in range(4):
-                        for seg in range(8):
-                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = self.parent.mk.combinedMask[counter, :, :]
-                            counter += 1
+                    img = utils.pct(self.parent.mk.combinedMask)
                 elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
                     img = self.parent.mk.combinedMask[counter, :, :] # psana format
                 elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:

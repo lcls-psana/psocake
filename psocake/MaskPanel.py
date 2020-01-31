@@ -19,6 +19,7 @@ import _colorScheme as color
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
 import LaunchPowderProducer
+import utils
 
 class MaskMaker(object):
     def __init__(self, parent = None):
@@ -707,11 +708,7 @@ class MaskMaker(object):
                 img = np.zeros((dim0, dim1))
                 counter = 0
                 if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
-                    for quad in range(4):
-                        for seg in range(8):
-                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = \
-                                self.parent.mk.combinedMask[counter, :, :]
-                            counter += 1
+                    img = utils.pct(self.parent.mk.combinedMask)
                 elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
                     img = self.parent.mk.combinedMask[counter, :, :]  # psana format
                 elif 'rayonix' in self.parent.detInfo.lower():# and 'xpp' in self.parent.experimentName:

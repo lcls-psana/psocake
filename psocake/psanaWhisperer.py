@@ -5,6 +5,7 @@ import PSCalib.GlobalUtils as gu
 from PSCalib.GeometryAccess import GeometryAccess
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 import Detector.PyDetector
+import utils
 
 class psanaWhisperer():
     def __init__(self, experimentName, runNumber, detInfo, clen='', aduPerPhoton=1, localCalib=False, access='ana'):
@@ -89,21 +90,13 @@ class psanaWhisperer():
                 else:
                     img = np.zeros((8 * 185, 4 * 388))
                     try:
-                        counter = 0
-                        for quad in range(4):
-                            for seg in range(8):
-                                img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = _calib[counter, :, :]
-                                counter += 1
+                        img = utils.pct(_calib)
                     except:
                         pass
             else:
                 img = np.zeros((8 * 185, 4 * 388))
                 try:
-                    counter = 0
-                    for quad in range(4):
-                        for seg in range(8):
-                            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = calib[counter, :, :]
-                            counter += 1
+                    img = utils.pct(calib)
                 except:
                     pass
         elif 'rayonix' in self.detInfo.lower():
