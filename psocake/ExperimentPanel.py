@@ -1053,10 +1053,10 @@ class ExperimentInfo(object):
         self.applyCommonMode = data
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
-        if self.hasExpRunDetInfo():
-            if self.parent.args.v >= 1: print "%%% Redraw image with new common mode: ", self.commonMode
-            self.setupExperiment()
-            self.parent.img.updateImage()
+            if self.hasExpRunDetInfo():
+                if self.parent.args.v >= 1: print "%%% Redraw image with new common mode: ", self.commonMode
+                self.setupExperiment()
+                self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateCommonMode: ", self.commonMode
 
     def checkCommonMode(self, _commonMode):
