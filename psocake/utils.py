@@ -4,6 +4,8 @@ import psana
 import sys
 import numpy as np
 from numba import jit
+import subprocess, os
+import string, random
 
 ansi_cmap = {"k": '0;30',
         "r": '0;31',
@@ -138,3 +140,103 @@ def upsample(warr, dim, binr, binc):
                     ec = jy+binc
                 upCalib[k,ix:er,jy:ec] = warr[k,i,j]
     return upCalib
+
+# Compression
+
+def randomString(stringLength=10):
+    """Generate a random string of fixed length """
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(stringLength))
+
+def createFiles(d, p, c, comp, decomp):
+    with open(d, 'wb'): pass
+    with open(p, 'wb'): pass
+    with open(c, 'wb'): pass
+    with open(comp, 'wb'): pass
+    with open(decomp, 'wb'): pass
+
+def saveCalibPanelSZ(calibFilename, unbonded):
+    with open(calibFilename, 'ab') as calibF:
+        calibF.write(bytearray(unbonded))
+        calibF.flush()
+
+def saveRoiSZ(peaksFilename, s, r, c):
+    # Save to binary files for compression
+    with open(peaksFilename,"ab") as peaksF:
+        nPeaks = len(s)
+        peakLen=np.array([nPeaks,nPeaks],np.int64) # duplicate nPeaks twice for python2
+        peaksF.write(bytearray(peakLen))
+        for j in range(nPeaks):
+            pk = np.array([s[j],r[j],c[j]],np.int16)
+            peaksF.write(bytearray(pk))
+        peaksF.flush()
+
+def saveUnassemSZ(dataFilename, unassem):
+    # Save to binary files for compression
+    with open(dataFilename,"ab") as dataF:
+        dataF.write(bytearray(unassem.astype(np.float32)))
+        dataF.flush()
+
+def compDecompSZ(dataFilename, peaksFilename, calibFilename, compFilename, decompFilename):
+    # compress and decompress
+    cmd = "./exafelSZ_example_sta "+dataFilename+" "+peaksFilename+" "+calibFilename+" "+compFilename+" "+decompFilename
+    retcode = subprocess.call(cmd, shell=True)
+    try:
+        if retcode < 0:
+            print >>sys.stderr, "Child was terminated by signal", -retcode
+        else:
+            pass#print >>sys.stderr, "Child returned", retcode
+    except OSError as e:
+        print >>sys.stderr, "Execution failed:", e
+
+#    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+#    out, err = process.communicate()
+
+def decomp2unassem(decompFilename):
+    dim0, dim1, dim2 = 32, 185, 388 # cspad dimensions
+    with open(decompFilename,"rb") as inbf:
+        data = inbf.read(dim0*dim1*dim2*4) # float32=4bytes
+        return np.fromstring(data,dtype=np.float32).reshape((dim0, dim1, dim2))
+
+def delBinarySZ(dataFilename, peaksFilename, calibFilename, compFilename, decompFilename):
+    os.remove(dataFilename)
+    os.remove(peaksFilename)  
+    os.remove(calibFilename)
+    os.remove(compFilename)  
+    os.remove(decompFilename)
+
+def unassem2decompRoiSZ(s, r, c, h, w, unbonded, unassem, outdir):
+    """
+    s: segment positions of the ROIs
+    r: row positions of the ROIs
+    c: collumn positions of the ROIs
+    h: height of ROIs (currently unused)
+    w: width of ROIs (currently unused)
+    unassem: unassembled image (32,185,388)
+    unbonded: unbonded mask image (32,185,388)
+    """
+    while True:
+        dataFilename=os.path.join(outdir, randomString(10)+"_data.bin")
+        peaksFilename=os.path.join(outdir, randomString(10)+"_peaks.bin")
+        calibFilename=os.path.join(outdir, randomString(10)+"_calibPanel.bin")
+        compFilename=os.path.join(outdir, randomString(10)+"_comp.bin")
+        decompFilename=os.path.join(outdir, randomString(10)+"_decomp.bin")
+        if not os.path.exists(dataFilename) and \
+           not os.path.exists(peaksFilename) and \
+           not os.path.exists(calibFilename) and \
+           not os.path.exists(compFilename) and \
+           not os.path.exists(decompFilename):
+            createFiles(dataFilename, peaksFilename, calibFilename, compFilename, decompFilename)
+            saveCalibPanelSZ(calibFilename, unbonded)
+            saveRoiSZ(peaksFilename, s, r, c)
+            saveUnassemSZ(dataFilename, unassem)
+            compDecompSZ(dataFilename, peaksFilename, calibFilename, compFilename, decompFilename)
+            decompRoiSZ = decomp2unassem(decompFilename)
+            delBinarySZ(dataFilename, peaksFilename, calibFilename, compFilename, decompFilename)
+            return decompRoiSZ
+
+
+
+
+
+

@@ -57,6 +57,7 @@ class LaunchPeakFinder(QtCore.QThread):
             dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
 
             # Convert calib image to cheetah image
+            # This ensures mask displayed on GUI gets used in peak finding / indexing
             if self.parent.mk.combinedMask is None:
                 img = np.ones((dim0, dim1))
             else:

@@ -185,7 +185,8 @@ class CrystalFindingAnt:
 
     def __init__(self, host):
         self.host = host
-        self.outdir = '/reg/d/psdm/cxi/cxitut13/res/autosfx/output'
+        self.outdir = '/reg/data/ana03/scratch/yoon82/autosfx/output'
+        print("Saving output to: ", self.outdir)
         self.goodLikelihood = .003
         #Minimum number of peaks to bev/reg/d/psdm/cxi/cxitut13/res/autosfx/output found to calculate likelihood
         self.goodNumPeaks = 10

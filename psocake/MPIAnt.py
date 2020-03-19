@@ -41,7 +41,7 @@ def safeDataSource(exp, runnum):
 class MPIAnt:
 
     def __init__(self):
-        self.outdir = '/reg/d/psdm/cxi/cxitut13/res/autosfx/output'
+        self.outdir = '/reg/data/ana03/scratch/yoon82/autosfx/output'
         self.maxJobs = 15
         self.numCores = 48
         self.maxCores = self.numCores * self.maxJobs
