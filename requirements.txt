@@ -1,0 +1,15 @@
+numpy >1.10
+numba >0.46
+six >1.2
+scikit-learn >0.19
+pytest >4.5
+matplotlib >2.1
+setuptools >=44.0
+h5py >2.6
+scipy >1.1
+pyqtgraph >=0.10
+scikit-image >0.13
+pymongo >3.9
+zeromq >4.3
+pandas >0.20
+psana-conda >=1.5
