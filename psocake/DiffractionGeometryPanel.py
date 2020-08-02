@@ -240,7 +240,10 @@ class DiffractionGeometry(object):
             for fname in geometryFiles:
                 if fname.endswith('.data'):
                     endValid = False
-                    startNum = int(fname.split('-')[0])
+                    try:
+                        startNum = int(fname.split('-')[0])
+                    except:
+                        continue
                     endNum = fname.split('-')[-1].split('.data')[0]
                     diff = startNum - self.parent.runNumber
                     # Make sure it's end number is valid too
