@@ -231,7 +231,7 @@ class CrystalIndexing(object):
                 elif self.parent.args.outDir is None:
                     calibDir = self.parent.rootDir + '/calib'
                 else:
-                    calibDir = self.parent.dir + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
+                    calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
                 deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
                                   run_start=self.parent.runNumber, run_end=None, ifname=psanaGeom, dcmts=cmts, pbits=0)
                 self.parent.exp.setupExperiment()
