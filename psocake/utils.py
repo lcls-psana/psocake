@@ -15,6 +15,15 @@ ansi_cmap = {"k": '0;30',
         'p': '0;35',
         'c': '0;36'}
 
+def getMyUnfairShare(numJobs, numWorkers, rank):
+    """Returns number of events assigned to the workers calling this function."""
+    assert(numJobs >= numWorkers)
+    allJobs = np.arange(numJobs)
+    jobChunks = np.array_split(allJobs,numWorkers)
+    myChunk = jobChunks[rank]
+    myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
+    return myJobs
+
 def highlight(string, status='k', bold=0):
     attr = []
     if sys.stdout.isatty():
@@ -26,17 +35,13 @@ def highlight(string, status='k', bold=0):
         return string
 
 def getNoe(args, facility):
-    if facility == 'LCLS':
-        runStr = "%04d" % args.run
-        access = "exp=" + args.exp + ":run=" + runStr + ':idx'
-        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
-        ds = psana.DataSource(access)
-        run = ds.runs().next()
-        times = run.times()
-        numJobs = len(times)
-    elif facility == 'PAL':
-        _temp = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/data/run' + str(args.run).zfill(4) + '/*.h5'
-        numJobs = len(glob.glob(_temp))
+    runStr = "%04d" % args.run
+    access = "exp=" + args.exp + ":run=" + runStr + ':idx'
+    if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+    ds = psana.DataSource(access)
+    run = ds.runs().next()
+    times = run.times()
+    numJobs = len(times)
     # check if the user requested specific number of events
     if args.noe > -1 and args.noe <= numJobs:
         numJobs = args.noe
@@ -48,59 +53,155 @@ def writeStatus(fname, d):
     json.dump(d, open(fname, 'w'))
 
 # Cheetah-related
+def getCheetahDim(detInfo):
+    if 'cspad' in detInfo.lower():
+        dim0 = 8 * 185
+        dim1 = 4 * 388
+    elif 'rayonix' in detInfo.lower():
+        dim0 = 1920
+        dim1 = 1920
+    elif 'epix10k' in detInfo.lower() and '2m' in detInfo.lower():
+        dim0 = 16 * 352
+        dim1 = 1 * 384
+    elif 'jungfrau4m' in detInfo.lower():
+        dim0 = 8 * 512
+        dim1 = 1 * 1024
+    else:
+        print "detector type not implemented"
+        exit()
+    return dim0, dim1
 
-def convert_peaks_to_cheetah(s, r, c) :
+def saveCheetahFormatMask(outDir, run, detInfo, combinedMask=None):
+    dim0, dim1 = getCheetahDim(detInfo)
+    fname = outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
+    print "Saving static mask in Cheetah format: ", fname
+    myHdf5 = h5py.File(fname, 'w')
+    dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
+    # Convert calib image to cheetah image
+    # This ensures mask displayed on GUI gets used in peak finding / indexing
+    if combinedMask is None:
+        img = np.ones((dim0, dim1))
+    else:
+        img = pct(detInfo, combinedMask)
+    dset[:,:] = img
+    myHdf5.close()
+
+def convert_peaks_to_cheetah(detname, s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
        to cheetah 2-d table row and col (8*185, 4*388)
     """
-    segs, rows, cols = (32,185,388)
-    row2d = (int(s)%8) * rows + int(r) # where s%8 is a segment in quad number [0,7]
-    col2d = (int(s)/8) * cols + int(c) # where s/8 is a quad number [0,3]
+    if "cspad" in detname.lower():
+        segs, rows, cols = (32, 185, 388)
+        row2d = (s % 8) * rows + r  # where s%8 is a segment in quad number [0,7]
+        col2d = (s / 8) * cols + c  # where s/8 is a quad number [0,3]
+    elif "epix10k" in detname.lower() and "2m" in detname.lower():
+        segs, rows, cols = (16, 352, 384)
+        row2d = s * rows + r
+        col2d = c
+    elif "jungfrau4m" in detname.lower():
+        segs, rows, cols = (8,512,1024)
+        row2d = s * rows + r
+        col2d = c
+    else:
+        print "Error: This detector is not supported"
+        exit()
     return row2d, col2d
 
-def convert_peaks_to_psana(row2d, col2d) :
+def convert_peaks_to_psana(detname, row2d, col2d) :
     """Converts cheetah 2-d table row and col (8*185, 4*388)
        to psana seg, row, col assuming (32,185,388)
     """
     if isinstance(row2d, np.ndarray):
         row2d = row2d.astype('int')
         col2d = col2d.astype('int')
-    segs, rows, cols = (32,185,388)
-    s = (row2d / rows) + (col2d / cols * 8)
-    r = row2d % rows
-    c = col2d % cols
+    if "cspad" in detname.lower():
+        segs, rows, cols = (32, 185, 388)
+        s = (row2d / rows) + (col2d / cols * 8)
+        r = row2d % rows
+        c = col2d % cols
+    elif "epix10k" in detname.lower() and "2m" in detname.lower():
+        segs, rows, cols = (16, 352, 384)
+        s = (row2d / rows) + (col2d / cols)
+        r = row2d % rows
+        c = col2d % cols
+    elif "jungfrau4m" in detname.lower():
+        segs, rows, cols = (8, 512, 1024)
+        s = (row2d / rows)
+        r = row2d % rows
+        c = col2d
+    else:
+        print "Error: This detector is not supported"
+        exit()
     return s, r, c
 
-def pct(unassembled):
+def pct(detname, unassembled):
     """
     Transform psana unassembled image to cheetah tile
     :param unassembled: psana unassembled image
     :return: cheetah tile
     """
-    counter = 0
-    dim0 = 8 * 185
-    dim1 = 4 * 388
-    img = np.zeros((dim0, dim1))
-    for quad in range(4):
-        for seg in range(8):
-            img[seg * 185:(seg + 1) * 185, quad * 388:(quad + 1) * 388] = unassembled[counter, :, :]
-            counter += 1
+    if "rayonix" in detname.lower():
+        img = unassembled[0, :, :] # TODO: express in terms of x,y,dim0,dim1
+    else:
+        if "cspad" in detname.lower():
+            row = 8
+            col = 4
+            x = 185
+            y = 388
+            dim0 = row * x
+            dim1 = col * y
+        elif "epix10k" in detname.lower() and "2m" in detname.lower():
+            row = 16
+            col = 1
+            x = 352
+            y = 384
+            dim0 = row * x
+            dim1 = col * y
+        elif "jungfrau4m" in detname.lower():
+            row = 8
+            col = 1
+            x = 512
+            y = 1024
+            dim0 = row * x
+            dim1 = col * y
+        else:
+            print "Error: This detector is not supported"
+            exit()
+        counter = 0
+        img = np.zeros((dim0, dim1))
+        for quad in range(col):
+            for seg in range(row):
+                img[seg * x:(seg + 1) * x, quad * y:(quad + 1) * y] = unassembled[counter, :, :]
+                counter += 1
     return img
 
-def ipct(tile):
+def ipct(detname, tile):
     """
     Transform cheetah tile to psana unassembled image
     :param tile: cheetah tile
     :return: psana unassembled image
     """
     # Save cheetah format mask
-    numQuad = 4
-    numAsicsPerQuad = 8
-    asicRows = 185
-    asicCols = 388
-
+    if "cspad" in detname.lower():
+        numQuad = 4
+        numAsicsPerQuad = 8
+        asicRows = 185
+        asicCols = 388
+    elif "epix10k" in detname.lower() and "2m" in detname.lower():
+        numQuad = 1
+        numAsicsPerQuad = 16
+        asicRows = 352
+        asicCols = 384
+    elif "jungfrau4m" in detname.lower():
+        numQuad = 1
+        numAsicsPerQuad = 8
+        asicRows = 512
+        asicCols = 1024
+    else:
+        print "Error: This detector is not supported"
+        exit()
     # Convert calib image to cheetah image
-    calib = np.zeros((32,asicRows,asicCols))
+    calib = np.zeros((numQuad*numAsicsPerQuad,asicRows,asicCols))
     counter = 0
     for quad in range(numQuad):
         for seg in range(numAsicsPerQuad):

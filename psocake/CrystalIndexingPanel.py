@@ -10,7 +10,7 @@ import pyqtgraph as pg
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchIndexer
-import os, time
+import os
 import pandas as pd
 from utils import highlight
 try:
@@ -19,11 +19,7 @@ try:
 except ImportError:
     using_pyqt4 = True
     pass
-
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    from PSCalib.CalibFileFinder import deploy_calib_file
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
+from PSCalib.CalibFileFinder import deploy_calib_file
 
 class CrystalIndexing(object):
     def __init__(self, parent = None):
@@ -41,7 +37,6 @@ class CrystalIndexing(object):
         self.winL.addWidget(self.synchBtn, row=1, col=0)
         self.dock.addWidget(self.winL)
 
-
         self.index_grp = 'Crystal indexing'
         self.index_on_str = 'Indexing on'
         self.index_geom_str = 'CrystFEL geometry'
@@ -57,7 +52,7 @@ class CrystalIndexing(object):
         self.outDir_str = 'Output directory'
         self.runs_str = 'Runs(s)'
         self.sample_str = 'Sample name'
-        self.tag_str = 'Tag'
+        self.tag_str = '.stream tag'
         self.queue_str = 'Queue'
         self.chunkSize_str = 'Chunk size'
         self.cpu_str = 'CPUs'
@@ -78,102 +73,59 @@ class CrystalIndexing(object):
         self.noe = -1
 
         # Indexing
-        if self.parent.facility == self.parent.facilityLCLS:
-            self.showIndexedPeaks = False
-            self.indexedPeaks = None
-            self.hiddenCXI = '.temp.cxi'
-            self.hiddenCrystfelStream = '.temp.stream'
-            self.hiddenCrystfelList = '.temp.lst'
-            self.indexingOn = False
-            self.numIndexedPeaksFound = 0
-            self.geom = '.temp.geom'
-            self.peakMethod = 'cxi'
-            self.intRadius = '3,4,5'
-            self.pdb = ''
-            self.indexingMethod = 'mosflm,dirax'
-            self.tolerance = '5,5,5,1.5'
-            self.extra = ''
-            self.condition = ''
-            self.keepData = True
-        elif self.parent.facility == self.parent.facilityPAL:
-            self.showIndexedPeaks = False
-            self.indexedPeaks = None
-            self.hiddenCXI = '.temp.cxi'
-            self.hiddenCrystfelStream = '.temp.stream'
-            self.hiddenCrystfelList = '.temp.lst'
-            self.indexingOn = False
-            self.numIndexedPeaksFound = 0
-            self.geom = '.temp.geom'
-            self.peakMethod = 'cxi'
-            self.intRadius = '4,5,6'
-            self.pdb = ''
-            self.indexingMethod = 'mosflm,dirax'
-            self.tolerance = '5,5,5,1.5'
-            self.extra = ''
-            self.condition = ''
-            self.keepData = True
+        self.showIndexedPeaks = False
+        self.indexedPeaks = None
+        self.hiddenCXI = '.temp.cxi'
+        self.hiddenCrystfelStream = '.temp.stream'
+        self.hiddenCrystfelList = '.temp.lst'
+        self.indexingOn = False
+        self.numIndexedPeaksFound = 0
+        self.geom = '.temp.geom'
+        self.peakMethod = 'cxi'
+        self.intRadius = '4,5,6'
+        self.pdb = ''
+        self.indexingMethod = 'mosflm'
+        self.tolerance = '5,5,5,1.5'
+        self.extra = ''
+        self.condition = ''
+        self.keepData = True
 
         #######################
         # Mandatory parameter #
         #######################
-        if self.parent.facility == self.parent.facilityLCLS:
-            self.params = [
-                {'name': self.index_grp, 'type': 'group', 'children': [
-                    {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
-                    {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "CrystFEL geometry file"},
-                    #{'name': self.index_peakMethod_str, 'type': 'str', 'value': self.peakMethod, 'tip': "Turn on indexing"},
-                    {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Integration radii"},
-                    {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "(Optional) CrystFEL unitcell file"},
-                    {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "comma separated indexing methods"},
-                    {'name': self.index_tolerance_str, 'type': 'str', 'value': self.tolerance,
-                     'tip': "Indexing tolerance, default: 5,5,5,1.5"},
-                    {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
-                     'tip': "Other indexing parameters, comma separated (e.g. --multi,--no-check-peaks)"},
-                    {'name': self.index_condition_str, 'type': 'str', 'value': self.condition,
-                     'tip': "indexing condition e.g. 41 in #evr1# and #eventNumber# > 3"},
-                ]},
-                {'name': self.launch_grp, 'type': 'group', 'children': [
-                    {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
-                    {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
-                    {'name': self.sample_str, 'type': 'str', 'value': self.sample, 'tip': "name of the sample saved in the cxidb file, e.g. lysozyme"},
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag, 'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
-                    {'name': self.queue_str, 'type': 'list', 'values': {self.psfehhiprioq_str: self.psfehhiprioq_str,
-                                                                   self.psnehhiprioq_str: self.psnehhiprioq_str,
-                                                                   self.psfehprioq_str: self.psfehprioq_str,
-                                                                   self.psnehprioq_str: self.psnehprioq_str,
-                                                                   self.psfehq_str: self.psfehq_str,
-                                                                   self.psnehq_str: self.psnehq_str,
-                                                                   self.psanaq_str: self.psanaq_str,
-                                                                   self.psdebugq_str: self.psdebugq_str},
-                     'value': self.queue, 'tip': "Choose queue"},
-                    {'name': self.chunkSize_str, 'type': 'int', 'value': self.chunkSize, 'tip': "number of patterns to process per worker"},
-                    {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
-                ]},
-            ]
-        elif self.parent.facility == self.parent.facilityPAL:
-            self.params = [
-                {'name': self.index_grp, 'type': 'group', 'children': [
-                    {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
-                    {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "CrystFEL geometry file"},
-                    {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Integration radii"},
-                    {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "(Optional) CrystFEL unitcell file"},
-                    {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "comma separated indexing methods"},
-                    {'name': self.index_tolerance_str, 'type': 'str', 'value': self.tolerance,
-                     'tip': "Indexing tolerance, default: 5,5,5,1.5"},
-                    {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
-                     'tip': "Other CrystFEL indexing parameters"},
-                ]},
-                {'name': self.launch_grp, 'type': 'group', 'children': [
-                    {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
-                    {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
-                    {'name': self.sample_str, 'type': 'str', 'value': self.sample, 'tip': "name of the sample saved in the cxidb file, e.g. lysozyme"},
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag, 'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
-                    {'name': self.queue_str, 'type': 'list', 'values': {self.noQueue_str: self.noQueue_str},
-                     'value': self.queue, 'tip': "Choose queue"},
-                    {'name': self.cpu_str, 'type': 'int', 'value': self.cpu, 'tip': "number of cores to use for indexing per run"},
-                    {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
-                ]},
-            ]
+        self.params = [
+            {'name': self.index_grp, 'type': 'group', 'children': [
+                {'name': self.index_on_str, 'type': 'bool', 'value': self.indexingOn, 'tip': "Turn on indexing"},
+                {'name': self.index_geom_str, 'type': 'str', 'value': self.geom, 'tip': "CrystFEL geometry file"},
+                #{'name': self.index_peakMethod_str, 'type': 'str', 'value': self.peakMethod, 'tip': "Turn on indexing"},
+                {'name': self.index_intRadius_str, 'type': 'str', 'value': self.intRadius, 'tip': "Integration radii"},
+                {'name': self.index_pdb_str, 'type': 'str', 'value': self.pdb, 'tip': "(Optional) CrystFEL unitcell file"},
+                {'name': self.index_method_str, 'type': 'str', 'value': self.indexingMethod, 'tip': "comma separated indexing methods"},
+                {'name': self.index_tolerance_str, 'type': 'str', 'value': self.tolerance,
+                 'tip': "Indexing tolerance, default: 5,5,5,1.5"},
+                {'name': self.index_extra_str, 'type': 'str', 'value': self.extra,
+                 'tip': "Other indexing parameters, comma separated (e.g. --multi,--no-check-peaks)"},
+                {'name': self.index_condition_str, 'type': 'str', 'value': self.condition,
+                 'tip': "indexing condition e.g. 41 in #evr1# and #eventNumber# > 3"},
+            ]},
+            {'name': self.launch_grp, 'type': 'group', 'children': [
+                {'name': self.outDir_str, 'type': 'str', 'value': self.outDir},
+                {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
+                {'name': self.sample_str, 'type': 'str', 'value': self.sample, 'tip': "name of the sample saved in the cxidb file, e.g. lysozyme"},
+                {'name': self.tag_str, 'type': 'str', 'value': self.tag, 'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
+                {'name': self.queue_str, 'type': 'list', 'values': {self.psfehhiprioq_str: self.psfehhiprioq_str,
+                                                               self.psnehhiprioq_str: self.psnehhiprioq_str,
+                                                               self.psfehprioq_str: self.psfehprioq_str,
+                                                               self.psnehprioq_str: self.psnehprioq_str,
+                                                               self.psfehq_str: self.psfehq_str,
+                                                               self.psnehq_str: self.psnehq_str,
+                                                               self.psanaq_str: self.psanaq_str,
+                                                               self.psdebugq_str: self.psdebugq_str},
+                 'value': self.queue, 'tip': "Choose queue"},
+                {'name': self.chunkSize_str, 'type': 'int', 'value': self.chunkSize, 'tip': "number of patterns to process per worker"},
+                {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},
+            ]},
+        ]
 
         self.p9 = Parameter.create(name='paramsCrystalIndexing', type='group', \
                                    children=self.params, expanded=True)
@@ -195,54 +147,51 @@ class CrystalIndexing(object):
 
     # Update psana geometry
     def syncGeom(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            with pg.BusyCursor():
-                print "#################################################"
-                print "Updating psana geometry with CrystFEL geometry"
-                print "#################################################"
-                self.parent.geom.findPsanaGeometry()
-                psanaGeom = self.parent.psocakeRunDir + "/.temp.data"
-                if self.parent.args.localCalib:
-                    cmd = ["crystfel2psana",
-                           "-e", self.parent.experimentName,
-                           "-r", str(self.parent.runNumber),
-                           "-d", str(self.parent.det.name),
-                           "--rootDir", '.',
-                           "-c", self.geom,
-                           "-p", psanaGeom,
-                           "-z", str(self.parent.clen)]
-                else:
-                    cmd = ["crystfel2psana",
-                           "-e", self.parent.experimentName,
-                           "-r", str(self.parent.runNumber),
-                           "-d", str(self.parent.det.name),
-                           "--rootDir", self.parent.rootDir,
-                           "-c", self.geom,
-                           "-p", psanaGeom,
-                           "-z", str(self.parent.clen)]
-                if self.parent.args.v >= 0: print "cmd: ", cmd
-                p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
-                # Reload new psana geometry
-                cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'converted from crystfel geometry'}
-                if self.parent.args.localCalib:
-                    calibDir = './calib'
-                elif self.parent.args.outDir is None:
-                    calibDir = self.parent.rootDir + '/calib'
-                else:
-                    calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
-                deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
-                                  run_start=self.parent.runNumber, run_end=None, ifname=psanaGeom, dcmts=cmts, pbits=0)
-                self.parent.exp.setupExperiment()
-                self.parent.img.getDetImage(self.parent.eventNumber)
-                self.parent.geom.updateRings()
-                self.parent.index.updateIndex()
-                self.parent.geom.drawCentre()
-                # Show mask
-                self.parent.mk.updatePsanaMaskOn()
-        elif self.parent.facility == self.parent.facilityPAL:
-            print "deploy crystfel geom is not implemented for PAL"
+        with pg.BusyCursor():
+            print "#################################################"
+            print "Updating psana geometry with CrystFEL geometry"
+            print "#################################################"
+            self.parent.geom.findPsanaGeometry()
+            psanaGeom = self.parent.psocakeRunDir + "/.temp.data"
+            if self.parent.args.localCalib:
+                cmd = ["crystfel2psana",
+                       "-e", self.parent.experimentName,
+                       "-r", str(self.parent.runNumber),
+                       "-d", str(self.parent.det.name),
+                       "--rootDir", '.',
+                       "-c", self.geom,
+                       "-p", psanaGeom,
+                       "-z", str(self.parent.clen)]
+            else:
+                cmd = ["crystfel2psana",
+                       "-e", self.parent.experimentName,
+                       "-r", str(self.parent.runNumber),
+                       "-d", str(self.parent.det.name),
+                       "--rootDir", self.parent.rootDir,
+                       "-c", self.geom,
+                       "-p", psanaGeom,
+                       "-z", str(self.parent.clen)]
+            if self.parent.args.v >= 0: print "cmd: ", cmd
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+            output = p.communicate()[0]
+            p.stdout.close()
+            # Reload new psana geometry
+            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'converted from crystfel geometry'}
+            if self.parent.args.localCalib:
+                calibDir = './calib'
+            elif self.parent.args.outDir is None:
+                calibDir = self.parent.rootDir + '/calib'
+            else:
+                calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + '/calib'
+            deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
+                              run_start=self.parent.runNumber, run_end=None, ifname=psanaGeom, dcmts=cmts, pbits=0)
+            self.parent.exp.setupExperiment()
+            self.parent.img.getDetImage(self.parent.eventNumber)
+            self.parent.geom.updateRings()
+            self.parent.index.updateIndex()
+            self.parent.geom.drawCentre()
+            # Show mask
+            self.parent.mk.updatePsanaMaskOn()
 
     # If anything changes in the parameter tree, print a message
     def change(self, panel, changes):
@@ -383,27 +332,19 @@ class CrystalIndexing(object):
         if self.showIndexedPeaks:
             if self.numIndexedPeaksFound == 0:  # indexing proceeding
                 xMargin = 5  # pixels
-                if self.parent.facility == self.parent.facilityLCLS:
-                    maxX = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
-                    maxY = np.max(self.parent.det.indexes_y(self.parent.evt))
-                elif self.parent.facility == self.parent.facilityPAL:
-                    yMargin = 0  # pixels
-                    (dim0, dim1) = self.parent.calib.shape
-                    self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                    self.ix = np.transpose(self.iy)
-                    maxX = np.max(self.ix) + xMargin
-                    maxY = np.max(self.iy) - yMargin
+                maxX = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+                maxY = np.max(self.parent.det.indexes_y(self.parent.evt))
                 # Draw a big X
                 cenX = np.array((self.parent.cx,)) + 0.5
                 cenY = np.array((self.parent.cy,)) + 0.5
                 diameter = 256  # self.peakRadius*2+1
-                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='t', \
+                self.parent.img.indexedPeak_feature.setData(cenY, cenX, symbol='t', \
                                                             size=diameter, brush=(255, 255, 255, 0), \
                                                             pen=pg.mkPen({'color': "#FF00FF", 'width': 3}),
                                                             pxMode=False)
                 self.parent.img.abc_text = pg.TextItem(html='', anchor=(0, 0))
                 self.parent.img.win.getView().addItem(self.parent.img.abc_text)
-                self.parent.img.abc_text.setPos(maxX, maxY)
+                self.parent.img.abc_text.setPos(maxY, maxX)
 
     def drawIndexedPeaks(self, latticeType=None, centering=None, unitCell=None):
         self.clearIndexedPeaks()
@@ -417,51 +358,27 @@ class CrystalIndexing(object):
                 diameter[0:self.numIndexedPeaksFound] = float(self.intRadius.split(',')[0])*2
                 diameter[self.numIndexedPeaksFound:2*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[1])*2
                 diameter[2*self.numIndexedPeaksFound:3*self.numIndexedPeaksFound] = float(self.intRadius.split(',')[2])*2
-                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='o', \
+                self.parent.img.indexedPeak_feature.setData(cenY, cenX, symbol='o', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 1.5}), pxMode=False)
 
                 # Write unit cell parameters
                 if unitCell is not None:
-                    xMargin = 5
-                    yMargin = 400
-                    if self.parent.facility == self.parent.facilityLCLS:
-                        maxX   = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
-                        maxY   = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
-                    elif self.parent.facility == self.parent.facilityPAL:
-                        (dim0, dim1) = self.parent.calib.shape
-                        self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                        self.ix = np.transpose(self.iy)
-                        maxX = np.max(self.ix) + xMargin
-                        maxY = np.max(self.iy) - yMargin
-                    #myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">lattice='+\
-                    #           str(latticeType) +'<br>centering=' + str(centering) + '<br>a='+\
-                    #           str(round(float(unitCell[0])*10,2))+'A <br>b='+str(round(float(unitCell[1])*10,2))+'A <br>c='+\
-                    #           str(round(float(unitCell[2])*10,2))+'A <br>&alpha;='+str(round(float(unitCell[3]),2))+\
-                    #           '&deg; <br>&beta;='+str(round(float(unitCell[4]),2))+'&deg; <br>&gamma;='+\
-                    #           str(round(float(unitCell[5]),2))+'&deg; <br></span></div>'
+                    xMargin = 0#5
+                    yMargin = self.parent.data.shape[1]#400
+                    maxX   = np.max(self.parent.det.indexes_x(self.parent.evt)) + xMargin
+                    maxY   = np.max(self.parent.det.indexes_y(self.parent.evt)) - yMargin
                     myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">lattice='+\
                                str(latticeType) +'<br>centering=' + str(centering) + '<br></span></div>'
                     self.parent.img.abc_text = pg.TextItem(html=myMessage, anchor=(0,0))
                     self.parent.img.win.getView().addItem(self.parent.img.abc_text)
-                    self.parent.img.abc_text.setPos(maxX, maxY)
+                    self.parent.img.abc_text.setPos(maxY, maxX)
             else: # Failed indexing
-                #xMargin = 5 # pixels
-                #if self.parent.facility == self.parent.facilityLCLS:
-                #    maxX   = np.max(self.parent.det.indexes_x(self.parent.evt))+xMargin
-                #    maxY   = np.max(self.parent.det.indexes_y(self.parent.evt))
-                #elif self.parent.facility == self.parent.facilityPAL:
-                #    yMargin = 0  # pixels
-                #    (dim0, dim1) = self.parent.calib.shape
-                #    self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                #    self.ix = np.transpose(self.iy)
-                #    maxX = np.max(self.ix) + xMargin
-                #    maxY = np.max(self.iy) - yMargin
                 # Draw a big X
                 cenX = np.array((self.parent.cx,))+0.5
                 cenY = np.array((self.parent.cy,))+0.5
                 diameter = 256 #self.peakRadius*2+1
-                self.parent.img.indexedPeak_feature.setData(cenX, cenY, symbol='x', \
+                self.parent.img.indexedPeak_feature.setData(cenY, cenX, symbol='x', \
                                           size=diameter, brush=(255,255,255,0), \
                                           pen=pg.mkPen({'color': "#FF00FF", 'width': 3}), pxMode=False)
                 self.parent.img.abc_text = pg.TextItem(html='', anchor=(0,0))
@@ -469,9 +386,9 @@ class CrystalIndexing(object):
                 self.parent.img.abc_text.setPos(0,0)
         else:
             self.parent.img.indexedPeak_feature.setData([], [], pxMode=False)
-            self.parent.img.abc_text = pg.TextItem(html='', anchor=(0, 0))
+            self.parent.img.abc_text = pg.TextItem(html='', anchor=(0,0))
             self.parent.img.win.getView().addItem(self.parent.img.abc_text)
-            self.parent.img.abc_text.setPos(0, 0)
+            self.parent.img.abc_text.setPos(0,0)
         if self.parent.args.v >= 1: print "Done drawIndexedPeaks"
 
     # This function probably doesn't get called
@@ -637,10 +554,11 @@ class IndexHandler(QtCore.QThread):
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
                 (major,minor,patch) = out.split('\n')[0].split(': ')[-1].split('.')
-                if int(minor) >= 8:
-                    mySuccessString = "1 crystals"
+                print "########: ", major, minor, patch
+                if int(major) == 0 and int(minor) < 8:
+                    mySuccessString = "1 had crystals" # changed from crystfel v0.8
                 else:
-                    mySuccessString = "1 had crystals"
+                    mySuccessString = "1 crystals"
 
                 # FIXME: convert psana geom to crystfel geom
                 cmd = "indexamajig -j 1 -i " + self.parent.index.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
@@ -664,7 +582,7 @@ class IndexHandler(QtCore.QThread):
                 # Read CrystFEL geometry in stream
                 if mySuccessString in err:  # success
                     if self.parent.args.v >= 1: print "Indexing successful!"
-                    # print "Munging geometry file"
+                    # Munging geometry file
                     f = open(self.parent.index.hiddenCrystfelStream)
                     content = f.readlines()
                     try:
@@ -686,23 +604,29 @@ class IndexHandler(QtCore.QThread):
                     columns = ['min_fs', 'min_ss', 'max_fs', 'max_ss', 'res', 'fs', 'ss', 'corner_x', 'corner_y']
                     columnsScan = ['fsx', 'fsy', 'ssx', 'ssy']
                     indexScan = []
-                    if self.parent.facility == self.parent.facilityLCLS:
-                        if 'cspad' in self.parent.detInfo.lower():
-                            numQuads = 4
-                            numAsics = 16
-                            for i in np.arange(numQuads):
-                                for j in np.arange(numAsics):
-                                    indexScan.append('q' + str(i) + 'a' + str(j))
-                        elif 'rayonix' in self.parent.detInfo.lower():
-                            numQuads = 1
-                            numAsics = 1
-                            for i in np.arange(numQuads):
-                                    indexScan.append('p' + str(i))
-                    elif self.parent.facility == self.parent.facilityPAL:
+                    if 'cspad' in self.parent.detInfo.lower():
+                        numQuads = 4
+                        numAsics = 16
+                        for i in np.arange(numQuads):
+                            for j in np.arange(numAsics):
+                                indexScan.append('q' + str(i) + 'a' + str(j))
+                    elif 'rayonix' in self.parent.detInfo.lower():
                         numQuads = 1
                         numAsics = 1
                         for i in np.arange(numQuads):
-                            indexScan.append('p' + str(i))
+                                indexScan.append('p' + str(i))
+                    elif 'epix10k' in self.parent.detInfo.lower() and '2m' in self.parent.detInfo.lower():
+                        numQuads = 16
+                        numAsics = 4
+                        for i in np.arange(numQuads):
+                            for j in np.arange(numAsics):
+                                indexScan.append('p' + str(i) + 'a' + str(j))
+                    elif 'jungfrau4m' in self.parent.detInfo.lower():
+                        numQuads = 8
+                        numAsics = 8
+                        for i in np.arange(numQuads):
+                            for j in np.arange(numAsics):
+                                indexScan.append('p' + str(i) + 'a' + str(j))
 
                     dfGeom = pd.DataFrame(np.empty((numQuads * numAsics, len(columns))), index=indexScan,
                                           columns=columns)
@@ -783,31 +707,27 @@ class IndexHandler(QtCore.QThread):
                     f.close()
 
                     # Convert predicted spots to CrystFEL coordinates
-                    if self.parent.facility == self.parent.facilityLCLS:
-                        columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
-                        dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
-                        for i in np.arange(numReflections):
-                            myAsic = dfRefl['panel'][i].strip()
-                            x = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + \
-                                (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssx']
-                            x += dfGeom.loc[myAsic, 'corner_x']
-                            y = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + \
-                                (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssy']
-                            y += dfGeom.loc[myAsic, 'corner_y']
-                            dfPeaks['x'][i] = x
-                            dfPeaks['y'][i] = y
-                        # Convert to psocake coordinates
-                        for i in np.arange(numReflections):
-                            dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
-                            dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
-                    elif self.parent.facility == self.parent.facilityPAL:
-                        columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
-                        dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
-                        # Convert to psocake coordinates
-                        for i in np.arange(numReflections):
-                            dfPeaks['psocakeX'][i] = dfRefl['ss'][i]
-                            dfPeaks['psocakeY'][i] = dfRefl['fs'][i]
+                    columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
+                    dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
+                    for i in np.arange(numReflections):
+                        myAsic = dfRefl['panel'][i].strip()
+                        x = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + \
+                            (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssx']
+                        x += dfGeom.loc[myAsic, 'corner_x']
+                        y = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + \
+                            (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssy']
+                        y += dfGeom.loc[myAsic, 'corner_y']
+                        dfPeaks['x'][i] = x
+                        dfPeaks['y'][i] = y
+                    # Convert to psocake coordinates
+                    for i in np.arange(numReflections):
+                        dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
+                        dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
+
                     if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
+                        print "movie status: ", self.parent.mouse.movie
+                        if self.parent.mouse.movie is None: # display gif
+                            self.parent.mouse.tm.start(3000)  # ms
                         self.parent.index.numIndexedPeaksFound = numReflections
                         self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
                         self.parent.index.drawIndexedPeaks(self.latticeType, self.centering, self.unitCell) #FIXME: segfaults when indexing twice
@@ -830,6 +750,5 @@ class IndexHandler(QtCore.QThread):
                 if self.parent.pk.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
                 if self.parent.pk.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
                 if self.parent.pk.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
-
 
 

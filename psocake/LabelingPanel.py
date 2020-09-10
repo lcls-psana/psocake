@@ -9,11 +9,6 @@ from database import LabelDatabase
 import runAlgorithm
 from pprint import pprint
 
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
-
 class Labeling(object):
 
     ##############################
@@ -79,15 +74,12 @@ class Labeling(object):
         self.algInitDone = False
         self.algorithm = None
 
-        if self.parent.facility == self.parent.facilityLCLS:
-            self.labelParam_outDir = self.parent.psocakeDir
-            self.labelParam_outDir_overridden = False
-            self.labelParam_runs = ''
-            self.labelParam_queue = self.labelParam_psanaq_str
-            self.labelParam_cpus = 24
-            self.labelParam_noe = -1
-        elif self.parent.facility == self.parent.facilityPAL:
-            pass
+        self.labelParam_outDir = self.parent.psocakeDir
+        self.labelParam_outDir_overridden = False
+        self.labelParam_runs = ''
+        self.labelParam_queue = self.labelParam_psanaq_str
+        self.labelParam_cpus = 24
+        self.labelParam_noe = -1
 
         self.loadName = None
 
@@ -123,51 +115,49 @@ class Labeling(object):
     ##############################
 
     def updateMenu(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            self.params = [
-                {'name': self.labelParam_labeler, 'type': 'group', 'children': [
-                    {'name': self.labelParam_mode_str, 'type': 'list', 'values': {self.labelParam_add_str: 'Add',
-                                                                                    self.labelParam_remove_str: 'Remove'},
-                     'value': self.mode, 'tip': "Choose labelling mode"},
-                    {'name': self.labelParam_shapes_str, 'type': 'list', 'values': {self.labelParam_poly_str: 'Polygon',
-                                                                                    self.labelParam_circ_str: 'Circle',
-                                                                                    self.labelParam_rect_str: 'Rectangle',
-                                                                                    self.labelParam_none_str: 'None'},
-                     'value': self.shapes, 'tip': "Choose label shape"},
-                    {'name': self.labelParam_algorithm_name_str, 'type': 'str', 'value': self.labelParam_algorithm_name, 
-                     'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
-                    {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.updateParametersOnMenu(),
-                     'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
-                    {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
-                    {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
-                                                                                 self.labelParam_psnehhiprioq_str: 'psnehhiprioq',
-                                                                                 self.labelParam_psfehprioq_str: 'psfehprioq',
-                                                                                 self.labelParam_psnehprioq_str: 'psnehprioq',
-                                                                                 self.labelParam_psfehq_str: 'psfehq',
-                                                                                 self.labelParam_psnehq_str: 'psnehq',
-                                                                                 self.labelParam_psanaq_str: 'psanaq',
-                                                                                 self.labelParam_psdebugq_str: 'psdebugq'},
-                     'value': self.labelParam_queue, 'tip': "Choose queue"},
-                    {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
-                    {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
-                     'tip': "number of events to process, default=-1 means process all events"},
-                ]},
-                {'name': self.labelParam_classifier, 'type': 'group', 'children': [
-                    {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions_display, 
-                     'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
-                ]},
-                {'name': self.labelParam_saveload, 'type': 'group', 'children': [
-                    {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName, 
-                     'tip': "Input the name of the label save post you want to load"},
-                ]},
-                {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
-                    {'name': self.tag_str, 'type': 'str', 'value': self.tag,
-                     'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
-                    {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
-                ]},
-            ]
-        elif self.parent.facility == self.parent.facilityPAL:
-            pass
+        self.params = [
+            {'name': self.labelParam_labeler, 'type': 'group', 'children': [
+                {'name': self.labelParam_mode_str, 'type': 'list', 'values': {self.labelParam_add_str: 'Add',
+                                                                                self.labelParam_remove_str: 'Remove'},
+                 'value': self.mode, 'tip': "Choose labelling mode"},
+                {'name': self.labelParam_shapes_str, 'type': 'list', 'values': {self.labelParam_poly_str: 'Polygon',
+                                                                                self.labelParam_circ_str: 'Circle',
+                                                                                self.labelParam_rect_str: 'Rectangle',
+                                                                                self.labelParam_none_str: 'None'},
+                 'value': self.shapes, 'tip': "Choose label shape"},
+                {'name': self.labelParam_algorithm_name_str, 'type': 'str', 'value': self.labelParam_algorithm_name,
+                 'tip': "Input your algorithm directory, e.g. \"adaptiveAlgorithm\""},
+                {'name': self.labelParam_pluginParam_str, 'type': 'str', 'value': self.updateParametersOnMenu(),
+                 'tip': "Dictionary/kwargs of parameters for your algorithm -- use double quotes"},
+                {'name': self.labelParam_runs_str, 'type': 'str', 'value': self.labelParam_runs},
+                {'name': self.labelParam_queue_str, 'type': 'list', 'values': {self.labelParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                             self.labelParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                             self.labelParam_psfehprioq_str: 'psfehprioq',
+                                                                             self.labelParam_psnehprioq_str: 'psnehprioq',
+                                                                             self.labelParam_psfehq_str: 'psfehq',
+                                                                             self.labelParam_psnehq_str: 'psnehq',
+                                                                             self.labelParam_psanaq_str: 'psanaq',
+                                                                             self.labelParam_psdebugq_str: 'psdebugq'},
+                 'value': self.labelParam_queue, 'tip': "Choose queue"},
+                {'name': self.labelParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_cpus},
+                {'name': self.labelParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.labelParam_noe,
+                 'tip': "number of events to process, default=-1 means process all events"},
+            ]},
+            {'name': self.labelParam_classifier, 'type': 'group', 'children': [
+                {'name': self.labelParam_classificationOptions_str, 'type': 'str', 'value': self.labelParam_classificationOptions_display,
+                 'tip': "Type a few classifications you would like to use for each event, separated by spaces \n Use number keys as shortcuts to classify an event"},
+            ]},
+            {'name': self.labelParam_saveload, 'type': 'group', 'children': [
+                {'name': self.labelParam_loadName_str, 'type': 'str', 'value': self.labelParam_loadName,
+                 'tip': "Input the name of the label save post you want to load"},
+            ]},
+            {'name': self.labelParam_fetcher, 'type': 'group', 'children': [
+                {'name': self.tag_str, 'type': 'str', 'value': self.tag,
+                 'tip': "Labels are saved with name 'exp_run', adding a tag will save labels as 'exp_run_tag'"},
+                {'name': self.labelParam_fetchbutton_str, 'type': 'action'},
+            ]},
+        ]
+
         self.paramWidget = Parameter.create(name='paramsLabel', type='group', \
                                    children=self.params, expanded=True)
         self.win.setParameters(self.paramWidget, showTop=False)
@@ -292,11 +282,8 @@ class Labeling(object):
             pluginParamFname = self.parent.psocakeDir+'/r'+str(run).zfill(4)+'/pluginParam'
             if self.tag: pluginParamFname += '_'+self.tag
             pluginParamFname += '.json'
-            if self.parent.facility == self.parent.facilityLCLS:
-                d = {self.labelParam_algorithm_name_str: self.labelParam_pluginParam,
-                     self.labelParam_pluginParam_str: self.labelParam_pluginParam}
-            elif self.parent.facility == self.parent.facilityPAL:
-                pass
+            d = {self.labelParam_algorithm_name_str: self.labelParam_pluginParam,
+                 self.labelParam_pluginParam_str: self.labelParam_pluginParam}
             if not os.path.exists(self.parent.psocakeDir+'/r'+str(run).zfill(4)):
                 os.mkdir(self.parent.psocakeDir+'/r'+str(run).zfill(4))
             self.writeStatus(pluginParamFname, d)
@@ -521,27 +508,24 @@ class Labeling(object):
                 self.centers = None
                 self.parent.geom.drawCentre()
             else:
-                if self.parent.facility == self.parent.facilityLCLS:
-                    # Only initialize the hit finder algorithm once
-                    if self.algInitDone is False:
-                        if (self.labelParam_algorithm_name != None):
-                            print("Loading %s!" % self.labelParam_algorithm_name)
-                            if self.labelParam_pluginParam == None:
-                                kw = None
-                                self.labelRadius = 1 #TODO: Fix this!
-                            else:
-                                kw = json.loads(self.labelParam_pluginParam)
-                                self.labelRadius = kw["r0"]
-                            try:
-                                self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
-                                self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
-                                self.numLabelsFound = self.labels.shape[0]
-                            except AttributeError:
-                                pass
-                            self.algInitDone = True
-                            self.algorithmEvaluated[self.parent.eventNumber] = True
-                elif self.parent.facility == self.parent.facilityPAL:
-                    pass
+                # Only initialize the hit finder algorithm once
+                if self.algInitDone is False:
+                    if (self.labelParam_algorithm_name != None):
+                        print("Loading %s!" % self.labelParam_algorithm_name)
+                        if self.labelParam_pluginParam == None:
+                            kw = None
+                            self.labelRadius = 1 #TODO: Fix this!
+                        else:
+                            kw = json.loads(self.labelParam_pluginParam)
+                            self.labelRadius = kw["r0"]
+                        try:
+                            self.algorithm = runAlgorithm.invoke_model(self.labelParam_algorithm_name)
+                            self.labels = self.algorithm.algorithm(self.parent.calib, self.parent.mk.combinedMask.astype(np.uint16), kw)
+                            self.numLabelsFound = self.labels.shape[0]
+                        except AttributeError:
+                            pass
+                        self.algInitDone = True
+                        self.algorithmEvaluated[self.parent.eventNumber] = True
                 if self.parent.args.v >= 1: print "Labels found: ", self.centers
                 self.parent.geom.drawCentre()
 
@@ -575,16 +559,7 @@ class Labeling(object):
         """ Draw Labels from an algorithm.
         """
         if self.labels is not None and self.numLabelsFound > 0:
-            if self.parent.facility == self.parent.facilityLCLS:
-                cenX, cenY = self.assembleLabelPos(self.labels)
-            elif self.parent.facility == self.parent.facilityPAL:
-                (dim0, dim1) = self.parent.calib.shape
-                self.iy = np.tile(np.arange(dim0), [dim1, 1])
-                self.ix = np.transpose(self.iy)
-                self.iX = np.array(self.ix, dtype=np.int64)
-                self.iY = np.array(self.iy, dtype=np.int64)
-                cenX = self.iX[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
-                cenY = self.iY[np.array(self.labels[:, 1], dtype=np.int64), np.array(self.labels[:, 2], dtype=np.int64)] + 0.5
+            cenX, cenY = self.assembleLabelPos(self.labels)
             diameter = self.labelRadius*2+1
             for i,x in enumerate(cenX):
                 self.createROI(cenX[i],cenY[i],w=diameter, h=diameter, algorithm=True, color = 'b')
@@ -1102,7 +1077,7 @@ class Labeling(object):
             #                '<br></span></div>'
             self.parent.img.peak_text = pg.TextItem(html=myMessage, anchor=(0, 0))
             self.parent.img.win.getView().addItem(self.parent.img.peak_text)
-            self.parent.img.peak_text.setPos(maxX, maxY)
+            self.parent.img.peak_text.setPos(maxY, maxX)
         except AttributeError:
             print("No displayText")
             pass

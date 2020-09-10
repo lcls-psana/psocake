@@ -9,9 +9,8 @@ import h5py
 from utils import *
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    facility = 'LCLS'
-    import psanaWhisperer, psana
+facility = 'LCLS'
+import psanaWhisperer, psana
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -457,20 +456,3 @@ def calculate_likelihood(qPeaks):
     pairsFoundPerSpot = pairsFound / float(nPeaks)
 
     return [meanClosestNeighborDist, pairsFoundPerSpot]
-
-def readCrystfelGeometry(geomFile, facility):
-    if facility == 'PAL':
-        with open(geomFile, 'r') as f:
-            lines = f.readlines()
-        for i, line in enumerate(lines):
-            if 'clen' in line:
-                detectorDistance = float(line.split('=')[-1])
-            elif 'photon_energy' in line:
-                photonEnergy = float(line.split('=')[-1])
-            elif 'p0/res' in line:
-                pixelSize = 1./float(line.split('=')[-1])
-            elif 'p0/corner_x' in line:
-                cy = -1 * float(line.split('=')[-1])
-            elif 'p0/corner_y' in line:
-                cx = float(line.split('=')[-1])
-        return detectorDistance, photonEnergy, pixelSize, cx, cy

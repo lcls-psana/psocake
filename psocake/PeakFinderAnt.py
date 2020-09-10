@@ -157,7 +157,7 @@ class PeakFinder:
                              phiedges=(0, 360), nphibins=1)
 
     def updatePolarizationFactor(self):
-        self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), self.distance * 1e6)  # convert to um
+        self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi()+90, self.distance * 1e6)  # convert to um
 
     def findPeaks(self, calib, evt, thr_high=None, thr_low=None):
 

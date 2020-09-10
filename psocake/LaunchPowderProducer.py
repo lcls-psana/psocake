@@ -43,40 +43,22 @@ class PowderProducer(QtCore.QThread):
             try:
                 if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
 
-                if self.parent.facility == self.parent.facilityLCLS:
-                    # Command for submitting to batch
-                    cmd = "bsub -q "+self.parent.mk.powder_queue+" -n "+str(self.parent.mk.powder_cpus)+\
-                          " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
-                          ":run="+str(run)+" -d "+self.detInfo+\
-                          " -o "+runDir
-                    if self.parent.mk.powder_noe > 0:
-                        cmd += " -n "+str(self.parent.mk.powder_noe)
-                    if self.parent.mk.powder_threshold is not -1:
-                        cmd += " -t " + str(self.parent.mk.powder_threshold)
-                    if self.parent.args.localCalib:
-                        cmd += " --localCalib"
-                    print "Submitting batch job: ", cmd
-                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                    out, err = process.communicate()
-                    jobid = out.split("<")[1].split(">")[0]
-                    myLog = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-                    if self.parent.args.v >= 1: print "bsub log filename: ", myLog
-                elif self.parent.facility == self.parent.facilityPAL:
-                    # Command for submitting to batch
-                    cmd = "mpirun -n "+str(self.parent.mk.powder_cpus)
-                    cmd += " generatePowder exp="+self.experimentName+\
-                          ":run="+str(run)+" -d "+self.detInfo+\
-                          " -o "+runDir
-                    cmd += " --dir " + str(self.parent.dir)
-                    if self.parent.mk.powder_noe > 0:
-                        cmd += " -n "+str(self.parent.mk.powder_noe)
-                    if self.parent.mk.powder_threshold is not -1:
-                        cmd += " -t " + str(self.parent.mk.powder_threshold)
-                    if self.parent.args.localCalib:
-                        cmd += " --localCalib"
-                    cmd += " &"
-                    # Launch peak finding
-                    print "Submitting job: ", cmd
-                    os.system(cmd)
+                # Command for submitting to batch
+                cmd = "bsub -q "+self.parent.mk.powder_queue+" -n "+str(self.parent.mk.powder_cpus)+\
+                      " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
+                      ":run="+str(run)+" -d "+self.detInfo+\
+                      " -o "+runDir
+                if self.parent.mk.powder_noe > 0:
+                    cmd += " -n "+str(self.parent.mk.powder_noe)
+                if self.parent.mk.powder_threshold is not -1:
+                    cmd += " -t " + str(self.parent.mk.powder_threshold)
+                if self.parent.args.localCalib:
+                    cmd += " --localCalib"
+                print "Submitting batch job: ", cmd
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                out, err = process.communicate()
+                jobid = out.split("<")[1].split(">")[0]
+                myLog = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
+                if self.parent.args.v >= 1: print "bsub log filename: ", myLog
             except:
                 print "No write access to: ", runDir

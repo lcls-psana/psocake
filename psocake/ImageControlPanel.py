@@ -4,10 +4,7 @@ import numpy as np
 from pyqtgraph.Qt import QtCore, QtGui
 import os
 
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
+from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
 
 class ImageControl(object):
     def __init__(self, parent = None):
@@ -42,7 +39,6 @@ class ImageControl(object):
             self.parent.eventNumber = self.parent.exp.eventTotal-1
         else:
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
-            self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
         if 'label' in self.parent.args.mode:
             self.parent.labeling.updateText()
@@ -53,7 +49,6 @@ class ImageControl(object):
             self.parent.eventNumber = 0
         else:
             self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
-            self.parent.img.win.setImage(self.parent.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
             self.parent.exp.p.param(self.parent.exp.exp_grp,self.parent.exp.exp_evt_str).setValue(self.parent.eventNumber)
         if 'label' in self.parent.args.mode:
             self.parent.labeling.updateText()
@@ -79,6 +74,80 @@ class ImageControl(object):
         print "Saving assembled image: ", outputAssem
         print "##########################################"
         np.save(str(outputAssem), self.parent.det.image(self.parent.evt, self.parent.calib))
+
+        # Save publication quality images
+        vmin, vmax = self.parent.img.win.getLevels()
+        dimY,dimX = self.parent.data.shape
+        distEdge = min(dimX - self.parent.cx, dimY - self.parent.cy)
+        thetaMax = np.arctan(distEdge * self.parent.pixelSize / self.parent.detectorDistance)
+        qMax_crystal = 2 / self.parent.wavelength * np.sin(thetaMax / 2)
+        dMin_crystal = 1 / qMax_crystal
+        res = '%.3g A' % (dMin_crystal * 1e10)
+        resColor = '#0497cb'
+        textSize = 24
+        move = 3 * textSize  # move text to the left
+        img = self.parent.det.image(self.parent.evt, self.parent.calib * self.parent.mk.combinedMask)
+        cx = self.parent.cx
+        cy = self.parent.cy
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+
+        outputName = output + "_img.png"
+        print "##########################################"
+        print "Saving image as png: ", outputName
+        print "##########################################"
+        fix, ax = plt.subplots(1, figsize=(10, 10))
+        plt.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
+        ax.imshow(img, cmap='binary', vmax=vmax, vmin=vmin)
+        plt.savefig(outputName, dpi=300)
+
+        outputName = output + "_pks.png"
+        if self.parent.pk.peaks is not None and self.parent.pk.numPeaksFound > 0:
+            print "##########################################"
+            print "Saving peak image as png: ", outputName
+            print "##########################################"
+            cenX, cenY = self.parent.pk.assemblePeakPos(self.parent.pk.peaks)
+            fix, ax = plt.subplots(1, figsize=(10, 10))
+            plt.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
+            ax.imshow(img, cmap='binary', vmax=vmax, vmin=vmin)
+            boxDim = self.parent.pk.hitParam_alg1_rank * 2
+            for i in range(self.parent.pk.peaks.shape[0]):
+                rect = patches.Rectangle((cenY[i] - self.parent.pk.hitParam_alg1_rank, cenX[i] - self.parent.pk.hitParam_alg1_rank), boxDim, boxDim, linewidth=0.5,
+                                         edgecolor='#0497cb', facecolor='none')
+                ax.add_patch(rect)
+            # Resolution ring
+            circ = patches.Circle((cy, cx), radius=distEdge, linewidth=1, edgecolor=resColor, facecolor='none')
+            ax.add_patch(circ)
+            plt.text(cy - textSize / 2 - move, cx + distEdge, res, size=textSize, color=resColor)
+            plt.savefig(outputName, dpi=300)
+
+        outputName = output + "_idx.png"
+        if self.parent.index.indexedPeaks is not None:
+            print "##########################################"
+            print "Saving indexed image as png: ", outputName
+            print "##########################################"
+            numIndexedPeaksFound = self.parent.index.indexedPeaks.shape[0]
+            intRadius = self.parent.index.intRadius
+            cenX1 = self.parent.index.indexedPeaks[:, 0] + 0.5
+            cenY1 = self.parent.index.indexedPeaks[:, 1] + 0.5
+            diameter0 = np.ones_like(cenX1)
+            diameter1 = np.ones_like(cenX1)
+            diameter2 = np.ones_like(cenX1)
+            diameter0[0:numIndexedPeaksFound] = float(intRadius.split(',')[0]) * 2
+            diameter1[0:numIndexedPeaksFound] = float(intRadius.split(',')[1]) * 2
+            diameter2[0:numIndexedPeaksFound] = float(intRadius.split(',')[2]) * 2
+            fix, ax = plt.subplots(1, figsize=(10, 10))
+            plt.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
+            ax.imshow(img, cmap='binary', vmax=vmax, vmin=vmin)
+            for i in range(numIndexedPeaksFound):
+                circ = patches.Circle((cenY1[i], cenX1[i]), radius=diameter1[i] / 2., linewidth=0.5, edgecolor='#c84c6b',
+                                      facecolor='none')
+                ax.add_patch(circ)
+            # Resolution ring
+            circ = patches.Circle((cy, cx), radius=distEdge, linewidth=1, edgecolor=resColor, facecolor='none')
+            ax.add_patch(circ)
+            plt.text(cy - textSize / 2 - move, cx + distEdge, res, size=textSize, color=resColor)
+            plt.savefig(outputName, dpi=300)
 
     def load(self):
         fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))

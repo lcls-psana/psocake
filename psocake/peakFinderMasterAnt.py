@@ -151,7 +151,7 @@ def runmaster(args, nClients):
                 cmaxT = np.zeros((2048,))
                 for i,peak in enumerate(md.peaks):
                     seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-                    cheetahRow,cheetahCol = convert_peaks_to_cheetah(seg,row,col)
+                    cheetahRow,cheetahCol = convert_peaks_to_cheetah(args.det,seg,row,col)
                     cheetahColT[i] = cheetahCol
                     cheetahRowT[i] = cheetahRow
                     rcentT[i] = rcent

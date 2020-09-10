@@ -1,6 +1,7 @@
 import numpy as np
 import fileinput
 import pyqtgraph as pg
+import pyqtgraph.console as console
 import h5py
 import os
 from pyqtgraph.dockarea import *
@@ -17,13 +18,9 @@ except ImportError:
     using_pyqt4 = True
     pass
 
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    import Detector.PyDetector
-    import PSCalib.GlobalUtils as gu
-    from PSCalib.CalibFileFinder import deploy_calib_file
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    import datetime
-    from shutil import copyfile
+import Detector.PyDetector
+import PSCalib.GlobalUtils as gu
+from PSCalib.CalibFileFinder import deploy_calib_file
 
 # Return two equal sized halves of the input image
 # If axis is None, halve along the first axis
@@ -263,141 +260,51 @@ class DiffractionGeometry(object):
             self.calibFile = None
 
     def deployCrystfelGeometry(self, arg):
-        if arg == self.parent.facilityLCLS:
-            self.findPsanaGeometry()
-            if self.calibFile is not None and self.parent.writeAccess:
-                # Convert psana geometry to crystfel geom
-                if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-                   ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                    if '.temp.geom' in self.parent.index.geom:
-                        self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(self.parent.psocakeRunDir + '/.temp.geom')
-                        cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                               self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                        if self.parent.args.v >= 1: print "cmd: ", cmd
-                        try:
-                            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                            p.communicate()[0]
-                            p.stdout.close()
-                        except:
-                            print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
-                        # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
-                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f: lines = f.readlines()
-                        newGeom = []
-                        for line in lines:
-                            if '; mask =' in line:
-                                #newGeom.append('mask_file = ' + self.parent.psocakeRunDir + '/staticMask.h5\n')
-                                newGeom.append(line.split('; ')[-1])
-                            elif '; mask_good =' in line:
-                                newGeom.append(line.split('; ')[-1])
-                            elif '; mask_bad =' in line:
-                                newGeom.append(line.split('; ')[-1])
-                            else:
-                                newGeom.append(line)
-                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f: lines = f.writelines(newGeom)
-                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    if '.temp.geom' in self.parent.index.geom:
-                        # Set GUI field to .temp.geom
-                        self.parent.index.p9.param(self.parent.index.index_grp,
-                                                   self.parent.index.index_geom_str).setValue(
-                            self.parent.psocakeRunDir + '/.temp.geom')
-                        cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                               self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                        if self.parent.args.v >= 1: print "cmd: ", cmd
-                        try:
-                            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                            p.communicate()[0]
-                            p.stdout.close()
-                        except:
-                            print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
-                        # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
-                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
-                            lines = f.readlines()
-                        newGeom = []
-                        for line in lines:
-                            if '; mask =' in line:
-                                # newGeom.append('mask_file = ' + self.parent.psocakeRunDir + '/staticMask.h5\n')
-                                newGeom.append(line.split('; ')[-1])
-                            elif '; mask_good =' in line:
-                                newGeom.append(line.split('; ')[-1])
-                            elif '; mask_bad =' in line:
-                                newGeom.append(line.split('; ')[-1])
-                            else:
-                                newGeom.append(line)
-                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f:
-                            lines = f.writelines(newGeom)
-                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                    if '.temp.geom' in self.parent.index.geom:
-                        # Set GUI field to .temp.geom
-                        self.parent.index.p9.param(self.parent.index.index_grp,
-                                                   self.parent.index.index_geom_str).setValue(
-                            self.parent.psocakeRunDir + '/.temp.geom')
-                        cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
-                               self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                        if self.parent.args.v >= 1: print "cmd: ", cmd
-                        try:
-                            p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-                            p.communicate()[0]
-                            p.stdout.close()
-                        except:
-                            print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
-                        # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
-                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
-                            lines = f.readlines()
-                        newGeom = []
-                        for line in lines:
-                            if '; mask =' in line:
-                                # newGeom.append('mask_file = ' + self.parent.psocakeRunDir + '/staticMask.h5\n')
-                                newGeom.append(line.split('; ')[-1])
-                            elif '; mask_good =' in line:
-                                newGeom.append(line.split('; ')[-1])
-                            elif '; mask_bad =' in line:
-                                newGeom.append(line.split('; ')[-1])
-                            else:
-                                newGeom.append(line)
-                        with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f:
-                            lines = f.writelines(newGeom)
-                else:
-                    if self.parent.args.v >= 1: print "deployCrystfelGeometry not implemented", self.parent.detInfo.lower(), self.parent.experimentName
-        elif arg == self.parent.facilityPAL:
+        self.findPsanaGeometry()
+        if self.calibFile is not None and self.parent.writeAccess:
+            # Convert psana geometry to crystfel geom
             if '.temp.geom' in self.parent.index.geom:
-                self.parent.index.p9.param(self.parent.index.index_grp, self.parent.index.index_geom_str).setValue(
+                self.parent.index.p9.param(self.parent.index.index_grp,
+                                           self.parent.index.index_geom_str).setValue(
                     self.parent.psocakeRunDir + '/.temp.geom')
+                cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
+                       self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
+                if self.parent.args.v >= 1: print "cmd: ", cmd
+                try:
+                    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+                    p.communicate()[0]
+                    p.stdout.close()
+                except:
+                    print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
                 # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
-                with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
-                    lines = f.readlines()
+                with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f: lines = f.readlines()
                 newGeom = []
-                for line in lines:
+                for line in lines: # remove commented out lines
                     if '; mask =' in line:
-                        # newGeom.append('mask_file = ' + self.parent.psocakeRunDir + '/staticMask.h5\n')
                         newGeom.append(line.split('; ')[-1])
                     elif '; mask_good =' in line:
                         newGeom.append(line.split('; ')[-1])
                     elif '; mask_bad =' in line:
                         newGeom.append(line.split('; ')[-1])
+                    elif '; clen =' in line:
+                        newGeom.append(line.split('; ')[-1])
+                    elif '; photon_energy =' in line:
+                        newGeom.append(line.split('; ')[-1])
+                    elif '; adu_per_eV =' in line:
+                        if 'epix10k' in self.parent.detInfo.lower() or \
+                           'jungfrau4m' in self.parent.detInfo.lower():
+                            newGeom.append(line.split('; ')[-1].split('0.1')[0]+"0.001") # override
+                        else:
+                            newGeom.append(line.split('; ')[-1])
                     else:
                         newGeom.append(line)
-                with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f:
-                    lines = f.writelines(newGeom)
+                with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f: lines = f.writelines(newGeom)
 
     def updateClen(self, arg):
-        if arg == self.parent.facilityLCLS:
-            if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-               ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName) or \
-               ('camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower()) or \
-               ('camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower()):
-                self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
-                if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
-            else:
-                if self.parent.args.v >= 1: print "updateClen not implemented"
-        elif arg == self.parent.facilityPAL:
-            self.parent.clen = self.parent.detectorDistance
-            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-            self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
-            self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
+        self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
+        self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+        self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
+        if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000.  # mm to metres
@@ -442,54 +349,34 @@ class DiffractionGeometry(object):
             return False
 
     def writeCrystfelGeom(self, arg):
-        if arg == self.parent.facilityLCLS:
-            if ('cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
-               ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
-                if self.parent.index.hiddenCXI is not None:
-                    if os.path.isfile(self.parent.index.hiddenCXI):
-                        f = h5py.File(self.parent.index.hiddenCXI,'r')
-                        encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
-                        f.close()
-                    else:
-                        encoderVal = self.parent.clen # metres
-
-                    coffset = self.parent.detectorDistance - encoderVal
-                    if self.parent.args.v >= 1: print "coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
-
-                    # Replace coffset value in geometry file
-                    if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
-                        for line in fileinput.FileInput(self.parent.index.geom, inplace=True):
-                            if 'coffset' in line and line.strip()[0] is not ';':
-                                coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
-                                print coffsetStr, # comma is required
-                            else:
-                                print line, # comma is required
+        if self.parent.index.hiddenCXI is not None:
+            if os.path.isfile(self.parent.index.hiddenCXI):
+                f = h5py.File(self.parent.index.hiddenCXI,'r')
+                encoderVal = f['/LCLS/detector_1/EncoderValue'][0] / 1000. # metres
+                f.close()
             else:
-                if self.parent.args.v >= 1: print "writeCrystfelGeom not implemented"
-        elif arg == self.parent.facilityPAL:
-            _geomFile = self.getClosestGeom()
-            if self.parent.args.v >= 1: print "writeCrystfelGeom::Found geom file: ", _geomFile
-            with open(_geomFile, 'r') as f:
-                lines = f.readlines()
-            # change values in geometry file to match diffraction geometry panel
-            for i, line in enumerate(lines):
-                if 'clen' in line:
-                    lines[i] = 'clen = ' +str(self.parent.detectorDistance) + '\n'
-                elif 'photon_energy' in line:
-                    lines[i] = 'photon_energy = ' + str(self.parent.photonEnergy) + '\n'
-                elif 'p0/res' in line:
-                    lines[i] = 'p0/res = ' + str(1./self.parent.pixelSize) + '\n'
-                elif 'p0/corner_x' in line:
-                    lines[i] = 'p0/corner_x = ' + str(-self.parent.cy) + '\n'
-                elif 'p0/corner_y' in line:
-                    lines[i] = 'p0/corner_y = ' + str(self.parent.cx) + '\n'
-            # write .temp.geom
-            fname = self.parent.psocakeRunDir + '/' + ".temp.geom"
-            f = open(fname, 'w')
-            for i in lines: f.write(i)
-            f.close()
+                encoderVal = self.parent.clen # metres
+
+            coffset = self.parent.detectorDistance - encoderVal
+            if self.parent.args.v >= 1: print "coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
+
+            # Replace coffset value in geometry file
+            if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
+                for line in fileinput.FileInput(self.parent.index.geom, inplace=True):
+                    if 'coffset' in line and line.strip()[0] is not ';':
+                        coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
+                        print coffsetStr, # comma is required
+                    elif 'clen' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
+                        _c =  line.split('; ')[-1]
+                        print _c,  # comma is required
+                    elif 'photon_energy' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
+                        _c =  line.split('; ')[-1]
+                        print _c,  # comma is required
+                    elif 'adu_per_eV' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
+                        _c =  line.split('; ')[-1]
+                        print _c,  # comma is required
+                    else:
+                        print line, # comma is required
 
     def getClosestGeom(self):
         # Search for the correct geom file to use
@@ -540,7 +427,7 @@ class DiffractionGeometry(object):
                                                 "user-defined mask: self.parent.mk.userMask\n" \
                                                 "streak mask: self.parent.mk.streakMask\n" \
                                                 "psana mask: self.parent.mk.psanaMask"
-            self.w42 = pg.console.ConsoleWidget(parent=None,namespace=namespace, text=text)
+            self.w42 = console.ConsoleWidget(parent=None,namespace=namespace, text=text)
             self.d42.addWidget(self.w42)
             self.parent.area.addDock(self.d42, 'bottom')
 
@@ -594,7 +481,7 @@ class DiffractionGeometry(object):
             ceny = np.ones_like(self.myResolutionRingList)*self.parent.cy
             diameter = 2*self.myResolutionRingList
 
-            self.parent.img.ring_feature.setData(cenx, ceny, symbol='o', \
+            self.parent.img.ring_feature.setData(ceny, cenx, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
 
@@ -622,7 +509,7 @@ class DiffractionGeometry(object):
     def drawCentre(self):
         # Always indicate centre of detector
         try:
-            self.parent.img.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
+            self.parent.img.centre_feature.setData(np.array([self.parent.cy]), np.array([self.parent.cx]), symbol='o', \
                                                size=6, brush=(255, 255, 255, 0), pen='r', pxMode=False)
             if self.parent.args.v >= 1: print "Done drawCentre"
         except:
@@ -638,47 +525,75 @@ class DiffractionGeometry(object):
 
     def deploy(self):
         with pg.BusyCursor():
-            if self.parent.facility == self.parent.facilityLCLS:
-                # Calculate detector translation required in x and y
-                dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreX)  # microns
-                dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreY)  # microns
-                dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6 # microns
+            # Calculate detector translation required in x and y
+            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreY)  # microns
+            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreX)  # microns
+            dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6 # microns
+            geo = self.parent.det.geometry(self.parent.evt)
+            top = geo.get_top_geo()
+            children = top.get_list_of_children()[0]
+            geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
+            fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
+            geo.save_pars_in_file(fname)
+            print "#################################################"
+            print "Deploying psana detector geometry: ", fname
+            print "#################################################"
+            cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
+            if self.parent.args.localCalib:
+                calibDir = './calib'
+            elif self.parent.args.outDir is None:
+                calibDir = self.parent.rootDir + '/calib'
+            else:
+                calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
+                           self.parent.experimentName + '/calib'
+            deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
+                              run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
+            # Reload new psana geometry
+            self.parent.exp.setupExperiment()
+            self.parent.img.getDetImage(self.parent.eventNumber)
+            self.updateRings()
+            self.parent.index.updateIndex()
+            self.drawCentre()
+            # Show mask
+            self.parent.mk.updatePsanaMaskOn()
+
+    def autoDeploy(self): #FIXME: yet to verify this works correctly on new lab coordinate
+        with pg.BusyCursor():
+            powderHits = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxHits.npy')
+            powderMisses = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxMisses.npy')
+            powderImg = self.parent.det.image(self.parent.evt, np.maximum(powderHits,powderMisses))
+            centreRow, centreCol = findDetectorCentre(np.log(abs(powderImg)), self.parent.cx, self.parent.cy, range=200)
+            print("Current centre along row,centre along column: ", self.parent.cx, self.parent.cy)
+            print("Optimum centre along row,centre along column: ", centreRow, centreCol)
+            allowedDeviation = 175 # pixels
+            if abs(self.parent.cx - centreRow) <= allowedDeviation and \
+                abs(self.parent.cy - centreCol) <= allowedDeviation:
+                deploy = True
+            else:
+                deploy = False
+                print "Too far away from current centre. I will not deploy the auto centred geometry."
+            if deploy:
+                # Calculate detector translation in x and y
+                dx = self.parent.pixelSize * 1e6 * (self.parent.cx - centreRow)  # microns
+                dy = self.parent.pixelSize * 1e6 * (self.parent.cy - centreCol)  # microns
+                dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
                 geo = self.parent.det.geometry(self.parent.evt)
-                if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                    top = geo.get_top_geo()
-                    children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                elif 'cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    top = geo.get_top_geo()
-                    children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    top = geo.get_top_geo()
-                    children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                    top = geo.get_top_geo()
-                    children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                elif 'pnccd' in self.parent.detInfo.lower():
-                    top = geo.get_top_geo()
-                    children = top.get_list_of_children()[0]
-                    geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                else:
-                    print "deploy not implemented"
-                fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
+                top = geo.get_top_geo()
+                children = top.get_list_of_children()[0]
+                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
+                fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
                 geo.save_pars_in_file(fname)
                 print "#################################################"
                 print "Deploying psana detector geometry: ", fname
                 print "#################################################"
-                cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
+                cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'auto recentred geometry'}
                 if self.parent.args.localCalib:
                     calibDir = './calib'
                 elif self.parent.args.outDir is None:
                     calibDir = self.parent.rootDir + '/calib'
                 else:
-                    calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
-                               self.parent.experimentName + '/calib'
+                    calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + \
+                               '/calib'
                 deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
                                   run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
                 # Reload new psana geometry
@@ -689,98 +604,3 @@ class DiffractionGeometry(object):
                 self.drawCentre()
                 # Show mask
                 self.parent.mk.updatePsanaMaskOn()
-            elif self.parent.facility == self.parent.facilityPAL:
-                print "deploy::geom = ", self.parent.psocakeRunDir + '/.temp.geom'
-                # deploy CrystFEL geometry
-                with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f:
-                    lines = f.readlines()
-                for i,line in enumerate(lines):
-                    if 'clen' in line:
-                        lines[i] = 'clen = ' + str(self.parent.detectorDistance) + '\n'
-                    try:
-                        if 'p0/corner_x' in line:
-                            lines[i] = 'p0/corner_x = ' + str(-self.parent.roi.centreY) + '\n'
-                        if 'p0/corner_y' in line:
-                            lines[i] = 'p0/corner_y = ' + str(self.parent.roi.centreX) + '\n'
-                    except:
-                        pass
-                fname = self.parent.rootDir + '/calib/' + self.parent.detInfo + '/geometry/' + \
-                                  str(self.parent.runNumber) + '-end.geom'
-                # Make a backup of existing geometry
-                if os.path.exists(fname):
-                    timeStr = datetime.datetime.now().isoformat()
-                    copyfile(fname, fname+'-'+timeStr)
-                print "#################################################"
-                print "Deploying detector geometry: ", fname
-                print "#################################################"
-                with open(fname, 'w') as f: f.writelines(lines)
-                # Reload new psana geometry
-                self.parent.exp.setupExperiment()
-                self.parent.img.getDetImage(self.parent.eventNumber)
-                self.updateRings()
-                self.parent.index.updateIndex()
-                self.drawCentre()
-                # Show mask
-                self.parent.mk.updatePsanaMaskOn()
-
-    def autoDeploy(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            with pg.BusyCursor():
-                powderHits = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxHits.npy')
-                powderMisses = np.load(self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '_maxMisses.npy')
-                powderImg = self.parent.det.image(self.parent.evt, np.maximum(powderHits,powderMisses))
-                centreRow, centreCol = findDetectorCentre(np.log(abs(powderImg)), self.parent.cx, self.parent.cy, range=200)
-                print("Current centre along row,centre along column: ", self.parent.cx, self.parent.cy)
-                print("Optimum centre along row,centre along column: ", centreRow, centreCol)
-                allowedDeviation = 175 # pixels
-                if abs(self.parent.cx - centreRow) <= allowedDeviation and \
-                    abs(self.parent.cy - centreCol) <= allowedDeviation:
-                    deploy = True
-                else:
-                    deploy = False
-                    print "Too far away from current centre. I will not deploy the auto centred geometry."
-                if deploy:
-                    # Calculate detector translation in x and y
-                    dx = self.parent.pixelSize * 1e6 * (self.parent.cx - centreRow)  # microns
-                    dy = self.parent.pixelSize * 1e6 * (self.parent.cy - centreCol)  # microns
-                    dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
-                    geo = self.parent.det.geometry(self.parent.evt)
-                    if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                        geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
-                    elif 'cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                        geo.move_geo('CSPAD:V1', 0, dx=dx, dy=dy, dz=-dz)
-                    elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                        top = geo.get_top_geo()
-                        children = top.get_list_of_children()[0]
-                        geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                    elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                        top = geo.get_top_geo()
-                        children = top.get_list_of_children()[0]
-                        geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
-                    else:
-                        print "autoDeploy not implemented"
-                    fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
-                    geo.save_pars_in_file(fname)
-                    print "#################################################"
-                    print "Deploying psana detector geometry: ", fname
-                    print "#################################################"
-                    cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'auto recentred geometry'}
-                    if self.parent.args.localCalib:
-                        calibDir = './calib'
-                    elif self.parent.args.outDir is None:
-                        calibDir = self.parent.rootDir + '/calib'
-                    else:
-                        calibDir = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + \
-                                   '/calib'
-                    deploy_calib_file(cdir=calibDir, src=str(self.parent.det.name), type='geometry',
-                                      run_start=self.parent.runNumber, run_end=None, ifname=fname, dcmts=cmts, pbits=0)
-                    # Reload new psana geometry
-                    self.parent.exp.setupExperiment()
-                    self.parent.img.getDetImage(self.parent.eventNumber)
-                    self.updateRings()
-                    self.parent.index.updateIndex()
-                    self.drawCentre()
-                    # Show mask
-                    self.parent.mk.updatePsanaMaskOn()
-        elif self.parent.facility == self.parent.facilityPAL:
-            print "autoDeploy is not implemented for PAL"

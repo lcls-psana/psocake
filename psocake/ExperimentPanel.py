@@ -12,13 +12,8 @@ if logbook_present:
     import LogbookCrawler
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import time
-
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    import psana
-    import Detector.PyDetector
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    pass
+import psana
+import Detector.PyDetector
 
 class ExperimentInfo(object):
     def __init__(self, parent = None):
@@ -60,7 +55,6 @@ class ExperimentInfo(object):
         self.disp_gainMask_str = 'gain_mask'
         self.disp_coordx_str = 'coord_x'
         self.disp_coordy_str = 'coord_y'
-        self.disp_quad_str = 'quad number'
         self.disp_seg_str = 'seg number'
         self.disp_row_str = 'row number'
         self.disp_col_str = 'col number'
@@ -96,7 +90,6 @@ class ExperimentInfo(object):
         self.disp_col= 14
         self.disp_row= 13
         self.disp_seg= 12
-        self.disp_quad= 11
         self.disp_gain= 10
         self.disp_commonMode= 9
         self.disp_rms= 8
@@ -152,7 +145,6 @@ class ExperimentInfo(object):
                                                                          self.disp_col_str: self.disp_col,
                                                                          self.disp_row_str: self.disp_row,
                                                                          self.disp_seg_str: self.disp_seg,
-                                                                         self.disp_quad_str: self.disp_quad,
                                                                          self.disp_gain_str: self.disp_gain,
                                                                          self.disp_commonMode_str: self.disp_commonMode,
                                                                          self.disp_rms_str: self.disp_rms,
@@ -291,12 +283,6 @@ class ExperimentInfo(object):
             # Show mask
             self.parent.mk.updatePsanaMaskOn()
 
-        #self.parent.detInfoList = None
-
-        #self.resetVariables()
-        # Setup elog
-        #self.setupRunTable()
-
         #self.setupExperiment()
         if self.hasExpRunDetInfo(): print "starting setup"
     
@@ -388,11 +374,6 @@ class ExperimentInfo(object):
             # Show mask
             self.parent.mk.updatePsanaMaskOn()
 
-        #if self.parent.doneInit:
-        #    self.setupDetGeom()
-        #    self.parent.img.updateImage()
-        #    self.parent.geom.drawCentre()
-
         if self.parent.args.v >= 1: print "Done updateDetInfo: ", self.parent.detInfo
 
     def findEventFromTimestamp(self, secList, nsecList, fidList, sec, nsec, fid):
@@ -426,20 +407,16 @@ class ExperimentInfo(object):
             return _seconds, _nanoseconds, _fiducials
 
     def getEventAndDisplay(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-           # update timestamps and fiducial
-           self.parent.evt = self.getEvt(self.parent.eventNumber)
-           if self.parent.evt is not None:
-               sec, nanosec, fid = self.getEventID(self.parent.evt)
-               self.eventSeconds = str(sec)
-               self.eventNanoseconds = str(nanosec)
-               self.eventFiducial = str(fid)
-               self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
-               self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
-               self.parent.img.updateImage()
-        elif self.parent.facility == self.parent.facilityPAL:
-           self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
-           self.parent.img.updateImage()
+        # update timestamps and fiducial
+        self.parent.evt = self.getEvt(self.parent.eventNumber)
+        if self.parent.evt is not None:
+            sec, nanosec, fid = self.getEventID(self.parent.evt)
+            self.eventSeconds = str(sec)
+            self.eventNanoseconds = str(nanosec)
+            self.eventFiducial = str(fid)
+            self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
+            self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
+            self.parent.img.updateImage()
 
     def updateEventNumber(self, data):
         self.parent.eventNumber = data
@@ -461,36 +438,13 @@ class ExperimentInfo(object):
 
         if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 
-        #if self.hasExpRunDetInfo():
-        #    if self.parent.facility == self.parent.facilityLCLS:
-        #        # update timestamps and fiducial
-        #        self.parent.evt = self.getEvt(self.parent.eventNumber)
-        #        if self.parent.evt is not None:
-        #            sec, nanosec, fid = self.getEventID(self.parent.evt)
-        #            self.eventSeconds = str(sec)
-        #            self.eventNanoseconds = str(nanosec)
-        #            self.eventFiducial = str(fid)
-        #            self.updateEventID(self.eventSeconds, self.eventNanoseconds, self.eventFiducial)
-        #            self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
-        #            self.parent.img.updateImage()
-        #    elif self.parent.facility == self.parent.facilityPAL:
-        #        self.p.param(self.exp_grp, self.exp_evt_str).setValue(self.parent.eventNumber)
-        #        self.parent.img.updateImage()
-
-        # update labels
-        #if self.parent.args.mode == "all": if self.parent.evtLabels is not None: self.parent.evtLabels.refresh()
-
         if self.parent.args.v >= 1: print "Done updateEventNumber: ", self.parent.eventNumber
 
     def hasExpRunInfo(self):
         if self.parent.hasExperimentName and self.parent.hasRunNumber:
             # Check such a run exists
-            if self.parent.facility == self.parent.facilityLCLS:
-                _numData = len(glob.glob(self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
-                                         self.parent.experimentName + '/xtc/*-r' + str(self.parent.runNumber).zfill(4) + '-*.xtc'))
-            elif self.parent.facility == self.parent.facilityPAL:
-                _numData = self.getNumberOfEvents(self.parent.facilityPAL)
-                if self.parent.args.v >= 1: print "hasExpRunInfo::_numData: ", _numData
+            _numData = len(glob.glob(self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
+                                     self.parent.experimentName + '/xtc/*-r' + str(self.parent.runNumber).zfill(4) + '-*.xtc'))
             if _numData > 0:
                 return True
             else:
@@ -582,20 +536,9 @@ class ExperimentInfo(object):
                 return alias
 
     def updateHiddenCrystfelFiles(self, arg):
-        if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower() or \
-               ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-               ('rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName):
-                self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
-                self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
-                self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
-            else:
-                if self.parent.args.v >= 1: print "updateHiddenCrystfelFiles not implemented"
-                self.parent.index.hiddenCXI = None
-        elif arg == self.parent.facilityPAL:
-            self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
-            self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
-            self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
+        self.parent.index.hiddenCXI = self.parent.psocakeRunDir + '/.temp.cxi'
+        self.parent.index.hiddenCrystfelStream = self.parent.psocakeRunDir + '/.temp.stream'
+        self.parent.index.hiddenCrystfelList = self.parent.psocakeRunDir + '/.temp.lst'
 
     def findGeometry(self):
         geomFiles = glob.glob(self.parent.rootDir + '/calib/' + self.parent.detInfo + '/geometry/*.geom')
@@ -609,175 +552,123 @@ class ExperimentInfo(object):
                 geomRun = startRun
         return str(geomRun) + '-end.geom'
 
-    def readCrystfelGeometry(self, arg):
-        if arg == self.parent.facilityPAL:
-            _geomFile = self.parent.geom.getClosestGeom()
-            with open(_geomFile, 'r') as f:
-                lines = f.readlines()
-            for i, line in enumerate(lines):
-                if 'clen' in line:
-                    if self.parent.detectorDistance == 0.0: # don't read from crystfel geometry if we have a detector distance
-                        self.parent.detectorDistance = float(line.split('=')[-1])
-                elif 'photon_energy' in line:
-                    self.parent.photonEnergy = float(line.split('=')[-1])
-                elif 'p0/res' in line:
-                    self.parent.pixelSize = 1./float(line.split('=')[-1])
-                elif 'p0/corner_x' in line:
-                    self.parent.cy = -1 * float(line.split('=')[-1])
-                elif 'p0/corner_y' in line:
-                    self.parent.cx = float(line.split('=')[-1])
-
     def updateDetectorDistance(self, arg):
-        if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                if self.parent.detectorDistance < 0.01:
-                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
-                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
-            elif ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-                 ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                if self.parent.detectorDistance < 0.01:
-                    try:
-                        self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
-                        self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
-                    except:
-                        self.parent.detectorDistance = 0
-                        print "######################################################"
-                        print "Detector distance not found. Check your geometry file."
-                        print "######################################################"
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
-            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                if self.parent.detectorDistance < 0.01:
-                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
-                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
-                    self.parent.clen)
-            elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
-                if self.parent.detectorDistance < 0.01:
-                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
-                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
-                    self.parent.clen)
-            elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
-                if self.parent.detectorDistance < 0.01:
-                    self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
-                    self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
-                self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-                self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
-                    self.parent.clen)
-            else:
-                print "#############################################################"
-                print "updateDetectorDistance: not implemented for this detector yet"
-                print "#############################################################"
-        elif arg == self.parent.facilityPAL:
-            self.parent.coffset = self.parent.detectorDistance - self.parent.clen
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(
-                self.parent.detectorDistance * 1e3)  # mm
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
+        if self.parent.detectorDistance < 0.01:
+            try:
+                self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6  # metres
+                self.parent.geom.p1.param(self.parent.geom.geom_grp,
+                                          self.parent.geom.geom_detectorDistance_str).setValue(
+                    self.parent.detectorDistance * 1e3)  # mm
+            except:
+                self.parent.detectorDistance = 0
+                print "######################################################"
+                print "Detector distance not found. Check your geometry file."
+                print "######################################################"
+        self.parent.coffset = self.parent.detectorDistance - self.parent.clen
+        self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
+            self.parent.clen)
         if self.parent.args.v >= 1: print "updateDetectorDistance::detectorDistance (m), self.clen (m), self.coffset (m): ", \
             self.parent.detectorDistance, self.parent.clen, self.parent.coffset
 
     def updatePixelSize(self, arg):
-        if arg == self.parent.facilityLCLS:
-            self.parent.pixelSize = self.parent.det.pixel_size(self.parent.runNumber) * 1e-6 # metres
-            # Update geometry panel
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
-                    self.parent.pixelSize)  # pixel size
-        elif arg == self.parent.facilityPAL:
-            # Update geometry panel
-            self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
-                    self.parent.pixelSize)  # pixel size
+        self.parent.pixelSize = self.parent.det.pixel_size(self.parent.runNumber) * 1e-6 # metres
+        # Update geometry panel
+        self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_pixelSize_str).setValue(
+                self.parent.pixelSize)  # pixel size
 
     def updatePhotonEnergy(self, arg):
-        if arg == self.parent.facilityLCLS:
-            self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
-            try:
+        self.parent.ebeam = self.parent.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+        try:
+            if self.parent.experimentName == 'mfxc00318':
+                wavelength = 0.1256 # namometre
+            elif self.parent.experimentName == 'cxic00318':
+                wavelength = 0.1340 # namometre
+            else:
                 wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # nanometre
-                h = 6.626070e-34  # J.m
-                c = 2.99792458e8  # m/s
-                joulesPerEv = 1.602176621e-19  # J/eV
-                self.parent.photonEnergy = (h / joulesPerEv * c) / (wavelength * 1e-9)
-            except:
-                self.parent.photonEnergy = self.parent.epics.value('SIOC:SYS0:ML00:AO541')
-                if self.parent.photonEnergy is None and self.parent.ebeam:
-                    self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
-
-            self.parent.geom.p1.param(self.parent.geom.geom_grp,
-                                 self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
-        elif arg == self.parent.facilityPAL:
-            self.parent.geom.p1.param(self.parent.geom.geom_grp,
-                                      self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
+            h = 6.626070e-34  # J.m
+            c = 2.99792458e8  # m/s
+            joulesPerEv = 1.602176621e-19  # J/eV
+            self.parent.photonEnergy = (h / joulesPerEv * c) / (wavelength * 1e-9)
+        except:
+            self.parent.photonEnergy = self.parent.epics.value('SIOC:SYS0:ML00:AO541')
+            if self.parent.photonEnergy is None and self.parent.ebeam:
+                self.parent.photonEnergy = self.parent.ebeam.ebeamPhotonEnergy()
+        self.parent.geom.p1.param(self.parent.geom.geom_grp,
+                             self.parent.geom.geom_photonEnergy_str).setValue(self.parent.photonEnergy)
 
     def setClen(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            if 'cspad2x2' in self.parent.detInfo.lower():
-                self.parent.clen = 0.0 # the cspad2x2 detector is not motorized
-            elif 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
-                try:
-                    self.parent.clenEpics = str(self.parent.detAlias) + '_z'
+        if 'cspad2x2' in self.parent.detInfo.lower():
+            self.parent.clen = 0.0 # the cspad2x2 detector is not motorized
+        elif 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            try:
+                self.parent.clenEpics = str(self.parent.detAlias) + '_z'
+                self.readEpicsClen()
+            except:
+                if 'ds1' in self.parent.detInfo.lower():
+                    self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
                     self.readEpicsClen()
-                except:
-                    if 'ds1' in self.parent.detInfo.lower():
-                        self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV')
-                        self.readEpicsClen()
-                    elif 'ds2' in self.parent.detInfo.lower():
-                        self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
-                        self.readEpicsClen()
-
-                    else:
-                        print "Couldn't handle detector clen. Try using the full detector name."
-                        exit()
-            elif ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
-                 ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
-                self.parent.clenEpics =  str('MFX:DET:MMS:04.RBV') #'Rayonix_z'
-                try:
+                elif 'ds2' in self.parent.detInfo.lower():
+                    self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                     self.readEpicsClen()
-                except:
-                    print "ERROR: No such epics variable, ", self.parent.clenEpics
-                    print "ERROR: setting clen to 0.0 metre"
-                    self.parent.clen = 0.0 # metres
-            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                self.parent.clenEpics = 'XPP:ROB:POS:Z'
-                try:
-                    self.readEpicsClen()
-                except:
-                    print "ERROR: No such epics variable, ", self.parent.clenEpics
-                    print "ERROR: setting clen to 0.0 metre"
-                    self.parent.clen = 0.0  # metres
-            elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
-                self.parent.clenEpics = 'AMO:LMP:MMS:10.RBV' # There's no alias
-                try:
-                    self.readEpicsClen()
-                except:
-                    print "ERROR: No such epics variable, ", self.parent.clenEpics
-                    print "ERROR: setting clen to 0.0 metre"
-                    self.parent.clen = 0.0 # metres
-            elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
-                self.parent.clen = 0.0 # the back pnccd is not motorized at AMO
-            else:
-                print "#########################################"
-                print "Not implemented yet clen: ", self.parent.detInfo
-                print "#########################################"
-        elif self.parent.facility == self.parent.facilityPAL:
-            self.parent.clen = self.parent.detectorDistance # metres
+                else:
+                    print "Couldn't handle detector clen. Try using the full detector name."
+                    exit()
+        elif 'jungfrau4m' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+            try:
+                self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV') # FIXME: need to read in full name and determine DS1 or DS2 etc
+                self.readEpicsClen()
+            except:
+                print "Couldn't handle detector clen. Jungfrau epics variable names may not be supported."
+                exit()
+        elif ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
+             ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
+             ('epix10k' in self.parent.detInfo.lower() and '2m' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
+            self.parent.clenEpics =  str('MFX:DET:MMS:04.RBV') #'Rayonix_z'
+            try:
+                self.readEpicsClen()
+            except:
+                print "ERROR: No such epics variable, ", self.parent.clenEpics
+                print "ERROR: setting clen to 0.0 metre"
+                self.parent.clen = 0.0 # metres
+        elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
+            self.parent.clenEpics = 'XPP:ROB:POS:Z'
+            try:
+                self.readEpicsClen()
+            except:
+                print "ERROR: No such epics variable, ", self.parent.clenEpics
+                print "ERROR: setting clen to 0.0 metre"
+                self.parent.clen = 0.0  # metres
+        elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
+            self.parent.clenEpics = 'AMO:LMP:MMS:10.RBV' # There's no alias
+            try:
+                self.readEpicsClen()
+            except:
+                print "ERROR: No such epics variable, ", self.parent.clenEpics
+                print "ERROR: setting clen to 0.0 metre"
+                self.parent.clen = 0.0 # metres
+        elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
+            self.parent.clen = 0.0 # the back pnccd is not motorized at AMO
+        else:
+            print "#########################################"
+            print "Not implemented yet clen: ", self.parent.detInfo
+            print "#########################################"
 
     def readEpicsClen(self):
         numEvt = len(self.times)
         if numEvt > 120: numEvt = 120
-        for i in range(numEvt):  # assume at least 1 second run time
-            evt = self.run.event(self.times[i])
-            self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000. # metres
-            if i == 0:
-                _temp = self.parent.clen
-            elif i > 0:
-                if abs(_temp - self.parent.clen) >= 0.01:
-                    break
-                _temp = self.parent.clen
-        if self.parent.args.v >= 1: print "Best guess at clen: ", self.parent.clen
+        if 'mfxc00318' in self.parent.experimentName.lower():
+            self.parent.clen = 303.8794 / 1000. # metres
+        else:
+            for i in range(numEvt):  # assume at least 1 second run time
+                evt = self.run.event(self.times[i])
+                self.parent.clen = self.parent.epics.value(self.parent.clenEpics) / 1000. # metres
+                if i == 0:
+                    _temp = self.parent.clen
+                elif i > 0:
+                    if abs(_temp - self.parent.clen) >= 0.01:
+                        break
+                    _temp = self.parent.clen
+        if self.parent.args.v >= 1: print "Best guess at clen (m): ", self.parent.clen
 
     def setupRunDir(self):
         # Set up psocake directory in scratch
@@ -853,119 +744,79 @@ class ExperimentInfo(object):
                 print "############# No such datasource exists ###############"
 
     def setupTotalEvents(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            self.eventTotal = len(self.times)
-            if self.parent.args.mode == 'label' and self.parent.labeling is not None:
-                self.parent.labeling.initEventsToDo()
-            self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
-            self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
-            self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
-        elif self.parent.facility == self.parent.facilityPAL:
-            self.eventTotal = self.getNumberOfEvents(self.parent.facilityPAL)
-            self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
-            self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
-            self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
+        self.eventTotal = len(self.times)
+        if self.parent.args.mode == 'label' and self.parent.labeling is not None:
+            self.parent.labeling.initEventsToDo()
+        self.parent.stack.spinBox.setMaximum(self.eventTotal - self.parent.stack.stackSize)
+        self.p.param(self.exp_grp, self.exp_evt_str).setLimits((0, self.eventTotal - 1))
+        self.p.param(self.exp_grp, self.exp_evt_str, self.exp_numEvents_str).setValue(self.eventTotal)
 
     def printDetectorNames(self):
         # Print list of available detectors
         if self.parent.detInfoList is None:
-            if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.evt = self.run.event(self.times[-1])
-                myAreaDetectors = []
-                self.parent.detnames = psana.DetNames()
-                for k in self.parent.detnames:
-                    try:
-                        if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
-                            myAreaDetectors.append(k)
-                    except ValueError:
-                        continue
-                self.parent.detInfoList = list(set(myAreaDetectors))
-                print "#######################################"
-                print "# Available area detectors: "
-                for k in self.parent.detInfoList:
-                    print "#", highlight(k,'b')
-                print "#######################################"
-            elif self.parent.facility == self.parent.facilityPAL:
-                self.parent.detInfoList = ['MX225-HS']  # PAL does not provide detectors available, so hard-code
-                print "#######################################"
-                print "# Available area detectors: "
-                for k in self.parent.detInfoList:
-                    print "#", k
-                print "#######################################"
+            self.parent.evt = self.run.event(self.times[-1])
+            myAreaDetectors = []
+            self.parent.detnames = psana.DetNames()
+            for k in self.parent.detnames:
+                try:
+                    if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
+                        myAreaDetectors.append(k)
+                except ValueError:
+                    continue
+            self.parent.detInfoList = list(set(myAreaDetectors))
+            print "#######################################"
+            print "# Available area detectors: "
+            for k in self.parent.detInfoList:
+                print "#", highlight(k,'b')
+            print "#######################################"
 
     def setupCrawler(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            if self.logger and self.crawlerRunning == False:
-                if self.parent.args.v >= 1: print "Launching crawler"
-                self.launchCrawler()
-                self.crawlerRunning = True
+        if self.logger and self.crawlerRunning == False:
+            if self.parent.args.v >= 1: print "Launching crawler"
+            self.launchCrawler()
+            self.crawlerRunning = True
 
     def setupDetGeom(self):
-        if self.parent.facility == self.parent.facilityLCLS:
-            self.parent.det = psana.Detector(str(self.parent.detInfo), self.env)
-            self.parent.det.do_reshape_2d_to_3d(flag=True)
-            self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
-            self.parent.epics = self.ds.env().epicsStore()
-            self.setClen()
+        self.parent.det = psana.Detector(str(self.parent.detInfo), self.env)
+        self.parent.det.do_reshape_2d_to_3d(flag=True)
+        self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
+        self.parent.epics = self.ds.env().epicsStore()
+        self.setClen()
 
-            # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
-            if self.parent.evt is None:
-                self.parent.evt = self.run.event(self.times[0])
-            self.detGuaranteed = self.parent.det.calib(self.parent.evt)
-            if self.detGuaranteed is None:  # image isn't present for this event
-                print "No image in this event. Searching for an event..."
-                for i in np.arange(len(self.times)):
-                    evt = self.run.event(self.times[i])
-                    self.detGuaranteed = self.parent.det.calib(evt)
-                    if self.detGuaranteed is not None:
-                        print "Found an event with image: ", i
-                        break
+        # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
+        if self.parent.evt is None:
+            self.parent.evt = self.run.event(self.times[0])
+        self.detGuaranteed = self.parent.det.calib(self.parent.evt)
+        if self.detGuaranteed is None:  # image isn't present for this event
+            print "No image in this event. Searching for an event..."
+            for i in np.arange(len(self.times)):
+                evt = self.run.event(self.times[i])
+                self.detGuaranteed = self.parent.det.calib(evt)
+                if self.detGuaranteed is not None:
+                    print "Found an event with image: ", i
+                    break
 
-            # detector distance
-            self.updateDetectorDistance(self.parent.facility)
-            # pixel size
-            self.updatePixelSize(self.parent.facility)
-            # photon energy
-            self.updatePhotonEnergy(self.parent.facility)
+        # detector distance
+        self.updateDetectorDistance(self.parent.facility)
+        # pixel size
+        self.updatePixelSize(self.parent.facility)
+        # photon energy
+        self.updatePhotonEnergy(self.parent.facility)
 
-            # Setup pixel indices
-            if self.detGuaranteed is not None:
-                self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
-                self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.facilityLCLS, self.parent.pixelInd)
-                self.parent.pixelIndAssem -= 1  # First pixel is 0
-                # Get detector shape
-                self.detGuaranteedData = self.parent.det.image(self.parent.evt, self.detGuaranteed)
+        # Setup pixel indices
+        if self.detGuaranteed is not None:
+            self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
+            self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.facilityLCLS, self.parent.pixelInd)
+            self.parent.pixelIndAssem -= 1  # First pixel is 0
+            # Get detector shape
+            self.detGuaranteedData = self.parent.det.image(self.parent.evt, self.detGuaranteed)
 
-            # Write a temporary geom file
-            self.parent.geom.deployCrystfelGeometry(self.parent.facility)
-            self.parent.geom.writeCrystfelGeom(self.parent.facility)
+        # Write a temporary geom file
+        self.parent.geom.deployCrystfelGeometry(self.parent.facility)
+        self.parent.geom.writeCrystfelGeom(self.parent.facility)
 
-            self.parent.img.setupRadialBackground()
-            self.parent.img.updatePolarizationFactor()
-
-        elif self.parent.facility == self.parent.facilityPAL:
-            # read geometry
-            self.readCrystfelGeometry(self.parent.facility)
-            # detector distance
-            self.updateDetectorDistance(self.parent.facility)
-            # pixel size
-            self.updatePixelSize(self.parent.facility)
-            # photon energy
-            self.updatePhotonEnergy(self.parent.facility)
-            self.detGuaranteed, self.detGuaranteedData = self.parent.img.getDetImage(0)
-            # Setup pixel indices
-            if self.detGuaranteed is not None:
-                self.parent.pixelInd = np.reshape(np.arange(self.detGuaranteed.size) + 1, self.detGuaranteed.shape)
-                self.parent.pixelIndAssem = self.parent.img.getAssembledImage(self.parent.facility,
-                                                                              self.parent.pixelInd)
-                self.parent.pixelIndAssem -= 1  # First pixel is 0
-
-            # Write a temporary geom file
-            # self.parent.geom.deployCrystfelGeometry(self.parent.facility)
-            self.parent.geom.writeCrystfelGeom(self.parent.facility)
-
-            self.parent.img.setupRadialBackground()
-            self.parent.img.updatePolarizationFactor()
+        self.parent.img.setupRadialBackground()
+        self.parent.img.updatePolarizationFactor()
 
     def setupExperiment(self):
         if self.parent.args.v >= 1: print "Doing setupExperiment"
@@ -1001,17 +852,6 @@ class ExperimentInfo(object):
             self.parent.mk.updatePsanaMaskOn()
 
         if self.parent.args.v >= 1: print "Done setupExperiment"
-
-    def getNumberOfEvents(self, facility):
-        try:
-            if facility == self.parent.facilityPAL:
-                _path = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + self.parent.experimentName + \
-                        '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
-                _data = glob.glob(_path)
-            if self.parent.args.v >= 1: print "Done getNumberOfEvents: ", _path, len(_data)
-            return len(_data)
-        except:
-            return 0
 
     def updateLogscale(self, data):
         self.logscaleOn = data

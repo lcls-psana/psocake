@@ -2,7 +2,6 @@ from pyqtgraph.Qt import QtCore
 import subprocess
 import os, shlex
 import numpy as np
-import h5py
 import utils
 
 class LaunchIndexer(QtCore.QThread):
@@ -36,50 +35,6 @@ class LaunchIndexer(QtCore.QThread):
                 runsToDo.append(int(temp[0]))
         return runsToDo
 
-    def saveCheetahFormatMask(self, run, arg):
-        if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower():
-                dim0 = 8 * 185
-                dim1 = 4 * 388
-            elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                dim0 = 1920
-                dim1 = 1920
-            elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                dim0 = 1920
-                dim1 = 1920
-            else:
-                print "saveCheetahFormatMask not implemented"
-
-            fname = self.parent.index.outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
-            print "Saving static mask in Cheetah format: ", fname
-            myHdf5 = h5py.File(fname, 'w')
-            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0,dim1), dtype='int')
-
-            # Convert calib image to cheetah image
-            if self.parent.mk.combinedMask is None:
-                img = np.ones((dim0, dim1))
-            else:
-                img = np.zeros((dim0, dim1))
-                counter = 0
-                if 'cspad' in self.parent.detInfo.lower():
-                    img = utils.pct(self.parent.mk.combinedMask)
-                elif 'rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName:
-                    img = self.parent.mk.combinedMask[counter, :, :] # psana format
-                elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                    img = self.parent.mk.combinedMask[counter, :, :] # psana format
-            dset[:,:] = img
-            myHdf5.close()
-        elif arg == self.parent.facilityPAL:
-            print "static mask not implemented for PAL"
-            (dim0,dim1) = (2880,2880) # FIXME: read from geom file
-            fname = self.parent.index.outDir + '/r' + str(run).zfill(4) + '/staticMask.h5'
-            print "Saving static mask in Cheetah format: ", fname
-            myHdf5 = h5py.File(fname, 'w')
-            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
-            img = np.ones((dim0, dim1))
-            dset[:, :] = img
-            myHdf5.close()
-
     def run(self):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.index.runs)
@@ -93,7 +48,7 @@ class LaunchIndexer(QtCore.QThread):
                 print "No write access to: ", runDir
 
             # Generate Cheetah mask
-            self.saveCheetahFormatMask(run, self.parent.facility)
+            utils.saveCheetahFormatMask(self.parent.index.outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
 
             # Update elog
             try:
@@ -102,79 +57,44 @@ class LaunchIndexer(QtCore.QThread):
             except AttributeError:
                 print "e-Log table does not exist"
 
-            if self.parent.facility == self.parent.facilityLCLS:
-                cmd = "indexCrystals" + \
-                      " -e " + self.parent.experimentName + \
-                      " -d " + self.parent.detInfo + \
-                      " --geom " + self.parent.index.geom + \
-                      " --peakMethod " + self.parent.index.peakMethod + \
-                      " --integrationRadius " + self.parent.index.intRadius + \
-                      " --indexingMethod " + self.parent.index.indexingMethod + \
-                      " --minPeaks " + str(self.parent.pk.minPeaks) + \
-                      " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
-                      " --minRes " + str(self.parent.pk.minRes) + \
-                      " --tolerance " + str(self.parent.index.tolerance) + \
-                      " --outDir " + self.parent.index.outDir + \
-                      " --sample " + self.parent.index.sample + \
-                      " --queue " + self.parent.index.queue + \
-                      " --chunkSize " + str(self.parent.index.chunkSize) + \
-                      " --noe " + str(self.parent.index.noe) + \
-                      " --instrument " + self.parent.det.instrument() + \
-                      " --pixelSize " + str(self.parent.pixelSize) + \
-                      " --coffset " + str(self.parent.coffset) + \
-                      " --clenEpics " + self.parent.clenEpics + \
-                      " --logger " + str(self.parent.exp.logger) + \
-                      " --hitParam_threshold " + str(self.parent.pk.minPeaks) + \
-                      " --keepData " + str(self.parent.index.keepData) + \
-                      " -v " + str(self.parent.args.v)
-                if self.parent.pk.tag: cmd += " --pkTag " + self.parent.pk.tag
-                if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
-                if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
-                if self.parent.index.extra:
-                    cmd += " --extra [" + self.parent.index.extra + "]"
-                if self.parent.index.condition: cmd += " --condition " + '"'+self.parent.index.condition+'"'
-                cmd += " --run " + str(run)
-                # Check cxi file exists for this run
-                runDir = self.parent.index.outDir + "/r" + str(run).zfill(4)
-                peakFile = runDir + '/' + self.parent.experimentName + '_' + str(run).zfill(4)
-                if self.parent.pk.tag: peakFile += '_'+self.parent.pk.tag
-                peakFile += '.cxi'
-                if os.path.exists(peakFile):
-                    # Launch indexing job
-                    print "Launch indexing job: ", cmd
-                    subprocess.Popen(shlex.split(cmd))
-            elif self.parent.facility == self.parent.facilityPAL:
-                cmd = "indexCrystals" + \
-                      " -e " + self.parent.experimentName + \
-                      " -d " + self.parent.detInfo + \
-                      " --geom " + self.parent.index.geom + \
-                      " --peakMethod " + self.parent.index.peakMethod + \
-                      " --integrationRadius " + self.parent.index.intRadius + \
-                      " --indexingMethod " + self.parent.index.indexingMethod + \
-                      " --minPeaks " + str(self.parent.pk.minPeaks) + \
-                      " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
-                      " --minRes " + str(self.parent.pk.minRes) + \
-                      " --tolerance " + str(self.parent.index.tolerance) + \
-                      " --outDir " + self.parent.index.outDir + \
-                      " --sample " + self.parent.index.sample + \
-                      " --cpu " + str(self.parent.index.cpu) + \
-                      " --noe " + str(self.parent.index.noe) + \
-                      " --pixelSize " + str(self.parent.pixelSize) + \
-                      " --hitParam_threshold " + str(self.parent.pk.minPeaks) + \
-                      " --keepData " + str(self.parent.index.keepData) + \
-                      " -v " + str(self.parent.args.v) + \
-                      " --dir " + str(self.parent.dir)
-                # " --coffset " + str(self.parent.coffset) + \
-                # " --instrument " + self.parent.det.instrument() + \
-                # " --clenEpics " + self.parent.clenEpics + \
-                # " --queue " + self.parent.index.queue + \
-                # " --keepData " + str(self.parent.index.keepData) + \
-                # " --logger " + str(self.parent.exp.logger) + \
-                if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
-                if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
-                if self.parent.index.extra: cmd += " " + self.parent.index.extra
-                cmd += " --run " + str(run)
-                cmd += " &"
+            cmd = "indexCrystals" + \
+                  " -e " + self.parent.experimentName + \
+                  " -d " + self.parent.detInfo + \
+                  " --geom " + self.parent.index.geom + \
+                  " --peakMethod " + self.parent.index.peakMethod + \
+                  " --integrationRadius " + self.parent.index.intRadius + \
+                  " --indexingMethod " + self.parent.index.indexingMethod + \
+                  " --minPeaks " + str(self.parent.pk.minPeaks) + \
+                  " --maxPeaks " + str(self.parent.pk.maxPeaks) + \
+                  " --minRes " + str(self.parent.pk.minRes) + \
+                  " --tolerance " + str(self.parent.index.tolerance) + \
+                  " --outDir " + self.parent.index.outDir + \
+                  " --sample " + self.parent.index.sample + \
+                  " --queue " + self.parent.index.queue + \
+                  " --chunkSize " + str(self.parent.index.chunkSize) + \
+                  " --noe " + str(self.parent.index.noe) + \
+                  " --instrument " + self.parent.det.instrument() + \
+                  " --pixelSize " + str(self.parent.pixelSize) + \
+                  " --coffset " + str(self.parent.coffset) + \
+                  " --clenEpics " + self.parent.clenEpics + \
+                  " --logger " + str(self.parent.exp.logger) + \
+                  " --hitParam_threshold " + str(self.parent.pk.minPeaks) + \
+                  " --keepData " + str(self.parent.index.keepData) + \
+                  " -v " + str(self.parent.args.v)
+            if self.parent.pk.tag: cmd += " --pkTag " + self.parent.pk.tag
+            if self.parent.index.tag: cmd += " --tag " + self.parent.index.tag
+            if self.parent.index.pdb: cmd += " --pdb " + self.parent.index.pdb
+            if self.parent.index.extra:
+                cmd += " --extra [" + self.parent.index.extra + "]"
+            if self.parent.index.condition: cmd += " --condition " + '"'+self.parent.index.condition+'"'
+            cmd += " --run " + str(run)
+            # Check cxi file exists for this run
+            runDir = self.parent.index.outDir + "/r" + str(run).zfill(4)
+            peakFile = runDir + '/' + self.parent.experimentName + '_' + str(run).zfill(4)
+            if self.parent.pk.tag: peakFile += '_'+self.parent.pk.tag
+            peakFile += '.cxi'
+            if os.path.exists(peakFile):
                 # Launch indexing job
                 print "Launch indexing job: ", cmd
-                os.system(cmd)
+                subprocess.Popen(shlex.split(cmd))
+

@@ -34,15 +34,8 @@ class psanaWhisperer():
         self.updateClen() # Get epics variable, clen
 
     def updateClen(self):
-        if 'cspad' in self.detInfo.lower() and 'cxi' in self.experimentName:
-            self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(self.clenStr)
-        elif 'rayonix' in self.detInfo.lower() and 'mfx' in self.experimentName:
-            self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(self.clenStr)
-        elif 'rayonix' in self.detInfo.lower() and 'xpp' in self.experimentName:
-            self.epics = self.ds.env().epicsStore()
-            self.clen = self.epics.value(self.clenStr)
+        self.epics = self.ds.env().epicsStore()
+        self.clen = self.epics.value(self.clenStr)
 
     def getDetectorAlias(self, srcOrAlias):
         for i in self.detInfoList:
@@ -82,32 +75,15 @@ class psanaWhisperer():
         _calib = None
         if 'cspad2x2' in self.detInfo.lower():
             print "Not implemented yet: cspad2x2"
-        elif 'cspad' in self.detInfo.lower():
+        else:
             if calib is None:
                 _calib = self.det.calib(self.evt) # (32,185,388)
                 if _calib is None:
                     return None
                 else:
-                    img = np.zeros((8 * 185, 4 * 388))
-                    try:
-                        img = utils.pct(_calib)
-                    except:
-                        pass
+                    img = utils.pct(self.detInfo, _calib)
             else:
-                img = np.zeros((8 * 185, 4 * 388))
-                try:
-                    img = utils.pct(calib)
-                except:
-                    pass
-        elif 'rayonix' in self.detInfo.lower():
-            if calib is None:
-                _calib = self.det.calib(self.evt)
-                if _calib is None:
-                    return None
-                else:
-                    img = np.squeeze(_calib)  # (1920,1920)
-            else:
-                img = np.squeeze(calib)
+                img = utils.pct(self.detInfo, calib)
         return img
 
     def getCleanAssembledImg(self, backgroundEvent):
@@ -228,7 +204,7 @@ class psanaWhisperer():
 
     def updatePolarizationFactor(self, detectorDistance_in_m):
         if self.rb is not None:
-            self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi(), detectorDistance_in_m*1e6) # convert to um
+            self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi()+90, detectorDistance_in_m*1e6) # convert to um
 
     def getCalib(self, evtNumber):
         if self.run is not None:
@@ -245,109 +221,3 @@ class psanaWhisperer():
             return calib
         else:
             return None
-
-    def getPreprocessedImage(self, evtNumber, image_property):
-        disp_medianCorrection = 19
-        disp_radialCorrection = 18
-        disp_gainMask = 17
-        disp_coordy= 16
-        disp_coordx= 15
-        disp_col= 14
-        disp_row= 13
-        disp_seg= 12
-        disp_quad= 11
-        disp_gain= 10
-        disp_commonMode= 9
-        disp_rms= 8
-        disp_status= 7
-        disp_pedestal= 6
-        disp_photons= 5
-        disp_raw= 4
-        disp_pedestalCorrected= 3
-        disp_commonModeCorrected= 2
-        disp_adu= 1
-
-        if image_property == disp_medianCorrection:  # median subtraction
-            print "Sorry, this feature isn't available yet"
-        elif image_property == disp_radialCorrection:  # radial subtraction + polarization corrected
-            self.getEvent(evtNumber)
-            calib = self.getCalib(evtNumber)
-            if calib:
-                self.pf.shape = self.parent.calib.shape
-                calib = self.rb.subtract_bkgd(calib * self.pf)
-        elif image_property == disp_adu:  # gain and hybrid gain corrected
-            calib = self.getCalib(evtNumber)
-        elif image_property == disp_commonModeCorrected:  # common mode corrected
-            calib = self.getCommonModeCorrected(evtNumber)
-        elif image_property == disp_pedestalCorrected:  # pedestal corrected
-            calib = self.det.raw(self.evt).astype('float32')
-            if calib: calib -= self.det.pedestals(self.evt)
-        elif image_property == disp_raw:  # raw
-            calib = self.det.raw(self.evt)
-        elif image_property == disp_photons:  # photon counts
-            calib = self.det.photons(self.evt, mask=self.parent.mk.userMask,
-                                            adu_per_photon=self.parent.exp.aduPerPhoton)
-            if calib is None:
-                calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='int32')
-        elif image_property == disp_pedestal:  # pedestal
-            calib = self.parent.det.pedestals(self.parent.evt)
-        elif image_property == disp_status:  # status
-            calib = self.parent.det.status(self.parent.evt)
-        elif image_property == disp_rms:  # rms
-            calib = self.parent.det.rms(self.parent.evt)
-        elif image_property == disp_commonMode:  # common mode
-            calib = self.getCommonMode(evtNumber)
-        elif image_property == disp_gain:  # gain
-            calib = self.parent.det.gain(self.parent.evt)
-        elif image_property == disp_gainMask:  # gain_mask
-            calib = self.parent.det.gain_mask(self.parent.evt)
-        elif image_property == disp_coordx:  # coords_x
-            calib = self.parent.det.coords_x(self.parent.evt)
-        elif image_property == disp_coordy:  # coords_y
-            calib = self.parent.det.coords_y(self.parent.evt)
-
-        shape = self.parent.det.shape(self.parent.evt)
-        if len(shape) == 3:
-            if image_property == disp_quad:  # quad ind
-                calib = np.zeros(shape)
-                for i in range(shape[0]):
-                    # FIXME: handle detectors properly
-                    if shape[0] == 32:  # cspad
-                        calib[i, :, :] = int(i) % 8
-                    elif shape[0] == 2:  # cspad2x2
-                        calib[i, :, :] = int(i) % 2
-                    elif shape[0] == 4:  # pnccd
-                        calib[i, :, :] = int(i) % 4
-            elif image_property == disp_seg:  # seg ind
-                calib = np.zeros(shape)
-                if shape[0] == 32:  # cspad
-                    for i in range(32):
-                        calib[i, :, :] = int(i) / 8
-                elif shape[0] == 2:  # cspad2x2
-                    for i in range(2):
-                        calib[i, :, :] = int(i)
-                elif shape[0] == 4:  # pnccd
-                    for i in range(4):
-                        calib[i, :, :] = int(i)
-            elif image_property == disp_row:  # row ind
-                calib = np.zeros(shape)
-                if shape[0] == 32:  # cspad
-                    for i in range(185):
-                        calib[:, i, :] = i
-                elif shape[0] == 2:  # cspad2x2
-                    for i in range(185):
-                        calib[:, i, :] = i
-                elif shape[0] == 4:  # pnccd
-                    for i in range(512):
-                        calib[:, i, :] = i
-            elif image_property == disp_col:  # col ind
-                calib = np.zeros(shape)
-                if shape[0] == 32:  # cspad
-                    for i in range(388):
-                        calib[:, :, i] = i
-                elif shape[0] == 2:  # cspad2x2
-                    for i in range(388):
-                        calib[:, :, i] = i
-                elif shape[0] == 4:  # pnccd
-                    for i in range(512):
-                        calib[:, :, i] = i

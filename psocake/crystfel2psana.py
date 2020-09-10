@@ -1,5 +1,4 @@
-from psgeom import camera
-import sys
+from psgeom import camera, sensors
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -13,11 +12,11 @@ parser.add_argument('-z','--clen', help="home to detector distance (m)", type=fl
 args = parser.parse_args()
 
 if 'cspad' in args.det.lower():
-    cspad = camera.Cspad.from_crystfel_file(args.crystfel)
-    cspad.translate((0,0,args.clen*1e6)) # um
-    cspad.to_psana_file(args.psana)
-elif 'rayonix' in args.det.lower():
-    #print "Not implemented: Converting Rayonix .geom to .data"
-    rayonix = camera.CompoundAreaCamera.from_crystfel_file(args.crystfel)
-    rayonix.translate((0, 0, args.clen * 1e6))  # um
-    rayonix.to_psana_file(args.psana)
+    cam = camera.Cspad.from_crystfel_file(args.crystfel)
+elif 'epix10k' in args.det.lower():
+    cam = camera.CompoundAreaCamera.from_crystfel_file(args.crystfel, element_type=sensors.Epix10kaSegment)
+else: # rayonix, jungfrau4M
+    cam = camera.CompoundAreaCamera.from_crystfel_file(args.crystfel)
+
+cam.translate((0, 0, args.clen * 1e6))  # um
+cam.to_psana_file(args.psana)

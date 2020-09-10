@@ -9,12 +9,8 @@ import h5py
 from utils import *
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    facility = 'LCLS'
-    import psanaWhisperer, psana
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    facility = 'PAL'
-    import glob, h5py
+facility = 'LCLS'
+import psanaWhisperer, psana
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -66,10 +62,15 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
         z = detdis / pixSize * np.ones(x.shape)  # pixels
 
         ebeam = ebeamDet.get(evt)
-        try:
-            photonEnergy = ebeam.ebeamPhotonEnergy()
-        except:
-            photonEnergy = 1
+        if 'mfxc00318' in args.exp:
+            photonEnergy = 9.8714 # keV
+        elif 'cxic00318' in args.exp:
+            photonEnergy = 9.25 # keV
+        else:
+            try:
+                photonEnergy = ebeam.ebeamPhotonEnergy()
+            except:
+                photonEnergy = 1
 
         wavelength = 12.407002 / float(photonEnergy)  # Angstrom
         norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
@@ -91,45 +92,51 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
         md.small.calibTime = calibTime
         md.small.peakTime = peakTime
 
-    
-    if facility == 'LCLS':
-        # other cxidb data
-        ps.getEvent(nevent)
+    # other cxidb data
+    ps.getEvent(nevent)
 
-        es = ps.ds.env().epicsStore()
+    es = ps.ds.env().epicsStore()
 
-        # timetool
-        md.small.timeToolDelay = get_es_value(es, args.instrument+':LAS:MMN:04.RBV', NoneCheck=True, exceptReturn=0)
-        md.small.laserTimeZero = get_es_value(es, 'LAS:FS5:VIT:FS_TGT_TIME_OFFSET', NoneCheck=True, exceptReturn=0)
-        md.small.laserTimeDelay = get_es_value(es, 'LAS:FS5:VIT:FS_TGT_TIME_DIAL', NoneCheck=True, exceptReturn=0)
-        md.small.laserTimePhaseLocked = get_es_value(es, 'LAS:FS5:VIT:PHASE_LOCKED', NoneCheck=True, exceptReturn=0)
-        md.small.ttspecAmpl = get_es_value(es, args.instrument+':TTSPEC:AMPL', NoneCheck=True, exceptReturn=0)
-        md.small.ttspecAmplNxt = get_es_value(es, args.instrument+':TTSPEC:AMPLNXT', NoneCheck=True, exceptReturn=0)
-        md.small.ttspecFltPos = get_es_value(es, args.instrument+':TTSPEC:FLTPOS', NoneCheck=True, exceptReturn=0)
-        md.small.ttspecFltPosFwhm = get_es_value(es, args.instrument+':TTSPEC:FLTPOSFWHM', NoneCheck=True, exceptReturn=0)
-        md.small.ttspecFltPosPs = get_es_value(es, args.instrument+':TTSPEC:FLTPOS_PS', NoneCheck=True, exceptReturn=0)
-        md.small.ttspecRefAmpl = get_es_value(es, args.instrument+':TTSPEC:REFAMPL', NoneCheck=True, exceptReturn=0)
+    # timetool
+    md.small.timeToolDelay = get_es_value(es, args.instrument+':LAS:MMN:04.RBV', NoneCheck=True, exceptReturn=0)
+    md.small.laserTimeZero = get_es_value(es, 'LAS:FS5:VIT:FS_TGT_TIME_OFFSET', NoneCheck=True, exceptReturn=0)
+    md.small.laserTimeDelay = get_es_value(es, 'LAS:FS5:VIT:FS_TGT_TIME_DIAL', NoneCheck=True, exceptReturn=0)
+    md.small.laserTimePhaseLocked = get_es_value(es, 'LAS:FS5:VIT:PHASE_LOCKED', NoneCheck=True, exceptReturn=0)
+    md.small.ttspecAmpl = get_es_value(es, args.instrument+':TTSPEC:AMPL', NoneCheck=True, exceptReturn=0)
+    md.small.ttspecAmplNxt = get_es_value(es, args.instrument+':TTSPEC:AMPLNXT', NoneCheck=True, exceptReturn=0)
+    md.small.ttspecFltPos = get_es_value(es, args.instrument+':TTSPEC:FLTPOS', NoneCheck=True, exceptReturn=0)
+    md.small.ttspecFltPosFwhm = get_es_value(es, args.instrument+':TTSPEC:FLTPOSFWHM', NoneCheck=True, exceptReturn=0)
+    md.small.ttspecFltPosPs = get_es_value(es, args.instrument+':TTSPEC:FLTPOS_PS', NoneCheck=True, exceptReturn=0)
+    md.small.ttspecRefAmpl = get_es_value(es, args.instrument+':TTSPEC:REFAMPL', NoneCheck=True, exceptReturn=0)
 
-        if evr0:
-            ec = evr0.eventCodes(evt)
-            if ec is None: ec = [-1]
-            md.addarray('evr0', np.array(ec))
+    if evr0:
+        ec = evr0.eventCodes(evt)
+        if ec is None: ec = [-1]
+        md.addarray('evr0', np.array(ec))
 
-        if evr1:
-            ec = evr1.eventCodes(evt)
-            if ec is None: ec = [-1]
-            md.addarray('evr1', np.array(ec))
+    if evr1:
+        ec = evr1.eventCodes(evt)
+        if ec is None: ec = [-1]
+        md.addarray('evr1', np.array(ec))
 
-        # pulse length
+    # pulse length
+    if 'mfxc00318' in args.exp:
+        pulseLength = 0.0
+    elif 'cxic00318' in args.exp:
+        pulseLength = 0.0
+    else:
         pulseLength = get_es_value(es, 'SIOC:SYS0:ML00:AO820', NoneCheck=False, exceptReturn=0) * 1e-15
 
-        md.small.pulseLength = pulseLength
+    md.small.pulseLength = pulseLength
 
-        md.small.detectorDistance = detectorDistance
+    md.small.detectorDistance = detectorDistance
 
-        md.small.pixelSize = args.pixelSize
+    md.small.pixelSize = args.pixelSize
 
-        # LCLS
+    # LCLS
+    if 'mfxc00318' in args.exp:
+        md.small.lclsDet = 303.8794  # mm
+    else:
         if "cxi" in args.exp:
             md.small.lclsDet = es.value(args.clen)  # mm
         elif "mfx" in args.exp:
@@ -137,21 +144,33 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
         elif "xpp" in args.exp:
             md.small.lclsDet = es.value(args.clen)  # mm
 
-        md.small.ebeamCharge = get_es_value(es, 'BEND:DMP1:400:BDES', NoneCheck=False, exceptReturn=0)
-        md.small.beamRepRate = get_es_value(es, 'EVNT:SYS0:1:LCLSBEAMRATE', NoneCheck=False, exceptReturn=0)
-        md.small.particleN_electrons = get_es_value(es, 'BPMS:DMP1:199:TMIT1H', NoneCheck=False, exceptReturn=0)
-        md.small.eVernier = get_es_value(es, 'SIOC:SYS0:ML00:AO289', NoneCheck=False, exceptReturn=0)
-        md.small.charge = get_es_value(es, 'BEAM:LCLS:ELEC:Q', NoneCheck=False, exceptReturn=0)
-        md.small.peakCurrentAfterSecondBunchCompressor = get_es_value(es, 'SIOC:SYS0:ML00:AO195', NoneCheck=False, exceptReturn=0)
-        md.small.pulseLength = get_es_value(es, 'SIOC:SYS0:ML00:AO820', NoneCheck=False, exceptReturn=0)
-        md.small.ebeamEnergyLossConvertedToPhoton_mJ = get_es_value(es, 'SIOC:SYS0:ML00:AO569', NoneCheck=False, exceptReturn=0)
+    md.small.ebeamCharge = get_es_value(es, 'BEND:DMP1:400:BDES', NoneCheck=False, exceptReturn=0)
+    md.small.beamRepRate = get_es_value(es, 'EVNT:SYS0:1:LCLSBEAMRATE', NoneCheck=False, exceptReturn=0)
+    md.small.particleN_electrons = get_es_value(es, 'BPMS:DMP1:199:TMIT1H', NoneCheck=False, exceptReturn=0)
+    md.small.eVernier = get_es_value(es, 'SIOC:SYS0:ML00:AO289', NoneCheck=False, exceptReturn=0)
+    md.small.charge = get_es_value(es, 'BEAM:LCLS:ELEC:Q', NoneCheck=False, exceptReturn=0)
+    md.small.peakCurrentAfterSecondBunchCompressor = get_es_value(es, 'SIOC:SYS0:ML00:AO195', NoneCheck=False, exceptReturn=0)
+    md.small.pulseLength = get_es_value(es, 'SIOC:SYS0:ML00:AO820', NoneCheck=False, exceptReturn=0)
+    md.small.ebeamEnergyLossConvertedToPhoton_mJ = get_es_value(es, 'SIOC:SYS0:ML00:AO569', NoneCheck=False, exceptReturn=0)
+    if 'mfxc00318' in args.exp:
+        md.small.calculatedNumberOfPhotons = 0.5020 * 1e12
+    elif 'cxic00318' in args.exp:
+        md.small.calculatedNumberOfPhotons = 0.5020 * 1e12
+    else:
         md.small.calculatedNumberOfPhotons = get_es_value(es, 'SIOC:SYS0:ML00:AO580', NoneCheck=False, exceptReturn=0) * 1e12
-        md.small.photonBeamEnergy = get_es_value(es, 'SIOC:SYS0:ML00:AO541', NoneCheck=False, exceptReturn=0)
-        md.small.wavelength = get_es_value(es, 'SIOC:SYS0:ML00:AO192', NoneCheck=False, exceptReturn=0)
-        md.small.injectorPressureSDS = get_es_value(es, 'CXI:LC20:SDS:Pressure', NoneCheck=False, exceptReturn=0)
-        md.small.injectorPressureSDSB = get_es_value(es, 'CXI:LC20:SDSB:Pressure', NoneCheck=False, exceptReturn=0)
+    md.small.photonBeamEnergy = get_es_value(es, 'SIOC:SYS0:ML00:AO541', NoneCheck=False, exceptReturn=0)
+    md.small.wavelength = get_es_value(es, 'SIOC:SYS0:ML00:AO192', NoneCheck=False, exceptReturn=0)
+    md.small.injectorPressureSDS = get_es_value(es, 'CXI:LC20:SDS:Pressure', NoneCheck=False, exceptReturn=0)
+    md.small.injectorPressureSDSB = get_es_value(es, 'CXI:LC20:SDSB:Pressure', NoneCheck=False, exceptReturn=0)
 
-        ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+    ebeam = ebeamDet.get(ps.evt)#.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
+    if 'mfxc00318' in args.exp:
+        photonEnergy = 9.8714e3 # eV
+        pulseEnergy = 0.2922 # SIOC:SYS0:ML00:AO541 ?
+    elif 'cxic00318' in args.exp:
+        photonEnergy = 9.25e3  # eV
+        pulseEnergy = 0.2922  # guess
+    else:
         try:
             photonEnergy = 0
             pulseEnergy = 0
@@ -164,38 +183,28 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
             photonEnergy = md.small.photonBeamEnergy #ebeam.ebeamPhotonEnergy()
             pulseEnergy = ebeam.ebeamL3Energy()  # MeV
 
-        md.small.photonEnergy = photonEnergy
-        md.small.pulseEnergy = pulseEnergy
+    md.small.photonEnergy = photonEnergy
+    md.small.pulseEnergy = pulseEnergy
 
-        evtId = ps.evt.get(psana.EventId)
-        md.small.sec = evtId.time()[0]
-        md.small.nsec = evtId.time()[1]
-        md.small.fid = evtId.fiducials()
+    evtId = ps.evt.get(psana.EventId)
+    md.small.sec = evtId.time()[0]
+    md.small.nsec = evtId.time()[1]
+    md.small.fid = evtId.fiducials()
 
-        if len(d.peakFinder.peaks) >= args.minPeaks and \
-           len(d.peakFinder.peaks) <= args.maxPeaks and \
-           d.peakFinder.maxRes >= args.minRes:
-           #and pairsFoundPerSpot >= likelihoodThresh:
-           # Write image in cheetah format
-            img = ps.getCheetahImg(d.peakFinder.calib) # d.peakFinder.calib == detarr
-            if img is not None:
-                md.addarray('data', img)
+    if len(d.peakFinder.peaks) >= args.minPeaks and \
+       len(d.peakFinder.peaks) <= args.maxPeaks and \
+       d.peakFinder.maxRes >= args.minRes:
+       #and pairsFoundPerSpot >= likelihoodThresh:
+       # Write image in cheetah format
+        img = ps.getCheetahImg(d.peakFinder.calib) # d.peakFinder.calib == detarr
+        if img is not None:
+            md.addarray('data', img)
 
-        if args.profile:
-            totalTime = time.time() - startTic
-            md.small.totalTime = totalTime
-            md.small.rankID = rank
-        md.send() # send mpi data object to master when desired
-
-    elif facility == 'PAL':
-        if len(d.peakFinder.peaks) >= args.minPeaks and \
-           len(d.peakFinder.peaks) <= args.maxPeaks and \
-           d.peakFinder.maxRes >= args.minRes:
-            # Write image in cheetah format
-            if detarr is not None: md.addarray('data', detarr)
-            md.small.detectorDistance = detectorDistance
-            md.small.photonEnergy = photonEnergy
-            md.send()
+    if args.profile:
+        totalTime = time.time() - startTic
+        md.small.totalTime = totalTime
+        md.small.rankID = rank
+    md.send() # send mpi data object to master when desired
 
 def runclient(args):
     pairsFoundPerSpot = 0.0
@@ -203,38 +212,25 @@ def runclient(args):
     lowSigma = 2.5
     likelihoodThresh = 0.035
 
-    if facility == 'LCLS':
-        access = "exp="+args.exp+":run="+str(args.run)+':idx'
-        if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
-        ds = psana.DataSource(access)
-        run = ds.runs().next()
-        env = ds.env()
-        times = run.times()
-        d = psana.Detector(args.det)
-        d.do_reshape_2d_to_3d(flag=True)
-        ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib, access=args.access)
-        ps.setupExperiment()
-        ebeamDet = psana.Detector('EBeam')
-        try:
-            evr0 = psana.Detector('evr0')
-        except:
-            evr0 = None
-        try:
-            evr1 = psana.Detector('evr1')
-        except:
-            evr1 = None
-
-    elif facility == 'PAL':
-        temp = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/data/r' + str(args.run).zfill(4) + '/*.h5'
-        _files = glob.glob(temp)
-        numEvents = len(_files)
-        if args.noe == -1 or args.noe > numEvents:
-            times = np.arange(numEvents)
-        else:
-            times = np.arange(args.noe)
-
-        class Object(object): pass
-        d = Object()
+    access = "exp="+args.exp+":run="+str(args.run)+':idx'
+    if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+    ds = psana.DataSource(access)
+    run = ds.runs().next()
+    env = ds.env()
+    times = run.times()
+    d = psana.Detector(args.det)
+    d.do_reshape_2d_to_3d(flag=True)
+    ps = psanaWhisperer.psanaWhisperer(args.exp, args.run, args.det, args.clen, args.localCalib, access=args.access)
+    ps.setupExperiment()
+    ebeamDet = psana.Detector('EBeam')
+    try:
+        evr0 = psana.Detector('evr0')
+    except:
+        evr0 = None
+    try:
+        evr1 = psana.Detector('evr1')
+    except:
+        evr1 = None
 
     hasCoffset = False
     hasDetectorDistance = False
@@ -258,33 +254,24 @@ def runclient(args):
 
         if args.profile: startTic = time.time()
 
-        #print "rank, event: ", rank, nevent
-
-        if facility == 'LCLS':
-            evt = run.event(times[nevent])
-            if not args.inputImages:
-                if args.cm0 > 0: # override common mode correction
-                    if args.cm0 == 5:  # Algorithm 5
-                        detarr = d.calib(evt, cmpars=(args.cm0, args.cm1))
-                    else:  # Algorithms 1 to 4
-                        detarr = d.calib(evt, cmpars=(args.cm0, args.cm1, args.cm2, args.cm3))
-                else:
-                    detarr = d.calib(evt)
+        evt = run.event(times[nevent])
+        if not args.inputImages:
+            if args.cm0 > 0: # override common mode correction
+                if args.cm0 == 5:  # Algorithm 5
+                    detarr = d.calib(evt, cmpars=(args.cm0, args.cm1))
+                else:  # Algorithms 1 to 4
+                    detarr = d.calib(evt, cmpars=(args.cm0, args.cm1, args.cm2, args.cm3))
             else:
-                f = h5py.File(args.inputImages)
-                ind = np.where(f['eventNumber'].value == nevent)[0][0]
-                if len(f['/data/data'].shape) == 3:
-                    detarr = ipct(f['data/data'][ind, :, :])
-                else:
-                    detarr = f['data/data'][ind, :, :, :]
-                f.close()
-            exp = env.experiment()
-        elif facility == 'PAL':
-            f = h5py.File(_files[nevent], 'r')
-            detarr = f['/data'].value
+                detarr = d.calib(evt)
+        else:
+            f = h5py.File(args.inputImages)
+            ind = np.where(f['eventNumber'].value == nevent)[0][0]
+            if len(f['/data/data'].shape) == 3:
+                detarr = ipct(args.det, f['data/data'][ind, :, :])
+            else:
+                detarr = f['data/data'][ind, :, :, :]
             f.close()
-            exp = args.exp
-            run = args.run
+        exp = env.experiment()
 
         if args.profile: calibTime = time.time() - startTic # Time to calibrate per event
 
@@ -293,103 +280,8 @@ def runclient(args):
         # Initialize hit finding
         if not hasattr(d,'peakFinder'):
             if args.algorithm == 1:
-                if facility == 'LCLS':
-                    if not str2bool(args.auto):
-                        d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
-                                                  args.algorithm, args.alg_npix_min,
-                                                  args.alg_npix_max, args.alg_amax_thr,
-                                                  args.alg_atot_thr, args.alg_son_min,
-                                                  alg1_thr_low=args.alg1_thr_low,
-                                                  alg1_thr_high=args.alg1_thr_high,
-                                                  alg1_rank=args.alg1_rank,
-                                                  alg1_radius=args.alg1_radius,
-                                                  alg1_dr=args.alg1_dr,
-                                                  streakMask_on=args.streakMask_on,
-                                                  streakMask_sigma=args.streakMask_sigma,
-                                                  streakMask_width=args.streakMask_width,
-                                                  userMask_path=args.userMask_path,
-                                                  psanaMask_on=args.psanaMask_on,
-                                                  psanaMask_calib=args.psanaMask_calib,
-                                                  psanaMask_status=args.psanaMask_status,
-                                                  psanaMask_edges=args.psanaMask_edges,
-                                                  psanaMask_central=args.psanaMask_central,
-                                                  psanaMask_unbond=args.psanaMask_unbond,
-                                                  psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                                  medianFilterOn=args.medianBackground,
-                                                  medianRank=args.medianRank,
-                                                  radialFilterOn=args.radialBackground,
-                                                  distance=args.detectorDistance,
-                                                  minNumPeaks=args.minPeaks,
-                                                  maxNumPeaks=args.maxPeaks,
-                                                  minResCutoff=args.minRes,
-                                                  clen=args.clen,
-                                                  localCalib=args.localCalib,
-                                                  access=args.access)
-                    else:
-                        # Auto peak finder
-                        d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
-                                                     args.algorithm, args.alg_npix_min,
-                                                     args.alg_npix_max, args.alg_amax_thr,
-                                                     0, args.alg_son_min,
-                                                     alg1_thr_low=args.alg1_thr_low,
-                                                     alg1_thr_high=args.alg1_thr_high,
-                                                     alg1_rank=args.alg1_rank,
-                                                     alg1_radius=args.alg1_radius,
-                                                     alg1_dr=args.alg1_dr,
-                                                     streakMask_on=args.streakMask_on,
-                                                     streakMask_sigma=args.streakMask_sigma,
-                                                     streakMask_width=args.streakMask_width,
-                                                     userMask_path=args.userMask_path,
-                                                     psanaMask_on=args.psanaMask_on,
-                                                     psanaMask_calib=args.psanaMask_calib,
-                                                     psanaMask_status=args.psanaMask_status,
-                                                     psanaMask_edges=args.psanaMask_edges,
-                                                     psanaMask_central=args.psanaMask_central,
-                                                     psanaMask_unbond=args.psanaMask_unbond,
-                                                     psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                                     medianFilterOn=args.medianBackground,
-                                                     medianRank=args.medianRank,
-                                                     radialFilterOn=args.radialBackground,
-                                                     distance=args.detectorDistance,
-                                                     minNumPeaks=args.minPeaks,
-                                                     maxNumPeaks=args.maxPeaks,
-                                                     minResCutoff=args.minRes,
-                                                     clen=args.clen,
-                                                     localCalib=args.localCalib,
-                                                     access=args.access)
-                        # Read in powder pattern and calculate pixel indices
-                        powderSumFname = args.outDir + '/background.npy'
-                        powderSum = np.load(powderSumFname)
-                        powderSum1D = powderSum.ravel()
-                        cx, cy = d.indexes_xy(evt)
-                        d.ipx, d.ipy = d.point_indexes(evt, pxy_um=(0, 0))
-                        r = np.sqrt((cx - d.ipx) ** 2 + (cy - d.ipy) ** 2).ravel().astype(int)
-                        startR = 0
-                        endR = np.max(r)
-                        profile = np.zeros(endR - startR, )
-                        for i, val in enumerate(np.arange(startR, endR)):
-                            ind = np.where(r == val)[0].astype(int)
-                            if len(ind) > 0:
-                                profile[i] = np.mean(powderSum1D[ind])
-                        myThreshInd = np.argmax(profile)
-                        print "###################################################"
-                        print "Solution scattering radius (pixels): ", myThreshInd
-                        print "###################################################"
-                        thickness = 10
-                        indLo = np.where(r >= myThreshInd - thickness / 2.)[0].astype(int)
-                        indHi = np.where(r <= myThreshInd + thickness / 2.)[0].astype(int)
-                        d.ind = np.intersect1d(indLo, indHi)
-
-                        ix = d.indexes_x(evt)
-                        iy = d.indexes_y(evt)
-                        d.iX = np.array(ix, dtype=np.int64)
-                        d.iY = np.array(iy, dtype=np.int64)
-                elif facility == 'PAL':
-                    _geom = args.dir + '/' + args.exp[:3] + '/' + args.exp + '/scratch/' + os.environ['USER'] + \
-                            '/psocake/r' + str(args.currentRun).zfill(4) + '/.temp.geom'
-                    (detectorDistance, photonEnergy, _, _, _) = readCrystfelGeometry(_geom, facility)
-                    evt = None
-                    d.peakFinder = pf.PeakFinder(exp, run, args.det, evt, d,
+                if not str2bool(args.auto):
+                    d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
                                               args.algorithm, args.alg_npix_min,
                                               args.alg_npix_max, args.alg_amax_thr,
                                               args.alg_atot_thr, args.alg_son_min,
@@ -418,7 +310,66 @@ def runclient(args):
                                               minResCutoff=args.minRes,
                                               clen=args.clen,
                                               localCalib=args.localCalib,
-                                              geom=_geom)
+                                              access=args.access)
+                else:
+                    # Auto peak finder
+                    d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
+                                                 args.algorithm, args.alg_npix_min,
+                                                 args.alg_npix_max, args.alg_amax_thr,
+                                                 0, args.alg_son_min,
+                                                 alg1_thr_low=args.alg1_thr_low,
+                                                 alg1_thr_high=args.alg1_thr_high,
+                                                 alg1_rank=args.alg1_rank,
+                                                 alg1_radius=args.alg1_radius,
+                                                 alg1_dr=args.alg1_dr,
+                                                 streakMask_on=args.streakMask_on,
+                                                 streakMask_sigma=args.streakMask_sigma,
+                                                 streakMask_width=args.streakMask_width,
+                                                 userMask_path=args.userMask_path,
+                                                 psanaMask_on=args.psanaMask_on,
+                                                 psanaMask_calib=args.psanaMask_calib,
+                                                 psanaMask_status=args.psanaMask_status,
+                                                 psanaMask_edges=args.psanaMask_edges,
+                                                 psanaMask_central=args.psanaMask_central,
+                                                 psanaMask_unbond=args.psanaMask_unbond,
+                                                 psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                                 medianFilterOn=args.medianBackground,
+                                                 medianRank=args.medianRank,
+                                                 radialFilterOn=args.radialBackground,
+                                                 distance=args.detectorDistance,
+                                                 minNumPeaks=args.minPeaks,
+                                                 maxNumPeaks=args.maxPeaks,
+                                                 minResCutoff=args.minRes,
+                                                 clen=args.clen,
+                                                 localCalib=args.localCalib,
+                                                 access=args.access)
+                    # Read in powder pattern and calculate pixel indices
+                    powderSumFname = args.outDir + '/background.npy'
+                    powderSum = np.load(powderSumFname)
+                    powderSum1D = powderSum.ravel()
+                    cx, cy = d.indexes_xy(evt)
+                    d.ipx, d.ipy = d.point_indexes(evt, pxy_um=(0, 0))
+                    r = np.sqrt((cx - d.ipx) ** 2 + (cy - d.ipy) ** 2).ravel().astype(int)
+                    startR = 0
+                    endR = np.max(r)
+                    profile = np.zeros(endR - startR, )
+                    for i, val in enumerate(np.arange(startR, endR)):
+                        ind = np.where(r == val)[0].astype(int)
+                        if len(ind) > 0:
+                            profile[i] = np.mean(powderSum1D[ind])
+                    myThreshInd = np.argmax(profile)
+                    print "###################################################"
+                    print "Solution scattering radius (pixels): ", myThreshInd
+                    print "###################################################"
+                    thickness = 10
+                    indLo = np.where(r >= myThreshInd - thickness / 2.)[0].astype(int)
+                    indHi = np.where(r <= myThreshInd + thickness / 2.)[0].astype(int)
+                    d.ind = np.intersect1d(indLo, indHi)
+
+                    ix = d.indexes_x(evt)
+                    iy = d.indexes_y(evt)
+                    d.iX = np.array(ix, dtype=np.int64)
+                    d.iY = np.array(iy, dtype=np.int64)
             elif args.algorithm >= 2:
                 d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
                                              args.algorithm, args.alg_npix_min,
@@ -494,17 +445,9 @@ def runclient(args):
                     except:
                         pass
 
-                    if facility == 'LCLS':
-                        evt = run.event(times[nevent])
-                        detarr = d.calib(evt)
-                        exp = env.experiment()
-                        # run = evt.run()
-                    elif facility == 'PAL':
-                        f = h5py.File(_files[nevent], 'r')
-                        detarr = f['/data'].value
-                        f.close()
-                        exp = args.exp
-                        run = args.run
+                    evt = run.event(times[nevent])
+                    detarr = d.calib(evt)
+                    exp = env.experiment()
 
                     if detarr is None:
                         md = mpidata()
@@ -520,22 +463,13 @@ def runclient(args):
             pass
 
     # At the end of the run, send the powder of hits and misses
-    if facility == 'LCLS':
-        md = mpidata()
-        md.small.powder = 1
-        md.addarray('powderHits', d.peakFinder.powderHits)
-        md.addarray('powderMisses', d.peakFinder.powderMisses)
-        md.send()
-        md.endrun()
-        print "Done: ", rank
-    elif facility == 'PAL':
-        md = mpidata()
-        md.small.powder = 1
-        md.addarray('powderHits', d.peakFinder.powderHits)
-        md.addarray('powderMisses', d.peakFinder.powderMisses)
-        md.send()
-        md.endrun()
-        print "Done: ", rank
+    md = mpidata()
+    md.small.powder = 1
+    md.addarray('powderHits', d.peakFinder.powderHits)
+    md.addarray('powderMisses', d.peakFinder.powderMisses)
+    md.send()
+    md.endrun()
+    print "Done: ", rank
 
 def calculate_likelihood(qPeaks):
 
@@ -565,20 +499,3 @@ def calculate_likelihood(qPeaks):
     pairsFoundPerSpot = pairsFound / float(nPeaks)
 
     return [meanClosestNeighborDist, pairsFoundPerSpot]
-
-def readCrystfelGeometry(geomFile, facility):
-    if facility == 'PAL':
-        with open(geomFile, 'r') as f:
-            lines = f.readlines()
-        for i, line in enumerate(lines):
-            if 'clen' in line:
-                detectorDistance = float(line.split('=')[-1])
-            elif 'photon_energy' in line:
-                photonEnergy = float(line.split('=')[-1])
-            elif 'p0/res' in line:
-                pixelSize = 1./float(line.split('=')[-1])
-            elif 'p0/corner_x' in line:
-                cy = -1 * float(line.split('=')[-1])
-            elif 'p0/corner_y' in line:
-                cx = float(line.split('=')[-1])
-        return detectorDistance, photonEnergy, pixelSize, cx, cy

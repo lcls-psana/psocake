@@ -1,9 +1,5 @@
 from pyqtgraph.Qt import QtCore
-import subprocess
-import os
 import numpy as np
-import h5py
-import json
 from utils import *
 
 class LaunchPeakFinder(QtCore.QThread):
@@ -37,54 +33,6 @@ class LaunchPeakFinder(QtCore.QThread):
                 runsToDo.append(int(temp[0]))
         return runsToDo
 
-    def saveCheetahFormatMask(self, run, arg):
-        if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
-                dim0 = 8 * 185
-                dim1 = 4 * 388
-            elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
-                dim0 = 1920
-                dim1 = 1920
-            #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-            #    dim0 = 1920
-            #    dim1 = 1920
-            else:
-                print "saveCheetahFormatMask not implemented"
-
-            fname = self.parent.pk.hitParam_outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
-            print "Saving static mask in Cheetah format: ", fname
-            myHdf5 = h5py.File(fname, 'w')
-            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
-
-            # Convert calib image to cheetah image
-            # This ensures mask displayed on GUI gets used in peak finding / indexing
-            if self.parent.mk.combinedMask is None:
-                img = np.ones((dim0, dim1))
-            else:
-                img = np.zeros((dim0, dim1))
-                counter = 0
-                if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
-                    img = pct(self.parent.mk.combinedMask)
-                elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
-                    img = self.parent.mk.combinedMask[:, :] # psana format
-                #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                #    img = self.parent.mk.combinedMask[:, :]  # psana format
-            dset[:,:] = img
-            myHdf5.close()
-        elif arg == self.parent.facilityPAL:
-            (dim0, dim1) = self.parent.calib.shape
-            fname = self.parent.pk.hitParam_outDir + '/r' + str(run).zfill(4) + '/staticMask.h5'
-            print "Saving static mask in Cheetah format: ", fname
-            myHdf5 = h5py.File(fname, 'w')
-            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
-            # Convert calib image to cheetah image
-            if self.parent.mk.combinedMask is None:
-                img = np.ones((dim0, dim1))
-            else:
-                img = self.parent.mk.combinedMask[:, :]
-            dset[:, :] = img
-            myHdf5.close()
-
     def run(self):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.pk.hitParam_runs)
@@ -98,7 +46,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 print "No write access to: ", runDir
 
             # Generate Cheetah mask
-            self.saveCheetahFormatMask(run, self.parent.facility)
+            saveCheetahFormatMask(self.parent.pk.hitParam_outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
 
             # Update elog
             try:
@@ -117,7 +65,7 @@ class LaunchPeakFinder(QtCore.QThread):
             if self.parent.facility == self.parent.facilityLCLS:
                 cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
                       " -n "+str(self.parent.pk.hitParam_cpus) + \
-                      " -o "+runDir+"/.%J.log mpirun findPeaks -e "+self.experimentName+\
+                      " -o "+runDir+"/.%J.log mpirun findPeaksTurbo -e "+self.experimentName+\
                       " -d "+self.detInfo+\
                       " --outDir "+runDir+\
                       " --algorithm "+str(self.parent.pk.algorithm)
@@ -208,50 +156,4 @@ class LaunchPeakFinder(QtCore.QThread):
                 print "Submitting batch job: ", cmd
 
                 subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            elif self.parent.facility == self.parent.facilityPAL:
-                cmd = "mpirun -n "+str(self.parent.pk.hitParam_cpus)
-                if self.parent.args.debug:
-                    cmd += " -output-filename "+runDir+"/$$.log"                 # This is LCLS mpi
-                else:
-                    cmd += " -outfile-pattern "+runDir+"/$$.log"                 # This is PAL mpi
-                cmd += " findPeaks" + \
-                       " -e " + self.experimentName+\
-                       " -d " + self.detInfo+\
-                       " --outDir " + runDir+\
-                       " --algorithm " + str(self.parent.pk.algorithm)
-                cmd += " --alg_npix_min " + str(self.parent.pk.hitParam_alg1_npix_min) + \
-                       " --alg_npix_max " + str(self.parent.pk.hitParam_alg1_npix_max) + \
-                       " --alg_amax_thr " + str(self.parent.pk.hitParam_alg1_amax_thr) + \
-                       " --alg_atot_thr " + str(self.parent.pk.hitParam_alg1_atot_thr) + \
-                       " --alg_son_min " + str(self.parent.pk.hitParam_alg1_son_min) + \
-                       " --alg1_thr_low " + str(self.parent.pk.hitParam_alg1_thr_low) + \
-                       " --alg1_thr_high " + str(self.parent.pk.hitParam_alg1_thr_high) + \
-                       " --alg1_rank " + str(self.parent.pk.hitParam_alg1_rank) + \
-                       " --alg1_radius " + str(self.parent.pk.hitParam_alg1_radius) + \
-                       " --alg1_dr " + str(self.parent.pk.hitParam_alg1_dr)
-                # Save user mask to a deterministic path
-                if self.parent.mk.userMaskOn:
-                    tempFilename = self.parent.psocakeDir + "/r" + str(run).zfill(4) + "/tempUserMask.npy"
-                    np.save(tempFilename, self.parent.mk.userMask)  # TODO: save
-                    cmd += " --userMask_path " + str(tempFilename)
 
-                cmd += " --mask " + self.parent.pk.hitParam_outDir + '/r' + str(run).zfill(4) + '/staticMask.h5'
-
-                if self.parent.pk.hitParam_noe > 0:
-                    cmd += " --noe " + str(self.parent.pk.hitParam_noe)
-
-                cmd += " --clen " + str(self.parent.clen)
-                cmd += " --minPeaks " + str(self.parent.pk.minPeaks)
-                cmd += " --maxPeaks " + str(self.parent.pk.maxPeaks)
-                cmd += " --minRes " + str(self.parent.pk.minRes)
-                cmd += " --sample " + str(self.parent.pk.sample)
-                cmd += " --pixelSize " + str(self.parent.pixelSize)
-                cmd += " --dir " + str(self.parent.dir)
-
-                if self.parent.pk.hitParam_extra: cmd += " " + self.parent.pk.hitParam_extra
-                cmd += " --currentRun " + str(self.parent.runNumber)
-                cmd += " -r " + str(run)
-                cmd += " &"
-                # Launch peak finding
-                print "Submitting job: ", cmd
-                os.system(cmd)

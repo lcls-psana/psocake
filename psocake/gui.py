@@ -4,7 +4,6 @@ if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS'
 # Import the rest of the packages
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
-import pyqtgraph.console
 import numpy as np
 from pyqtgraph.dockarea import *
 import argparse
@@ -14,11 +13,12 @@ from pyqtgraph.dockarea.Dock import DockLabel
 import sys
 
 # Panel modules
-import MousePanel, ImagePanel, ImageStackPanel
+import MousePanel, GifPanel, ImagePanel, ImageStackPanel
 import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
 import HitFinderPanel
+import _version
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
@@ -47,8 +47,6 @@ parser.add_argument("-a","--access", default="ana", type=str,
                     help="Set data node access: {ana,ffb}")
 parser.add_argument("--noInfiniband", action='store_true', help="Do not use infiniband.")
 parser.add_argument("-i","--inputImages", default="", type=str, help="full path to hdf5 file with calibrated CsPad images saved as /data/data and /eventNumber. It can be in a cheetah format (3D) or psana unassembled format (4D)")
-# PAL specific
-parser.add_argument("--debug", action='store_true', help="Debug mode of PAL at LCLS.")
 args = parser.parse_args()
 
 if 'label' in args.mode: import LabelingPanel
@@ -99,7 +97,6 @@ class MainFrame(QtGui.QWidget):
 
         # Supported facilities keywords
         self.facilityLCLS = 'LCLS'
-        self.facilityPAL = 'PAL'
         if 'CFEL' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityLCLS
             self.dir = '/gpfs/cfel/cxi/common/slac/reg/d/psdm'
@@ -108,12 +105,6 @@ class MainFrame(QtGui.QWidget):
         elif 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityLCLS
             self.dir = '/reg/d/psdm'
-        elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-            self.facility = self.facilityPAL
-            if args.debug:
-                self.dir = '/reg/d/psdm/cxi/cxitut13/res/yoon82/pohang/kihyun'
-            else:
-                self.dir = '/home/eh2adm/sfx' # FIXME: TEMPORARY
 
         # Init experiment parameters from args
         if args.expRun is not None and ':run=' in args.expRun:
@@ -274,8 +265,6 @@ class MainFrame(QtGui.QWidget):
         if args.mode == 'sfx':
             self.area.addDock(self.mouse.dock, 'left')
             self.area.addDock(self.img.dock, 'bottom', self.mouse.dock)
-            self.area.addDock(self.stack.dock, 'bottom', self.mouse.dock)
-            self.area.moveDock(self.img.dock, 'above', self.stack.dock)  ## move imagePanel on top of imageStack
 
             self.area.addDock(self.exp.dock, 'right')
             self.area.addDock(self.geom.dock, 'right')
@@ -292,6 +281,8 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.small.dock, 'right')
             self.area.addDock(self.control.dock, 'right')
             self.area.moveDock(self.small.dock, 'top', self.control.dock)
+
+            #self.area.addDock(self.gif.dock, 'right', relativeTo=self.mouse.dock)
         elif args.mode == 'spi':
             self.area.addDock(self.mouse.dock, 'left')
             self.area.addDock(self.img.dock, 'bottom', self.mouse.dock)
@@ -442,9 +433,9 @@ class MainFrame(QtGui.QWidget):
                             modeInfo = self.mk.masking_mode_message
                         else:
                             modeInfo = ""
-                        pixelInfo = "<span style='color: " + color.pixelInfo + "; font-size: 24pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
+                        pixelInfo = "<span style='color: " + color.pixelInfo + "; font-size: 18pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
                         self.label.setText(
-                            modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]))
+                            modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexY, indexX]))
 
         def mouseClicked(evt):
             mousePoint = self.vb.mapSceneToView(evt[0].scenePos())
@@ -456,25 +447,25 @@ class MainFrame(QtGui.QWidget):
                 if indexX >= 0 and indexX < self.data.shape[0] \
                         and indexY >= 0 and indexY < self.data.shape[1]:
                     if self.args.mode == 'label' and self.labeling is not None:
-                        self.labeling.action(indexX,indexY, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
-                    print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexX, indexY]
+                        self.labeling.action(indexY,indexX, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
+                    print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexY, indexX]
                     if self.mk.maskingMode > 0:
-                        self.initMask()
+                        self.mk.initMask()
                         if self.mk.maskingMode == 1:
                             # masking mode
-                            self.mk.userMaskAssem[indexX, indexY] = 0
+                            self.mk.userMaskAssem[indexY, indexX] = 0
                         elif self.mk.maskingMode == 2:
                             # unmasking mode
-                            self.mk.userMaskAssem[indexX, indexY] = 1
+                            self.mk.userMaskAssem[indexY, indexX] = 1
                         elif self.mk.maskingMode == 3:
                             # toggle mode
-                            self.mk.userMaskAssem[indexX, indexY] = (1 - self.mk.userMaskAssem[indexX, indexY])
-                        self.displayMask()
+                            self.mk.userMaskAssem[indexY, indexX] = (1 - self.mk.userMaskAssem[indexY, indexX])
+                        self.mk.displayMask()
 
                         self.mk.userMask = self.det.ndarray_from_image(self.evt, self.mk.userMaskAssem,
                                                                        pix_scale_size_um=None, xy0_off_pix=None)
                         self.algInitDone = False
-                        self.parent.pk.updateClassification()
+                        self.pk.updateClassification()
 
         # Signal proxy
         self.proxy_move = pg.SignalProxy(self.xhair.scene().sigMouseMoved, rateLimit=30, slot=mouseMoved)
@@ -487,7 +478,7 @@ def main():
     ex = MainFrame(sys.argv)
     win.setCentralWidget(ex.area)
     win.resize(1400,700)
-    win.setWindowTitle('PSOCAKE')
+    win.setWindowTitle('PSOCAKE v'+_version.__version__)
     win.show()
     sys.exit(app.exec_())
 

@@ -1,9 +1,5 @@
 from pyqtgraph.Qt import QtCore
-import subprocess
-import os
 import numpy as np
-import h5py
-import json
 from utils import *
 
 class LaunchPeakFinder(QtCore.QThread):
@@ -22,40 +18,6 @@ class LaunchPeakFinder(QtCore.QThread):
         self.detInfo = detInfo
         self.start()
 
-    def saveCheetahFormatMask(self, run, arg):
-        if arg == self.parent.facilityLCLS:
-            if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
-                dim0 = 8 * 185
-                dim1 = 4 * 388
-            elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
-                dim0 = 1920
-                dim1 = 1920
-            #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-            #    dim0 = 1920
-            #    dim1 = 1920
-            else:
-                print "saveCheetahFormatMask not implemented"
-
-            fname = self.parent.pk.hitParam_outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
-            print "Saving static mask in Cheetah format: ", fname
-            myHdf5 = h5py.File(fname, 'w')
-            dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
-
-            # Convert calib image to cheetah image
-            if self.parent.mk.combinedMask is None:
-                img = np.ones((dim0, dim1))
-            else:
-                img = np.zeros((dim0, dim1))
-                counter = 0
-                if 'cspad' in self.parent.detInfo.lower():# and 'cxi' in self.parent.experimentName:
-                    img = pct(self.parent.mk.combinedMask)
-                elif 'rayonix' in self.parent.detInfo.lower():# and 'mfx' in self.parent.experimentName:
-                    img = self.parent.mk.combinedMask[:, :] # psana format
-                #elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
-                #    img = self.parent.mk.combinedMask[:, :]  # psana format
-            dset[:,:] = img
-            myHdf5.close()
-
     def run(self):
         # Digest the run list
         run = 99
@@ -68,7 +30,7 @@ class LaunchPeakFinder(QtCore.QThread):
             print "No write access to: ", runDir
 
         # Generate Cheetah mask
-        self.saveCheetahFormatMask(run, self.parent.facility)
+        saveCheetahFormatMask(self.parent.pk.hitParam_outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
 
         # Update elog
         try:

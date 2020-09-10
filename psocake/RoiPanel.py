@@ -79,10 +79,7 @@ class RoiHistogram(object):
         if self.parent.data is not None:
             if self.updateRoiStatus == True:
                 calib = np.ones_like(self.parent.calib)
-                if self.parent.facility == self.parent.facilityLCLS:
-                    img = self.parent.det.image(self.parent.evt, calib)
-                elif self.parent.facility == self.parent.facilityPAL:
-                    img = np.ones_like(self.parent.data)
+                img = self.parent.det.image(self.parent.evt, calib)
                 pixelsExist = roi.getArrayRegion(img, self.parent.img.win.getImageItem())
                 if roi.name == 'poly':
                     self.ret = roi.getArrayRegion(self.parent.data, self.parent.img.win.getImageItem())#, returnMappedCoords=True)
