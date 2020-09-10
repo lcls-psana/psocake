@@ -812,8 +812,9 @@ class ExperimentInfo(object):
             self.detGuaranteedData = self.parent.det.image(self.parent.evt, self.detGuaranteed)
 
         # Write a temporary geom file
-        self.parent.geom.deployCrystfelGeometry(self.parent.facility)
-        self.parent.geom.writeCrystfelGeom(self.parent.facility)
+        if self.parent.mode == "sfx":
+            self.parent.geom.deployCrystfelGeometry(self.parent.facility)
+            self.parent.geom.writeCrystfelGeom(self.parent.facility)
 
         self.parent.img.setupRadialBackground()
         self.parent.img.updatePolarizationFactor()

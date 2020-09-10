@@ -100,7 +100,10 @@ class PeakFinding(object):
         self.save_sample_str = 'Sample name'
         self.tag_str = '.cxi tag'
 
-        self.showPeaks = True
+        if self.parent.mode == "sfx":
+            self.showPeaks = True
+        else:
+            self.showPeaks = False
         self.turnOnAutoPeaks = False
         self.ind = None
         self.pairsFoundPerSpot = 0
@@ -471,7 +474,6 @@ class PeakFinding(object):
                     peaks = peaks[:maxNumPeaks]
                     nPeaks = maxNumPeaks
 
-                print "peaks: ", nPeaks, peaks.shape
                 segs = peaks[:, 0]
                 rows = peaks[:, 1]
                 cols = peaks[:, 2]

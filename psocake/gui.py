@@ -13,7 +13,7 @@ from pyqtgraph.dockarea.Dock import DockLabel
 import sys
 
 # Panel modules
-import MousePanel, GifPanel, ImagePanel, ImageStackPanel
+import MousePanel, ImagePanel, ImageStackPanel
 import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
@@ -117,6 +117,7 @@ class MainFrame(QtGui.QWidget):
         self.detAlias = None
         self.eventNumber = int(args.evt)
         self.inputImages = args.inputImages
+        self.mode = args.mode
 
         # Directories
         self.psocakeDir = None
@@ -286,8 +287,8 @@ class MainFrame(QtGui.QWidget):
         elif args.mode == 'spi':
             self.area.addDock(self.mouse.dock, 'left')
             self.area.addDock(self.img.dock, 'bottom', self.mouse.dock)
-            self.area.addDock(self.stack.dock, 'bottom', self.mouse.dock)
-            self.area.moveDock(self.img.dock, 'above', self.stack.dock)  ## move imagePanel on top of imageStack
+            #self.area.addDock(self.stack.dock, 'bottom', self.mouse.dock)
+            #self.area.moveDock(self.img.dock, 'above', self.stack.dock)  ## move imagePanel on top of imageStack
 
             self.area.addDock(self.exp.dock, 'right')
             self.area.addDock(self.geom.dock, 'right')
