@@ -1,11 +1,12 @@
+import h5py, json
+from mpidata import mpidata
+import psana
+import numpy as np
+
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-
-import h5py, json
-from mpidata import mpidata
-import psana
 
 def writeStatus(fname,d):
     json.dump(d, open(fname, 'w'))
@@ -26,16 +27,22 @@ def getNoe(args):
     return numJobs
 
 def runmaster(args,nClients):
-
     runStr = "%04d" % args.run
-    fname = args.outDir +"/"+ args.exp +"_"+ runStr + ".cxi"
+    if args.tag:
+        fname = args.outDir + "/" + args.exp + "_" + runStr + "_" + args.tag + ".cxi"
+        statusFname = args.outDir + "/status_hits_"+ args.tag + ".txt"
+        powderHitFname = args.outDir + "/" + args.exp + "_" + runStr + "_maxHits_" + args.tag + ".npy"
+        powderMissesFname = args.outDir + "/" + args.exp + "_" + runStr + "_maxMisses_" + args.tag + ".npy"
+    else:
+        fname = args.outDir + "/" + args.exp + "_" + runStr + ".cxi"
+        statusFname = args.outDir + "/status_hits.txt"
+        powderHitFname = args.outDir + "/" + args.exp + "_" + runStr + "_maxHits.npy"
+        powderMissesFname = args.outDir + "/" + args.exp + "_" + runStr + "_maxMisses.npy"
     grpName = "/entry_1/result_1"
     dset_nHits = "/nHitsAll"
-    statusFname = args.outDir + "/status_hits.txt"
 
     powderHits = None
     powderMisses = None
-
     numProcessed = 0
     fracDone = 0.0
     numEvents = getNoe(args)
@@ -49,13 +56,13 @@ def runmaster(args,nClients):
         md.recv()
         if md.small.endrun:
             nClients -= 1
-        #elif md.small.powder == 1:
-        #    if powderHits is None:
-        #        powderHits = md.powderHits
-        #        powderMisses = md.powderMisses
-        #    else:
-        #        powderHits = np.maximum(powderHits, md.powderHits)
-        #        powderMisses = np.maximum(powderMisses, md.powderMisses)
+        elif md.small.powder == 1:
+            if powderHits is None:
+                powderHits = md.powderHits
+                powderMisses = md.powderMisses
+            else:
+                powderHits = np.maximum(powderHits, md.powderHits)
+                powderMisses = np.maximum(powderMisses, md.powderMisses)
         else:
             try:
                 nPixels = md.small.nPixels
@@ -68,6 +75,9 @@ def runmaster(args,nClients):
             fracDone = numProcessed * 100. / numEvents
             d = {"fracDone": fracDone}
             writeStatus(statusFname, d)
+
+    np.save(powderHitFname, powderHits)
+    np.save(powderMissesFname, powderMisses)
 
     if '/status/findHits' in myHdf5:
         del myHdf5['/status/findHits']

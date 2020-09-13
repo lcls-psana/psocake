@@ -57,6 +57,7 @@ class HitFinder(object):
         self.hitParam_backgroundThresh_str = 'Background threshold'
         self.hitParam_sample_str = 'Sample name'
         self.hitParam_save_str = 'Save hits'
+        self.tag_str = '.cxi tag'
 
         # Init hit finding
         self.nPixels = 0
@@ -72,6 +73,8 @@ class HitFinder(object):
         self.hitParam_hitThresh = '-1'
         self.hitParam_backgroundThresh = '-1'
         self.hitParam_sample = "sample"
+        self.tag = ''
+
 
         self.params = [
             {'name': self.spiParam_grp, 'type': 'group', 'children': [
@@ -99,6 +102,7 @@ class HitFinder(object):
                  'value': self.spiParam_queue, 'tip': "Choose queue"},
                 {'name': self.spiParam_cpu_str, 'type': 'int', 'value': self.spiParam_cpus},
                 {'name': self.spiParam_noe_str, 'type': 'int', 'value': self.spiParam_noe, 'tip': "number of events to process, default=0 means process all events"},
+                {'name': self.tag_str, 'type': 'str', 'value': self.tag},
                 {'name': self.spiParam_launch_str, 'type': 'action'},
             ]},
             {'name': self.hitParam_grp, 'type': 'group', 'children': [
@@ -154,6 +158,8 @@ class HitFinder(object):
                 self.spiParam_cpus = data
             elif path[1] == self.spiParam_noe_str:
                 self.spiParam_noe = data
+            elif path[1] == self.tag_str:
+                self.updateTag(data)
             elif path[1] == self.spiParam_launch_str:
                 self.findHits()
             elif path[2] == self.spiParam_alg1_pruneInterval_str and path[1] == self.spiParam_algorithm1_str:
@@ -171,6 +177,19 @@ class HitFinder(object):
                 self.hitParam_sample = data
             elif path[1] == self.hitParam_save_str:
                 self.setThreshold()
+
+    def updateTag(self, data):
+        if self.tag:
+            fname = self.parent.small.quantifier_filename.split("_"+self.tag+".cxi")[0]
+        else:
+            fname = self.parent.small.quantifier_filename.split(".cxi")[0]
+        if data:
+            fname += "_" + data + ".cxi"
+        else:
+            fname += ".cxi"
+        self.tag = data
+        self.parent.small.pSmall.param(self.parent.small.quantifier_grp, self.parent.small.quantifier_filename_str).setValue(fname)
+        self.parent.small.reloadQuantifier()
 
     def updateHit(self):
         # Save a temporary mask

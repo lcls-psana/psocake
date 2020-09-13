@@ -67,6 +67,7 @@ class LaunchHitConverter(QtCore.QThread):
                   " --hitThresh " + str(self.parent.hf.hitParam_hitThresh) + \
                   " --backgroundThresh " + str(self.parent.hf.hitParam_backgroundThresh) + \
                   " --mode spi" + \
+                  " --tag " + self.parent.hf.tag + \
                   " --run " + str(run)
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

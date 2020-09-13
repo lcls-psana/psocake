@@ -57,6 +57,7 @@ class HitFinder(QtCore.QThread):
                     cmd += " --pruneInterval " + str(self.parent.hf.spiParam_alg1_pruneInterval)
                 elif self.parent.hf.spiAlgorithm == 2:
                     cmd += " --litPixelThreshold " + str(self.parent.hf.spiParam_alg2_threshold)
+                cmd += " --hitThreshold " + str(self.parent.hf.hitParam_hitThresh)
 
                 # Save user mask to a deterministic path
                 if self.parent.mk.userMaskOn:
@@ -76,6 +77,8 @@ class HitFinder(QtCore.QThread):
                 cmd += " --psanaMask_unbondnrs " + str(self.parent.mk.mask_unbondnrsOn)
 
                 if self.parent.hf.spiParam_noe > 0: cmd += " --noe "+str(self.parent.hf.spiParam_noe)
+
+                if self.parent.hf.tag: cmd += " --tag " + self.parent.hf.tag
 
                 if self.parent.args.localCalib: cmd += " --localCalib"
 

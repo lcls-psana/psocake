@@ -179,6 +179,8 @@ class ImageViewer(object):
         # Load peak parameters if exists
         if 'sfx' in self.parent.args.mode and self.parent.pk.userUpdate is None:
             self.parent.pk.updateParam()
+        else:
+            self.parent.mk.displayMask()
 
         if 'label' in self.parent.args.mode:
             self.parent.labeling.updateText()

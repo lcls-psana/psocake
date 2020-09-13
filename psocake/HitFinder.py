@@ -1,9 +1,5 @@
 import numpy as np
 import myskbeam
-import time
-import os
-
-from ImgAlgos.PyAlgos import PyAlgos # peak finding
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -30,6 +26,11 @@ class HitFinder:
         self.psanaMask_central = str2bool(psanaMask_central)
         self.psanaMask_unbond = str2bool(psanaMask_unbond)
         self.psanaMask_unbondnrs = str2bool(psanaMask_unbondnrs)
+
+        if kwargs['hitThreshold']:
+            self.hitThreshold = kwargs['hitThreshold']
+        else:
+            self.hitThreshold = -1
 
         self.userMask = None
         self.psanaMask = None
@@ -74,8 +75,8 @@ class HitFinder:
         except:
             self.nPixels = 0
 
-        #if self.nPixels >= self.hitThreshold:
-        #    self.powderHits = np.maximum(self.powderHits, calib)
-        #else:
-        #    self.powderMisses = np.maximum(self.powderMisses, calib)
+        if self.nPixels >= self.hitThreshold:
+            self.powderHits = np.maximum(self.powderHits, calib)
+        else:
+            self.powderMisses = np.maximum(self.powderMisses, calib)
 

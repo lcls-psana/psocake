@@ -725,7 +725,6 @@ class IndexHandler(QtCore.QThread):
                         dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
 
                     if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                        print "movie status: ", self.parent.mouse.movie
                         if self.parent.mouse.movie is None: # display gif
                             self.parent.mouse.tm.start(3000)  # ms
                         self.parent.index.numIndexedPeaksFound = numReflections

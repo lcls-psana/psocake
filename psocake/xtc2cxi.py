@@ -9,7 +9,6 @@ import os, json
 import psanaWhisperer
 
 from mpi4py import MPI
-import Detector.PyDetector
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -37,6 +36,7 @@ parser.add_argument("--aduPerPhoton", help="adu per photon (SPI)",default=1, typ
 parser.add_argument("--mode",help="type of experiment (e.g. sfx, spi)",default='', type=str)
 parser.add_argument("--saveADU", help="Save assembled images in ADU.", action='store_true')
 parser.add_argument("--savePhot", help="Save assembled images in photons.", action='store_true')
+parser.add_argument("--tag",help="cxi file tag",default="", type=str)
 args = parser.parse_args()
 
 def writeStatus(fname,d):
@@ -44,7 +44,6 @@ def writeStatus(fname,d):
 
 def getMyUnfairShare(numJobs, numWorkers, rank):
     """Returns number of events assigned to the slave calling this function."""
-    print "numJobs >= numWorkers: ", numJobs, numWorkers
     assert(numJobs >= numWorkers)
     try:
         allJobs = np.arange(numJobs)
@@ -65,7 +64,7 @@ coffset = args.coffset
 (x_pixel_size,y_pixel_size) = (args.pixelSize, args.pixelSize)
 mode = args.mode
 aduPerPhoton = args.aduPerPhoton
-# Munch hitThresh
+# Munge hitThresh
 if ":" in args.hitThresh:
     (hitThreshMin, hitThreshMax) = args.hitThresh.split(':')
     hitThreshMin = float(hitThreshMin)
@@ -73,7 +72,7 @@ if ":" in args.hitThresh:
 else:
     hitThreshMin = float(args.hitThresh)
     hitThreshMax = float('inf')
-# Munch backgroundThresh
+# Munge backgroundThresh
 if args.backgroundThresh == '-1':
     backgroundThreshMin = -1
     backgroundThreshMax = -1
@@ -91,7 +90,11 @@ ps.setupExperiment()
 
 # Read list of files
 runStr = "%04d" % args.run
-filename = args.inDir + '/' + args.exp + '_' + runStr + '.cxi'
+if args.tag:
+    filename = args.inDir + "/" + args.exp + "_" + runStr + "_" + args.tag + ".cxi"
+else:
+    filename = args.inDir + "/" + args.exp + "_" + runStr + ".cxi"
+
 print "Reading file: %s" % (filename)
 if mode == 'sfx':
     statusFname = args.inDir+'/status_index.txt'
@@ -461,10 +464,13 @@ if rank == 0:
     except:
         pass
 
+es = ps.ds.env().epicsStore()
+
 for i,val in enumerate(myHitInd):
     globalInd = myJobs[0]+i
     ds_expId[globalInd] = val
     ps.getEvent(val)
+
     ebeamDet = psana.Detector('EBeam')
     # Write image in cheetah format
     if mode == 'sfx' and 'cspad' in ps.detInfo.lower():
@@ -479,17 +485,14 @@ for i,val in enumerate(myHitInd):
         if backgroundThreshMax > -1:
             ind = abs(missInd - val)
             backgroundEvent = missInd[np.argmin(ind)]
-            print "background: ", val, backgroundEvent
             if args.saveADU: img = ps.getCleanAssembledImg(backgroundEvent)
             if args.savePhot: phot = ps.getCleanAssembledPhotons(backgroundEvent)
         else:
-            if args.saveADU: img = ps.getAssembledImg()
-            assert (img is not None)
-            if args.savePhot: phot = ps.getAssembledPhotons()
-            if args.saveADU: dset_1[globalInd, :, :] = img
-            if args.savePhot: dset_2[globalInd, :, :] = phot
+            if args.saveADU:
+                dset_1[globalInd, :, :] = ps.getAssembledImg()
+            if args.savePhot:
+                dset_2[globalInd, :, :] = ps.getAssembledPhotons()
 
-    es = ps.ds.env().epicsStore()
     try:
         pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
         numPhotons = es.value('SIOC:SYS0:ML00:AO580')*1e12 # number of photons

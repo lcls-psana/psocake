@@ -2,7 +2,7 @@ from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import _colorScheme as color
 from pyqtgraph.Qt import QtCore, QtGui
-import numpy as np
+from random import shuffle
 import os
 
 try:
@@ -29,18 +29,29 @@ class Mouse(QtGui.QWidget):
         for file in os.listdir(gifFolder):
             if file.endswith(".gif"):
                 self.fnames.append(os.path.join(gifFolder, file))
+        shuffle(self.fnames)
 
         self.movie_screen = None
         self.movie = None
         self.speed = 120
+        self.index = 0
 
     def addGif(self):
         # Load the file into a QMovie
-        fname = self.fnames[np.random.choice(len(self.fnames), 1)[0]]
+        fname = self.fnames[self.index % len(self.fnames)]
+        self.index += 1
         if self.movie is None:
+            # get a frame to get image size
+            self.movie = QtGui.QMovie(fname, QtCore.QByteArray(), self)
+            self.movie.jumpToFrame(0)
+            movie_size = self.movie.currentImage().size()
+            movie_aspect = movie_size.width() * 1.0 / movie_size.height()
+            # create a new movie with correct aspect ratio
             self.movie = QtGui.QMovie(fname, QtCore.QByteArray(), self)
             size = self.movie.scaledSize()
             self.setGeometry(100, 100, size.width(), size.height())
+            self.movie.setScaledSize(QtCore.QSize(int(150*movie_aspect),150)) # pixels
+
             # Create the layout
             if self.layout is None:
                 main_layout = QtGui.QVBoxLayout()

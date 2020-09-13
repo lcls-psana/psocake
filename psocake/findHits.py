@@ -21,6 +21,7 @@ parser.add_argument("-n","--noe",help="number of events, all events=-1",default=
 parser.add_argument("-a","--algorithm",help="algorithm number",default=2, type=int)
 parser.add_argument("-p","--pruneInterval",help="number of events to update running background",default=-1, type=float)
 parser.add_argument("-l","--litPixelThreshold",help="number of ADUs to be considered a lit pixel",default=-1, type=float)
+parser.add_argument("-t","--hitThreshold",help="number of pixels above litPixelThreshold to be considered a hit",default=-1, type=float)
 parser.add_argument("--userMask_path",help="full path to user mask numpy array",default=None, type=str)
 parser.add_argument("--streakMask_on",help="streak mask on",default="False", type=str)
 parser.add_argument("--streakMask_sigma",help="streak mask sigma above background",default=0., type=float)
@@ -34,6 +35,7 @@ parser.add_argument("--psanaMask_unbond",help="psana unbonded pixels on",default
 parser.add_argument("--psanaMask_unbondnrs",help="psana unbonded pixel neighbors on",default="False", type=str)
 parser.add_argument("-v","--verbose",help="verbosity of output for debugging, 1=print, 2=print+plot",default=0, type=int)
 parser.add_argument("--localCalib", help="use local calib directory, default=False", action='store_true')
+parser.add_argument("--tag",help="cxi file tag",default="", type=str)
 args = parser.parse_args()
 
 def getNoe(args):
@@ -55,7 +57,10 @@ if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 
 if rank == 0:
     runStr = "%04d" % args.run
-    fname = args.outDir +"/"+ args.exp +"_"+ runStr + ".cxi"
+    if args.tag:
+        fname = args.outDir + "/" + args.exp + "_" + runStr + "_" + args.tag + ".cxi"
+    else:
+        fname = args.outDir + "/" + args.exp + "_" + runStr + ".cxi"
     # Get number of events to process
     numJobs = getNoe(args)
 

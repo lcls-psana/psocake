@@ -62,7 +62,8 @@ def runclient(args):
                                            psanaMask_edges=args.psanaMask_edges,
                                            psanaMask_central=args.psanaMask_central,
                                            psanaMask_unbond=args.psanaMask_unbond,
-                                           psanaMask_unbondnrs=args.psanaMask_unbondnrs)
+                                           psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                           hitThreshold=args.hitThreshold)
         d.hitFinder.findHits(detarr,evt)
         md=mpidata()
         md.small.eventNum = nevent
@@ -72,8 +73,8 @@ def runclient(args):
 
     # At the end of the run, send the powder of hits and misses
     md = mpidata()
-    #md.small.powder = 1
-    #md.addarray('powderHits', d.hitFinder.powderHits)
-    #md.addarray('powderMisses', d.hitFinder.powderMisses)
-    #md.send()
+    md.small.powder = 1
+    md.addarray('powderHits', d.hitFinder.powderHits)
+    md.addarray('powderMisses', d.hitFinder.powderMisses)
+    md.send()
     md.endrun()
