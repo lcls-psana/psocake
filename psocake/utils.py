@@ -71,9 +71,12 @@ def getCheetahDim(detInfo):
         exit()
     return dim0, dim1
 
-def saveCheetahFormatMask(outDir, run, detInfo, combinedMask=None):
+def saveCheetahFormatMask(outDir, run=None, detInfo=None, combinedMask=None):
     dim0, dim1 = getCheetahDim(detInfo)
-    fname = outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
+    if run is not None:
+        fname = outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
+    else:
+        fname = outDir + '/staticMask.h5'
     print "Saving static mask in Cheetah format: ", fname
     myHdf5 = h5py.File(fname, 'w')
     dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
@@ -102,6 +105,9 @@ def convert_peaks_to_cheetah(detname, s, r, c) :
         segs, rows, cols = (8,512,1024)
         row2d = s * rows + r
         col2d = c
+    elif "rayonix" in detname.lower():
+        row2d = r
+        col2d = c
     else:
         print "Error: This detector is not supported"
         exit()
@@ -129,6 +135,10 @@ def convert_peaks_to_psana(detname, row2d, col2d) :
         s = (row2d / rows)
         r = row2d % rows
         c = col2d
+    elif "rayonix" in detname.lower():
+        s = 0
+        r = row2d
+        c = col2d
     else:
         print "Error: This detector is not supported"
         exit()
@@ -141,7 +151,7 @@ def pct(detname, unassembled):
     :return: cheetah tile
     """
     if "rayonix" in detname.lower():
-        img = unassembled[0, :, :] # TODO: express in terms of x,y,dim0,dim1
+        img = unassembled[:, :] # TODO: express in terms of x,y,dim0,dim1
     else:
         if "cspad" in detname.lower():
             row = 8
@@ -197,6 +207,11 @@ def ipct(detname, tile):
         numAsicsPerQuad = 8
         asicRows = 512
         asicCols = 1024
+    elif "rayonix" in detname.lower():
+        _t = tile.shape
+        calib = np.zeros((1,_t[0],_t[1]),dtype=tile.dtype)
+        calib[0,:,:] = tile
+        return calib
     else:
         print "Error: This detector is not supported"
         exit()

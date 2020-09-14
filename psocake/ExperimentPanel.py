@@ -793,7 +793,7 @@ class ExperimentInfo(object):
                 evt = self.run.event(self.times[i])
                 self.detGuaranteed = self.parent.det.calib(evt)
                 if self.detGuaranteed is not None:
-                    print "Found an event with image: ", i
+                    print "Found an event with image: ", i, self.detGuaranteed.shape
                     break
 
         # detector distance
