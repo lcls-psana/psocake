@@ -21,7 +21,6 @@ def getGifPath(debug=False):
         if paths:
             for path in paths.split(":"):
                 gifDir = os.path.join(path, 'psocake/graphics')
-                print "gifDir: ", gifDir
                 if os.path.exists(gifDir):
                     return gifDir
         else:
