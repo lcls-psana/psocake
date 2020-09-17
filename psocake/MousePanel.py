@@ -11,6 +11,23 @@ try:
 except ImportError:
     using_pyqt4 = True
 
+def getGifPath(debug=False):
+    if debug:
+        path = os.path.dirname(__file__)
+        gifDir = os.path.join(path, '../data/graphics')
+        return gifDir
+    else:
+        paths = os.getenv('SIT_DATA')
+        if paths:
+            for path in paths.split(":"):
+                gifDir = os.path.join(path, 'psocake/graphics')
+                print "gifDir: ", gifDir
+                if os.path.exists(gifDir):
+                    return gifDir
+        else:
+            print "Error: Couldn't find graphics folder"
+            exit()
+
 class Mouse(QtGui.QWidget):
     def __init__(self, parent = None):
         QtGui.QWidget.__init__(self, parent)
@@ -23,8 +40,7 @@ class Mouse(QtGui.QWidget):
         self.dock.addWidget(self.win)
         self.tm = ThreadsafeTimer(self.parent)
 
-        pwd = os.path.dirname(__file__)
-        gifFolder = os.path.join(pwd,'../graphics')
+        gifFolder = getGifPath(debug=False)
         self.fnames = []
         for file in os.listdir(gifFolder):
             if file.endswith(".gif"):
