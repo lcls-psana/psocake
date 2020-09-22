@@ -115,13 +115,13 @@ class SmallData(object):
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
                 self.updateQuantifierSort(self.quantifier_sort)
             except:
-                print "Couldn't read metric"
+                if self.parent.args.v >= 1: print "Couldn't read metric"
                 self.quantifierMetric = np.zeros((self.parent.exp.eventTotal,))
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
                 self.updateQuantifierSort(self.quantifier_sort)
             if self.parent.args.v >= 1: print "Done reading metric"
         else:
-            print "no file, display all zeros"
+            if self.parent.args.v >= 1: print "no file, display all zeros"
             self.quantifierMetric = np.zeros((self.parent.exp.eventTotal,))
             self.quantifierInd = np.arange(len(self.quantifierMetric))
             self.updateQuantifierSort(self.quantifier_sort)

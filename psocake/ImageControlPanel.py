@@ -61,19 +61,21 @@ class ImageControl(object):
         print "Saving unassembled image: ", output + "_unassembled.npy"
         print "Saving unassembled image: ", output + "_unassembled.txt"
         outputUnassem = output + "_unassembled.npy"
-        if self.parent.calib.size==2*185*388: # cspad2x2
-            asData2x2 = two2x1ToData2x2(self.parent.calib)
+        _calib = self.parent.calib.copy()
+
+        if _calib.size==2*185*388: # cspad2x2
+            asData2x2 = two2x1ToData2x2(_calib)
             np.save(str(outputUnassem),asData2x2)
             np.savetxt(str(outputUnassem).split('.npy')[0]+".txt", asData2x2.reshape((-1,asData2x2.shape[-1])) ,fmt='%0.18e')
         else:
-            np.save(str(outputUnassem),self.parent.calib)
-            np.savetxt(str(outputUnassem).split('.npy')[0]+".txt", self.parent.calib.reshape((-1,self.parent.calib.shape[-1])) )#,fmt='%0.18e')
+            np.save(str(outputUnassem), _calib)
+            np.savetxt(str(outputUnassem).split('.npy')[0]+".txt", _calib.reshape((-1,_calib.shape[-1])) )#,fmt='%0.18e')
         # Save assembled
         outputAssem = output + "_assembled.npy"
         print "##########################################"
         print "Saving assembled image: ", outputAssem
         print "##########################################"
-        np.save(str(outputAssem), self.parent.det.image(self.parent.evt, self.parent.calib))
+        np.save(str(outputAssem), self.parent.det.image(self.parent.evt, _calib))
 
         # Save publication quality images
         vmin, vmax = self.parent.img.win.getLevels()
@@ -116,9 +118,9 @@ class ImageControl(object):
                                          edgecolor='#0497cb', facecolor='none')
                 ax.add_patch(rect)
             # Resolution ring
-            circ = patches.Circle((cy, cx), radius=distEdge, linewidth=1, edgecolor=resColor, facecolor='none')
+            circ = patches.Circle((cx, cy), radius=distEdge, linewidth=1, edgecolor=resColor, facecolor='none')
             ax.add_patch(circ)
-            plt.text(cy - textSize / 2 - move, cx + distEdge, res, size=textSize, color=resColor)
+            plt.text(cx - textSize / 2 - move, cy + distEdge, res, size=textSize, color=resColor)
             plt.savefig(outputName, dpi=300)
 
         outputName = output + "_idx.png"
@@ -144,9 +146,9 @@ class ImageControl(object):
                                       facecolor='none')
                 ax.add_patch(circ)
             # Resolution ring
-            circ = patches.Circle((cy, cx), radius=distEdge, linewidth=1, edgecolor=resColor, facecolor='none')
+            circ = patches.Circle((cx, cy), radius=distEdge, linewidth=1, edgecolor=resColor, facecolor='none')
             ax.add_patch(circ)
-            plt.text(cy - textSize / 2 - move, cx + distEdge, res, size=textSize, color=resColor)
+            plt.text(cx - textSize / 2 - move, cy + distEdge, res, size=textSize, color=resColor)
             plt.savefig(outputName, dpi=300)
 
     def load(self):

@@ -2,7 +2,7 @@ import numpy as np
 import subprocess
 import os
 import glob
-from utils import highlight
+import utils
 try:
     logbook_present = True
     from LogBook.runtables import RunTables
@@ -14,6 +14,7 @@ from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import psana
 import Detector.PyDetector
+import PSCalib.GlobalUtils as gu
 
 class ExperimentInfo(object):
     def __init__(self, parent = None):
@@ -274,8 +275,10 @@ class ExperimentInfo(object):
 
             self.setupDetGeom()
             if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-
+                self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                                                               pix_scale_size_um=None,
+                                                                               xy0_off_pix=None,
+                                                                               cframe=gu.CFRAME_PSANA, fract=True)
             # update image
             self.getEventAndDisplay()
             # Indicate centre of detector
@@ -323,8 +326,11 @@ class ExperimentInfo(object):
 
                     self.setupDetGeom()
                     if self.parent.facility == self.parent.facilityLCLS:
-                        self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-
+                        self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                                                                       pix_scale_size_um=None,
+                                                                                       xy0_off_pix=None,
+                                                                                       cframe=gu.CFRAME_PSANA,
+                                                                                       fract=True)
                     # update image
                     self.getEventAndDisplay()
                     # Indicate centre of detector
@@ -365,8 +371,10 @@ class ExperimentInfo(object):
 
             self.setupDetGeom()
             if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-
+                self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                                                               pix_scale_size_um=None,
+                                                                               xy0_off_pix=None,
+                                                                               cframe=gu.CFRAME_PSANA, fract=True)
             # update image
             self.getEventAndDisplay()
             # Indicate centre of detector
@@ -555,7 +563,7 @@ class ExperimentInfo(object):
     def updateDetectorDistance(self, arg):
         if self.parent.detectorDistance < 0.01:
             try:
-                self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6  # metres
+                self.parent.detectorDistance = np.mean(-self.parent.det.coords_z(self.parent.evt)) * 1e-6  # metres
                 self.parent.geom.p1.param(self.parent.geom.geom_grp,
                                           self.parent.geom.geom_detectorDistance_str).setValue(
                     self.parent.detectorDistance * 1e3)  # mm
@@ -767,7 +775,7 @@ class ExperimentInfo(object):
             print "#######################################"
             print "# Available area detectors: "
             for k in self.parent.detInfoList:
-                print "#", highlight(k,'b')
+                print "#", utils.highlight(k,'b')
             print "#######################################"
 
     def setupCrawler(self):
@@ -843,8 +851,10 @@ class ExperimentInfo(object):
             # Set up detector and geometry
             self.setupDetGeom()
             if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-
+                self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                                                               pix_scale_size_um=None,
+                                                                               xy0_off_pix=None,
+                                                                               cframe=gu.CFRAME_PSANA, fract=True)
             # update image
             self.getEventAndDisplay()
             # Indicate centre of detector

@@ -78,7 +78,6 @@ clenEpics = args.clenEpics
 logger = args.logger
 hitParam_threshold = args.hitParam_threshold
 keepData = str2bool(args.keepData)
-dir = args.dir
 
 runDir = outDir + "/r" + str(runNumber).zfill(4)
 peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4)
@@ -170,9 +169,9 @@ def getPeakFileIndex(experimentName, runNumber, pkTag, eventSizes, currentInd):
     return pFile, pointer
 
 ##############################################################################
-# Get name of cxi file
+# Get name of index file
 fnameIndex = runDir+"/status_index"
-if args.pkTag: fnameIndex += '_'+args.pkTag
+if args.tag: fnameIndex += '_'+args.tag
 fnameIndex += ".txt"
 
 def findSize(runDir,experimentName,runNumber,pkTag):
@@ -278,7 +277,6 @@ for ind in range(numSize):
         except:
             print "Couldn't read file: ", pFile
 
-        print "numEvents: ", numEvents
         numEventsArr[ind] = numEvents
 
 totalNumEvents = np.sum(numEventsArr)
@@ -435,9 +433,8 @@ while Done == 0:
                 pass
 
         if args.v >= 1: print "Merging stream file: ", runNumber
-        indexedPeaks, numProcessed = getIndexedPeaks()
-        if args.v >= 1: print "Status update: ", runNumber, indexedPeaks, numProcessed
-        numIndexed = indexedPeaks #len(np.where(indexedPeaks > 0)[0])
+        numIndexed, numProcessed = getIndexedPeaks()
+        if args.v >= 1: print "Status update: ", runNumber, numIndexed, numProcessed
         if numProcessed == 0:
             indexRate = 0
         else:
@@ -451,11 +448,11 @@ while Done == 0:
             pass
 
         # Clean up temp files
-        #if args.v >= 1: print "Cleaning up temp files: ", runNumber
-        #for fname in myStreamList:
-        #    os.remove(fname)
-        #for fname in myLists:
-        #    os.remove(fname)
+        if args.v >= 1: print "Cleaning up temp files: ", runNumber
+        for fname in myStreamList:
+            os.remove(fname)
+        for fname in myLists:
+            os.remove(fname)
 
 hf.close()
 print "Done indexing run: ", runNumber

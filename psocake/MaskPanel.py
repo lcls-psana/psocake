@@ -479,6 +479,7 @@ class MaskMaker(object):
 
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskRect!!!!!!"
 
@@ -511,6 +512,7 @@ class MaskMaker(object):
 
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskCircle!!!!!!"
 
@@ -534,6 +536,7 @@ class MaskMaker(object):
 
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskThresh!!!!!!"
 
@@ -566,6 +569,8 @@ class MaskMaker(object):
             #
             self.displayMask()
             self.parent.pk.algInitDone = False
+            self.parent.mk.combinedMask = self.getCombinedStaticMask()
+            self.parent.pk.updateClassification()
         if self.parent.args.v >= 1: print "done makeMaskPoly!!!!!!"
 
     def getCombinedStaticMask(self):

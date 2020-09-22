@@ -481,42 +481,6 @@ class IndexHandler(QtCore.QThread):
         myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
         return myJobs
 
-    def getIndexedPeaks(self):
-        # Merge all stream files into one
-        totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber).zfill(4)+".stream"
-        with open(totalStream, 'w') as outfile:
-            for fname in self.myStreamList:
-                try:
-                    with open(fname) as infile:
-                        outfile.write(infile.read())
-                except: # file may not exist yet
-                    continue
-
-        # Add indexed peaks and remove images in hdf5
-        f = h5py.File(self.peakFile,'r')
-        totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
-        hitEvents = f['/LCLS/eventNumber'].value
-        f.close()
-        # Add indexed peaks
-        fstream = open(totalStream,'r')
-        content=fstream.readlines()
-        fstream.close()
-        indexedPeaks = np.zeros((totalEvents,),dtype=int)
-        numProcessed = 0
-        for i,val in enumerate(content):
-            if "Event: //" in val:
-                _evt = int(val.split("Event: //")[-1].strip())
-            if "indexed_by =" in val:
-                _ind = val.split("indexed_by =")[-1].strip()
-            if "num_peaks =" in val:
-                _num = val.split("num_peaks =")[-1].strip()
-                numProcessed += 1
-                if 'none' in _ind:
-                    continue
-                else:
-                    indexedPeaks[hitEvents[_evt]] = _num
-        return indexedPeaks, numProcessed
-
     def checkJobExit(self, jobID):
         cmd = "bjobs -d | grep "+str(jobID)
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -554,7 +518,6 @@ class IndexHandler(QtCore.QThread):
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
                 (major,minor,patch) = out.split('\n')[0].split(': ')[-1].split('.')
-                print "########: ", major, minor, patch
                 if int(major) == 0 and int(minor) < 8:
                     mySuccessString = "1 had crystals" # changed from crystfel v0.8
                 else:
@@ -614,7 +577,8 @@ class IndexHandler(QtCore.QThread):
                         numQuads = 1
                         numAsics = 1
                         for i in np.arange(numQuads):
-                                indexScan.append('p' + str(i))
+                            for j in np.arange(numAsics):
+                                indexScan.append('p' + str(i) + 'a' + str(j))
                     elif 'epix10k' in self.parent.detInfo.lower() and '2m' in self.parent.detInfo.lower():
                         numQuads = 16
                         numAsics = 4
@@ -669,7 +633,9 @@ class IndexHandler(QtCore.QThread):
                     for i, val in enumerate(content):
                         if 'End of peak list' in val:
                             endLine = i-1
-                        elif 'num_saturated_peaks =' in val:
+                        elif 'indexed_by =' in val:
+                            self.indexingAlg = val.split('=')[-1]
+                        elif 'num_saturated_reflections =' in val:
                             self.numSaturatedPeaks = int(val.split('=')[-1])
                         elif 'lattice_type =' in val:
                             self.latticeType = val.split('=')[-1]
@@ -721,8 +687,8 @@ class IndexHandler(QtCore.QThread):
                         dfPeaks['y'][i] = y
                     # Convert to psocake coordinates
                     for i in np.arange(numReflections):
-                        dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
-                        dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
+                        dfPeaks['psocakeX'][i] = self.parent.cy - dfPeaks['x'][i]
+                        dfPeaks['psocakeY'][i] = self.parent.cx + dfPeaks['y'][i]
 
                     if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
                         if self.parent.mouse.movie is None: # display gif
@@ -731,6 +697,7 @@ class IndexHandler(QtCore.QThread):
                         self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
                         self.parent.index.drawIndexedPeaks(self.latticeType, self.centering, self.unitCell) #FIXME: segfaults when indexing twice
                         try:
+                            print "Indexed_by = ", str(self.indexingAlg.strip())
                             print "####################"
                             print "lattice_type = ", str(self.latticeType.strip())
                             print "centering = ", str(self.centering.strip())

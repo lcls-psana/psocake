@@ -4,10 +4,10 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-experimentName = 'mfxp17318'
-runNumber = '13'
-detInfo = 'epix10k2M'
-evtNum = 626
+experimentName = 'mfx13016'
+runNumber = '28'
+detInfo = 'Rayonix'
+evtNum = 515
 
 """
 ######## PSOCAKE #########
@@ -27,7 +27,7 @@ cy = np.load('cy_%s_%s.npy'%(runNumber,evtNum))
 
 vmax=1000 # intensity maximum
 vmin=0  # intensity minimum
-distEdge=820 # pixels to edge
+distEdge=960 # pixels to edge
 res='2.1A'
 resColor='#0497cb'
 textSize=24

@@ -395,7 +395,7 @@ class MainFrame(QtGui.QWidget):
             self.exp.setupCrawler()
         if self.exp.hasExpRunDetInfo():
             self.exp.setupDetGeom()
-            self.img.updateDetectorCentre(self.facility)
+            self.img.updateDetectorCentre()
             self.exp.getEventAndDisplay()
         # Indicate centre of detector
         self.geom.drawCentre()

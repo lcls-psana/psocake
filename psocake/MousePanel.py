@@ -39,7 +39,7 @@ class Mouse(QtGui.QWidget):
         self.dock.addWidget(self.win)
         self.tm = ThreadsafeTimer(self.parent)
 
-        gifFolder = getGifPath(debug=False)
+        gifFolder = getGifPath(debug=True)
         self.fnames = []
         for file in os.listdir(gifFolder):
             if file.endswith(".gif"):

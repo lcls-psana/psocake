@@ -3,6 +3,7 @@ import numpy as np
 from skimage.morphology import h_maxima
 from skimage.measure import label, regionprops
 import time
+import PSCalib.GlobalUtils as gu
 
 # Donut mask
 # Returns a donut mask with inner radius r and outer radius R in NxM image
@@ -342,7 +343,11 @@ def getStreakMask(det,evt):
     imgEdges = det.image(evt,edgePixels)
 
     # Crop centre of image
-    (ix,iy) = det.point_indexes(evt)
+    #(ix,iy) = det.point_indexes(evt)
+    (ix,iy) = det.point_indexes(evt, pxy_um=(0, 0),
+                                pix_scale_size_um=None,
+                                xy0_off_pix=None,
+                                cframe=gu.CFRAME_PSANA, fract=False)
     halfWidth = 150
     imgCrop = img[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
     imgEdges = imgEdges[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
@@ -391,7 +396,11 @@ class StreakMask:
                 edgePixels[i,:,-1] = 1
             imgEdges = det.image(evt,edgePixels)
             # Centre of image
-            (self.ix,self.iy) = det.point_indexes(evt)
+            #(self.ix,self.iy) = det.point_indexes(evt)
+            (self.ix, self.iy) = det.point_indexes(evt, pxy_um=(0, 0),
+                                         pix_scale_size_um=None,
+                                         xy0_off_pix=None,
+                                         cframe=gu.CFRAME_PSANA, fract=False)
             if self.ix is not None:
                 self.halfWidth = int(width/2) # pixels
                 self.imgEdges = imgEdges[self.ix-self.halfWidth:self.ix+self.halfWidth,self.iy-self.halfWidth:self.iy+self.halfWidth]
@@ -472,7 +481,11 @@ def getStreakMaskCalib(det,evt,width=300,sigma=1):
     tic3 = time.time()
 
     # Crop centre of image
-    (ix,iy) = det.point_indexes(evt)
+    #(ix,iy) = det.point_indexes(evt)
+    (ix, iy) = det.point_indexes(evt, pxy_um=(0, 0),
+                                 pix_scale_size_um=None,
+                                 xy0_off_pix=None,
+                                 cframe=gu.CFRAME_PSANA, fract=False)
     halfWidth = int(width/2) # pixels
     imgCrop = img[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
     imgEdges = imgEdges[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]

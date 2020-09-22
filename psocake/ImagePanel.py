@@ -4,6 +4,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import time
 from utils import *
+import PSCalib.GlobalUtils as gu
 
 import psana
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
@@ -267,7 +268,10 @@ class ImageViewer(object):
         tic = time.time()
         if self.parent.exp.applyFriedel: # Apply Friedel symmetry
             print "Apply Friedel symmetry"
-            centre = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+            centre = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                                   pix_scale_size_um=None,
+                                                   xy0_off_pix=None,
+                                                   cframe=gu.CFRAME_PSANA, fract=True)
             self.fs = FriedelSym(self.parent.exp.detGuaranteedData.shape, centre)
             data = self.parent.det.image(self.parent.evt, _calib)
             if self.parent.mk.combinedMask is not None:
@@ -299,8 +303,10 @@ class ImageViewer(object):
             self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi()+90, self.parent.detectorDistance*1e6) # convert to um
             if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
 
-    def updateDetectorCentre(self, arg):
-        self.parent.cx, self.parent.cy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+    def updateDetectorCentre(self):
+        self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0), pix_scale_size_um=None,
+                                                       xy0_off_pix=None,
+                                                       cframe=gu.CFRAME_PSANA, fract=True)
         if self.parent.cx is None:
             print "#######################################"
             print "WARNING: Unable to get detector center position. Check detector geometry is deployed."
@@ -409,9 +415,6 @@ class ImageViewer(object):
         else:
             calib = np.zeros_like(self.parent.exp.detGuaranteed, dtype='float32')
             data = self.getAssembledImage(self.parent.facility, calib)
-
-        # Update detector centre
-        #self.updateDetectorCentre(self.parent.facility)
 
         # Update ROI histogram
         if self.parent.roi.roiCurrent == 'rect':

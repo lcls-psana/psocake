@@ -4,6 +4,7 @@ import os
 import PeakFinder as pf
 import h5py
 from utils import *
+import PSCalib.GlobalUtils as gu
 
 facility = 'LCLS'
 import psana
@@ -181,7 +182,11 @@ def runclient(args,ds,run,times,det,numEvents):
             iy = det.indexes_y(evt)
             det.iX = np.array(ix, dtype=np.int64)
             det.iY = np.array(iy, dtype=np.int64)
-            det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
+            #det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
+            det.ipx, det.ipyx = det.point_indexes(evt, pxy_um=(0, 0),
+                                                  pix_scale_size_um=None,
+                                                  xy0_off_pix=None,
+                                                  cframe=gu.CFRAME_PSANA, fract=True)
 
         numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
 

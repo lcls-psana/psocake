@@ -4,6 +4,7 @@ import os
 import utils
 import skimage.measure as sm
 import time
+import PSCalib.GlobalUtils as gu
 
 facility = 'LCLS'
 import psana
@@ -109,7 +110,11 @@ class PeakFinder:
 
         if facility == 'LCLS':
             self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
-            self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
+            #self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
+            self.cy, self.cx = self.det.point_indexes(evt, pxy_um=(0, 0),
+                                                      pix_scale_size_um=None,
+                                                      xy0_off_pix=None,
+                                                      cframe=gu.CFRAME_PSANA, fract=True)
             self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
             self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
             if len(self.iX.shape) == 2:

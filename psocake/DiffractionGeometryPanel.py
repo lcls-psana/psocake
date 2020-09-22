@@ -481,7 +481,7 @@ class DiffractionGeometry(object):
             ceny = np.ones_like(self.myResolutionRingList)*self.parent.cy
             diameter = 2*self.myResolutionRingList
 
-            self.parent.img.ring_feature.setData(ceny, cenx, symbol='o', \
+            self.parent.img.ring_feature.setData(cenx, ceny, symbol='o', \
                                       size=diameter, brush=(255,255,255,0), \
                                       pen='r', pxMode=False)
 
@@ -508,8 +508,13 @@ class DiffractionGeometry(object):
 
     def drawCentre(self):
         # Always indicate centre of detector
+        #ipy, ipx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+        #_cx, _cy = self.parent.det.coords_xy(self.parent.evt)
+        #print "_cx,_cy: ", _cx[0, 0, 0], _cy[0, 0, 0]
+        #print "drawCentre: ", self.parent.cx, self.parent.cy, ipx, ipy
+
         try:
-            self.parent.img.centre_feature.setData(np.array([self.parent.cy]), np.array([self.parent.cx]), symbol='o', \
+            self.parent.img.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
                                                size=6, brush=(255, 255, 255, 0), pen='r', pxMode=False)
             if self.parent.args.v >= 1: print "Done drawCentre"
         except:
@@ -526,13 +531,13 @@ class DiffractionGeometry(object):
     def deploy(self):
         with pg.BusyCursor():
             # Calculate detector translation required in x and y
-            dx = self.parent.pixelSize * 1e6 * (self.parent.cx - self.parent.roi.centreY)  # microns
-            dy = self.parent.pixelSize * 1e6 * (self.parent.cy - self.parent.roi.centreX)  # microns
-            dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6 # microns
+            dx = self.parent.pixelSize * 1e6 * (self.parent.roi.centreX - self.parent.cx)  # microns
+            dy = self.parent.pixelSize * 1e6 * (self.parent.roi.centreY - self.parent.cy)  # microns
+            dz = np.mean(-self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6 # microns
             geo = self.parent.det.geometry(self.parent.evt)
             top = geo.get_top_geo()
             children = top.get_list_of_children()[0]
-            geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
+            geo.move_geo(children.oname, 0, dx=-dy, dy=-dx, dz=dz)
             fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
             geo.save_pars_in_file(fname)
             print "#################################################"
@@ -576,11 +581,16 @@ class DiffractionGeometry(object):
                 # Calculate detector translation in x and y
                 dx = self.parent.pixelSize * 1e6 * (self.parent.cx - centreRow)  # microns
                 dy = self.parent.pixelSize * 1e6 * (self.parent.cy - centreCol)  # microns
-                dz = np.mean(self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
+                dz = np.mean(-self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
+
+                dx = self.parent.pixelSize * 1e6 * (self.parent.roi.centreX - self.parent.cx)  # microns
+                dy = self.parent.pixelSize * 1e6 * (self.parent.roi.centreY - self.parent.cy)  # microns
+                dz = np.mean(-self.parent.det.coords_z(self.parent.evt)) - self.parent.detectorDistance * 1e6  # microns
+
                 geo = self.parent.det.geometry(self.parent.evt)
                 top = geo.get_top_geo()
                 children = top.get_list_of_children()[0]
-                geo.move_geo(children.oname, 0, dx=dx, dy=dy, dz=-dz)
+                geo.move_geo(children.oname, 0, dx=-dy, dy=-dx, dz=dz)
                 fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
                 geo.save_pars_in_file(fname)
                 print "#################################################"

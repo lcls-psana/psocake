@@ -322,7 +322,10 @@ class PeakFinding(object):
                 self.updateAlgorithm(data)
             elif path[1] == self.hitParam_showPeaks_str:
                 self.showPeaks = data
-                self.drawPeaks()
+                if self.showPeaks and self.doingUpdate is False:
+                    self.updateClassification()
+                if not self.showPeaks:
+                    self.drawPeaks()
             elif path[1] == self.hitParam_autoPeaks_str:
                 ###########################
                 self.turnOnAutoPeaks = data
@@ -605,8 +608,12 @@ class PeakFinding(object):
                                 # Read in powder pattern and calculate pixel indices
                                 powderSum = np.load(powderSumFname)
                                 powderSum1D = powderSum.ravel()
-                                cx, cy = self.parent.det.indexes_xy(self.parent.evt)
-                                ipx, ipy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+                                cy, cx = self.parent.det.indexes_xy(self.parent.evt)
+                                #ipx, ipy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
+                                ipy, ipx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                                                          pix_scale_size_um=None,
+                                                                          xy0_off_pix=None,
+                                                                          cframe=gu.CFRAME_PSANA, fract=True)
                                 r = np.sqrt((cx - ipx) ** 2 + (cy - ipy) ** 2).ravel().astype(int)
                                 startR = 0
                                 endR = np.max(r)
