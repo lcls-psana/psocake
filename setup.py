@@ -19,5 +19,5 @@ setup(name='psocake',
       url='https://github.com/lcls-psana/psocake',
       packages=["psocake"],
       package_dir={"psocake": "psocake"},
-      package_data = {"psocake": "data/graphics/*.gif"},
+      package_data = {"psocake": ["data/graphics/*.gif"]},
       scripts=[s for s in glob('app/*') if not s.endswith('__.py')])
