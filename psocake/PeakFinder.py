@@ -159,7 +159,7 @@ class PeakFinder:
         self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi()+90, self.distance * 1e6)  # convert to um
 
     def findPeaks(self, calib, evt, minPeaks=15, thr_high=None, thr_low=None):
-        t0 = time.time()
+        #t0 = time.time()
         if facility == 'LCLS':
             if self.streakMask_on: # make new streak mask
                 self.streakMask = self.StreakMask.getStreakMaskCalib(evt)
@@ -179,7 +179,7 @@ class PeakFinder:
                 self.combinedMask = self.userPsanaMask * self.streakMask
             else:
                 self.combinedMask = self.userPsanaMask
-        t1 = time.time()
+        #t1 = time.time()
         # set algorithm specific parameters
         if self.algorithm == 1:
             if facility == 'LCLS':
@@ -242,7 +242,7 @@ class PeakFinder:
                                                        r0=self.peakRadius, dr=self.hitParam_alg1_dr,
                                                        nsigm=self.son_min,
                                                        mask=self.combinedMask.astype(np.uint16))
-        t2 = time.time()
+        #t2 = time.time()
         self.numPeaksFound = self.peaks.shape[0]
 
         if self.numPeaksFound >= minPeaks:
@@ -256,7 +256,7 @@ class PeakFinder:
             self.maxRes = getMaxRes(cenX, cenY, self.cx, self.cy)
         else:
             self.maxRes = 0
-        t3 = time.time()
+        #t3 = time.time()
         if self.numPeaksFound >= minPeaks:
             if self.powderHits is None:
                 self.powderHits = calib
@@ -270,8 +270,8 @@ class PeakFinder:
 
         if self.powderHits is None: self.powderHits = np.zeros_like(calib)
         if self.powderMisses is None: self.powderMisses = np.zeros_like(calib)
-        t4 = time.time()
-        print "breakdown: ", t4-t3,t3-t2,t2-t1,t1-t0
+        #t4 = time.time()
+        #print "breakdown: ", t4-t3,t3-t2,t2-t1,t1-t0
 
 def getMaxRes(posX, posY, centerX, centerY):
     maxRes = np.max(np.sqrt((posX - centerX) ** 2 + (posY - centerY) ** 2))

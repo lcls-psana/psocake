@@ -591,6 +591,12 @@ class ExperimentInfo(object):
                 wavelength = 0.1256 # namometre
             elif self.parent.experimentName == 'cxic00318':
                 wavelength = 0.1340 # namometre
+            elif self.parent.experimentName == 'cxilv4418':
+                wavelength = 0.1257 # namometre
+            elif self.parent.experimentName == 'mfxp17218':
+                wavelength = 0.1257 # namometre
+            elif self.parent.experimentName == 'mfxp17118':
+                wavelength = 0.1257 # namometre
             else:
                 wavelength = self.parent.epics.value('SIOC:SYS0:ML00:AO192')  # nanometre
             h = 6.626070e-34  # J.m

@@ -179,4 +179,5 @@ class SmallData(object):
     def showPeakogram(self):
         if os.path.isfile(self.quantifier_filename):
             cmd = "peakogram -i " + self.quantifier_filename
+            print "Running: ", cmd
             subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

@@ -65,7 +65,7 @@ class LaunchPeakFinder(QtCore.QThread):
             if self.parent.facility == self.parent.facilityLCLS:
                 cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
                       " -n "+str(self.parent.pk.hitParam_cpus) + \
-                      " -o "+runDir+"/.%J.log mpirun findPeaksTurbo -e "+self.experimentName+\
+                      " -o "+runDir+"/.%J.log mpirun --mca btl ^openib findPeaksTurbo -e "+self.experimentName+\
                       " -d "+self.detInfo+\
                       " --outDir "+runDir+\
                       " --algorithm "+str(self.parent.pk.algorithm)

@@ -27,12 +27,12 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
     d.peakFinder.findPeaks(detarr, evt, args.minPeaks) # this will perform background subtraction on detarr
     toc = time.time()
     myHdf5["/entry_1/result_1/nPeaksAll"][nevent] = len(d.peakFinder.peaks)
-    print "time to find/write peaks: ", rank, toc-tic, time.time()-toc
+    if nHits%500==0:
+        print "time to find/write peaks: ", rank, toc-tic, time.time()-toc
     if len(d.peakFinder.peaks) >= args.minPeaks and \
-           len(d.peakFinder.peaks) <= args.maxPeaks and \
-           d.peakFinder.maxRes >= args.minRes:
+       len(d.peakFinder.peaks) <= args.maxPeaks and \
+       d.peakFinder.maxRes >= args.minRes:
         tic = time.time()
-        print "Found hit: ", rank, nevent
         evtId = evt.get(psana.EventId)
         myHdf5['/LCLS/eventNumber'][nHits] = nevent
         myHdf5['/LCLS/machineTime'][nHits] = evtId.time()[0]
@@ -60,8 +60,10 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
             myHdf5["/entry_1/result_1/peakTotalIntensity"][nHits,j] = atot
             myHdf5["/entry_1/result_1/peakMaxIntensity"][nHits,j] = amax
         """
+        if nHits % 500 == 0:
+            print "time to write cxi peaks: ", len(d.peakFinder.peaks), time.time() - tic
         nHits += 1
-        print "time to write cxi peaks: ", len(d.peakFinder.peaks), time.time() - tic
+        myHdf5.flush()
     return nHits
 
 def readMask(args):
@@ -86,8 +88,8 @@ def runclient(args,ds,run,times,det,numEvents):
     myHdf5 = h5py.File(fname,"r+")
 
     for i, nevent in enumerate(myJobs):
-        print "nevent: ", rank, nevent
-        if i%3000 == 0 and i > 0: print "hits, hit rate: ", numHits, numHits/i
+        #print "nevent: ", rank, nevent
+        if i%200 == 0 and i > 0: print "hits, hit rate: ", numHits, numHits*1./i
         evt = run.event(times[nevent])
         if evt is None: continue
 
@@ -100,7 +102,7 @@ def runclient(args,ds,run,times,det,numEvents):
             else:
                 tic = time.time()
                 detarr = det.calib(evt)
-                print "time to fetch calib: ", rank, time.time() - tic
+                if i % 200 == 0: print "time to fetch calib: ", rank, time.time() - tic
         else:
             f = h5py.File(args.inputImages)
             ind = np.where(f['eventNumber'][()] == nevent)[0][0]
@@ -189,7 +191,8 @@ def runclient(args,ds,run,times,det,numEvents):
                                                   cframe=gu.CFRAME_PSANA, fract=True)
 
         numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
-
+        #if numHits%50==0:
+        #    print "Rank " + str(rank) + " found " + str(numHits) + " hits (hit rate): " + str(numHits*1./numJobs)
     # Finished with peak finding
     # Fill in clen and photon energy (eV)
     es = ds.env().epicsStore()
@@ -204,6 +207,12 @@ def runclient(args,ds,run,times,det,numEvents):
         photonEnergy = 9.8714e3 # eV
     elif 'cxic00318' in args.exp:
         photonEnergy = 9.25e3  # eV
+    elif 'cxilv4418' in args.exp:
+        photonEnergy = 9.86e3 # eV
+    elif 'mfxp17218' in args.exp:
+        photonEnergy = 9.86e3 # eV
+    elif 'mfxp17118' in args.exp:
+        photonEnergy = 9.86e3 # eV
     else:
         try:
             photonEnergy = 0
