@@ -305,8 +305,8 @@ class ImageViewer(object):
 
     def updateDetectorCentre(self):
         self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0), pix_scale_size_um=None,
-                                                       xy0_off_pix=None,
-                                                       cframe=gu.CFRAME_PSANA, fract=True)
+                                                       xy0_off_pix=None, fract=True)
+                                                       #cframe=gu.CFRAME_PSANA, fract=True)
         if self.parent.cx is None:
             print "#######################################"
             print "WARNING: Unable to get detector center position. Check detector geometry is deployed."
