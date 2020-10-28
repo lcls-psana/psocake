@@ -8,6 +8,7 @@ import PSCalib.GlobalUtils as gu
 
 facility = 'LCLS'
 import psana
+from numba import jit
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -22,46 +23,46 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
         value = exceptReturn
     return value
 
+
 def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
-    tic = time.time()
+    #tic = time.time()
     d.peakFinder.findPeaks(detarr, evt, args.minPeaks) # this will perform background subtraction on detarr
-    toc = time.time()
+    #toc = time.time()
     myHdf5["/entry_1/result_1/nPeaksAll"][nevent] = len(d.peakFinder.peaks)
-    if nHits%500==0:
-        print "time to find/write peaks: ", rank, toc-tic, time.time()-toc
+    #t0 = time.time()-toc
     if len(d.peakFinder.peaks) >= args.minPeaks and \
        len(d.peakFinder.peaks) <= args.maxPeaks and \
        d.peakFinder.maxRes >= args.minRes:
-        tic = time.time()
+        #t1 = time.time()
         evtId = evt.get(psana.EventId)
+        #t2 = time.time()
         myHdf5['/LCLS/eventNumber'][nHits] = nevent
+        #t3 = time.time()
         myHdf5['/LCLS/machineTime'][nHits] = evtId.time()[0]
+        #t4 = time.time()
         myHdf5['/LCLS/machineTimeNanoSeconds'][nHits] = evtId.time()[1]
+        #t5 = time.time()
         myHdf5['/LCLS/fiducial'][nHits] = evtId.fiducials()
-        myHdf5['/entry_1/data_1/data'][nHits,:,:] = pct(args.det, detarr)
+        #t6 = time.time()
+        _data = pct(args.det, detarr)
+        #t7 = time.time()
+        myHdf5['/entry_1/data_1/data'][nHits,:,:] = _data
         segs = d.peakFinder.peaks[:,0]
         rows = d.peakFinder.peaks[:,1]
         cols = d.peakFinder.peaks[:,2]
         amaxs = d.peakFinder.peaks[:,4]
         atots = d.peakFinder.peaks[:,5]
-        cheetahRows, cheetahCols = convert_peaks_to_cheetah(args.det, segs, rows, cols)
+        #t9 = time.time()
+        cheetahRows, cheetahCols = convert_peaks_to_cheetah(args.det, segs, rows, cols) #, 
+        #t10 = time.time()
         myHdf5["/entry_1/result_1/nPeaks"][nHits] = len(d.peakFinder.peaks)
         myHdf5["/entry_1/result_1/peakXPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahCols.astype('int')
         myHdf5["/entry_1/result_1/peakYPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahRows.astype('int')
         myHdf5["/entry_1/result_1/peakTotalIntensity"][nHits, :len(d.peakFinder.peaks)] = atots
         myHdf5["/entry_1/result_1/peakMaxIntensity"][nHits, :len(d.peakFinder.peaks)] = amaxs
-        """
-        for j, peak in enumerate(d.peakFinder.peaks):
-            seg,row,col,npix,amax,atot,rcent,ccent,rsigma,csigma,rmin,rmax,cmin,cmax,bkgd,rms,son = peak[0:17]
-            cheetahRow, cheetahCol = convert_peaks_to_cheetah(args.det, seg, row, col)
-            myHdf5["/entry_1/result_1/nPeaks"][nHits] = len(d.peakFinder.peaks)
-            myHdf5["/entry_1/result_1/peakXPosRaw"][nHits,j] = cheetahCol
-            myHdf5["/entry_1/result_1/peakYPosRaw"][nHits,j] = cheetahRow
-            myHdf5["/entry_1/result_1/peakTotalIntensity"][nHits,j] = atot
-            myHdf5["/entry_1/result_1/peakMaxIntensity"][nHits,j] = amax
-        """
-        if nHits % 500 == 0:
-            print "time to write cxi peaks: ", len(d.peakFinder.peaks), time.time() - tic
+        #t11 = time.time()
+        #if nHits % 1 == 0:
+        #    print "rank, numPeaks, t_findPeaks, t10: ", rank, len(d.peakFinder.peaks), toc-tic, t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7, t9-t8, t10-t9, t11-t10, t11-tic
         nHits += 1
         myHdf5.flush()
     return nHits
@@ -80,6 +81,7 @@ def runclient(args,ds,run,times,det,numEvents):
     numHits = 0
     myJobs = getMyUnfairShare(numEvents, size, rank)
     numJobs = len(myJobs) # events per rank
+    reportFreq = numJobs/2 + 1 
 
     runStr = "%04d" % args.run
     fname = args.outDir + '/' + args.exp +"_"+ runStr +"_"+str(rank)
@@ -88,9 +90,10 @@ def runclient(args,ds,run,times,det,numEvents):
     myHdf5 = h5py.File(fname,"r+")
 
     for i, nevent in enumerate(myJobs):
-        #print "nevent: ", rank, nevent
-        if i%200 == 0 and i > 0: print "hits, hit rate: ", numHits, numHits*1./i
+        #s0 = time.time()
+        if i % reportFreq == 0 and i > 0 and rank % 10: print "rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs
         evt = run.event(times[nevent])
+        #s1 = time.time()
         if evt is None: continue
 
         if not args.inputImages:
@@ -102,7 +105,7 @@ def runclient(args,ds,run,times,det,numEvents):
             else:
                 tic = time.time()
                 detarr = det.calib(evt)
-                if i % 200 == 0: print "time to fetch calib: ", rank, time.time() - tic
+                if i % reportFreq == 0 and rank % 10: print "det.calib (rank, time): ", rank, time.time() - tic
         else:
             f = h5py.File(args.inputImages)
             ind = np.where(f['eventNumber'][()] == nevent)[0][0]
@@ -111,7 +114,7 @@ def runclient(args,ds,run,times,det,numEvents):
             else:
                 detarr = f['data/data'][ind, :, :, :]
             f.close()
-
+        #s2 = time.time()
         if detarr is None: continue
 
         # Initialize hit finding
@@ -149,7 +152,6 @@ def runclient(args,ds,run,times,det,numEvents):
                                               localCalib=args.localCalib,
                                               access=args.access)
             elif args.algorithm >= 2:
-                print "init alg: ", rank
                 det.peakFinder = pf.PeakFinder(args.exp, args.run, args.det, evt, det,
                                              args.algorithm, args.alg_npix_min,
                                              args.alg_npix_max, args.alg_amax_thr,
@@ -184,15 +186,15 @@ def runclient(args,ds,run,times,det,numEvents):
             iy = det.indexes_y(evt)
             det.iX = np.array(ix, dtype=np.int64)
             det.iY = np.array(iy, dtype=np.int64)
-            #det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
             det.ipx, det.ipyx = det.point_indexes(evt, pxy_um=(0, 0),
                                                   pix_scale_size_um=None,
                                                   xy0_off_pix=None,
                                                   cframe=gu.CFRAME_PSANA, fract=True)
-
+        #s3 = time.time()
         numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
-        #if numHits%50==0:
-        #    print "Rank " + str(rank) + " found " + str(numHits) + " hits (hit rate): " + str(numHits*1./numJobs)
+        #s4 = time.time()
+        #print "time per event (rank, det.evt, det.calib, init, calcPeaks, total): ", rank, s1-s0, s2-s1, s3-s2, s4-s3, s4-s0
+
     # Finished with peak finding
     # Fill in clen and photon energy (eV)
     es = ds.env().epicsStore()

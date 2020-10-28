@@ -324,39 +324,29 @@ def createCxi(fname):
     ds_posX = myHdf5.create_dataset("/entry_1/result_1/peakXPosRaw",(numJobs,args.maxPeaks),
                                     maxshape=(None,args.maxPeaks),
                                     chunks = (1, args.maxPeaks),
-                                    compression='gzip',
-                                    compression_opts=1,
                                     dtype=float)
     ds_posX.attrs["axes"] = "experiment_identifier:peaks"
 
     ds_posY = myHdf5.create_dataset("/entry_1/result_1/peakYPosRaw",(numJobs,args.maxPeaks),
                                     maxshape=(None,args.maxPeaks),
                                     chunks=(1, args.maxPeaks),
-                                    compression='gzip',
-                                    compression_opts=1,
                                     dtype=float)
     ds_posY.attrs["axes"] = "experiment_identifier:peaks"
 
     ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity",(numJobs,args.maxPeaks),
                                     maxshape=(None,args.maxPeaks),
                                     chunks=(1, args.maxPeaks),
-                                    compression='gzip',
-                                    compression_opts=1,
                                     dtype=float)
     ds_atot.attrs["axes"] = "experiment_identifier:peaks"
     ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (numJobs,args.maxPeaks),
                                     maxshape = (None,args.maxPeaks),
                                     chunks = (1,args.maxPeaks),
-                                    compression='gzip',
-                                    compression_opts=1,
                                     dtype=float)
     ds_amax.attrs["axes"] = "experiment_identifier:peaks"
 
     ds_radius = myHdf5.create_dataset("/entry_1/result_1/peakRadius",(numJobs,args.maxPeaks),
                                      maxshape=(None,args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
-                                     compression='gzip',
-                                     compression_opts=1,
                                      dtype=float)
     ds_radius.attrs["axes"] = "experiment_identifier:peaks"
 
@@ -420,8 +410,6 @@ def createCxi(fname):
     ds_data_1 = detector_1.create_dataset("data", (numJobs, dim0, dim1),
                                          chunks=(1, dim0, dim1),
                                          maxshape=(None, dim0, dim1),
-                                         compression='gzip',
-                                         compression_opts=1,
                                          dtype=float)
     ds_data_1.attrs["axes"] = "experiment_identifier"
 
@@ -434,20 +422,14 @@ def createCxi(fname):
     ds_x = data_1.create_dataset("x", (dim0, dim1),
                                 chunks=(dim0, dim1),
                                 maxshape=(dim0, dim1),
-                                compression='gzip',
-                                compression_opts=1,
                                 dtype=float)
     ds_y = data_1.create_dataset("y", (dim0, dim1),
                                 chunks=(dim0, dim1),
                                 maxshape=(dim0, dim1),
-                                compression='gzip',
-                                compression_opts=1,
                                 dtype=float)
     ds_z = data_1.create_dataset("z", (dim0, dim1),
                                 chunks=(dim0, dim1),
                                 maxshape=(dim0, dim1),
-                                compression='gzip',
-                                compression_opts=1,
                                 dtype=float)
     ds_x[...] = ps.getCheetahImg(calib=cx)
     ds_y[...] = ps.getCheetahImg(calib=cy)
@@ -459,21 +441,15 @@ def createCxi(fname):
         data_1.create_dataset("mask", (dim0, dim1),
                               chunks=(dim0, dim1),
                               maxshape=(dim0, dim1),
-                              compression='gzip',
-                              compression_opts=1,
                               dtype=int)
 
     data_1.create_dataset("powderHits", (dim0, dim1),
                               chunks=(dim0, dim1),
                               maxshape=(dim0, dim1),
-                              compression='gzip',
-                              compression_opts=1,
                               dtype=float)
     data_1.create_dataset("powderMisses", (dim0, dim1),
                               chunks=(dim0, dim1),
                               maxshape=(dim0, dim1),
-                              compression='gzip',
-                              compression_opts=1,
                               dtype=float)
 
     ds_dist_1 = detector_1.create_dataset("distance",(numJobs,),
@@ -554,14 +530,14 @@ if rank == 0:
     createCxi(fnameAll)
 
 toc = time.time()
-print "h5 setup time: ", rank, size, toc-tic
+print "h5 setup (rank, time): ", rank, toc-tic
 
 tic = time.time()
 
 runclient(args,ds,run,times,det,numJobs)
 
 toc = time.time()
-print "compute time: ", rank, toc-tic
+print "compute time (rank, time): ", rank, toc-tic
 
 comm.Barrier()
 
