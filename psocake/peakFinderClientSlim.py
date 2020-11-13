@@ -60,11 +60,24 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         myHdf5["/entry_1/result_1/peakYPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahRows.astype('int')
         myHdf5["/entry_1/result_1/peakTotalIntensity"][nHits, :len(d.peakFinder.peaks)] = atots
         myHdf5["/entry_1/result_1/peakMaxIntensity"][nHits, :len(d.peakFinder.peaks)] = amaxs
+
+        tic = time.time()
+        cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+        cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
+                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
+                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+        x = cenX - d.ipx
+        y = cenY - d.ipy
+        radius = np.sqrt((x ** 2) + (y ** 2))
+        myHdf5["/entry_1/result_1/peakRadius"][nHits, :len(d.peakFinder.peaks)] = radius
+        print "radius: ", rank, time.time() - tic
         #t11 = time.time()
         #if nHits % 1 == 0:
         #    print "rank, numPeaks, t_findPeaks, t10: ", rank, len(d.peakFinder.peaks), toc-tic, t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7, t9-t8, t10-t9, t11-t10, t11-tic
         nHits += 1
-        myHdf5.flush()
+        #myHdf5.flush()
     return nHits
 
 def readMask(args):
@@ -186,7 +199,7 @@ def runclient(args,ds,run,times,det,numEvents):
             iy = det.indexes_y(evt)
             det.iX = np.array(ix, dtype=np.int64)
             det.iY = np.array(iy, dtype=np.int64)
-            det.ipx, det.ipyx = det.point_indexes(evt, pxy_um=(0, 0),
+            det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0),
                                                   pix_scale_size_um=None,
                                                   xy0_off_pix=None,
                                                   cframe=gu.CFRAME_PSANA, fract=True)
@@ -248,6 +261,7 @@ def runclient(args,ds,run,times,det,numEvents):
     myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits,args.maxPeaks))
+    myHdf5["/entry_1/result_1/peakRadius"].resize((numHits, args.maxPeaks))
 
     # add powder
     myHdf5["/entry_1/data_1/powderHits"][...] = pct(args.det, det.peakFinder.powderHits)
@@ -272,5 +286,5 @@ def runclient(args,ds,run,times,det,numEvents):
 
     if '/status/findPeaks' in myHdf5: del myHdf5['/status/findPeaks']
     myHdf5['/status/findPeaks'] = 'success'
-    myHdf5.flush()
+    #myHdf5.flush()
     myHdf5.close()
