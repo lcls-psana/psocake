@@ -275,10 +275,13 @@ class ExperimentInfo(object):
 
             self.setupDetGeom()
             if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                try:
+                    self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                                                pix_scale_size_um=None,
                                                                                xy0_off_pix=None,
                                                                                cframe=gu.CFRAME_PSANA, fract=True)
+                except AttributeError:
+                    self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt)
             # update image
             self.getEventAndDisplay()
             # Indicate centre of detector
@@ -288,10 +291,10 @@ class ExperimentInfo(object):
 
         #self.setupExperiment()
         if self.hasExpRunDetInfo(): print "starting setup"
-    
+
         #self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateExperimentName:", self.parent.experimentName
-    
+
     def updateRunNumber(self, data):
         if data == 0:
             self.parent.runNumber = data
@@ -326,11 +329,14 @@ class ExperimentInfo(object):
 
                     self.setupDetGeom()
                     if self.parent.facility == self.parent.facilityLCLS:
-                        self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                        try:
+                            self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                                                        pix_scale_size_um=None,
                                                                                        xy0_off_pix=None,
                                                                                        cframe=gu.CFRAME_PSANA,
                                                                                        fract=True)
+                        except AttributeError:
+                            self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt)
                     # update image
                     self.getEventAndDisplay()
                     # Indicate centre of detector
@@ -371,10 +377,13 @@ class ExperimentInfo(object):
 
             self.setupDetGeom()
             if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                try:
+                    self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                                                pix_scale_size_um=None,
                                                                                xy0_off_pix=None,
                                                                                cframe=gu.CFRAME_PSANA, fract=True)
+                except AttributeError:
+                    self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt)
             # update image
             self.getEventAndDisplay()
             # Indicate centre of detector
@@ -464,7 +473,7 @@ class ExperimentInfo(object):
                     self.p.param(self.exp_grp, self.exp_run_str).setValue(self.parent.runNumber)
                     return False
         return False
-     
+
     def hasExpRunDetInfo(self):
         if self.parent.args.v >= 1: print "exp,run,det: ", self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
@@ -531,7 +540,7 @@ class ExperimentInfo(object):
     # Launch crawler
     crawlerThread = []
     crawlerThreadCounter = 0
-    
+
     def launchCrawler(self):
         self.crawlerThread.append(LogbookCrawler.LogbookCrawler(self.parent))  # send parent parameters with self
         self.crawlerThread[self.crawlerThreadCounter].updateLogbook(self.parent.experimentName, self.parent.psocakeDir)
@@ -720,7 +729,7 @@ class ExperimentInfo(object):
         self.parent.index.p9.param(self.parent.index.launch_grp, self.parent.index.runs_str).setValue(
             self.parent.runNumber)
         # Update quantifier filename
-        if self.parent.pk.tag: 
+        if self.parent.pk.tag:
             fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + "_" + self.parent.pk.tag + '.cxi'
         else:
             fname = self.parent.psocakeRunDir + '/' + self.parent.experimentName + '_' + str(self.parent.runNumber).zfill(4) + '.cxi'
@@ -857,10 +866,13 @@ class ExperimentInfo(object):
             # Set up detector and geometry
             self.setupDetGeom()
             if self.parent.facility == self.parent.facilityLCLS:
-                self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                try:
+                    self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                                                pix_scale_size_um=None,
                                                                                xy0_off_pix=None,
                                                                                cframe=gu.CFRAME_PSANA, fract=True)
+                except AttributeError:
+                    self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt)
             # update image
             self.getEventAndDisplay()
             # Indicate centre of detector
@@ -900,7 +912,7 @@ class ExperimentInfo(object):
         self.applyFriedel = data
         self.parent.img.updateImage()
         if self.parent.args.v >= 1: print "Done updateFriedel: ", self.applyFriedel
-    
+
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
         self.updateCommonMode(self.applyCommonMode)

@@ -268,10 +268,13 @@ class ImageViewer(object):
         tic = time.time()
         if self.parent.exp.applyFriedel: # Apply Friedel symmetry
             print "Apply Friedel symmetry"
-            centre = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+            try:
+                centre = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                    pix_scale_size_um=None,
                                                    xy0_off_pix=None,
                                                    cframe=gu.CFRAME_PSANA, fract=True)
+            except AttributeError:
+                centre = self.parent.det.point_indexes(self.parent.evt)
             self.fs = FriedelSym(self.parent.exp.detGuaranteedData.shape, centre)
             data = self.parent.det.image(self.parent.evt, _calib)
             if self.parent.mk.combinedMask is not None:
@@ -304,9 +307,12 @@ class ImageViewer(object):
             if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
 
     def updateDetectorCentre(self):
-        self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0), pix_scale_size_um=None,
-                                                       xy0_off_pix=None,
+        try:
+            self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0), pix_scale_size_um=None,
+                                                       xy0_off_pix=None, fract=True,
                                                        cframe=gu.CFRAME_PSANA, fract=True)
+        except AttributeError:
+            self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
         if self.parent.cx is None:
             print "#######################################"
             print "WARNING: Unable to get detector center position. Check detector geometry is deployed."
