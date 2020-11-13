@@ -111,10 +111,13 @@ class PeakFinder:
         if facility == 'LCLS':
             self.StreakMask = myskbeam.StreakMask(self.det, evt, width=self.streakMask_width, sigma=self.streakMask_sigma)
             #self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
-            self.cy, self.cx = self.det.point_indexes(evt, pxy_um=(0, 0),
+            try:
+                self.cy, self.cx = self.det.point_indexes(evt, pxy_um=(0, 0),
                                                       pix_scale_size_um=None,
                                                       xy0_off_pix=None,
                                                       cframe=gu.CFRAME_PSANA, fract=True)
+            except AttributeError:
+                self.cx, self.cy = self.det.point_indexes(evt, pxy_um=(0, 0))
             self.iX = np.array(self.det.indexes_x(evt), dtype=np.int64)
             self.iY = np.array(self.det.indexes_y(evt), dtype=np.int64)
             if len(self.iX.shape) == 2:
@@ -247,11 +250,11 @@ class PeakFinder:
 
         if self.numPeaksFound >= minPeaks:
             if facility == 'LCLS':
-                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64), 
-                               np.array(self.peaks[:, 1], dtype=np.int64), 
+                cenX = self.iX[np.array(self.peaks[:, 0], dtype=np.int64),
+                               np.array(self.peaks[:, 1], dtype=np.int64),
                                np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
-                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64), 
-                               np.array(self.peaks[:, 1], dtype=np.int64), 
+                cenY = self.iY[np.array(self.peaks[:, 0], dtype=np.int64),
+                               np.array(self.peaks[:, 1], dtype=np.int64),
                                np.array(self.peaks[:, 2], dtype=np.int64)] + 0.5
             self.maxRes = getMaxRes(cenX, cenY, self.cx, self.cy)
         else:

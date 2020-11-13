@@ -185,11 +185,13 @@ def runclient(args,ds,run,times,det,numEvents):
             det.iX = np.array(ix, dtype=np.int64)
             det.iY = np.array(iy, dtype=np.int64)
             #det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
-            det.ipx, det.ipyx = det.point_indexes(evt, pxy_um=(0, 0),
+            try:
+                det.ipx, det.ipyx = det.point_indexes(evt, pxy_um=(0, 0),
                                                   pix_scale_size_um=None,
                                                   xy0_off_pix=None,
                                                   cframe=gu.CFRAME_PSANA, fract=True)
-
+            except AttributeError:
+                det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
         numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
         #if numHits%50==0:
         #    print "Rank " + str(rank) + " found " + str(numHits) + " hits (hit rate): " + str(numHits*1./numJobs)
