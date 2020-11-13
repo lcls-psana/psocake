@@ -610,10 +610,13 @@ class PeakFinding(object):
                                 powderSum1D = powderSum.ravel()
                                 cy, cx = self.parent.det.indexes_xy(self.parent.evt)
                                 #ipx, ipy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-                                ipy, ipx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
+                                try:
+                                    ipy, ipx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                                           pix_scale_size_um=None,
                                                                           xy0_off_pix=None,
                                                                           cframe=gu.CFRAME_PSANA, fract=True)
+                                except AttributeError:
+                                    ipx, ipy = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
                                 r = np.sqrt((cx - ipx) ** 2 + (cy - ipy) ** 2).ravel().astype(int)
                                 startR = 0
                                 endR = np.max(r)
