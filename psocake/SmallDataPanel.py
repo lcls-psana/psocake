@@ -178,6 +178,22 @@ class SmallData(object):
 
     def showPeakogram(self):
         if os.path.isfile(self.quantifier_filename):
-            cmd = "peakogram -i " + self.quantifier_filename
+            fname = self.quantifier_filename.split(".cxi")[0]
+            if self.parent.pk.tag:
+                fname = fname.split("_"+self.parent.pk.tag)[0]
+            c = 0
+            while True:
+                exists = True
+                _fname = fname
+                if self.parent.pk.tag:
+                    _fname += "_" + str(c) + "_" + self.parent.pk.tag + ".cxi"
+                else:
+                    _fname += "_" + str(c) + ".cxi"
+                exists = os.path.exists(_fname)
+                print _fname, exists
+                if not exists: break
+                c += 1
+            cmd = "peakogram -i " + fname + " -n " + str(c)
+            if self.parent.pk.tag: cmd += " -t " + self.parent.pk.tag
             print "Running: ", cmd
             subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

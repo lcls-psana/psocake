@@ -577,9 +577,9 @@ class MaskMaker(object):
         # update combined mask
         combinedStaticMask = np.ones_like(self.parent.calib, dtype='int')
         if self.userMask is not None and self.userMaskOn is True:
-            combinedStaticMask *= self.userMask
+            combinedStaticMask *= self.userMask.astype('int')
         if self.psanaMask is not None and self.psanaMaskOn is True:
-            combinedStaticMask *= self.psanaMask
+            combinedStaticMask *= self.psanaMask.astype('int')
         return combinedStaticMask
 
     def parseMaskTag(self):

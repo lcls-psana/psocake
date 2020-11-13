@@ -81,10 +81,10 @@ if rank == 0:
     dset_nHits = "/nHitsAll"
     if grpName in myHdf5:
         del myHdf5[grpName]
-    myHdf5.flush()
+    #myHdf5.flush()
     grp = myHdf5.create_group(grpName)
     myHdf5.create_dataset(grpName+dset_nHits, data=np.ones(numJobs,)*-1, dtype='int')
-    myHdf5.flush()
+    #myHdf5.flush()
     myHdf5.close()
 
 comm.Barrier()

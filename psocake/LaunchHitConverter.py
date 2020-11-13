@@ -55,7 +55,7 @@ class LaunchHitConverter(QtCore.QThread):
 
             cmd = "bsub -q " + self.parent.hf.spiParam_queue + \
                   " -n " + str(self.parent.hf.spiParam_cpus) + \
-                  " -o " + runDir + "/.%J.log mpirun xtc2cxi" + \
+                  " -o " + runDir + "/.%J.log mpirun --mca btl ^openib xtc2cxi" + \
                   " -e " + self.experimentName + \
                   " -d " + self.detInfo + \
                   " -i " + runDir + \
@@ -66,9 +66,10 @@ class LaunchHitConverter(QtCore.QThread):
                   " --detectorDistance " + str(self.parent.detectorDistance) + \
                   " --hitThresh " + str(self.parent.hf.hitParam_hitThresh) + \
                   " --backgroundThresh " + str(self.parent.hf.hitParam_backgroundThresh) + \
-                  " --mode spi" + \
-                  " --tag " + self.parent.hf.tag + \
-                  " --run " + str(run)
+                  " --mode spi"
+            if self.parent.hf.tag: cmd += " --tag " + self.parent.hf.tag
+            cmd += " -r " + str(run)
+
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()

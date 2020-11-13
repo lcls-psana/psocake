@@ -19,6 +19,8 @@ import ntpath
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", default="peaks.txt", help="peaks.txt file")
+parser.add_argument("-n", type=int, help="number of cxi files")
+parser.add_argument("-t", default="", help="cxi file tag")
 parser.add_argument("-l", action="store_true", help="log scale y-axis")
 parser.add_argument("--rmin", type=float, help="minimum pixel resolution cutoff")
 parser.add_argument("--rmax", type=float, help="maximum pixel resolution cutoff")
@@ -50,11 +52,21 @@ if (args.i.endswith(".txt")):
     x = data[:, 0]
     y = data[:, 1]
 
-elif (args.i.endswith(".cxi")):
-    f = h5py.File(args.i, 'r')
-    x = f['entry_1/result_1/peakRadiusAll'].value
-    y = f['entry_1/result_1/peakMaxIntensityAll'].value
-    f.close()
+else:
+    for i in range(args.n):
+        fname = args.i + "_" + str(i)
+        if args.t: fname += "_"+args.t
+        fname += ".cxi"
+        print fname
+        f = h5py.File(fname, 'r')
+        if i == 0:
+            x = f['entry_1/result_1/peakRadius'].value
+            y = f['entry_1/result_1/peakMaxIntensity'].value
+        else:
+            x = np.append(x,f['entry_1/result_1/peakRadius'].value,axis=0)
+            y = np.append(y,f['entry_1/result_1/peakMaxIntensity'].value,axis=0)
+        f.close()
+        print x.shape
 
 xmin = np.min(x[x > 0])
 xmax = np.max(x)
@@ -97,10 +109,9 @@ else:
 
 if (args.i.endswith(".txt")):
     plt.title(args.i)
-elif (args.i.endswith(".cxi")):
-    if ("/reg/d/psdm/cxi/" in args.i):
-        head, tail = ntpath.split(args.i)
-        plt.title(tail)
+else:
+    if args.t:
+        plt.title(args.i+"_"+args.t)
     else:
         plt.title(args.i)
 plt.show()

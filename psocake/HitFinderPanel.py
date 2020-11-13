@@ -1,12 +1,9 @@
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
-from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph as pg
-import LaunchHitFinder
 import numpy as np
-import h5py
-import operator
-import subprocess, time, os, json
+import json
+import LaunchHitFinder
 import LaunchHitConverter
 import HitFinder as alg
 

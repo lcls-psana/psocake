@@ -3,6 +3,7 @@ import numpy as np
 from mpidata import mpidata 
 import HitFinder as hf
 import HitFinder_chiSquared as hfChi
+import time
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -10,18 +11,22 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 
 def runclient(args):
+    #t0 = time.time()
     ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':idx')
     run = ds.runs().next()
     env = ds.env()
     times = run.times()
     d = psana.Detector(args.detectorName)
     d.do_reshape_2d_to_3d(flag=True)
-
+    #t1 = time.time()
+    #print "setup: ", rank, t1-t0
     for nevent in np.arange(len(times)):
+        t2 = time.time()
         if nevent == args.noe : break
         if nevent%(size-1) != rank-1: continue # different ranks look at different events
         evt = run.event(times[nevent])
         detarr = d.calib(evt)
+        #t3 = time.time()
 
         if detarr is None: continue
 
@@ -65,11 +70,13 @@ def runclient(args):
                                            psanaMask_unbondnrs=args.psanaMask_unbondnrs,
                                            hitThreshold=args.hitThreshold)
         d.hitFinder.findHits(detarr,evt)
+        #t4 = time.time()
         md=mpidata()
         md.small.eventNum = nevent
         md.small.nPixels = d.hitFinder.nPixels
         md.small.powder = 0
         md.send() # send mpi data object to master when desired
+        #print "hit finder: ", rank, t3-t2, t4-t3
 
     # At the end of the run, send the powder of hits and misses
     md = mpidata()

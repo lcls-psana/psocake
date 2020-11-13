@@ -136,6 +136,7 @@ while notDone:
         notDone += 1
         if notDone >= 10: exit()
         time.sleep(10)
+    if numHits == 0: exit()
 
 if mode == 'sfx' and instrumentName == 'cxi':
     # Get image shape
@@ -221,7 +222,7 @@ if rank == 0:
     if "cxi_version" in f:
         del f["cxi_version"]
     f.create_dataset("cxi_version",data=args.cxiVersion)
-    f.flush()
+    #f.flush()
 
     ###################
     # LCLS
@@ -285,7 +286,7 @@ if rank == 0:
     ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(numHits,),dtype=int)
     ds_evtNum_1.attrs["axes"] = "experiment_identifier"
     ds_evtNum_1.attrs["numEvents"] = numHits
-    f.flush()
+    #f.flush()
     ###################
     # entry_1
     ###################
@@ -297,7 +298,7 @@ if rank == 0:
     ds_expId = entry_1.create_dataset("experimental_identifier",(numHits,),dtype=int)#dt)
     ds_expId.attrs["axes"] = "experiment_identifier"
     ds_expId.attrs["numEvents"] = numHits
-    f.flush()
+    #f.flush()
 
     if mode == 'sfx':
         if "entry_1/result_1/nPeaks" in f:
@@ -333,7 +334,7 @@ if rank == 0:
         ds_nHits.attrs["hitThresh"] = args.hitThresh
         ds_nHits.attrs["backgroundThreshMin"] = backgroundThreshMin
         ds_nHits.attrs["backgroundThreshMax"] = backgroundThreshMax
-    f.flush()
+    #f.flush()
 
     if "start_time" in entry_1:
         del entry_1["start_time"]
@@ -371,7 +372,7 @@ if rank == 0:
     ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
     ds_y_pixel_size_1.attrs["numEvents"] = numHits
     detector_1.create_dataset("description",data=detInfo)
-    f.flush()
+    #f.flush()
 
     if mode == 'sfx':
         dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)
@@ -402,7 +403,7 @@ if rank == 0:
             data_1 = entry_1.create_group("data_1")
             data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
         source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
-    f.flush()
+    #f.flush()
     f.close()
 
 comm.Barrier()
@@ -467,11 +468,14 @@ if rank == 0:
 es = ps.ds.env().epicsStore()
 
 for i,val in enumerate(myHitInd):
+    t0 = time.time()
     globalInd = myJobs[0]+i
     ds_expId[globalInd] = val
     ps.getEvent(val)
+    t1 = time.time()
 
     ebeamDet = psana.Detector('EBeam')
+    t2 = time.time()
     # Write image in cheetah format
     if mode == 'sfx' and 'cspad' in ps.detInfo.lower():
         img = ps.getCheetahImg()
@@ -492,6 +496,7 @@ for i,val in enumerate(myHitInd):
                 dset_1[globalInd, :, :] = ps.getAssembledImg()
             if args.savePhot:
                 dset_2[globalInd, :, :] = ps.getAssembledPhotons()
+    t3 = time.time()
 
     try:
         pulseLength = es.value('SIOC:SYS0:ML00:AO820')*1e-15 # s
@@ -504,7 +509,8 @@ for i,val in enumerate(myHitInd):
     ds_dist_1[globalInd] = detectorDistance
     ds_x_pixel_size_1[globalInd] = x_pixel_size
     ds_y_pixel_size_1[globalInd] = y_pixel_size
-    f.flush()
+    #f.flush()
+    t4 = time.time()
 
     # LCLS
     if "cxi" in args.exp:
@@ -573,6 +579,7 @@ for i,val in enumerate(myHitInd):
         ds_wavelengthA_1[globalInd] = ds_wavelength_1[globalInd] * 10.
     except:
         ds_wavelengthA_1[globalInd] = 0
+    t5 = time.time()
 
     ebeam = ebeamDet.get(ps.evt)  #ebeam = ps.evt.get(psana.Bld.BldDataEBeamV7, psana.Source('BldInfo(EBeam)'))
     try:
@@ -593,7 +600,8 @@ for i,val in enumerate(myHitInd):
     ds_photonEnergy_1[globalInd] = photonEnergy
     ds_pulseEnergy[globalInd] = pulseEnergy
 
-    f.flush()
+    #f.flush()
+    t6 = time.time()
 
     evtId = ps.evt.get(psana.EventId)
     sec = evtId.time()[0]
@@ -604,6 +612,7 @@ for i,val in enumerate(myHitInd):
     ds_nsec_1[globalInd] = nsec
     ds_fid_1[globalInd] = fid
     ds_evtNum_1[globalInd] = val
+    t7 = time.time()
 
     if mode == 'sfx':
         ds_nPeaks[globalInd] = nPeaks[val]
@@ -613,8 +622,9 @@ for i,val in enumerate(myHitInd):
         ds_maxRes[globalInd] = maxRes[val]
     elif mode == 'spi':
         ds_nHits[globalInd] = nHits[val]
-    f.flush()
-
+    t8 = time.time()
+    #f.flush()
+    t9 = time.time()
     if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
 
     if rank == 0 and i%10 == 0:
@@ -625,7 +635,8 @@ for i,val in enumerate(myHitInd):
             writeStatus(statusFname, d)
         except:
             pass
-
+    #t10 = time.time()
+    #print "hit convert: ", rank, t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7, t9-t8, t10-t9
 f.close()
 
 if rank == 0:

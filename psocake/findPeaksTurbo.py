@@ -124,10 +124,10 @@ def createCxi(fname):
         myInput += "\n"
     dset = myHdf5.create_dataset("/psocake/input",(1,), dtype=dt)
     dset[...] = myInput
-    myHdf5.flush()
+    #myHdf5.flush()
 
     myHdf5.create_dataset("cxi_version", data=args.cxiVersion)
-    myHdf5.flush()
+    #myHdf5.flush()
 
     dt = h5py.special_dtype(vlen=np.float)
     dti = h5py.special_dtype(vlen=np.dtype('int32'))
@@ -278,7 +278,7 @@ def createCxi(fname):
                                                    dtype=float)
     ds_pressure_2.attrs["axes"] = "experiment_identifier"
 
-    myHdf5.flush()
+    #myHdf5.flush()
 
     ###################
     # entry_1
@@ -302,7 +302,7 @@ def createCxi(fname):
     myHdf5.create_dataset("/entry_1/result_1/laserTimeZeroAll", data=np.ones(numJobs, ) * -1, dtype=float)
     myHdf5.create_dataset("/entry_1/result_1/laserTimeDelayAll", data=np.ones(numJobs, ) * -1, dtype=float)
     myHdf5.create_dataset("/entry_1/result_1/laserTimePhaseLockedAll", data=np.ones(numJobs, ) * -1, dtype=float)
-    myHdf5.flush()
+    #myHdf5.flush()
 
     if args.profile:
         myHdf5.create_dataset("/entry_1/result_1/calibTime", data=np.zeros(numJobs, ), dtype=float)
@@ -311,7 +311,7 @@ def createCxi(fname):
         myHdf5.create_dataset("/entry_1/result_1/reshapeTime", (0,), maxshape=(None,), dtype=float)
         myHdf5.create_dataset("/entry_1/result_1/totalTime", data=np.zeros(numJobs, ), dtype=float)
         myHdf5.create_dataset("/entry_1/result_1/rankID", data=np.zeros(numJobs, ), dtype=int)
-        myHdf5.flush()
+        #myHdf5.flush()
 
     ds_nPeaks = myHdf5.create_dataset("/entry_1/result_1/nPeaks",(numJobs,),
                                       maxshape=(None,),
@@ -380,14 +380,14 @@ def createCxi(fname):
                                                    dtype=float)
     ds_laserTimePhaseLocked.attrs["axes"] = "experiment_identifier"
 
-    myHdf5.flush()
+    #myHdf5.flush()
 
     entry_1.create_dataset("start_time",data=0)#ps.getStartTime())
     sample_1 = entry_1.create_group("sample_1")
     sample_1.create_dataset("name",data=args.sample)
     instrument_1 = entry_1.create_group("instrument_1")
     instrument_1.create_dataset("name", data=args.instrument)
-    myHdf5.flush()
+    #myHdf5.flush()
 
     source_1 = instrument_1.create_group("source_1")
     ds_photonEnergy = source_1.create_dataset("energy",(0,),
@@ -404,7 +404,7 @@ def createCxi(fname):
                                             maxshape=(None,),
                                             dtype=float) # in s
     ds_pulseWidth.attrs["axes"] = "experiment_identifier"
-    myHdf5.flush()
+    #myHdf5.flush()
 
     detector_1 = instrument_1.create_group("detector_1")
     ds_data_1 = detector_1.create_dataset("data", (numJobs, dim0, dim1),
@@ -468,7 +468,7 @@ def createCxi(fname):
     ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
 
     detector_1.create_dataset("description",data=args.det)
-    myHdf5.flush()
+    #myHdf5.flush()
 
     # Close hdf5 file
     myHdf5.close()

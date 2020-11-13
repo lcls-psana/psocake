@@ -111,105 +111,61 @@ size = comm.Get_size()
 
 if rank == 0: print "GP: ", args
 
-if facility == 'LCLS':
-    if args.localCalib: setOption('psana.calib-dir', './calib')
+if args.localCalib: setOption('psana.calib-dir', './calib')
 
-    ds = DataSource(args.exprun+':idx')
-    env = ds.env()
+ds = DataSource(args.exprun+':idx')
+env = ds.env()
 
-    # set this to sys.maxint to analyze all events
-    maxevents = sys.maxint
+# set this to sys.maxint to analyze all events
+maxevents = sys.maxint
 
-    detname = args.detList[0] #['Camp.0:pnCCD.0']#,'Camp.0:pnCCD.1']
-    detlist = [Detector(s, env) for s in detname]
-    for d,n in zip(detlist,detname):
-        d.detname = n
+detname = args.detList[0] #['Camp.0:pnCCD.0']#,'Camp.0:pnCCD.1']
+detlist = [Detector(s, env) for s in detname]
+for d,n in zip(detlist,detname):
+    d.detname = n
 
-    for run in ds.runs():
-        nevent = np.array([0])
-        runnumber = run.run()
-        # list of all events
-        times = run.times()
-        if args.noe == 0:
-            numJobs = len(times)
-        else:
-            if args.noe <= len(times):
-                numJobs = args.noe
-            else:
-                numJobs = len(times)
-
-        ind = getMyUnfairShare(numJobs, size, rank)
-        mytimes = times[ind[0]:ind[-1] + 1]
-
-        if args.random:
-            import numpy.random
-            numpy.random.seed(seed=1234)
-            ind = numpy.random.permutation(len(ind))
-
-        for d in detlist:
-            d.stats = Stats(env.experiment(), runnumber, d.detname)
-            for i,time in enumerate(ind):
-                if i%100==0 and i > 99: print 'Rank',rank,'processing event', i,'of',len(mytimes)
-                evt = run.event(mytimes[i])
-                try:
-                    detarr = d.calib(evt)
-                except ValueError:
-                    id = evt.get(EventId)
-                    print 'Value Error!'
-                    print id
-                    print id.time(),id.fiducials()
-                    continue
-                if detarr is None:
-                    print '*** failed to get detarr'
-                    continue
-                if args.threshold is not None:
-                    detarr[detarr < args.threshold] = 0
-                d.stats.update(detarr)
-                nevent+=1
-            if hasattr(d, 'stats'):
-                d.stats.store()
-    MPI.Finalize()
-elif facility == 'PAL':
-    exp = args.exprun.split(':')[0].split('=')[-1]
-    run = args.exprun.split(':')[-1].split('=')[-1]
-    temp = args.dir + '/' + exp[:3] + '/' + exp + \
-           '/data/r' + str(run).zfill(4) + '/*.h5'
-    _files = glob.glob(temp)
-
-    numJobs = len(_files)
+for run in ds.runs():
+    nevent = np.array([0])
+    runnumber = run.run()
+    # list of all events
+    times = run.times()
     if args.noe == 0:
-        numJobs = len(_files)
+        numJobs = len(times)
     else:
-        if args.noe <= len(_files):
+        if args.noe <= len(times):
             numJobs = args.noe
         else:
-            numJobs = len(_files)
+            numJobs = len(times)
+
     ind = getMyUnfairShare(numJobs, size, rank)
+    mytimes = times[ind[0]:ind[-1] + 1]
 
-    class Object(object): pass
-    d = Object()
+    if args.random:
+        import numpy.random
+        numpy.random.seed(seed=1234)
+        ind = numpy.random.permutation(len(ind))
 
-    detList = args.detList[0]
-    for detname in detList:
-        d.stats = Stats(exp, int(run), detname)
-        if len(ind) == 0:
-            fname = _files[0]
-            f = h5py.File(fname)
-            detarr = f['/data'].value
-            detarr = np.zeros_like(detarr)
-            d.stats.update(detarr, dummy=1)
-        else:
-            for i in ind:
-                if i % 100 == 0: print 'Rank', rank, 'processing event', i, 'of', len(ind)
-                fname = _files[i]
-                f = h5py.File(fname)
-                detarr = f['/data'].value
-                f.close()
-                if args.threshold is not None:
-                    print "Applying threshold: ", args.threshold
-                    detarr[detarr < args.threshold] = 0
-                d.stats.update(detarr)
+    for d in detlist:
+        d.stats = Stats(env.experiment(), runnumber, d.detname)
+        for i,time in enumerate(ind):
+            if i%100==0 and i > 99: print 'Rank',rank,'processing event', i,'of',len(mytimes)
+            evt = run.event(mytimes[i])
+            try:
+                detarr = d.calib(evt)
+            except ValueError:
+                id = evt.get(EventId)
+                print 'Value Error!'
+                print id
+                print id.time(),id.fiducials()
+                continue
+            if detarr is None:
+                print '*** failed to get detarr'
+                continue
+            if args.threshold is not None:
+                detarr[detarr < args.threshold] = 0
+            d.stats.update(detarr)
+            nevent+=1
         if hasattr(d, 'stats'):
             d.stats.store()
-    MPI.Finalize()
+MPI.Finalize()
 

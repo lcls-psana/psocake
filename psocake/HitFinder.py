@@ -27,7 +27,7 @@ class HitFinder:
         self.psanaMask_unbond = str2bool(psanaMask_unbond)
         self.psanaMask_unbondnrs = str2bool(psanaMask_unbondnrs)
 
-        if kwargs['hitThreshold']:
+        if 'hitThreshold' in kwargs:
             self.hitThreshold = kwargs['hitThreshold']
         else:
             self.hitThreshold = -1
