@@ -159,6 +159,7 @@ class PeakFinder:
                              phiedges=(0, 360), nphibins=1)
 
     def updatePolarizationFactor(self):
+        # FIXME: handle vertical/horizontal polarization properly
         self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi()+90, self.distance * 1e6)  # convert to um
 
     def findPeaks(self, calib, evt, minPeaks=15, thr_high=None, thr_low=None):
@@ -186,7 +187,6 @@ class PeakFinder:
         # set algorithm specific parameters
         if self.algorithm == 1:
             if facility == 'LCLS':
-                #print "param: ", self.npix_min, self.npix_max, self.atot_thr, self.son_min, thr_low, thr_high, np.sum(self.combinedMask)
                 # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
                 #                           around pixel with maximal intensity.
                 if thr_high is None: # use gui input
@@ -198,12 +198,6 @@ class PeakFinder:
                                                     r0=self.hitParam_alg1_radius,
                                                     dr=self.hitParam_alg1_dr,
                                                     mask=self.combinedMask.astype(np.uint16))
-#                    self.peaks = self.alg.peak_finder_v4r2(calib,
-#                                                           thr_low=self.hitParam_alg1_thr_low,
-#                                                           thr_high=self.hitParam_alg1_thr_high,
-#                                                           rank=self.hitParam_alg1_rank,
-#                                                           r0=self.hitParam_alg1_radius,
-#                                                           dr=self.hitParam_alg1_dr)
                 else:
                     self.peaks = self.alg.findPeaks(calib,
                                                     npix_min=self.npix_min,
@@ -213,17 +207,9 @@ class PeakFinder:
                                                     thr_low=thr_low,
                                                     thr_high=thr_high,
                                                     mask=self.combinedMask)
-#                    self.peaks = self.alg.peak_finder_v4r2(calib,
-#                                                           thr_low=thr_low,
-#                                                           thr_high=thr_high,
-#                                                           rank=self.hitParam_alg1_rank,
-#                                                           r0=self.hitParam_alg1_radius,
-#                                                           dr=self.hitParam_alg1_dr)
         elif self.algorithm == 2:
             if facility == 'LCLS':
-                #print "param: ", self.npix_min, self.npix_max, self.atot_thr, self.son_min, thr_low, thr_high, np.sum(self.combinedMask)
-                # v1 - aka Droplet Finder - two-threshold peak-finding algorithm in restricted region
-                #                           around pixel with maximal intensity.
+                # Adaptive peak finder v3r3
                 self.peakRadius = int(self.hitParam_alg1_radius)
                 self.peaks = self.alg.peak_finder_v3r3(calib, rank=int(self.hitParam_alg1_rank),
                                                        r0=self.peakRadius, dr=self.hitParam_alg1_dr,
@@ -274,7 +260,8 @@ class PeakFinder:
         if self.powderHits is None: self.powderHits = np.zeros_like(calib)
         if self.powderMisses is None: self.powderMisses = np.zeros_like(calib)
         #t4 = time.time()
-        #print "breakdown: ", t4-t3,t3-t2,t2-t1,t1-t0
+        #print "breakdown (powder, maxRes, peaks, mask): ", t4-t3,t3-t2,t2-t1,t1-t0
+        # 0.013 3.0e-06 0.122 3.09e-06
 
 def getMaxRes(posX, posY, centerX, centerY):
     maxRes = np.max(np.sqrt((posX - centerX) ** 2 + (posY - centerY) ** 2))

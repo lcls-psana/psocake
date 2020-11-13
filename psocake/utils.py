@@ -6,6 +6,7 @@ import numpy as np
 from numba import jit
 import subprocess, os
 import string, random
+import time
 
 ansi_cmap = {"k": '0;30',
         "r": '0;31',
@@ -109,7 +110,7 @@ def convert_peaks_to_cheetah(detname, s, r, c) :
         row2d = r
         col2d = c
     else:
-        print "Error: This detector is not supported"
+        print("Error: This detector is not supported")
         exit()
     return row2d, col2d
 
@@ -140,7 +141,7 @@ def convert_peaks_to_psana(detname, row2d, col2d) :
         r = row2d
         c = col2d
     else:
-        print "Error: This detector is not supported"
+        print("Error: This detector is not supported")
         exit()
     return s, r, c
 
@@ -150,8 +151,10 @@ def pct(detname, unassembled):
     :param unassembled: psana unassembled image
     :return: cheetah tile
     """
+    #t0 = time.time()
     if "rayonix" in detname.lower():
         img = unassembled[:, :] # TODO: express in terms of x,y,dim0,dim1
+        return img
     else:
         if "cspad" in detname.lower():
             row = 8
@@ -177,12 +180,17 @@ def pct(detname, unassembled):
         else:
             print "Error: This detector is not supported"
             exit()
+
         counter = 0
+        #t1 = time.time()
         img = np.zeros((dim0, dim1))
+        #t2 = time.time()
         for quad in range(col):
             for seg in range(row):
                 img[seg * x:(seg + 1) * x, quad * y:(quad + 1) * y] = unassembled[counter, :, :]
                 counter += 1
+        #t3 = time.time()
+        #print "pct: ", t1-t0, t2-t1, t3-t2
     return img
 
 def ipct(detname, tile):

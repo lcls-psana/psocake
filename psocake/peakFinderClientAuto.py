@@ -26,8 +26,9 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
     return value
 
 def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
+    t0 = time.time()
     d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
-
+    t1 = time.time()
     #---------------------------------
     # Try SZ (only seems to work on single node)
     #if d.peakFinder.numPeaksFound > 0:
@@ -47,6 +48,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     if numPeaksFound >= args.minPeaks and \
        numPeaksFound <= args.maxPeaks and \
        d.peakFinder.maxRes >= args.minRes:
+        t2 = time.time()
         cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
                     np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
                     np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
@@ -75,11 +77,14 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
         wavelength = 12.407002 / float(photonEnergy)  # Angstrom
         norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
         qPeaks = (np.array([x, y, z]) / norm - np.array([[0.], [0.], [1.]])) / wavelength
+        t3 = time.time()
         [meanClosestNeighborDist, pairsFoundPerSpot] = calculate_likelihood(qPeaks)
+        t4 = time.time()
+        print "likelihood: ", t4-t3, t3-t2
     else:
         pairsFoundPerSpot = 0.0
 
-
+    t5 = time.time()
     md = mpidata()
     md.addarray('peaks', d.peakFinder.peaks)
     md.addarray('radius', radius)
@@ -190,6 +195,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     md.small.sec = evtId.time()[0]
     md.small.nsec = evtId.time()[1]
     md.small.fid = evtId.fiducials()
+    t6 = time.time()
 
     if len(d.peakFinder.peaks) >= args.minPeaks and \
        len(d.peakFinder.peaks) <= args.maxPeaks and \
@@ -199,12 +205,14 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
         img = ps.getCheetahImg(d.peakFinder.calib) # d.peakFinder.calib == detarr
         if img is not None:
             md.addarray('data', img)
-
+    t7 = time.time()
     if args.profile:
         totalTime = time.time() - startTic
         md.small.totalTime = totalTime
         md.small.rankID = rank
     md.send() # send mpi data object to master when desired
+    t8 = time.time()
+    print "calcpeak: ", t8-t0, t1-t0, t6-t5, t7-t6, t8-t7
 
 def runclient(args):
     pairsFoundPerSpot = 0.0
