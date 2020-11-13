@@ -347,7 +347,7 @@ def getStreakMask(det,evt):
     (ix,iy) = det.point_indexes(evt, pxy_um=(0, 0),
                                 pix_scale_size_um=None,
                                 xy0_off_pix=None,
-                                cframe=gu.CFRAME_PSANA, fract=False)
+                                cframe=gu.PS, fract=False)
     halfWidth = 150
     imgCrop = img[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
     imgEdges = imgEdges[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
@@ -397,10 +397,14 @@ class StreakMask:
             imgEdges = det.image(evt,edgePixels)
             # Centre of image
             #(self.ix,self.iy) = det.point_indexes(evt)
-            (self.ix, self.iy) = det.point_indexes(evt, pxy_um=(0, 0),
+            try:
+                (self.ix, self.iy) = det.point_indexes(evt, pxy_um=(0, 0),
                                          pix_scale_size_um=None,
                                          xy0_off_pix=None,
                                          cframe=gu.CFRAME_PSANA, fract=False)
+            except AttributeError:
+                (self.ix,self.iy) = det.point_indexes(evt)
+
             if self.ix is not None:
                 self.halfWidth = int(width/2) # pixels
                 self.imgEdges = imgEdges[self.ix-self.halfWidth:self.ix+self.halfWidth,self.iy-self.halfWidth:self.iy+self.halfWidth]
@@ -482,10 +486,14 @@ def getStreakMaskCalib(det,evt,width=300,sigma=1):
 
     # Crop centre of image
     #(ix,iy) = det.point_indexes(evt)
-    (ix, iy) = det.point_indexes(evt, pxy_um=(0, 0),
+    try:
+        (ix, iy) = det.point_indexes(evt, pxy_um=(0, 0),
                                  pix_scale_size_um=None,
                                  xy0_off_pix=None,
                                  cframe=gu.CFRAME_PSANA, fract=False)
+    except AttributeError:
+        (ix,iy) = det.point_indexes(evt)
+
     halfWidth = int(width/2) # pixels
     imgCrop = img[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
     imgEdges = imgEdges[ix-halfWidth:ix+halfWidth,iy-halfWidth:iy+halfWidth]
