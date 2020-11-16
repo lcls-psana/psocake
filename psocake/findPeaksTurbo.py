@@ -333,10 +333,47 @@ def createCxi(fname):
                                     dtype=float)
     ds_posY.attrs["axes"] = "experiment_identifier:peaks"
 
+    ds_peak1 = myHdf5.create_dataset("/entry_1/result_1/peak1", (numJobs, args.maxPeaks),
+                                     maxshape=(None, args.maxPeaks),
+                                     chunks=(1, args.maxPeaks),
+                                     dtype=float)
+    ds_peak1.attrs["axes"] = "experiment_identifier:peaks"
+
+    ds_peak2 = myHdf5.create_dataset("/entry_1/result_1/peak2", (numJobs, args.maxPeaks),
+                                     maxshape=(None, args.maxPeaks),
+                                     chunks=(1, args.maxPeaks),
+                                     dtype=float)
+    ds_peak2.attrs["axes"] = "experiment_identifier:peaks"
+
+    ds_peak3 = myHdf5.create_dataset("/entry_1/result_1/peak3", (numJobs, args.maxPeaks),
+                                     maxshape=(None, args.maxPeaks),
+                                     chunks=(1, args.maxPeaks),
+                                     dtype=float)
+    ds_peak3.attrs["axes"] = "experiment_identifier:peaks"
+
+    ds_peak4 = myHdf5.create_dataset("/entry_1/result_1/peak4", (numJobs, args.maxPeaks),
+                                     maxshape=(None, args.maxPeaks),
+                                     chunks=(1, args.maxPeaks),
+                                     dtype=float)
+    ds_peak4.attrs["axes"] = "experiment_identifier:peaks"
+
+    ds_peak5 = myHdf5.create_dataset("/entry_1/result_1/peak5", (numJobs, args.maxPeaks),
+                                     maxshape=(None, args.maxPeaks),
+                                     chunks=(1, args.maxPeaks),
+                                     dtype=float)
+    ds_peak5.attrs["axes"] = "experiment_identifier:peaks"
+
+    ds_peak6 = myHdf5.create_dataset("/entry_1/result_1/peak6", (numJobs, args.maxPeaks),
+                                     maxshape=(None, args.maxPeaks),
+                                     chunks=(1, args.maxPeaks),
+                                     dtype=float)
+    ds_peak6.attrs["axes"] = "experiment_identifier:peaks"
+
     ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity",(numJobs,args.maxPeaks),
                                     maxshape=(None,args.maxPeaks),
                                     chunks=(1, args.maxPeaks),
                                     dtype=float)
+
     ds_atot.attrs["axes"] = "experiment_identifier:peaks"
     ds_amax = myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensity", (numJobs,args.maxPeaks),
                                     maxshape = (None,args.maxPeaks),

@@ -52,12 +52,26 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         cols = d.peakFinder.peaks[:,2]
         amaxs = d.peakFinder.peaks[:,4]
         atots = d.peakFinder.peaks[:,5]
+        rcentT = d.peakFinder.peaks[:,6]
+        ccentT = d.peakFinder.peaks[:,7]
+        rminT = d.peakFinder.peaks[:,10]
+        rmaxT = d.peakFinder.peaks[:,11]
+        cminT = d.peakFinder.peaks[:,12]
+        cmaxT = d.peakFinder.peaks[:,13]
         #t9 = time.time()
         cheetahRows, cheetahCols = convert_peaks_to_cheetah(args.det, segs, rows, cols) #, 
         #t10 = time.time()
         myHdf5["/entry_1/result_1/nPeaks"][nHits] = len(d.peakFinder.peaks)
         myHdf5["/entry_1/result_1/peakXPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahCols.astype('int')
         myHdf5["/entry_1/result_1/peakYPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahRows.astype('int')
+
+        myHdf5["/entry_1/result_1/peak1"][nHits, :len(d.peakFinder.peaks)] = rcentT
+        myHdf5["/entry_1/result_1/peak2"][nHits, :len(d.peakFinder.peaks)] = ccentT
+        myHdf5["/entry_1/result_1/peak3"][nHits, :len(d.peakFinder.peaks)] = rminT
+        myHdf5["/entry_1/result_1/peak4"][nHits, :len(d.peakFinder.peaks)] = rmaxT
+        myHdf5["/entry_1/result_1/peak5"][nHits, :len(d.peakFinder.peaks)] = cminT
+        myHdf5["/entry_1/result_1/peak6"][nHits, :len(d.peakFinder.peaks)] = cmaxT
+
         myHdf5["/entry_1/result_1/peakTotalIntensity"][nHits, :len(d.peakFinder.peaks)] = atots
         myHdf5["/entry_1/result_1/peakMaxIntensity"][nHits, :len(d.peakFinder.peaks)] = amaxs
 
@@ -200,7 +214,7 @@ def runclient(args,ds,run,times,det,numEvents):
             det.iX = np.array(ix, dtype=np.int64)
             det.iY = np.array(iy, dtype=np.int64)
             try:
-                det.ipx, det.ipyx = det.point_indexes(evt, pxy_um=(0, 0),
+                det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0),
                                                   pix_scale_size_um=None,
                                                   xy0_off_pix=None,
                                                   cframe=gu.CFRAME_PSANA, fract=True)
@@ -261,6 +275,14 @@ def runclient(args,ds,run,times,det,numEvents):
     myHdf5["/entry_1/data_1/data"].resize((numHits, dataShape[1], dataShape[2]))
     myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits,args.maxPeaks))
+
+    myHdf5["/entry_1/result_1/peak1"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/peak2"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/peak3"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/peak4"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/peak5"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/peak6"].resize((numHits, args.maxPeaks))
+
     myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakRadius"].resize((numHits, args.maxPeaks))
