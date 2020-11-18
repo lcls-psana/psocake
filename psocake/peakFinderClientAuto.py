@@ -273,7 +273,7 @@ def runclient(args):
                 detarr = d.calib(evt)
         else:
             f = h5py.File(args.inputImages)
-            ind = np.where(f['eventNumber'].value == nevent)[0][0]
+            ind = np.where(f['eventNumber'][()] == nevent)[0][0]
             if len(f['/data/data'].shape) == 3:
                 detarr = ipct(args.det, f['data/data'][ind, :, :])
             else:
@@ -428,7 +428,7 @@ def runclient(args):
         grpName = "/entry_1/result_1"
         try:
             myHdf5 = h5py.File(fname, 'r')
-            nPeaksAll = myHdf5[grpName + dset_nPeaks].value
+            nPeaksAll = myHdf5[grpName + dset_nPeaks][()]
             myHdf5.close()
             ind = np.where(nPeaksAll == -1)[0]
             numLeft = len(ind)

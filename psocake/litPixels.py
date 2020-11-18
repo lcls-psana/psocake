@@ -128,9 +128,9 @@ def nunchakuAlgorithm(stickLength=15):
         outname = os.path.join(args.outdir, env.experiment() + '_' + str(run.run()) + '_' + args.tag + '.h5')
     # Clean up hdf5 structure if it exists
     f = h5py.File(outname, 'r+')
-    t             = f[grpName+'/eventTime'].value
-    fid           = f[grpName+'/fiducials'].value
-    hitMetric     = f[grpName+'/hitMetric'].value
+    t             = f[grpName+'/eventTime'][()]
+    fid           = f[grpName+'/fiducials'][()]
+    hitMetric     = f[grpName+'/hitMetric'][()]
     timeOrder   = t.argsort()
     hitMetric = hitMetric[timeOrder]
     numEvents = len(hitMetric)

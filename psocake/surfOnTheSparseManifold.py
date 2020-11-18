@@ -196,7 +196,7 @@ def diffusionMap(sigmaK, alpha=1, numEigs=6):
 
     myHdf5 = h5py.File(fname, 'r+')
 
-    D_data = myHdf5[grpNameDM+dset_data].value
+    D_data = myHdf5[grpNameDM+dset_data][()]
     dim = myHdf5[grpNameDM+dset_data].attrs['numHits']
     D_indices = myHdf5[grpNameDM+dset_indices]
     D_indptr = myHdf5[grpNameDM+dset_indptr]
@@ -243,7 +243,7 @@ class imageRetriever:
                 f1 = h5py.File(filename,'r')
                 numHits = f1['/entry_1/result_1/nHits'].attrs['numEvents']
                 hitInd = np.arange(0,numHits)
-                hitEvent = f1['/LCLS/eventNumber'].value
+                hitEvent = f1['/LCLS/eventNumber'][()]
                 runInd = np.ones((numHits,),dtype=int)*r
 
                 if numHits > 0:
@@ -321,10 +321,10 @@ else:
     sigma = args.sigma
 print "eigs: ", eigvec, eigvec.dtype, eigvec.shape
 
-mask = f[grpNameDM+'/mask'].value
+mask = f[grpNameDM+'/mask'][()]
 hasSigmas = True
 try:
-    sigmas = f[grpNameDM+'/L'].value
+    sigmas = f[grpNameDM+'/L'][()]
 except:
     hasSigmas = False
 

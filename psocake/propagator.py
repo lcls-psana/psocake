@@ -461,7 +461,7 @@ class imageRetriever:
 
                 numHits = f1['/entry_1/result_1/nHits'].attrs['numEvents']
                 hitInd = np.arange(0,numHits)
-                hitEvent = f1['/LCLS/eventNumber'].value
+                hitEvent = f1['/LCLS/eventNumber'][()]
                 runInd = np.ones((numHits,),dtype=int)*r
 
                 if numHits > 0:
@@ -921,7 +921,7 @@ grpNameDM = '/diffusionMap'
 dset_indices = '/D_indices'
 dset_indptr = '/D_indptr'
 dset_data = '/D_data'
-X = f[grpNameDM + '/eigvec'].value
+X = f[grpNameDM + '/eigvec'][()]
 expName = f[grpNameDM + '/eigvec'].attrs['exp']
 runs = f[grpNameDM + '/eigvec'].attrs['runs']
 detInfo = f[grpNameDM + '/eigvec'].attrs['detectorName']

@@ -374,7 +374,7 @@ def runclient(args):
         grpName = "/entry_1/result_1"
         try:
             myHdf5 = h5py.File(fname, 'r')
-            nPeaksAll = myHdf5[grpName + dset_nPeaks].value
+            nPeaksAll = myHdf5[grpName + dset_nPeaks][()]
             myHdf5.close()
             ind = np.where(nPeaksAll == -1)[0]
             numLeft = len(ind)

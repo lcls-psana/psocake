@@ -60,11 +60,11 @@ else:
         print fname
         f = h5py.File(fname, 'r')
         if i == 0:
-            x = f['entry_1/result_1/peakRadius'].value
-            y = f['entry_1/result_1/peakMaxIntensity'].value
+            x = f['entry_1/result_1/peakRadius'][()]
+            y = f['entry_1/result_1/peakMaxIntensity'][()]
         else:
-            x = np.append(x,f['entry_1/result_1/peakRadius'].value,axis=0)
-            y = np.append(y,f['entry_1/result_1/peakMaxIntensity'].value,axis=0)
+            x = np.append(x,f['entry_1/result_1/peakRadius'][()],axis=0)
+            y = np.append(y,f['entry_1/result_1/peakMaxIntensity'][()],axis=0)
         f.close()
         print x.shape
 

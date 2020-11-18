@@ -145,7 +145,7 @@ def getIndexedPeaks():
 def getpath(cxi_name):
     global search_name, hf
     if cxi_name.endswith(search_name):
-        try: hf[cxi_name].value
+        try: hf[cxi_name][()]
         except Exception: return None
         return cxi_name
 
@@ -245,7 +245,7 @@ for ind in range(numSize):
     try:
         if facility == 'LCLS':
             f = h5py.File(pFile, 'r')
-            hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'].value == 'success'
+            hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'][()] == 'success'
             minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
             maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
             minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
@@ -269,9 +269,9 @@ for ind in range(numSize):
             if facility == 'LCLS':
                 print "Reading images from: ", pFile
                 f = h5py.File(pFile, 'r')
-                eventList = f['/LCLS/eventNumber'].value
+                eventList = f['/LCLS/eventNumber'][()]
                 if args.likelihood > 0:
-                    likelihood = f['/entry_1/result_1/likelihood'].value
+                    likelihood = f['/entry_1/result_1/likelihood'][()]
                 numEvents = len(eventList)
                 f.close()
         except:

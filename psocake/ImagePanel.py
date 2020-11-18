@@ -205,7 +205,7 @@ class ImageViewer(object):
                     calib = self.parent.det.calib(self.parent.evt)
                 else:
                     f = h5py.File(self.parent.inputImages)
-                    ind = np.where(f['eventNumber'].value == evtNumber)[0][0]
+                    ind = np.where(f['eventNumber'][()] == evtNumber)[0][0]
                     if len(f['/data/data'].shape) == 3:
                         calib = ipct(self.parent.detInfo, f['data/data'][ind, :, :])
                     else:
