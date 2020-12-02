@@ -94,6 +94,10 @@ def convert_peaks_to_cheetah(detname, s, r, c) :
     """Converts seg, row, col assuming (32,185,388)
        to cheetah 2-d table row and col (8*185, 4*388)
     """
+    if isinstance(s, np.ndarray):
+        s = s.astype('int')
+        r = r.astype('int')
+        c = c.astype('int')
     if "cspad" in detname.lower():
         segs, rows, cols = (32, 185, 388)
         row2d = (s % 8) * rows + r  # where s%8 is a segment in quad number [0,7]
