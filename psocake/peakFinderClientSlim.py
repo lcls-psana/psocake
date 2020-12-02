@@ -86,7 +86,7 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         y = cenY - d.ipy
         radius = np.sqrt((x ** 2) + (y ** 2))
         myHdf5["/entry_1/result_1/peakRadius"][nHits, :len(d.peakFinder.peaks)] = radius
-        print "radius: ", rank, time.time() - tic
+        #print "radius: ", rank, time.time() - tic
         #t11 = time.time()
         #if nHits % 1 == 0:
         #    print "rank, numPeaks, t_findPeaks, t10: ", rank, len(d.peakFinder.peaks), toc-tic, t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7, t9-t8, t10-t9, t11-t10, t11-tic
