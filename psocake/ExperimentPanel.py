@@ -805,10 +805,10 @@ class ExperimentInfo(object):
         self.parent.detAlias = self.getDetectorAlias(str(self.parent.detInfo))
         self.parent.epics = self.ds.env().epicsStore()
         self.setClen()
-
         # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
         if self.parent.evt is None:
             self.parent.evt = self.run.event(self.times[0])
+        if self.parent.args.v >= 1: print("If stuck here, likely calib filesystem down")
         self.detGuaranteed = self.parent.det.calib(self.parent.evt)
         if self.detGuaranteed is None:  # image isn't present for this event
             print "No image in this event. Searching for an event..."

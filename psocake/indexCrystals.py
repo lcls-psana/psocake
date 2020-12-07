@@ -395,7 +395,10 @@ while Done == 0:
                             indexRate = 0
                         else:
                             indexRate = numIndexedNow * 100. / numProcessed
-                        fracDone = numProcessed * 100. / numHits
+                        if numHits > 0:
+                            fracDone = numProcessed * 100. / numHits
+                        else:
+                            fracDone = 0
 
                         if args.v >= 1: print "Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone
                         try:
@@ -450,10 +453,15 @@ while Done == 0:
         # Clean up temp files
         if args.v >= 1: print "Cleaning up temp files: ", runNumber
         for fname in myStreamList:
-            os.remove(fname)
+            try:
+                os.remove(fname)
+            except:
+                print("Couldn't remove {}".format(fname))
         for fname in myLists:
-            os.remove(fname)
-
+            try:
+                os.remove(fname)
+            except:
+                print("Couldn't remove {}".format(fname))
 hf.close()
 print "Done indexing run: ", runNumber
 
