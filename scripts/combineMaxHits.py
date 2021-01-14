@@ -3,9 +3,9 @@ import numpy as np
 import os
 
 ## Modify these lines ##
-expName='cxih0115'
-runs=np.arange(18,39)
-path='/reg/data/ana03/scratch/yoon82/psocake/cxih0115/cxih0115/yoon82/psocake'
+expName='cxic0515'
+runs=np.arange(17,83)
+path='/reg/data/ana03/scratch/yoon82/autosfx/cxic0515/yoon82/psocake'
 ########################
 
 calib = None

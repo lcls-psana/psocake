@@ -807,6 +807,7 @@ class ExperimentInfo(object):
         self.setClen()
         # Some detectors do not read out at 120 Hz. So need to loop over events to guarantee a valid detector image.
         if self.parent.evt is None:
+            if self.parent.args.v >= 1: print("Evt is None")
             self.parent.evt = self.run.event(self.times[0])
         if self.parent.args.v >= 1: print("If stuck here, likely calib filesystem down")
         self.detGuaranteed = self.parent.det.calib(self.parent.evt)

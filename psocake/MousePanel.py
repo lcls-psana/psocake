@@ -23,6 +23,9 @@ def getGifPath(debug=False):
                 gifDir = os.path.join(path, 'psocake/graphics')
                 if os.path.exists(gifDir):
                     return gifDir
+                else: # FIXME: temporary fix till conda copies data/graphics properly
+                    gifDir = "/cds/home/y/yoon82/Software/psocake/data/graphics"
+                    return gifDir
         else:
             print "Error: Couldn't find graphics folder"
             exit()
