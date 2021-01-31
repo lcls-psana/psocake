@@ -487,7 +487,7 @@ def main():
     ex = MainFrame(sys.argv)
     win.setCentralWidget(ex.area)
     win.resize(1400,700)
-    win.setWindowTitle('PSOCAKE')
+    win.setWindowTitle('PSOCAKE v'+__version__)
     win.show()
     sys.exit(app.exec_())
 

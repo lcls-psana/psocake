@@ -632,6 +632,9 @@ class ExperimentInfo(object):
             if 'cspad' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
                 if self.parent.detectorDistance < 0.01:
                     self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    if self.parent.detectorDistance < 0:
+                        if self.parent.args.v >= 1: print("Warning: taking abs of negative coords_z")
+                        self.parent.detectorDistance = abs(self.parent.detectorDistance)
                     self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(self.parent.clen)
@@ -640,6 +643,9 @@ class ExperimentInfo(object):
                 if self.parent.detectorDistance < 0.01:
                     try:
                         self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                        if self.parent.detectorDistance < 0:
+                            if self.parent.args.v >= 1: print("Warning: taking abs of negative coords_z")
+                            self.parent.detectorDistance = abs(self.parent.detectorDistance)
                         self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                     except:
                         self.parent.detectorDistance = 0
@@ -651,6 +657,9 @@ class ExperimentInfo(object):
             elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
                 if self.parent.detectorDistance < 0.01:
                     self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    if self.parent.detectorDistance < 0:
+                        if self.parent.args.v >= 1: print("Warning: taking abs of negative coords_z")
+                        self.parent.detectorDistance = abs(self.parent.detectorDistance)
                     self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
@@ -658,6 +667,9 @@ class ExperimentInfo(object):
             elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
                 if self.parent.detectorDistance < 0.01:
                     self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    if self.parent.detectorDistance < 0:
+                        if self.parent.args.v >= 1: print("Warning: taking abs of negative coords_z")
+                        self.parent.detectorDistance = abs(self.parent.detectorDistance)
                     self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
@@ -665,6 +677,9 @@ class ExperimentInfo(object):
             elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
                 if self.parent.detectorDistance < 0.01:
                     self.parent.detectorDistance = np.mean(self.parent.det.coords_z(self.parent.evt)) * 1e-6 # metres
+                    if self.parent.detectorDistance < 0:
+                        if self.parent.args.v >= 1: print("Warning: taking abs of negative coords_z")
+                        self.parent.detectorDistance = abs(self.parent.detectorDistance)
                     self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_detectorDistance_str).setValue(self.parent.detectorDistance*1e3) # mm
                 self.parent.coffset = self.parent.detectorDistance - self.parent.clen
                 self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
