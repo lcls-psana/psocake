@@ -4,6 +4,7 @@ import argparse
 import subprocess
 import numpy as np
 import glob
+from utils import batchSubmit
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 parser = argparse.ArgumentParser()
@@ -39,6 +40,7 @@ parser.add_argument("--keepData", help="", default=False, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 parser.add_argument("--likelihood", help="index hits with likelihood higher than this value", default=0, type=float)
 parser.add_argument("--condition", help="logic condition", default='', type=str)
+parser.add_argument("--batch", help="batch type: lsf or slurm",default="slurm", type=str)
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 args = parser.parse_args()
@@ -84,6 +86,7 @@ logger = args.logger
 hitParam_threshold = args.hitParam_threshold
 keepData = str2bool(args.keepData)
 dir = args.dir
+batch = args.batch
 
 def checkJobExit(jobID):
     if facility == 'LCLS':
@@ -304,29 +307,39 @@ if hasData:
             isat_event = []
 
             # Submit job
-            cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
-            cmd += " indexamajig -i " + myList
+            cmd = "indexamajig -i " + myList
             if args.likelihood > 0 and checkEnoughLikes > 0 and checkEnoughLikes <= 16:
                 cmd += " -j 1"
             else:
                 cmd += " -j '`nproc`'"
             cmd += " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
-                   " --indexing=" + indexingMethod + " -o " + myStream + \
-                   " --temp-dir=/scratch" + \
-                   " --tolerance=" + tolerance + \
+                   " --indexing=" + indexingMethod + " -o " + myStream
+            if batch == "lsf":
+                cmd += " --temp-dir=/scratch"
+            else:
+                cmd += " --temp-dir=/tmp"
+            cmd += " --tolerance=" + tolerance + \
                    " --no-revalidate --profile"
             if pdb: cmd += " --pdb=" + pdb
             if extra: cmd += " " + extra
+
+            cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch)
+
             print "Submitting job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
-
+            print("out:",out)
+            print("err:",err)
             # Keep list
-            jobID = out.split("<")[1].split(">")[0]
-            myLog = runDir + "/." + jobID + ".log"
+            if batch == "lsf":
+                jobID = out.split("<")[1].split(">")[0]
+            else:
+                jobID = out.split("job ")[1].split("\n")[0]
+            print("jobID:",jobID)
+            myLog = runDir + "/" + jobID + ".log"
             myJobList.append(jobID)
             myLogList.append(myLog)
-            print "bsub log filename: ", myLog
+            print "log filename: ", myLog
 
     elif facility == 'PAL':
         numWorkers = cpu
@@ -363,10 +376,13 @@ if hasData:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
 
-
     if facility == 'LCLS':
-        myKeyString = "The output (if any) is above this job summary."
-        mySuccessString = "Successfully completed."
+        if batch == "lsf":
+            myKeyString = "The output (if any) is above this job summary."
+            mySuccessString = "Successfully completed."
+        else:
+            myKeyString = "Final: "
+            mySuccessString = "Final: "
         Done = 0
         haveFinished = np.zeros((numWorkers,))
         try:
@@ -384,10 +400,12 @@ if hasData:
 
         while Done == 0:
             for i, myLog in enumerate(myLogList):
+                print("myLog: ", myLog, Done)
                 if os.path.isfile(myLog):  # log file exists
                     if haveFinished[i] == 0:  # job has not finished
                         p = subprocess.Popen(["grep", myKeyString, myLog], stdout=subprocess.PIPE)
                         output = p.communicate()[0]
+                        print("output: ",output)
                         p.stdout.close()
                         if myKeyString in output:  # job has completely finished
                             # check job was a success or a failure

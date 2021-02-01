@@ -63,8 +63,10 @@ class CrystalIndexing(object):
         self.cpu_str = 'CPUs'
         self.keepData_str = 'Keep CXI images'
         self.noe_str = 'Number of events to process'
-        (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str,self.psdebugq_str) = \
-            ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq','psdebugq')
+        (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str) = \
+            ('psanaq', 'psnehq', 'psfehq', 'psnehprioq', 'psfehprioq')
+        (self.psnehhiprioq_str,self.psfehhiprioq_str,self.psdebugq_str,self.psanagpuq_str,self.psanaidleq_str) = \
+            ('psnehhiprioq','psfehhiprioq','psdebugq','psanagpuq','psanaidleq')
         self.noQueue_str = 'N/A'
 
         self.outDir = self.parent.psocakeDir
@@ -144,7 +146,9 @@ class CrystalIndexing(object):
                                                                    self.psfehq_str: self.psfehq_str,
                                                                    self.psnehq_str: self.psnehq_str,
                                                                    self.psanaq_str: self.psanaq_str,
-                                                                   self.psdebugq_str: self.psdebugq_str},
+                                                                   self.psdebugq_str: self.psdebugq_str,
+                                                                   self.psanagpuq_str: self.psanagpuq_str,
+                                                                   self.psanaidleq_str: self.psanaidleq_str},
                      'value': self.queue, 'tip': "Choose queue"},
                     {'name': self.chunkSize_str, 'type': 'int', 'value': self.chunkSize, 'tip': "number of patterns to process per worker"},
                     {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},

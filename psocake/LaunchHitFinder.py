@@ -2,6 +2,7 @@ from pyqtgraph.Qt import QtCore
 import subprocess
 import os
 import numpy as np
+from utils import batchSubmit
 
 class HitFinder(QtCore.QThread):
     def __init__(self, parent = None):
@@ -44,9 +45,7 @@ class HitFinder(QtCore.QThread):
             runDir = self.parent.hf.spiParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
-                cmd = "bsub -q "+self.parent.hf.spiParam_queue+\
-                  " -n "+str(self.parent.hf.spiParam_cpus)+\
-                  " -o "+runDir+"/.%J.log mpirun --mca btl ^openib findHits"+\
+                cmd = "mpirun --mca btl ^openib findHits"+\
                   " -e " + self.experimentName + \
                   " -d "+self.detInfo+\
                   " --outDir " + runDir
@@ -80,6 +79,9 @@ class HitFinder(QtCore.QThread):
                 if self.parent.args.localCalib: cmd += " --localCalib"
 
                 cmd += " -r " + str(run)
+
+                cmd = batchSubmit(cmd, self.parent.hf.spiParam_queue, self.parent.hf.spiParam_cpus, runDir + "/%J.log",
+                                  "hit" + str(run), self.parent.batch)
 
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

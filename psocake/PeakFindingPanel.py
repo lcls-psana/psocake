@@ -104,6 +104,8 @@ class PeakFinding(object):
         self.hitParam_psnehhiprioq_str = 'psnehhiprioq'
         self.hitParam_psfehhiprioq_str = 'psfehhiprioq'
         self.hitParam_psdebugq_str = 'psdebugq'
+        self.hitParam_psanagpuq_str = 'psanagpuq'
+        self.hitParam_psanaidleq_str = 'psanaidleq'
         self.hitParam_noQueue_str = 'N/A'
         self.hitParam_noe_str = 'Number of events to process'
         self.hitParam_threshold_str = 'Indexable number of peaks'
@@ -227,7 +229,9 @@ class PeakFinding(object):
                                                                                  self.hitParam_psfehq_str: 'psfehq',
                                                                                  self.hitParam_psnehq_str: 'psnehq',
                                                                                  self.hitParam_psanaq_str: 'psanaq',
-                                                                                 self.hitParam_psdebugq_str: 'psdebugq'},
+                                                                                 self.hitParam_psdebugq_str: 'psdebugq',
+                                                                                 self.hitParam_psanagpuq_str: 'psanagpuq',
+                                                                                 self.hitParam_psanaidleq_str: 'psanaidleq'},
                      'value': self.hitParam_queue, 'tip': "Choose queue"},
                     {'name': self.hitParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_cpus},
                     {'name': self.hitParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_noe,
