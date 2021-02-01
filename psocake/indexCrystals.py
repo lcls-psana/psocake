@@ -317,7 +317,7 @@ if hasData:
             if batch == "lsf":
                 cmd += " --temp-dir=/scratch"
             else:
-                cmd += " --temp-dir=/tmp"
+                cmd += " --temp-dir=/u1"
             cmd += " --tolerance=" + tolerance + \
                    " --no-revalidate --profile"
             if pdb: cmd += " --pdb=" + pdb
@@ -328,14 +328,11 @@ if hasData:
             print "Submitting job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()
-            print("out:",out)
-            print("err:",err)
             # Keep list
             if batch == "lsf":
                 jobID = out.split("<")[1].split(">")[0]
             else:
                 jobID = out.split("job ")[1].split("\n")[0]
-            print("jobID:",jobID)
             myLog = runDir + "/" + jobID + ".log"
             myJobList.append(jobID)
             myLogList.append(myLog)
@@ -400,12 +397,10 @@ if hasData:
 
         while Done == 0:
             for i, myLog in enumerate(myLogList):
-                print("myLog: ", myLog, Done)
                 if os.path.isfile(myLog):  # log file exists
                     if haveFinished[i] == 0:  # job has not finished
                         p = subprocess.Popen(["grep", myKeyString, myLog], stdout=subprocess.PIPE)
                         output = p.communicate()[0]
-                        print("output: ",output)
                         p.stdout.close()
                         if myKeyString in output:  # job has completely finished
                             # check job was a success or a failure
