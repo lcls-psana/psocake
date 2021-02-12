@@ -5,7 +5,6 @@ import numpy as np
 import time
 from utils import *
 import PSCalib.GlobalUtils as gu
-
 import psana
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 from pyimgalgos.MedianFilter import median_filter_ndarr
@@ -99,7 +98,7 @@ class ImageViewer(object):
     def clearPeakMessage(self):
         self.win.getView().removeItem(self.peak_text)
         self.peak_feature.setData([], [], pxMode=False)
-        if self.parent.args.v >= 1: print "Done clearPeakMessage"
+        if self.parent.args.v >= 1: print("Done clearPeakMessage")
 
     def drawLabCoordinates(self):
         (cenX,cenY) = (-20,-20) # no offset
@@ -186,7 +185,7 @@ class ImageViewer(object):
         if 'label' in self.parent.args.mode:
             self.parent.labeling.updateText()
 
-        if self.parent.args.v >= 1: print "Done updateImage"
+        if self.parent.args.v >= 1: print("Done updateImage")
 
     def getCalib(self, evtNumber):
         if self.parent.exp.run is not None:
@@ -196,7 +195,7 @@ class ImageViewer(object):
                     calib = self.parent.det.calib(self.parent.evt,
                                                   cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1]))
                 else: # Algorithms 1 to 4
-                    print "### Overriding common mode: ", self.parent.exp.commonMode
+                    print("### Overriding common mode: ", self.parent.exp.commonMode)
                     calib = self.parent.det.calib(self.parent.evt,
                                                   cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
                                                           self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
@@ -227,7 +226,7 @@ class ImageViewer(object):
                                                                                     self.parent.exp.commonMode[1]))
                         commonModeCorrected = pedestalCorrected - commonMode
                     else:  # Algorithms 1 to 4
-                        print "### Overriding common mode: ", self.parent.exp.commonMode
+                        print("### Overriding common mode: ", self.parent.exp.commonMode)
                         commonMode = self.parent.det.common_mode_correction(self.parent.evt, pedestalCorrected,
                                                                      cmpars=(self.parent.exp.commonMode[0], self.parent.exp.commonMode[1],
                                                                              self.parent.exp.commonMode[2], self.parent.exp.commonMode[3]))
@@ -246,7 +245,7 @@ class ImageViewer(object):
             self.parent.evt = self.parent.exp.getEvt(evtNumber)
             pedestalCorrected = self.parent.det.raw(self.parent.evt) - self.parent.det.pedestals(self.parent.evt)
             if self.parent.exp.applyCommonMode: # play with different common mode
-                print "### Overriding common mode: ", self.parent.exp.commonMode
+                print("### Overriding common mode: ", self.parent.exp.commonMode)
                 if self.parent.exp.commonMode[0] == 5: # Algorithm 5
                     cm = self.parent.det.common_mode_correction(self.parent.evt, pedestalCorrected,
                                                                 cmpars=(self.parent.exp.commonMode[0],
@@ -267,7 +266,7 @@ class ImageViewer(object):
         _calib = calib.copy() # this is important
         tic = time.time()
         if self.parent.exp.applyFriedel: # Apply Friedel symmetry
-            print "Apply Friedel symmetry"
+            print("Apply Friedel symmetry")
             try:
                 centre = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0),
                                                    pix_scale_size_um=None,
@@ -285,26 +284,27 @@ class ImageViewer(object):
             data = self.parent.det.image(self.parent.evt, _calib)
         if data is None: data = _calib
         toc = time.time()
-        if self.parent.args.v >= 1: print "time assemble: ", toc-tic
+        if self.parent.args.v >= 1: print("time assemble: ", toc-tic)
         return data
 
     def setupRadialBackground(self):
         self.parent.geom.findPsanaGeometry()
         if self.parent.geom.calibFile is not None:
-            if self.parent.args.v >= 1: print "calibFile: ", self.parent.geom.calibPath+'/'+self.parent.geom.calibFile
+            if self.parent.args.v >= 1: print("calibFile: ", self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
             self.geo = self.parent.det.geometry(self.parent.runNumber) #self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
             self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
             self.iX, self.iY = self.geo.get_pixel_coord_indexes()
-            self.mask = self.geo.get_pixel_mask(mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
+            self.mask = self.geo.get_pixel_mask(mbits=0o0377)
+            # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
             self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100, phiedges=(0, 360), nphibins=1)
-            if self.parent.args.v >= 1: print "Done setupRadialBackground"
+            if self.parent.args.v >= 1: print("Done setupRadialBackground")
         else:
             self.rb = None
 
     def updatePolarizationFactor(self): # FIXME: change to vertical polarization after July 2020
         if self.rb is not None:
             self.pf = polarization_factor(self.rb.pixel_rad(), self.rb.pixel_phi()+90, self.parent.detectorDistance*1e6) # convert to um
-            if self.parent.args.v >= 1: print "Done updatePolarizationFactor"
+            if self.parent.args.v >= 1: print("Done updatePolarizationFactor")
 
     def updateDetectorCentre(self):
         try:
@@ -315,12 +315,12 @@ class ImageViewer(object):
         except AttributeError:
             self.parent.cy, self.parent.cx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
         if self.parent.cx is None:
-            print "#######################################"
-            print "WARNING: Unable to get detector center position. Check detector geometry is deployed."
-            print "#######################################"
+            print("#######################################")
+            print("WARNING: Unable to get detector center position. Check detector geometry is deployed.")
+            print("#######################################")
             data = self.parent.det.image(self.parent.evt, self.parent.exp.detGuaranteed)
             self.parent.cx, self.parent.cy = self.getCentre(data.shape)
-        if self.parent.args.v >= 1: print "cx, cy: ", self.parent.cx, self.parent.cy
+        if self.parent.args.v >= 1: print("cx, cy: ", self.parent.cx, self.parent.cy)
 
 
     def getDetImage(self, evtNumber, calib=None):

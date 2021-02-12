@@ -22,7 +22,7 @@ class psanaWhisperer():
         if 'ffb' in self.access.lower(): access += ':dir=/reg/d/ffb/' + self.experimentName[:3] + \
                                                    '/' + self.experimentName + '/xtc'
         self.ds = psana.DataSource(access)
-        self.run = self.ds.runs().next()
+        self.run = next(self.ds.runs())
         self.times = self.run.times()
         self.eventTotal = len(self.times)
         self.env = self.ds.env()
@@ -73,7 +73,7 @@ class psanaWhisperer():
            to cheetah 2-d table row and col (8*185, 4*388)
         """
         if 'cspad2x2' in self.detInfo.lower():
-            print "Not implemented yet: cspad2x2"
+            print("Not implemented yet: cspad2x2")
         else:
             if calib is None:
                 _calib = self.det.calib(self.evt) # (32,185,388)
@@ -165,7 +165,7 @@ class psanaWhisperer():
 
             # Determine which calib file to use
             geometryFiles = os.listdir(self.calibPath)
-            print "geometry: ", geometryFiles
+            print("geometry: ", geometryFiles)
             self.calibFile = None
             minDiff = -1e6
             for fname in geometryFiles:
@@ -187,7 +187,7 @@ class psanaWhisperer():
                         minDiff = diff
                         self.calibFile = fname
         except:
-            if self.parent.args.v >= 1: print "Couldn't find psana geometry"
+            if self.parent.args.v >= 1: print("Couldn't find psana geometry")
             self.calibFile = None
 
     def setupRadialBackground(self):
@@ -196,7 +196,7 @@ class psanaWhisperer():
             self.geo = GeometryAccess(self.calibPath+'/'+self.calibFile)
             self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
             self.iX, self.iY = self.geo.get_pixel_coord_indexes()
-            self.mask = self.geo.get_pixel_mask(mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
+            self.mask = self.geo.get_pixel_mask(mbits=0o0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
             self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100, phiedges=(0, 360), nphibins=1)
         else:
             self.rb = None
@@ -212,7 +212,7 @@ class psanaWhisperer():
                 if self.commonMode[0] == 5: # Algorithm 5
                     calib = self.det.calib(self.evt,cmpars=(self.commonMode[0], self.commonMode[1]))
                 else: # Algorithms 1 to 4
-                    print "### Overriding common mode: ", self.commonMode
+                    print("### Overriding common mode: ", self.commonMode)
                     calib = self.det.calib(self.evt,cmpars=(self.commonMode[0], self.commonMode[1],
                                                           self.commonMode[2], self.commonMode[3]))
             else:

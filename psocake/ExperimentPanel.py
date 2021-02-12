@@ -252,6 +252,8 @@ class ExperimentInfo(object):
         self.parent.hasExperimentName = True
         self.parent.detInfoList = None
         self.resetVariables()
+        # Optionally use local calib directory
+        self.setupLocalCalib()
         if self.parent.doneInit and self.hasExpRunDetInfo():
             # Setup elog
             self.setupRunTable()
@@ -264,8 +266,7 @@ class ExperimentInfo(object):
             self.setupPsocake()
             # Update hidden CrystFEL files
             self.updateHiddenCrystfelFiles(self.parent.facility)
-            # Optionally use local calib directory
-            self.setupLocalCalib()
+
             # Launch e-log crawler
             self.setupCrawler()
             # reset masks when run number is changed
@@ -290,10 +291,10 @@ class ExperimentInfo(object):
             self.parent.mk.updatePsanaMaskOn()
 
         #self.setupExperiment()
-        if self.hasExpRunDetInfo(): print "starting setup"
+        if self.hasExpRunDetInfo(): print("starting setup")
 
         #self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateExperimentName:", self.parent.experimentName
+        if self.parent.args.v >= 1: print("Done updateExperimentName:", self.parent.experimentName)
 
     def updateRunNumber(self, data):
         if data == 0:
@@ -344,7 +345,7 @@ class ExperimentInfo(object):
                     # Show mask
                     self.parent.mk.updatePsanaMaskOn()
 
-        if self.parent.args.v >= 1: print "Done updateRunNumber: ", self.parent.runNumber
+        if self.parent.args.v >= 1: print("Done updateRunNumber: ", self.parent.runNumber)
 
     def updateDetInfo(self, data):
         if data == '':
@@ -391,7 +392,7 @@ class ExperimentInfo(object):
             # Show mask
             self.parent.mk.updatePsanaMaskOn()
 
-        if self.parent.args.v >= 1: print "Done updateDetInfo: ", self.parent.detInfo
+        if self.parent.args.v >= 1: print("Done updateDetInfo: ", self.parent.detInfo)
 
     def findEventFromTimestamp(self, secList, nsecList, fidList, sec, nsec, fid):
         eventNumber = (np.where(secList == sec)[0] & np.where(nsecList == nsec)[0] & np.where(fidList == fid)[0])[0]
@@ -455,7 +456,7 @@ class ExperimentInfo(object):
 
         if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 
-        if self.parent.args.v >= 1: print "Done updateEventNumber: ", self.parent.eventNumber
+        if self.parent.args.v >= 1: print("Done updateEventNumber: ", self.parent.eventNumber)
 
     def hasExpRunInfo(self):
         if self.parent.hasExperimentName and self.parent.hasRunNumber:
@@ -467,7 +468,7 @@ class ExperimentInfo(object):
             else:
                 # reset run number
                 if self.parent.runNumber > 0:
-                    print "WARNING: No such run exists in ", self.parent.experimentName
+                    print("WARNING: No such run exists in ", self.parent.experimentName)
                     self.parent.runNumber = 0
                     self.updateRunNumber(self.parent.runNumber)
                     self.p.param(self.exp_grp, self.exp_run_str).setValue(self.parent.runNumber)
@@ -475,19 +476,19 @@ class ExperimentInfo(object):
         return False
 
     def hasExpRunDetInfo(self):
-        if self.parent.args.v >= 1: print "exp,run,det: ", self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo
+        if self.parent.args.v >= 1: print("exp,run,det: ", self.parent.hasExperimentName, self.parent.hasRunNumber, self.parent.hasDetInfo)
         if self.parent.hasExperimentName and self.parent.hasRunNumber and self.parent.hasDetInfo:
-            if self.parent.args.v >= 1: print "hasExpRunDetInfo: True ", self.parent.runNumber
+            if self.parent.args.v >= 1: print("hasExpRunDetInfo: True ", self.parent.runNumber)
             return True
         else:
-            if self.parent.args.v >= 1: print "hasExpRunDetInfo: False ", self.parent.runNumber
+            if self.parent.args.v >= 1: print("hasExpRunDetInfo: False ", self.parent.runNumber)
             return False
 
     def setupPsocake(self):
         self.loggerFile = self.parent.elogDir + '/' + self.parent.experimentName + '.data'
         if os.path.exists(self.parent.elogDir) is False:
             try:
-                os.makedirs(self.parent.elogDir, 0774)
+                os.makedirs(self.parent.elogDir, 0o0774) # FIXME: check correctness of 0o
                 # setup permissions
                 process = subprocess.Popen('chgrp -R ' + self.parent.experimentName + ' ' + self.parent.elogDir, stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE, shell=True)
@@ -503,7 +504,7 @@ class ExperimentInfo(object):
                     else:
                         myfile.write("NOONE")
             except:
-                print "No write access: ", self.parent.elogDir
+                print("No write access: ", self.parent.elogDir)
         else:
             # check if I'm a logger
             if os.path.exists(self.loggerFile):
@@ -513,10 +514,10 @@ class ExperimentInfo(object):
                         if content[0].strip() == self.parent.username:
                             if logbook_present and self.table is not None:
                                 self.logger = True
-                            if logbook_present and self.parent.args.v >= 1: print "I'm an elogger"
+                            if logbook_present and self.parent.args.v >= 1: print("I'm an elogger")
                         else:
                             self.logger = False
-                            if self.parent.args.v >= 1: print "I'm not an elogger"
+                            if self.parent.args.v >= 1: print("I'm not an elogger")
                     except:
                         self.logger = False
             else:
@@ -525,16 +526,16 @@ class ExperimentInfo(object):
         try:
             if os.path.exists(self.parent.psocakeRunDir) is False:
                 if self.parent.args.outDir is None:
-                    os.makedirs(self.parent.psocakeRunDir, 0774)
+                    os.makedirs(self.parent.psocakeRunDir, 0o0774)
                 else: # don't let groups and others access to this folder
-                    os.makedirs(self.parent.psocakeRunDir, 0700)
+                    os.makedirs(self.parent.psocakeRunDir, 0o0700)
                     process = subprocess.Popen('chmod -R ' + self.parent.psocakeRunDir,
                                                stdout=subprocess.PIPE,
                                                stderr=subprocess.PIPE, shell=True)
                     out, err = process.communicate()
             self.parent.writeAccess = True
         except:
-            print "No write access: ", self.parent.psocakeRunDir
+            print("No write access: ", self.parent.psocakeRunDir)
             self.parent.writeAccess = False
 
     # Launch crawler
@@ -578,14 +579,14 @@ class ExperimentInfo(object):
                     self.parent.detectorDistance * 1e3)  # mm
             except:
                 self.parent.detectorDistance = 0
-                print "######################################################"
-                print "Detector distance not found. Check your geometry file."
-                print "######################################################"
+                print("######################################################")
+                print("Detector distance not found. Check your geometry file.")
+                print("######################################################")
         self.parent.coffset = self.parent.detectorDistance - self.parent.clen
         self.parent.geom.p1.param(self.parent.geom.geom_grp, self.parent.geom.geom_clen_str).setValue(
             self.parent.clen)
-        if self.parent.args.v >= 1: print "updateDetectorDistance::detectorDistance (m), self.clen (m), self.coffset (m): ", \
-            self.parent.detectorDistance, self.parent.clen, self.parent.coffset
+        if self.parent.args.v >= 1: print("updateDetectorDistance::detectorDistance (m), self.clen (m), self.coffset (m): ", \
+            self.parent.detectorDistance, self.parent.clen, self.parent.coffset)
 
     def updatePixelSize(self, arg):
         self.parent.pixelSize = self.parent.det.pixel_size(self.parent.runNumber) * 1e-6 # metres
@@ -634,14 +635,14 @@ class ExperimentInfo(object):
                     self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                     self.readEpicsClen()
                 else:
-                    print "Couldn't handle detector clen. Try using the full detector name."
+                    print("Couldn't handle detector clen. Try using the full detector name.")
                     exit()
         elif 'jungfrau4m' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
             try:
                 self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV') # FIXME: need to read in full name and determine DS1 or DS2 etc
                 self.readEpicsClen()
             except:
-                print "Couldn't handle detector clen. Jungfrau epics variable names may not be supported."
+                print("Couldn't handle detector clen. Jungfrau epics variable names may not be supported.")
                 exit()
         elif ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
              ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
@@ -650,31 +651,31 @@ class ExperimentInfo(object):
             try:
                 self.readEpicsClen()
             except:
-                print "ERROR: No such epics variable, ", self.parent.clenEpics
-                print "ERROR: setting clen to 0.0 metre"
+                print("ERROR: No such epics variable, ", self.parent.clenEpics)
+                print("ERROR: setting clen to 0.0 metre")
                 self.parent.clen = 0.0 # metres
         elif 'rayonix' in self.parent.detInfo.lower() and 'xpp' in self.parent.experimentName:
             self.parent.clenEpics = 'XPP:ROB:POS:Z'
             try:
                 self.readEpicsClen()
             except:
-                print "ERROR: No such epics variable, ", self.parent.clenEpics
-                print "ERROR: setting clen to 0.0 metre"
+                print("ERROR: No such epics variable, ", self.parent.clenEpics)
+                print("ERROR: setting clen to 0.0 metre")
                 self.parent.clen = 0.0  # metres
         elif 'camp.0:pnccd.0' in self.parent.detInfo.lower() or 'pnccdfront' in self.parent.detInfo.lower():
             self.parent.clenEpics = 'AMO:LMP:MMS:10.RBV' # There's no alias
             try:
                 self.readEpicsClen()
             except:
-                print "ERROR: No such epics variable, ", self.parent.clenEpics
-                print "ERROR: setting clen to 0.0 metre"
+                print("ERROR: No such epics variable, ", self.parent.clenEpics)
+                print("ERROR: setting clen to 0.0 metre")
                 self.parent.clen = 0.0 # metres
         elif 'camp.0:pnccd.1' in self.parent.detInfo.lower() or 'pnccdback' in self.parent.detInfo.lower():
             self.parent.clen = 0.0 # the back pnccd is not motorized at AMO
         else:
-            print "#########################################"
-            print "Not implemented yet clen: ", self.parent.detInfo
-            print "#########################################"
+            print("#########################################")
+            print("Not implemented yet clen: ", self.parent.detInfo)
+            print("#########################################")
 
     def readEpicsClen(self):
         numEvt = len(self.times)
@@ -691,7 +692,7 @@ class ExperimentInfo(object):
                     if abs(_temp - self.parent.clen) >= 0.01:
                         break
                     _temp = self.parent.clen
-        if self.parent.args.v >= 1: print "Best guess at clen (m): ", self.parent.clen
+        if self.parent.args.v >= 1: print("Best guess at clen (m): ", self.parent.clen)
 
     def setupRunDir(self):
         # Set up psocake directory in scratch
@@ -749,9 +750,10 @@ class ExperimentInfo(object):
             if self.parent.args.localCalib:
                 if os.path.exists('calib'):
                     psana.setOption('psana.calib-dir', './calib')
-                    if self.parent.args.v >= 1: print "Using local calib directory"
+                    if self.parent.args.v >= 1: print("Using local calib directory")
                 else:
-                    print "./calib directory does not exist in the present working directory"
+                    print("./calib directory does not exist in the present working directory")
+                    exit()
 
     def getDatasource(self):
         if self.parent.facility == self.parent.facilityLCLS:
@@ -760,11 +762,11 @@ class ExperimentInfo(object):
                 if 'ffb' in self.parent.access: access += ':dir=/reg/d/ffb/' + self.parent.experimentName[:3] + \
                                                           '/' + self.parent.experimentName + '/xtc'
                 self.ds = psana.DataSource(access)
-                self.run = self.ds.runs().next()
+                self.run = next(self.ds.runs())
                 self.times = self.run.times()
                 self.env = self.ds.env()
             except:
-                print "############# No such datasource exists ###############"
+                print("############# No such datasource exists ###############")
 
     def setupTotalEvents(self):
         self.eventTotal = len(self.times)
@@ -787,15 +789,15 @@ class ExperimentInfo(object):
                 except ValueError:
                     continue
             self.parent.detInfoList = list(set(myAreaDetectors))
-            print "#######################################"
-            print "# Available area detectors: "
+            print("#######################################")
+            print("# Available area detectors: ")
             for k in self.parent.detInfoList:
-                print "#", utils.highlight(k,'b')
-            print "#######################################"
+                print("#", utils.highlight(k,'b'))
+            print("#######################################")
 
     def setupCrawler(self):
         if self.logger and self.crawlerRunning == False:
-            if self.parent.args.v >= 1: print "Launching crawler"
+            if self.parent.args.v >= 1: print("Launching crawler")
             self.launchCrawler()
             self.crawlerRunning = True
 
@@ -812,12 +814,12 @@ class ExperimentInfo(object):
         if self.parent.args.v >= 1: print("If stuck here, likely calib filesystem down")
         self.detGuaranteed = self.parent.det.calib(self.parent.evt)
         if self.detGuaranteed is None:  # image isn't present for this event
-            print "No image in this event. Searching for an event..."
+            print("No image in this event. Searching for an event...")
             for i in np.arange(len(self.times)):
                 evt = self.run.event(self.times[i])
                 self.detGuaranteed = self.parent.det.calib(evt)
                 if self.detGuaranteed is not None:
-                    print "Found an event with image: ", i, self.detGuaranteed.shape
+                    print("Found an event with image: ", i, self.detGuaranteed.shape)
                     break
 
         # detector distance
@@ -844,7 +846,7 @@ class ExperimentInfo(object):
         self.parent.img.updatePolarizationFactor()
 
     def setupExperiment(self):
-        if self.parent.args.v >= 1: print "Doing setupExperiment"
+        if self.parent.args.v >= 1: print("Doing setupExperiment")
 
         if self.hasExpRunInfo() and not self.hasExpRunDetInfo():
             # Setup elog
@@ -881,53 +883,53 @@ class ExperimentInfo(object):
             # Show mask
             self.parent.mk.updatePsanaMaskOn()
 
-        if self.parent.args.v >= 1: print "Done setupExperiment"
+        if self.parent.args.v >= 1: print("Done setupExperiment")
 
     def updateLogscale(self, data):
         self.logscaleOn = data
         if self.hasExpRunDetInfo():
             self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
             self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateLogscale: ", self.logscaleOn
+        if self.parent.args.v >= 1: print("Done updateLogscale: ", self.logscaleOn)
 
     def updateAduPerPhoton(self, data):
         self.aduPerPhoton = data
         if self.hasExpRunDetInfo() is True and self.image_property == self.disp_photons:
             #self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
             self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateAduPerPhoton: ", self.aduPerPhoton
+        if self.parent.args.v >= 1: print("Done updateAduPerPhoton: ", self.aduPerPhoton)
 
     def updateMedianFilter(self, data):
         self.medianFilterRank = data
         if self.hasExpRunDetInfo() is True and self.image_property == self.disp_medianCorrection:
             # self.parent.firstUpdate = True  # clicking logscale resets plot colorscale
             self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateMedianFilter: ", self.medianFilterRank
+        if self.parent.args.v >= 1: print("Done updateMedianFilter: ", self.medianFilterRank)
 
     def updateImageProperty(self, data):
         self.image_property = data
         self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateImageProperty: ", self.image_property
+        if self.parent.args.v >= 1: print("Done updateImageProperty: ", self.image_property)
 
     def updateFriedel(self, data):
         self.applyFriedel = data
         self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateFriedel: ", self.applyFriedel
+        if self.parent.args.v >= 1: print("Done updateFriedel: ", self.applyFriedel)
 
     def updateCommonModeParam(self, data, ind):
         self.commonModeParams[ind] = data
         self.updateCommonMode(self.applyCommonMode)
-        if self.parent.args.v >= 1: print "Done updateCommonModeParam: ", self.commonModeParams
+        if self.parent.args.v >= 1: print("Done updateCommonModeParam: ", self.commonModeParams)
 
     def updateCommonMode(self, data):
         self.applyCommonMode = data
         if self.applyCommonMode:
             self.commonMode = self.checkCommonMode(self.commonModeParams)
             if self.hasExpRunDetInfo():
-                if self.parent.args.v >= 1: print "%%% Redraw image with new common mode: ", self.commonMode
+                if self.parent.args.v >= 1: print("%%% Redraw image with new common mode: ", self.commonMode)
                 self.setupExperiment()
                 self.parent.img.updateImage()
-        if self.parent.args.v >= 1: print "Done updateCommonMode: ", self.commonMode
+        if self.parent.args.v >= 1: print("Done updateCommonMode: ", self.commonMode)
 
     def checkCommonMode(self, _commonMode):
         # TODO: cspad2x2 can only use algorithms 1 and 5
@@ -941,11 +943,11 @@ class ExperimentInfo(object):
             _param1 = int(_commonMode[1])
             return (_alg,_param1)
         else:
-            print "Undefined common mode algorithm"
+            print("Undefined common mode algorithm")
             return None
 
     def updateEventID(self, sec, nanosec, fid):
-        if self.parent.args.v >= 1: print "eventID: ", sec, nanosec, fid
+        if self.parent.args.v >= 1: print("eventID: ", sec, nanosec, fid)
         self.p.param(self.exp_grp, self.exp_evt_str, self.exp_second_str).setValue(self.eventSeconds)
         self.p.param(self.exp_grp, self.exp_evt_str, self.exp_nanosecond_str).setValue(self.eventNanoseconds)
         self.p.param(self.exp_grp, self.exp_evt_str, self.exp_fiducial_str).setValue(self.eventFiducial)

@@ -79,7 +79,7 @@ runStr = "%04d" % args.run
 access = "exp="+args.exp+":run="+runStr+':idx'
 if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
 ds = psana.DataSource(access)
-run = ds.runs().next()
+run = next(ds.runs())
 times = run.times()
 env = ds.env()
 det = psana.Detector(args.det)
@@ -117,7 +117,7 @@ def createCxi(fname):
     # Save user input arguments
     dt = h5py.special_dtype(vlen=bytes)
     myInput = ""
-    for key,value in vars(args).iteritems():
+    for key,value in vars(args).items():
         myInput += key
         myInput += " "
         myInput += str(value)
@@ -527,25 +527,25 @@ def removeOldCxi():
                             try:
                                 is_int = int(tok[2])
                                 os.remove(os.path.join(root,str(file)))
-                                print "### removing: ", str(file)
+                                print("### removing: ", str(file))
                             except:
-                                print "### not removing: ", str(file)
+                                print("### not removing: ", str(file))
                     elif len(tok) == 3:
                         if tok[0] == args.exp and tok[1] == runStr and tok[2] == searchWord:
                             os.remove(os.path.join(root,str(file)))
-                            print "### removing: ", str(file)
+                            print("### removing: ", str(file))
                 else:
                     if len(tok) == 3:
                         if tok[0] == args.exp and tok[1] == runStr:
                             try:
                                 is_int = int(tok[2].split(".cxi")[0])
                                 os.remove(os.path.join(root,str(file)))
-                                print "### removing: ", str(file)
+                                print("### removing: ", str(file))
                             except:
-                                print "### not removing: ", str(file)
+                                print("### not removing: ", str(file))
                     elif len(tok) == 2:
                         if tok[0] == args.exp and tok[1] == runStr+searchWord:
-                            print "### removing: ", str(file)
+                            print("### removing: ", str(file))
                             os.remove(os.path.join(root,str(file)))
 
 if rank == 0:
@@ -567,14 +567,14 @@ if rank == 0:
     createCxi(fnameAll)
 
 toc = time.time()
-print "h5 setup (rank, time): ", rank, toc-tic
+print("h5 setup (rank, time): ", rank, toc-tic)
 
 tic = time.time()
 
 runclient(args,ds,run,times,det,numJobs)
 
 toc = time.time()
-print "compute time (rank, time): ", rank, toc-tic
+print("compute time (rank, time): ", rank, toc-tic)
 
 comm.Barrier()
 
@@ -612,7 +612,7 @@ if rank == 0:
         F["/LCLS/eventNumber"].attrs["numCores"] = size # use this to figure out how many files are generated
         F["/entry_1/data_1/powderHits"][...] = powderHits
         F["/entry_1/data_1/powderMisses"][...] = powderMisses
-        print "Done writing master .cxi"
+        print("Done writing master .cxi")
     hitRate = numHits * 100. / numProcessed
 
     statusFname = args.outDir + "/status_peaks"
@@ -620,6 +620,6 @@ if rank == 0:
     statusFname += ".txt"
     d = {"numHits": numHits, "hitRate(%)": hitRate, "fracDone(%)": 100.0}
     writeStatus(statusFname, d)
-    print "Done writing status"
+    print("Done writing status")
 
 MPI.Finalize()

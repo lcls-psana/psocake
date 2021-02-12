@@ -265,7 +265,7 @@ class imageRetriever:
 
     def setup(self,experimentName,runNumber,detInfo):
         ds = psana.DataSource('exp='+str(experimentName)+':run='+str(runNumber)+':idx')
-        run = ds.runs().next()
+        run = next(ds.runs())
         times = run.times()
         env = ds.env()
         evt = run.event(times[0])

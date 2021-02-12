@@ -88,7 +88,7 @@ def checkJobExit(jobID):
     cmd = "bjobs -d | grep " + str(jobID)
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = process.communicate()
-    if "EXIT" in out:
+    if "EXIT" in str(out):
         "*********** NODE FAILURE ************ ", jobID
         return 1
     else:
@@ -115,12 +115,12 @@ def getIndexedPeaks():
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"
     with open(totalStream, 'w') as outfile:
         for fname in myStreamList:
-            print "Reading: ", fname
+            print("Reading: ", fname)
             try:
                 with open(fname) as infile:
                     outfile.write(infile.read())
             except:  # file may not exist yet
-                print "Couldn't open: ", fname
+                print("Couldn't open: ", fname)
                 pass
 
     # Add indexed peaks and remove images in hdf5
@@ -194,7 +194,7 @@ def findSize(runDir,experimentName,runNumber,pkTag):
                         try:
                             n = int(tok[2])
                         except:
-                            print "ignore: ", str(file)
+                            print("ignore: ", str(file))
                 else:
                     if experimentName in tok[0] and \
                        str(runNumber).zfill(4) in tok[1] and \
@@ -203,7 +203,7 @@ def findSize(runDir,experimentName,runNumber,pkTag):
                         try:
                             n = int(tok[2].split(searchWord)[0])
                         except:
-                            print "ignore: ", str(file)
+                            print("ignore: ", str(file))
                 if numSize == -1 and n > -1: 
                     numSize = n
                 elif n > numSize:
@@ -214,7 +214,7 @@ def findSize(runDir,experimentName,runNumber,pkTag):
 
 numSize = findSize(runDir,experimentName,runNumber,args.pkTag)
 if numSize is None: 
-    print "Error: Could not find cxi files in: ", runDir
+    print("Error: Could not find cxi files in: ", runDir)
     exit()
 numEventsArr = np.zeros((numSize,),dtype=int)
 
@@ -226,8 +226,8 @@ for ind in range(numSize):
     hf = h5py.File(pFile, 'r')
     icondition = args.condition
     iposition = [ipos for ipos, ichar in enumerate(icondition) if ichar == '#']
-    print '##################'
-    print 'original condition = ', icondition
+    print('##################')
+    print('original condition = ', icondition)
     istart = iposition[0::2]
     iend = iposition[1::2]
     assert (len(istart) == len(iend))
@@ -238,8 +238,8 @@ for ind in range(numSize):
         assert(hf.visit(getpath))
         ifullpath.append("hf['"+hf.visit(getpath)+"'][ival]")
         icondition = icondition.replace('#'+iname[idx]+'#', ifullpath[-1])
-    print 'modified condition = ', icondition, '\n'
-    print '##################'
+    print('modified condition = ', icondition, '\n')
+    print('##################')
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     try:
@@ -251,14 +251,14 @@ for ind in range(numSize):
             minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
             f.close()
     except:
-        print "Error while reading: ", pFile
-        print "Note that peak finding has to finish before launching indexing jobs"
+        print("Error while reading: ", pFile)
+        print("Note that peak finding has to finish before launching indexing jobs")
         exit()
 
     if hasData:
         # Update elog
         if logger == True:
-            if args.v >= 1: print "Start indexing"
+            if args.v >= 1: print("Start indexing")
             try:
                 d = {"message": "#StartIndexing"}
                 writeStatus(fnameIndex, d)
@@ -267,7 +267,7 @@ for ind in range(numSize):
         # Launch indexing
         try:
             if facility == 'LCLS':
-                print "Reading images from: ", pFile
+                print("Reading images from: ", pFile)
                 f = h5py.File(pFile, 'r')
                 eventList = f['/LCLS/eventNumber'][()]
                 if args.likelihood > 0:
@@ -275,7 +275,7 @@ for ind in range(numSize):
                 numEvents = len(eventList)
                 f.close()
         except:
-            print "Couldn't read file: ", pFile
+            print("Couldn't read file: ", pFile)
 
         numEventsArr[ind] = numEvents
 
@@ -314,7 +314,6 @@ for rank in range(numWorkers):
                 if condition_check(hf, val, icondition):
                     text_file.write("{} //{}\n".format(pFile, val))
                     isat_event.append(val)
-            #print 'satisfied event: ', isat_event, '\n'
     isat_event = []
 
     # Submit job
@@ -331,16 +330,15 @@ for rank in range(numWorkers):
            " --no-revalidate --multi --profile"
     if pdb: cmd += " --pdb=" + pdb
     if extra: cmd += " " + extra
-    print "Submitting job: ", cmd
+    print("Submitting job: ", cmd)
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = process.communicate()
-
     # Keep list
-    jobID = out.split("<")[1].split(">")[0]
+    jobID = str(out).split("<")[1].split(">")[0]
     myLog = runDir + "/." + jobID + ".log"
     myJobList.append(jobID)
     myLogList.append(myLog)
-    print "bsub log filename: ", myLog
+    print("bsub log filename: ", myLog)
 
 ##############################################################
 
@@ -354,9 +352,9 @@ try:
     numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
     f.close()
 except:
-    print "Couldn't read file: ", peakFile
+    print("Couldn't read file: ", peakFile)
     fname = runDir + '/status_peaks.txt'
-    print "Try reading file: ", fname
+    print("Try reading file: ", fname)
     with open(fname) as infile:
         d = json.load(infile)
         numEvents = int(d['numHits'])
@@ -368,25 +366,25 @@ while Done == 0:
                 p = subprocess.Popen(["grep", myKeyString, myLog], stdout=subprocess.PIPE)
                 output = p.communicate()[0]
                 p.stdout.close()
-                if myKeyString in output:  # job has completely finished
+                if myKeyString in str(output):  # job has completely finished
                     # check job was a success or a failure
                     p = subprocess.Popen(["grep", mySuccessString, myLog], stdout=subprocess.PIPE)
                     output = p.communicate()[0]
                     p.stdout.close()
-                    if mySuccessString in output:  # success
-                        print "successfully done indexing: ", runNumber, myLog
+                    if mySuccessString in str(output):  # success
+                        print("successfully done indexing: ", runNumber, myLog)
                         haveFinished[i] = 1
                         if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
-                            print "Done indexing"
+                            print("Done indexing")
                             Done = 1
                     else:  # failure
-                        print "failed attempt", runNumber, myLog
+                        print("failed attempt", runNumber, myLog)
                         haveFinished[i] = -1
                         if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
-                            print "Done indexing"
+                            print("Done indexing")
                             Done = -1
                 else:  # job is still going, update indexing rate
-                    if args.v >= 1: print "indexing hasn't finished yet: ", runNumber, myJobList, haveFinished
+                    if args.v >= 1: print("indexing hasn't finished yet: ", runNumber, myJobList, haveFinished)
                     indexedPeaks = None#, numProcessed = getIndexedPeaks()
 
                     if indexedPeaks is not None:
@@ -400,22 +398,24 @@ while Done == 0:
                         else:
                             fracDone = 0
 
-                        if args.v >= 1: print "Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone
+                        if args.v >= 1: print("Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone)
                         try:
                             d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
                             writeStatus(fnameIndex, d)
                         except:
-                            print "Couldn't update status"
+                            print("Couldn't update status")
                             pass
                     else:
                         pass #print "getIndexedPeaks returned None"
                     time.sleep(30)
         else:
-            if args.v >= 1: print "no such file yet: ", runNumber, myLog
+            if args.v >= 1: print("no such file yet: ", runNumber, myLog)
             nodeFailed = checkJobExit(myJobList[i])
             if nodeFailed == 1:
-                if args.v >= 0: print "indexing job node failure: ", myLog
+                if args.v >= 0: print("indexing job node failure: ", myLog)
                 haveFinished[i] = -1
+                if args.v >= 0: print("Error: exit indexing crystals")
+                exit()
             time.sleep(10)
 
     if abs(Done) == 1:
@@ -427,7 +427,7 @@ while Done == 0:
             else:
                 indexRate = numIndexedNow * 100. / numProcessed
             fracDone = numProcessed * 100. / numHits
-            if args.v >= 1: print "Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone
+            if args.v >= 1: print("Progress [runNumber, numIndexed, indexRate, fracDone]: ", runNumber, numIndexedNow, indexRate, fracDone)
 
             try:
                 d = {"numIndexed": numIndexedNow, "indexRate": indexRate, "fracDone": fracDone}
@@ -435,9 +435,9 @@ while Done == 0:
             except:
                 pass
 
-        if args.v >= 1: print "Merging stream file: ", runNumber
+        if args.v >= 1: print("Merging stream file: ", runNumber)
         numIndexed, numProcessed = getIndexedPeaks()
-        if args.v >= 1: print "Status update: ", runNumber, numIndexed, numProcessed
+        if args.v >= 1: print("Status update: ", runNumber, numIndexed, numProcessed)
         if numProcessed == 0:
             indexRate = 0
         else:
@@ -447,11 +447,11 @@ while Done == 0:
             d = {"numIndexed": numIndexed, "indexRate": indexRate, "fracDone": 100.0}
             writeStatus(fnameIndex, d)
         except:
-            print "Couldn't update status"
+            print("Couldn't update status")
             pass
 
         # Clean up temp files
-        if args.v >= 1: print "Cleaning up temp files: ", runNumber
+        if args.v >= 1: print("Cleaning up temp files: ", runNumber)
         for fname in myStreamList:
             try:
                 os.remove(fname)
@@ -463,6 +463,6 @@ while Done == 0:
             except:
                 print("Couldn't remove {}".format(fname))
 hf.close()
-print "Done indexing run: ", runNumber
+print("Done indexing run: ", runNumber)
 
 

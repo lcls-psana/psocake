@@ -57,9 +57,9 @@ class ImageControl(object):
         output = self.parent.psocakeRunDir+"/psocake_"+str(self.parent.experimentName)+"_"+str(self.parent.runNumber)+"_"+str(self.parent.detInfo)+"_" \
                      +str(self.parent.eventNumber)+"_"+str(self.parent.exp.eventSeconds)+"_"+str(self.parent.exp.eventNanoseconds)+"_" \
                      +str(self.parent.exp.eventFiducial)
-        print "##########################################"
-        print "Saving unassembled image: ", output + "_unassembled.npy"
-        print "Saving unassembled image: ", output + "_unassembled.txt"
+        print("##########################################")
+        print("Saving unassembled image: ", output + "_unassembled.npy")
+        print("Saving unassembled image: ", output + "_unassembled.txt")
         outputUnassem = output + "_unassembled.npy"
         _calib = self.parent.calib.copy()
 
@@ -72,9 +72,9 @@ class ImageControl(object):
             np.savetxt(str(outputUnassem).split('.npy')[0]+".txt", _calib.reshape((-1,_calib.shape[-1])) )#,fmt='%0.18e')
         # Save assembled
         outputAssem = output + "_assembled.npy"
-        print "##########################################"
-        print "Saving assembled image: ", outputAssem
-        print "##########################################"
+        print("##########################################")
+        print("Saving assembled image: ", outputAssem)
+        print("##########################################")
         np.save(str(outputAssem), self.parent.det.image(self.parent.evt, _calib))
 
         # Save publication quality images
@@ -95,9 +95,9 @@ class ImageControl(object):
         import matplotlib.patches as patches
 
         outputName = output + "_img.png"
-        print "##########################################"
-        print "Saving image as png: ", outputName
-        print "##########################################"
+        print("##########################################")
+        print("Saving image as png: ", outputName)
+        print("##########################################")
         fix, ax = plt.subplots(1, figsize=(10, 10))
         plt.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
         ax.imshow(img, cmap='binary', vmax=vmax, vmin=vmin)
@@ -105,9 +105,9 @@ class ImageControl(object):
 
         outputName = output + "_pks.png"
         if self.parent.pk.peaks is not None and self.parent.pk.numPeaksFound > 0:
-            print "##########################################"
-            print "Saving peak image as png: ", outputName
-            print "##########################################"
+            print("##########################################")
+            print("Saving peak image as png: ", outputName)
+            print("##########################################")
             cenX, cenY = self.parent.pk.assemblePeakPos(self.parent.pk.peaks)
             fix, ax = plt.subplots(1, figsize=(10, 10))
             plt.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
@@ -125,9 +125,9 @@ class ImageControl(object):
 
         outputName = output + "_idx.png"
         if self.parent.index.indexedPeaks is not None:
-            print "##########################################"
-            print "Saving indexed image as png: ", outputName
-            print "##########################################"
+            print("##########################################")
+            print("Saving indexed image as png: ", outputName)
+            print("##########################################")
             numIndexedPeaksFound = self.parent.index.indexedPeaks.shape[0]
             intRadius = self.parent.index.intRadius
             cenX1 = self.parent.index.indexedPeaks[:, 0] + 0.5
@@ -152,14 +152,13 @@ class ImageControl(object):
             plt.savefig(outputName, dpi=300)
 
     def load(self):
-        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
+        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)')[0])
         if fname.split('.')[-1] in '.npz':
             temp = np.load(fname)
             self.parent.calib = temp['max']
         else:
             self.parent.calib = np.load(fname)
         self.parent.firstUpdate = True
-        #self.parent.pk.userUpdate = None
         self.parent.img.updateImage(self.parent.calib)
         self.parent.pk.updateClassification()
         if 'label' in self.parent.args.mode:

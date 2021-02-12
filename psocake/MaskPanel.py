@@ -11,7 +11,7 @@ except ImportError:
     pass
 
 from PSCalib.GeometryObject import two2x1ToData2x2
-import _colorScheme as color
+import colorScheme as color
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
 import LaunchPowderProducer
@@ -287,13 +287,13 @@ class MaskMaker(object):
         self.userMaskOn = data
         self.parent.pk.algInitDone = False
         self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "Done updateUserMask: ", self.userMaskOn
+        if self.parent.args.v >= 1: print("Done updateUserMask: ", self.userMaskOn)
 
     def updateStreakMask(self, data):
         self.streakMaskOn = data
         self.parent.pk.algInitDone = False
         self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "Done updateStreakMask: ", self.streakMaskOn
+        if self.parent.args.v >= 1: print("Done updateStreakMask: ", self.streakMaskOn)
 
     def updateStreakWidth(self, data):
         self.streak_width = data
@@ -301,7 +301,7 @@ class MaskMaker(object):
         self.initMask()
         self.parent.pk.algInitDone = False
         self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "Done updateStreakWidth: ", self.streak_width
+        if self.parent.args.v >= 1: print("Done updateStreakWidth: ", self.streak_width)
 
     def updateStreakSigma(self, data):
         self.streak_sigma = data
@@ -309,13 +309,13 @@ class MaskMaker(object):
         self.initMask()
         self.parent.pk.algInitDone = False
         self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "Done updateStreakSigma: ", self.streak_sigma
+        if self.parent.args.v >= 1: print("Done updateStreakSigma: ", self.streak_sigma)
 
     def updatePsanaMask(self, data):
         self.psanaMaskOn = data
         self.parent.pk.algInitDone = False
         self.updatePsanaMaskOn()
-        if self.parent.args.v >= 1: print "Done updatePsanaMask: ", self.psanaMaskOn
+        if self.parent.args.v >= 1: print("Done updatePsanaMask: ", self.psanaMaskOn)
 
     def updateMaskingMode(self, data):
         self.maskingMode = data
@@ -366,7 +366,7 @@ class MaskMaker(object):
             self.parent.img.win.getView().addItem(self.mask_rect)
             self.parent.img.win.getView().addItem(self.mask_circle)
             self.parent.img.win.getView().addItem(self.mask_poly)
-        if self.parent.args.v >= 1: print "Done updateMaskingMode: ", self.maskingMode
+        if self.parent.args.v >= 1: print("Done updateMaskingMode: ", self.maskingMode)
 
     def updatePsanaMaskFlag(self, flag, data):
         if flag == self.mask_calib_str:
@@ -415,7 +415,7 @@ class MaskMaker(object):
                 self.userMask = self.parent.det.ndarray_from_image(self.parent.evt,self.userMaskAssem, pix_scale_size_um=None, xy0_off_pix=None)
             if self.streakMask is None:
                 self.StreakMask = myskbeam.StreakMask(self.parent.det, self.parent.evt, width=self.streak_width, sigma=self.streak_sigma)
-        if self.parent.args.v >= 1: print "Done initMask"
+        if self.parent.args.v >= 1: print("Done initMask")
 
     def displayMask(self):
         # convert to RGB
@@ -451,7 +451,7 @@ class MaskMaker(object):
                 self.display_data[_userMaskInd[0], _userMaskInd[1], 0] = self.parent.data[_userMaskInd] + (np.max(self.parent.data) - self.parent.data[_userMaskInd]) * (1-self.userMaskAssem[_userMaskInd])
         if self.display_data is not None:
             self.parent.img.win.setImage(self.display_data, autoRange=False, autoLevels=False, autoHistogramRange=False)
-        if self.parent.args.v >= 1: print "Done displayMask"
+        if self.parent.args.v >= 1: print("Done displayMask")
 
     # mask
     def makeMaskRect(self):
@@ -481,7 +481,7 @@ class MaskMaker(object):
             self.parent.pk.algInitDone = False
             self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "done makeMaskRect!!!!!!"
+        if self.parent.args.v >= 1: print("Done makeMaskRect!!!!!!")
 
     def makeMaskCircle(self):
         self.initMask()
@@ -514,7 +514,7 @@ class MaskMaker(object):
             self.parent.pk.algInitDone = False
             self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "done makeMaskCircle!!!!!!"
+        if self.parent.args.v >= 1: print("Done makeMaskCircle!!!!!!")
 
     def makeMaskThresh(self):
         self.initMask()
@@ -528,7 +528,7 @@ class MaskMaker(object):
             elif self.maskingMode == 2:  # unmasking mode
                 self.userMaskAssem[np.where(_mask == 0)] = 1
             elif self.maskingMode == 3:  # toggle mode
-                print "You can only mask/unmask based on threshold "
+                print("You can only mask/unmask based on threshold ")
 
             # update userMask
             self.userMask = self.parent.det.ndarray_from_image(self.parent.evt, self.userMaskAssem, pix_scale_size_um=None,
@@ -538,7 +538,7 @@ class MaskMaker(object):
             self.parent.pk.algInitDone = False
             self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "done makeMaskThresh!!!!!!"
+        if self.parent.args.v >= 1: print("Done makeMaskThresh!!!!!!")
 
     def makeMaskPoly(self):
         self.initMask()
@@ -571,7 +571,7 @@ class MaskMaker(object):
             self.parent.pk.algInitDone = False
             self.parent.mk.combinedMask = self.getCombinedStaticMask()
             self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "done makeMaskPoly!!!!!!"
+        if self.parent.args.v >= 1: print("Done makeMaskPoly!!!!!!")
 
     def getCombinedStaticMask(self):
         # update combined mask
@@ -595,7 +595,7 @@ class MaskMaker(object):
         dim0,dim1 = utils.getCheetahDim(self.parent.detInfo)
         _tag = self.parseMaskTag()
         fname = self.parent.psocakeRunDir + "/staticMask"+_tag+".h5"
-        print "Saving static mask in Cheetah format: ", fname
+        print("Saving Cheetah static mask in: ", fname)
         myHdf5 = h5py.File(fname, 'w')
         dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
 
@@ -610,12 +610,12 @@ class MaskMaker(object):
     def deployMask(self):
         combinedStaticMask = self.getCombinedStaticMask()
 
-        if self.parent.args.v >= 1: print "natural static mask: ", combinedStaticMask.shape
+        if self.parent.args.v >= 1: print("natural static mask: ", combinedStaticMask.shape)
 
         if combinedStaticMask is not None:
             _tag = self.parseMaskTag()
-            print "*** deploy user-defined mask as mask"+_tag+".txt and mask"+_tag+".npy as DAQ shape ***"
-            print "*** deploy user-defined mask as mask_natural_shape"+_tag+".npy as natural shape ***"
+            print("*** deploy user-defined mask as mask"+_tag+".txt and mask"+_tag+".npy as DAQ shape ***")
+            print("*** deploy user-defined mask as mask_natural_shape"+_tag+".npy as natural shape ***")
 
             if combinedStaticMask.size == 2 * 185 * 388:  # cspad2x2
                 # DAQ shape
@@ -632,12 +632,8 @@ class MaskMaker(object):
             self.saveCheetahStaticMask()
 
     def loadMask(self):
-        if using_pyqt4:
-            fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
-                                                          'ndarray image (*.npy *.npz)'))
-        else:
-            fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
-                                                          'ndarray image (*.npy *.npz)'))[0]
+        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
+                                                          'ndarray image (*.npy *.npz)')[0])
         self.initMask()
         self.userMask = np.load(fname)
         if self.userMask.shape != self.parent.calib.shape:

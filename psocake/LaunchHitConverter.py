@@ -22,7 +22,7 @@ class LaunchHitConverter(QtCore.QThread):
     def digestRunList(self, runList):
         runsToDo = []
         if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
+            print("Run(s) is empty. Please type in the run number(s).")
             return runsToDo
         runLists = str(runList).split(",")
         for list in runLists:
@@ -42,16 +42,16 @@ class LaunchHitConverter(QtCore.QThread):
             runDir = self.parent.hf.spiParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
-                    os.makedirs(runDir, 0774)
+                    os.makedirs(runDir, 0o0774)
             except:
-                print "No write access to: ", runDir
+                print("No write access to: ", runDir)
 
             # Update elog
             try:
                 if self.parent.exp.logger == True:
                     self.parent.exp.table.setValue(run,"Number of hits","#ConvertingNow")
             except AttributeError:
-                print "e-Log table does not exist"
+                print("e-Log table does not exist")
 
             cmd = "bsub -q " + self.parent.hf.spiParam_queue + \
                   " -n " + str(self.parent.hf.spiParam_cpus) + \
@@ -70,6 +70,6 @@ class LaunchHitConverter(QtCore.QThread):
             if self.parent.hf.tag: cmd += " --tag " + self.parent.hf.tag
             cmd += " -r " + str(run)
 
-            print "Submitting batch job: ", cmd
+            print("Submitting batch job: ", cmd)
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             out, err = process.communicate()

@@ -61,7 +61,7 @@ class ImageStack(object):
                                                                      self.stackStart + self.threadpool.data.shape[0] - 1,
                                                                      self.threadpool.data.shape[0]))
         self.startBtn.setEnabled(True)
-        if self.parent.args.v >= 1: print "Done display image stack!!!!!"
+        if self.parent.args.v >= 1: print("Done display image stack!!!!!")
 
     def loadStack(self):
         self.stackStart = self.spinBox.value()

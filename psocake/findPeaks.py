@@ -80,7 +80,7 @@ def getNoe(args):
     if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
     print "findPeaks: ", access
     ds = psana.DataSource(access)
-    run = ds.runs().next()
+    run = next(ds.runs())
     times = run.times()
     # check if the user requested specific number of events
     if args.noe == -1:

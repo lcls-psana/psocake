@@ -121,7 +121,6 @@ class DropletA:
 
         self.fgInd = np.where(inner == 1)
         self.bgInd = np.where(outer == 1)
-        #print "#skbeam fgInd: ", self.fgInd
 
     def findPeaks(self, calib, npix_min=0, npix_max=0, atot_thr=0, son_min=0, thr_low=0, thr_high=0, r0=0, dr=0, mask=None):
         seg = []
@@ -540,6 +539,6 @@ def getStreakMaskCalib(det,evt,width=300,sigma=1):
     calibMask=calibMask.reshape(calib.shape)
     tic8 = time.time()
 
-    print "calib, image, edge, crop, blur, mask, connect, convert: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3, tic5-tic4, tic6-tic5, tic7-tic6, tic8-tic7
+    print("calib, image, edge, crop, blur, mask, connect, convert: ", tic1-tic, tic2-tic1, tic3-tic2, tic4-tic3, tic5-tic4, tic6-tic5, tic7-tic6, tic8-tic7)
 
     return calibMask

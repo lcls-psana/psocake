@@ -118,7 +118,7 @@ def runclient(args,ds,run,times,det,numEvents):
 
     for i, nevent in enumerate(myJobs):
         #s0 = time.time()
-        if i % reportFreq == 0 and i > 0 and rank % 10: print "rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs
+        if i % reportFreq == 0 and i > 0 and rank % 10: print("rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs)
         evt = run.event(times[nevent])
         #s1 = time.time()
         if evt is None: continue
@@ -132,7 +132,7 @@ def runclient(args,ds,run,times,det,numEvents):
             else:
                 tic = time.time()
                 detarr = det.calib(evt)
-                if i % reportFreq == 0 and rank % 10: print "det.calib (rank, time): ", rank, time.time() - tic
+                if i % reportFreq == 0 and rank % 10: print("det.calib (rank, time): ", rank, time.time() - tic)
         else:
             f = h5py.File(args.inputImages)
             ind = np.where(f['eventNumber'][()] == nevent)[0][0]

@@ -227,11 +227,11 @@ class DiffractionGeometry(object):
                 self.calibPath = self.parent.dir + '/' + self.parent.experimentName[:3] + '/' + \
                                  self.parent.experimentName + "/calib/" + self.calibGroup + '/' + \
                                  self.calibSource + "/geometry"
-            if self.parent.args.v >= 1: print "### calibPath: ", self.calibPath
+            if self.parent.args.v >= 1: print("### calibPath: ", self.calibPath)
 
             # Determine which calib file to use
             geometryFiles = os.listdir(self.calibPath)
-            if self.parent.args.v >= 1: print "geom: ", geometryFiles
+            if self.parent.args.v >= 1: print("geom: ", geometryFiles)
             self.calibFile = None
             minDiff = -1e6
             for fname in geometryFiles:
@@ -256,7 +256,7 @@ class DiffractionGeometry(object):
                         minDiff = diff
                         self.calibFile = fname
         except:
-            if self.parent.args.v >= 1: print "Couldn't find psana geometry"
+            if self.parent.args.v >= 1: print("Couldn't find psana geometry")
             self.calibFile = None
 
     def deployCrystfelGeometry(self, arg):
@@ -269,13 +269,13 @@ class DiffractionGeometry(object):
                     self.parent.psocakeRunDir + '/.temp.geom')
                 cmd = ["psana2crystfel", self.calibPath + '/' + self.calibFile,
                        self.parent.psocakeRunDir + "/.temp.geom", str(self.parent.coffset)]
-                if self.parent.args.v >= 1: print "cmd: ", cmd
+                if self.parent.args.v >= 1: print("cmd: ", cmd)
                 try:
                     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
                     p.communicate()[0]
                     p.stdout.close()
                 except:
-                    print highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1)
+                    print(highlight("Warning! deployCrystfelGeometry() failed.", 'r', 1))
                 # FIXME: Configure crystfel geom file to read in a mask (crystfel 'mask_file=' broken?)
                 with open(self.parent.psocakeRunDir + '/.temp.geom', 'r') as f: lines = f.readlines()
                 newGeom = []
@@ -298,27 +298,29 @@ class DiffractionGeometry(object):
                             newGeom.append(line.split('; ')[-1])
                     else:
                         newGeom.append(line)
-                with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f: lines = f.writelines(newGeom)
+                with open(self.parent.psocakeRunDir + '/.temp.geom', 'w') as f:
+                    f.writelines(newGeom)
+        if self.parent.args.v >= 1: print("Done deployCrystfelGeometry")
 
     def updateClen(self, arg):
         self.p1.param(self.geom_grp, self.geom_clen_str).setValue(self.parent.clen)
         self.parent.coffset = self.parent.detectorDistance - self.parent.clen
         self.p1.param(self.geom_grp, self.geom_coffset_str).setValue(self.parent.coffset)
-        if self.parent.args.v >= 1: print "Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+        if self.parent.args.v >= 1: print("Done updateClen: ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen)
 
     def updateDetectorDistance(self, data):
         self.parent.detectorDistance = data / 1000.  # mm to metres
         self.updateClen(self.parent.facility)
-        if self.parent.args.v >= 1: print "coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen
+        if self.parent.args.v >= 1: print("coffset (m), detectorDistance (m), clen (m): ", self.parent.coffset, self.parent.detectorDistance, self.parent.clen)
         self.writeCrystfelGeom(self.parent.facility)
         if self.hasGeometryInfo():
-            if self.parent.args.v >= 1: print "has geometry info"
+            if self.parent.args.v >= 1: print("has geometry info")
             self.updateGeometry()
         self.parent.img.updatePolarizationFactor()
         if self.parent.exp.image_property == self.parent.exp.disp_radialCorrection:
             self.parent.img.updateImage()
         if self.parent.pk.showPeaks: self.parent.pk.updateClassification()
-        if self.parent.args.v >= 1: print "Done updateDetectorDistance"
+        if self.parent.args.v >= 1: print("Done updateDetectorDistance")
 
     def updatePhotonEnergy(self, data):
         if data > 0:
@@ -358,25 +360,25 @@ class DiffractionGeometry(object):
                 encoderVal = self.parent.clen # metres
 
             coffset = self.parent.detectorDistance - encoderVal
-            if self.parent.args.v >= 1: print "coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal
-
+            if self.parent.args.v >= 1: print("coffset (m),detectorDistance (m) ,encoderVal (m): ", coffset, self.parent.detectorDistance, encoderVal)
             # Replace coffset value in geometry file
             if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
                 for line in fileinput.FileInput(self.parent.index.geom, inplace=True):
                     if 'coffset' in line and line.strip()[0] is not ';':
                         coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
-                        print coffsetStr, # comma is required
+                        print(coffsetStr.rstrip()) # FIXME: check whether comma is required
                     elif 'clen' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
                         _c =  line.split('; ')[-1]
-                        print _c,  # comma is required
+                        print(_c.rstrip())  # comma is required
                     elif 'photon_energy' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
                         _c =  line.split('; ')[-1]
-                        print _c,  # comma is required
+                        print(_c.rstrip())  # comma is required
                     elif 'adu_per_eV' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
                         _c =  line.split('; ')[-1]
-                        print _c,  # comma is required
+                        print(_c.rstrip())  # comma is required
                     else:
-                        print line, # comma is required
+                        print(line.rstrip()) # comma is required
+        if self.parent.args.v >= 1: print("Done writeCrystfelGeom")
 
     def getClosestGeom(self):
         # Search for the correct geom file to use
@@ -385,7 +387,7 @@ class DiffractionGeometry(object):
         _runWithGeom = np.array([int(a.split('/')[-1].split('-')[0]) for a in _geomFiles])
         diff = _runWithGeom - self.parent.runNumber
         geomFile = _geomFiles[ int(np.where(diff == np.max(diff[np.where(diff <= 0)[0]]))[0]) ]
-        if self.parent.args.v >= 1: print "getClosestGeom::Choosing this geom file: ", geomFile
+        if self.parent.args.v >= 1: print("getClosestGeom::Choosing this geom file: ", geomFile)
         return geomFile
 
     def updateGeometry(self):
@@ -406,10 +408,10 @@ class DiffractionGeometry(object):
                 self.qMax_physics[i] = 4*np.pi/self.parent.wavelength*np.sin(self.thetaMax[i]/2)
                 self.dMin_physics[i] = np.pi/self.qMax_physics[i]
             if self.parent.args.v >= 1:
-                print "updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i]
+                print("updateGeometry: ", i, self.thetaMax[i], self.dMin_crystal[i], self.dMin_physics[i])
             if self.parent.resolutionRingsOn:
                 self.updateRings()
-        if self.parent.args.v >= 1: print "Done updateGeometry"
+        if self.parent.args.v >= 1: print("Done updateGeometry")
 
     def updateDock42(self, data):
         a = ['a','b','c','d','e','k','m','n','r','s']
@@ -436,7 +438,7 @@ class DiffractionGeometry(object):
         if self.parent.exp.hasExpRunDetInfo():
             self.updateRings()
         if self.parent.args.v >= 1:
-            print "Done updateResolutionRings"
+            print("Done updateResolutionRings")
 
     def updateResolution(self, data):
         # convert to array of floats
@@ -461,7 +463,7 @@ class DiffractionGeometry(object):
         if self.parent.exp.hasExpRunDetInfo():
             self.updateRings()
         if self.parent.args.v >= 1:
-            print "Done updateResolution"
+            print("Done updateResolution")
 
     def updateResolutionUnits(self, data):
         # convert to array of floats
@@ -471,7 +473,7 @@ class DiffractionGeometry(object):
         if self.parent.exp.hasExpRunDetInfo():
             self.updateRings()
         if self.parent.args.v >= 1:
-            print "Done updateResolutionUnits"
+            print("Done updateResolutionUnits")
 
     def updateRings(self):
         if self.parent.resolutionRingsOn:
@@ -504,19 +506,14 @@ class DiffractionGeometry(object):
                 self.resolutionText[i].setPos(self.myResolutionRingList[i]+self.parent.cx, self.parent.cy)
         else:
             self.clearRings()
-        if self.parent.args.v >= 1: print "Done updateRings"
+        if self.parent.args.v >= 1: print("Done updateRings")
 
     def drawCentre(self):
         # Always indicate centre of detector
-        #ipy, ipx = self.parent.det.point_indexes(self.parent.evt, pxy_um=(0, 0))
-        #_cx, _cy = self.parent.det.coords_xy(self.parent.evt)
-        #print "_cx,_cy: ", _cx[0, 0, 0], _cy[0, 0, 0]
-        #print "drawCentre: ", self.parent.cx, self.parent.cy, ipx, ipy
-
         try:
             self.parent.img.centre_feature.setData(np.array([self.parent.cx]), np.array([self.parent.cy]), symbol='o', \
                                                size=6, brush=(255, 255, 255, 0), pen='r', pxMode=False)
-            if self.parent.args.v >= 1: print "Done drawCentre"
+            if self.parent.args.v >= 1: print("Done drawCentre")
         except:
             pass
 
@@ -540,9 +537,9 @@ class DiffractionGeometry(object):
             geo.move_geo(children.oname, 0, dx=-dy, dy=-dx, dz=dz)
             fname =  self.parent.psocakeRunDir + "/"+str(self.parent.runNumber)+'-end.data'
             geo.save_pars_in_file(fname)
-            print "#################################################"
-            print "Deploying psana detector geometry: ", fname
-            print "#################################################"
+            print("#################################################")
+            print("Deploying psana detector geometry: ", fname)
+            print("#################################################")
             cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'recentred geometry'}
             if self.parent.args.localCalib:
                 calibDir = './calib'
@@ -576,7 +573,7 @@ class DiffractionGeometry(object):
                 deploy = True
             else:
                 deploy = False
-                print "Too far away from current centre. I will not deploy the auto centred geometry."
+                print("Too far away from current centre. I will not deploy the auto centred geometry.")
             if deploy:
                 # Calculate detector translation in x and y
                 dx = self.parent.pixelSize * 1e6 * (self.parent.cx - centreRow)  # microns
@@ -593,9 +590,9 @@ class DiffractionGeometry(object):
                 geo.move_geo(children.oname, 0, dx=-dy, dy=-dx, dz=dz)
                 fname = self.parent.psocakeRunDir + "/" + str(self.parent.runNumber) + '-end.data'
                 geo.save_pars_in_file(fname)
-                print "#################################################"
-                print "Deploying psana detector geometry: ", fname
-                print "#################################################"
+                print("#################################################")
+                print("Deploying psana detector geometry: ", fname)
+                print("#################################################")
                 cmts = {'exp': self.parent.experimentName, 'app': 'psocake', 'comment': 'auto recentred geometry'}
                 if self.parent.args.localCalib:
                     calibDir = './calib'

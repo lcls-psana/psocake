@@ -24,7 +24,7 @@ class HitFinder(QtCore.QThread):
     def digestRunList(self,runList):
         runsToDo = []
         if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
+            print("Run(s) is empty. Please type in the run number(s).")
             return runsToDo
         runLists = str(runList).split(",")
         for list in runLists:
@@ -43,7 +43,7 @@ class HitFinder(QtCore.QThread):
         for run in runsToDo:
             runDir = self.parent.hf.spiParam_outDir+"/r"+str(run).zfill(4)
             try:
-                if os.path.exists(runDir) is False: os.makedirs(runDir, 0774)
+                if os.path.exists(runDir) is False: os.makedirs(runDir, 0o0774)
                 cmd = "bsub -q "+self.parent.hf.spiParam_queue+\
                   " -n "+str(self.parent.hf.spiParam_cpus)+\
                   " -o "+runDir+"/.%J.log mpirun --mca btl ^openib findHits"+\
@@ -84,11 +84,11 @@ class HitFinder(QtCore.QThread):
 
                 cmd += " -r " + str(run)
 
-                print "Submitting batch job: ", cmd
+                print("Submitting batch job: ", cmd)
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
                 jobid = out.split("<")[1].split(">")[0]
                 myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-                if self.parent.args.v >= 1: print "bsub log filename: ", myLog
+                if self.parent.args.v >= 1: print("bsub log filename: ", myLog)
             except:
-                print "No write access to: ", runDir
+                print("No write access to: ", runDir)

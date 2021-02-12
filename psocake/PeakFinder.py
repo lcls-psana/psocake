@@ -133,7 +133,7 @@ class PeakFinder:
         access = 'exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx'
         if 'ffb' in self.access.lower(): access += ':dir=/reg/d/ffb/' + self.exp[:3] + '/' + self.exp + '/xtc'
         self.ds = psana.DataSource(access)
-        self.run = self.ds.runs().next()
+        self.run = next(self.ds.runs())
         self.times = self.run.times()
         self.eventTotal = len(self.times)
         self.env = self.ds.env()
@@ -154,7 +154,7 @@ class PeakFinder:
         if len(self.iX.shape) == 2:
             self.iX = np.expand_dims(self.iX, axis=0)
             self.iY = np.expand_dims(self.iY, axis=0)
-        self.mask = self.geo.get_pixel_mask( mbits=0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
+        self.mask = self.geo.get_pixel_mask( mbits=0o0377)  # mask for 2x1 edges, two central columns, and unbound pixels with their neighbours
         self.rb = RadialBkgd(self.xarr, self.yarr, mask=self.mask, radedges=None, nradbins=100,
                              phiedges=(0, 360), nphibins=1)
 

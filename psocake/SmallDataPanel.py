@@ -94,7 +94,7 @@ class SmallData(object):
 
     def updateQuantifierFilename(self, data):
         self.quantifier_filename = data
-        if self.parent.args.v >= 1: print "Done opening metric"
+        if self.parent.args.v >= 1: print("Done opening metric")
 
     def updateQuantifierDataset(self, data):
         self.quantifier_dataset = data
@@ -109,19 +109,19 @@ class SmallData(object):
                         self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
                     self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset][()]
                 except:
-                    if self.parent.args.v >= 1: print "Couldn't find /event dataset"
+                    if self.parent.args.v >= 1: print("Couldn't find /event dataset")
                     self.quantifierEvent = np.arange(len(self.quantifierMetric))
                 self.quantifierFile.close()
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
                 self.updateQuantifierSort(self.quantifier_sort)
             except:
-                if self.parent.args.v >= 1: print "Couldn't read metric"
+                if self.parent.args.v >= 1: print("Couldn't read metric")
                 self.quantifierMetric = np.zeros((self.parent.exp.eventTotal,))
                 self.quantifierInd = np.arange(len(self.quantifierMetric))
                 self.updateQuantifierSort(self.quantifier_sort)
-            if self.parent.args.v >= 1: print "Done reading metric"
+            if self.parent.args.v >= 1: print("Done reading metric")
         else:
-            if self.parent.args.v >= 1: print "no file, display all zeros"
+            if self.parent.args.v >= 1: print("no file, display all zeros")
             self.quantifierMetric = np.zeros((self.parent.exp.eventTotal,))
             self.quantifierInd = np.arange(len(self.quantifierMetric))
             self.updateQuantifierSort(self.quantifier_sort)
@@ -137,7 +137,7 @@ class SmallData(object):
             else:
                 self.updateQuantifierPlot(self.quantifierMetric)
         except:
-            print "Couldn't sort data"
+            print("Couldn't sort data")
             pass
 
     def updateQuantifierPlot(self, metric):
@@ -161,12 +161,12 @@ class SmallData(object):
                 from pprint import pprint
                 pprint(vars(points.scatter))
             for i in range(len(points.scatter.data)):
-                if points.scatter.ptsClicked[0] == points.scatter.data[i][7]:
+                if points.scatter.ptsClicked[0] == points.scatter.data[i][9]: # tenth element contains SpotItem
                     ind = i
                     break
             indX = points.scatter.data[i][0]
             indY = points.scatter.data[i][1]
-            if self.parent.args.v >= 1: print "x,y: ", indX, indY
+            if self.parent.args.v >= 1: print("x,y: ", indX, indY)
             if self.quantifier_sort:
                 ind = self.quantifierIndSorted[ind]
 
@@ -183,17 +183,16 @@ class SmallData(object):
                 fname = fname.split("_"+self.parent.pk.tag)[0]
             c = 0
             while True:
-                exists = True
                 _fname = fname
                 if self.parent.pk.tag:
                     _fname += "_" + str(c) + "_" + self.parent.pk.tag + ".cxi"
                 else:
                     _fname += "_" + str(c) + ".cxi"
                 exists = os.path.exists(_fname)
-                print _fname, exists
+                print(_fname, exists)
                 if not exists: break
                 c += 1
             cmd = "peakogram -i " + fname + " -n " + str(c)
             if self.parent.pk.tag: cmd += " -t " + self.parent.pk.tag
-            print "Running: ", cmd
+            print("Running: ", cmd)
             subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

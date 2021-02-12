@@ -1,4 +1,3 @@
-import os
 # Color scheme
 plotForeground = cardinalRed_hex = str("#8C1515") # Cardinal red
 plotBackground = sandstone = '#D2C295' # Sandstone

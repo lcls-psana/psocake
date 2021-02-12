@@ -223,7 +223,7 @@ def runclient(args):
     access = "exp="+args.exp+":run="+str(args.run)+':idx'
     if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
     ds = psana.DataSource(access)
-    run = ds.runs().next()
+    run = next(ds.runs())
     env = ds.env()
     times = run.times()
     d = psana.Detector(args.det)

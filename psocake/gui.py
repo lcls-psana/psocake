@@ -7,8 +7,6 @@ from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 from pyqtgraph.dockarea import *
 import argparse
-import _colorScheme as color
-from _version import __version__
 from pyqtgraph.dockarea.Dock import DockLabel
 import sys
 
@@ -18,7 +16,9 @@ import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
 import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
 import HitFinderPanel
-import _version
+import version
+import colorScheme as color
+from version import __version__
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
@@ -127,10 +127,10 @@ class MainFrame(QtGui.QWidget):
         self.writeAccess = True
         self.access = args.access.lower()
         if 'ffb' in self.access:
-            print "################################################################"
-            print "Remember only psfeh(hi)prioq/psneh(hi)prioq can access FFB nodes"
-            print "FFB node is here: /reg/d/ffb/"
-            print "################################################################"
+            print("################################################################")
+            print("Remember only psfeh(hi)prioq/psneh(hi)prioq can access FFB nodes")
+            print("FFB node is here: /reg/d/ffb/")
+            print("################################################################")
 
 
         # Init variables
@@ -449,7 +449,7 @@ class MainFrame(QtGui.QWidget):
                         and indexY >= 0 and indexY < self.data.shape[1]:
                     if self.args.mode == 'label' and self.labeling is not None:
                         self.labeling.action(indexY,indexX, self.roi.getPolygonPoints(), w = self.roi.getSizeRectangle()[0], h= self.roi.getSizeRectangle()[1], d= self.roi.getSizeCircle()[0])
-                    print "mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexY, indexX]
+                    print("mouse clicked: ", mousePoint.x(), mousePoint.y(), self.data[indexY, indexX])
                     if self.mk.maskingMode > 0:
                         self.mk.initMask()
                         if self.mk.maskingMode == 1:
@@ -479,7 +479,7 @@ def main():
     ex = MainFrame(sys.argv)
     win.setCentralWidget(ex.area)
     win.resize(1400,700)
-    win.setWindowTitle('PSOCAKE v'+_version.__version__)
+    win.setWindowTitle('PSOCAKE v'+version.__version__)
     win.show()
     sys.exit(app.exec_())
 

@@ -13,7 +13,7 @@ size = comm.Get_size()
 def runclient(args):
     #t0 = time.time()
     ds = psana.DataSource("exp="+args.exp+":run="+str(args.run)+':idx')
-    run = ds.runs().next()
+    run = next(ds.runs())
     env = ds.env()
     times = run.times()
     d = psana.Detector(args.detectorName)

@@ -41,7 +41,7 @@ args = parser.parse_args()
 def getNoe(args):
     runStr = "%04d" % args.run
     ds = psana.DataSource("exp="+args.exp+":run="+runStr+':idx')
-    run = ds.runs().next()
+    run = next(ds.runs())
     times = run.times()
     # check if the user requested specific number of events
     if args.noe == -1:

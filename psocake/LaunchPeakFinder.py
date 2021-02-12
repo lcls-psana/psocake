@@ -21,7 +21,7 @@ class LaunchPeakFinder(QtCore.QThread):
     def digestRunList(self,runList):
         runsToDo = []
         if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
+            print("Run(s) is empty. Please type in the run number(s).")
             return runsToDo
         runLists = str(runList).split(",")
         for list in runLists:
@@ -41,9 +41,9 @@ class LaunchPeakFinder(QtCore.QThread):
             runDir = self.parent.pk.hitParam_outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
-                    os.makedirs(runDir, 0774)
+                    os.makedirs(runDir, 0o0774)
             except:
-                print "No write access to: ", runDir
+                print("No write access to: ", runDir)
 
             # Generate Cheetah mask
             saveCheetahFormatMask(self.parent.pk.hitParam_outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
@@ -53,7 +53,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 if self.parent.exp.logger == True:
                     self.parent.exp.table.setValue(run,"Number of hits","#PeakFindingNow")
             except AttributeError:
-                print "e-Log table does not exist"
+                print("e-Log table does not exist")
 
             # Copy powder ring
             import shutil
@@ -153,7 +153,7 @@ class LaunchPeakFinder(QtCore.QThread):
 
                 cmd += " -r " + str(run)
                 # Launch peak finding
-                print "Submitting batch job: ", cmd
+                print("Submitting batch job: ", cmd)
 
                 subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 

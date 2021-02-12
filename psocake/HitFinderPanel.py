@@ -216,7 +216,7 @@ class HitFinder(object):
         worker.findHits(self.parent.calib, self.parent.evt)
         self.nPixels = worker.nPixels
         self.indicatePhotons()
-        if self.parent.args.v >= 1: print "self.nPixels: ", self.nPixels
+        if self.parent.args.v >= 1: print("self.nPixels: ", self.nPixels)
 
     def indicatePhotons(self):
         self.parent.img.clearPeakMessage()

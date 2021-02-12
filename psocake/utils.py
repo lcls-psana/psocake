@@ -40,7 +40,7 @@ def getNoe(args, facility):
     access = "exp=" + args.exp + ":run=" + runStr + ':idx'
     if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
     ds = psana.DataSource(access)
-    run = ds.runs().next()
+    run = next(ds.runs())
     times = run.times()
     numJobs = len(times)
     # check if the user requested specific number of events
@@ -68,7 +68,7 @@ def getCheetahDim(detInfo):
         dim0 = 8 * 512
         dim1 = 1 * 1024
     else:
-        print "detector type not implemented"
+        print("detector type not implemented")
         exit()
     return dim0, dim1
 
@@ -78,7 +78,7 @@ def saveCheetahFormatMask(outDir, run=None, detInfo=None, combinedMask=None):
         fname = outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
     else:
         fname = outDir + '/staticMask.h5'
-    print "Saving static mask in Cheetah format: ", fname
+    print("Saving static mask in Cheetah format: ", fname)
     myHdf5 = h5py.File(fname, 'w')
     dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
     # Convert calib image to cheetah image
@@ -182,7 +182,7 @@ def pct(detname, unassembled):
             dim0 = row * x
             dim1 = col * y
         else:
-            print "Error: This detector is not supported"
+            print("Error: This detector is not supported")
             exit()
 
         counter = 0
@@ -225,7 +225,7 @@ def ipct(detname, tile):
         calib[0,:,:] = tile
         return calib
     else:
-        print "Error: This detector is not supported"
+        print("Error: This detector is not supported")
         exit()
     # Convert calib image to cheetah image
     calib = np.zeros((numQuad*numAsicsPerQuad,asicRows,asicCols))

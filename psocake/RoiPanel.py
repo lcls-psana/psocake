@@ -105,9 +105,9 @@ class RoiHistogram(object):
                     if self.y0 < 0: self.y0 = 0
                     if self.x1 > self.parent.data.shape[0]: self.x1 = self.parent.data.shape[0]
                     if self.y1 > self.parent.data.shape[1]: self.y1 = self.parent.data.shape[1]
-                    print "######################################################"
-                    print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
-                        self.y1) + "]"  # Note: self.parent.data[x0:x1,y0:y1]
+                    print("######################################################")
+                    print("Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
+                        self.y1) + "]")  # Note: self.parent.data[x0:x1,y0:y1]
                     selected = selected[np.where(pixelsExist == 1)]
 
                     mask_roi = np.zeros_like(self.parent.data)
@@ -120,23 +120,23 @@ class RoiHistogram(object):
                             if tile.sum() > 0:
                                 ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
                                 ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
-                                print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
-                                    itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
+                                print('Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
+                                    itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max()))
                                 if self.parent.args.v >= 1:
                                     import matplotlib.pyplot as plt
                                     plt.figure(figsize=(6, 6))
                                     plt.imshow(self.parent.calib[itile, ax1.min():ax1.max(), ax0.min():ax0.max()],
                                                interpolation='none')
                                     plt.show()
-                    print "WARNING: Unassembled ROI is invalid for tilted detectors"
-                    print "######################################################"
+                    print("WARNING: Unassembled ROI is invalid for tilted detectors")
+                    print("######################################################")
                 elif roi.name == 'circ':
                     selected = self.ret
                     self.centreX = roi.x() + roi.size().x() / 2
                     self.centreY = roi.y() + roi.size().y() / 2
-                    print "###########################################"
-                    print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
-                    print "###########################################"
+                    print("###########################################")
+                    print("Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]")
+                    print("###########################################")
 
                 else:
                     selected = self.ret
@@ -156,9 +156,9 @@ class RoiHistogram(object):
                     if self.y0 < 0: self.y0 = 0
                     if self.x1 > self.parent.data.shape[0]: self.x1 = self.parent.data.shape[0]
                     if self.y1 > self.parent.data.shape[1]: self.y1 = self.parent.data.shape[1]
-                    print "######################################################"
-                    print "Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
-                        self.y1) + "]"  # Note: self.parent.data[x0:x1,y0:y1]
+                    print("######################################################")
+                    print("Assembled ROI: [" + str(self.x0) + ":" + str(self.x1) + "," + str(self.y0) + ":" + str(
+                        self.y1) + "]")  # Note: self.parent.data[x0:x1,y0:y1]
                     mask_roi = np.zeros_like(self.parent.data)
                     mask_roi[self.x0:self.x1, self.y0:self.y1] = 1
                     self.nda = self.parent.det.ndarray_from_image(self.parent.evt, mask_roi, pix_scale_size_um=None,
@@ -167,15 +167,15 @@ class RoiHistogram(object):
                         if tile.sum() > 0:
                             ax0 = np.arange(0, tile.sum(axis=0).shape[0])[tile.sum(axis=0) > 0]
                             ax1 = np.arange(0, tile.sum(axis=1).shape[0])[tile.sum(axis=1) > 0]
-                            print 'Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
-                                itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max())
-                    print "######################################################"
+                            print('Unassembled ROI: [[%i,%i], [%i,%i], [%i,%i]]' % (
+                                itile, itile + 1, ax1.min(), ax1.max(), ax0.min(), ax0.max()))
+                    print("######################################################")
                 elif roi.name == 'circ':
                     self.centreX = roi.x() + roi.size().x() / 2
                     self.centreY = roi.y() + roi.size().y() / 2
-                    print "###########################################"
-                    print "Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]"
-                    print "###########################################"
+                    print("###########################################")
+                    print("Centre: [" + str(self.centreX) + "," + str(self.centreY) + "]")
+                    print("###########################################")
 
     def updateRoiStatus(self):
         if self.roiCheckbox.checkState() == 0:

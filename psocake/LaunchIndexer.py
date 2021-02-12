@@ -23,7 +23,7 @@ class LaunchIndexer(QtCore.QThread):
     def digestRunList(self,runList):
         runsToDo = []
         if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
+            print("Run(s) is empty. Please type in the run number(s).")
             return runsToDo
         runLists = str(runList).split(",")
         for list in runLists:
@@ -43,9 +43,9 @@ class LaunchIndexer(QtCore.QThread):
             runDir = self.parent.index.outDir+"/r"+str(run).zfill(4)
             try:
                 if os.path.exists(runDir) is False:
-                    os.makedirs(runDir, 0774)
+                    os.makedirs(runDir, 0o0774)
             except:
-                print "No write access to: ", runDir
+                print("No write access to: ", runDir)
 
             # Generate Cheetah mask
             utils.saveCheetahFormatMask(self.parent.index.outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
@@ -55,7 +55,7 @@ class LaunchIndexer(QtCore.QThread):
                 if self.parent.exp.logger == True:
                     self.parent.exp.table.setValue(run,"Number of indexed","#IndexingNow")
             except AttributeError:
-                print "e-Log table does not exist"
+                print("e-Log table does not exist")
 
             cmd = "indexCrystals" + \
                   " -e " + self.parent.experimentName + \
@@ -95,6 +95,6 @@ class LaunchIndexer(QtCore.QThread):
             peakFile += '.cxi'
             if os.path.exists(peakFile):
                 # Launch indexing job
-                print "Launch indexing job: ", cmd
+                print("Launch indexing job: ", cmd)
                 subprocess.Popen(shlex.split(cmd))
 

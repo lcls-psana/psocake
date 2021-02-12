@@ -210,7 +210,7 @@ class PeakFinding(object):
     def digestRunList(self, runList):
         runsToDo = []
         if not runList:
-            print "Run(s) is empty. Please type in the run number(s)."
+            print("Run(s) is empty. Please type in the run number(s).")
             return runsToDo
         runLists = str(runList).split(",")
         for list in runLists:
@@ -424,7 +424,7 @@ class PeakFinding(object):
         self.algorithm = data
         self.algInitDone = False
         self.updateClassification()
-        if self.parent.args.v >= 1: print "##### Done updateAlgorithm: ", self.algorithm
+        if self.parent.args.v >= 1: print("##### Done updateAlgorithm: ", self.algorithm)
 
     def updateTag(self, data):
         if self.tag:
@@ -493,7 +493,7 @@ class PeakFinding(object):
                 #    myHdf5[grpName + dset_atot][0, i] = atot
                 myHdf5[grpName + dset_nPeaks][0] = nPeaks
 
-                if self.parent.args.v >= 1: print "hiddenCXI clen (mm): ", self.parent.clen * 1000.
+                if self.parent.args.v >= 1: print("hiddenCXI clen (mm): ", self.parent.clen * 1000.)
                 myHdf5["/LCLS/detector_1/EncoderValue"][0] = self.parent.clen * 1000.  # mm
                 myHdf5["/LCLS/photon_energy_eV"][0] = self.parent.photonEnergy
                 myHdf5.close()
@@ -597,7 +597,7 @@ class PeakFinding(object):
                                           " -o " + self.parent.psocakeRunDir
                                     cmd += " -n " + str(256)
                                     cmd += " --random"
-                                    print "Running on local machine: ", cmd
+                                    print("Running on local machine: ", cmd)
                                     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                                shell=True)
                                     out, err = process.communicate()
@@ -625,9 +625,9 @@ class PeakFinding(object):
                                     ind = np.where(r == val)[0].astype(int)
                                     if len(ind) > 0: profile[i] = np.mean(powderSum1D[ind])
                                 myThreshInd = np.argmax(profile)
-                                print "###################################################"
-                                print "Solution scattering radius (pixels): ", myThreshInd
-                                print "###################################################"
+                                print("###################################################")
+                                print("Solution scattering radius (pixels): ", myThreshInd)
+                                print("###################################################")
                                 thickness = 10
                                 indLo = np.where(r >= myThreshInd - thickness / 2.)[0].astype(int)
                                 indHi = np.where(r <= myThreshInd + thickness / 2.)[0].astype(int)
@@ -699,7 +699,7 @@ class PeakFinding(object):
                     [meanClosestNeighborDist, self.pairsFoundPerSpot] = self.calculate_likelihood(qPeaks)
                 else:
                     self.pairsFoundPerSpot = 0
-                if self.parent.args.v >= 1: print "Num peaks found: ", self.numPeaksFound, self.peaks.shape, self.pairsFoundPerSpot
+                if self.parent.args.v >= 1: print("Num peaks found: ", self.numPeaksFound, self.peaks.shape, self.pairsFoundPerSpot)
 
                 # update clen
                 self.parent.geom.updateClen(self.parent.facility)
@@ -712,7 +712,7 @@ class PeakFinding(object):
                 if self.parent.index.showIndexedPeaks: self.parent.index.updateIndex()
 
                 self.drawPeaks()
-            if self.parent.args.v >= 1: print "Done updateClassification"
+            if self.parent.args.v >= 1: print("Done updateClassification")
 
     def calculate_likelihood(self, qPeaks):
 
@@ -745,7 +745,7 @@ class PeakFinding(object):
 
     def getMaxRes(self, posX, posY, centerX, centerY):
         maxRes = np.max(np.sqrt((posX-centerX)**2 + (posY-centerY)**2))
-        if self.parent.args.v >= 1: print "maxRes: ", maxRes
+        if self.parent.args.v >= 1: print("maxRes: ", maxRes)
         return maxRes # in pixels
 
     def assemblePeakPos(self, peaks):
@@ -819,5 +819,5 @@ class PeakFinding(object):
                 self.parent.img.filePeak_feature.setData([], [], pxMode=False)
         else:
             self.parent.img.filePeak_feature.setData([], [], pxMode=False)
-        if self.parent.args.v >= 1: print "Done drawPeaks"
+        if self.parent.args.v >= 1: print("Done drawPeaks")
         self.parent.geom.drawCentre()

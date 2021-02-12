@@ -76,7 +76,7 @@ grpName = "/litPixels"
 myDatasource = args.exprun+':idx'
 ds = psana.DataSource(myDatasource)
 env = ds.env()
-run = ds.runs().next()
+run = next(ds.runs())
 
 if rank == 0: photonEnergy = getAveragePhotonEnergy()
 
