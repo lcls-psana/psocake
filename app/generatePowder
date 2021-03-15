@@ -3,16 +3,8 @@
 
 import numpy as np
 import sys
-import os
 from mpi4py import MPI
-
-if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
-    facility = 'LCLS'
-    from psana import *
-elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
-    facility = 'PAL'
-    import glob
-    import h5py
+from psana import *
 
 class Stats:
     def __init__(self,exp,run,detname):
@@ -56,7 +48,7 @@ class Stats:
             self.variance[self.variance < 0] = 0
             self.stddev = np.sqrt(self.variance)
             file = '%s/%s_%4.4d_%s'%(args.outDir,self.exp,self.run,self.detname)
-            print 'writing files: ',file, '_(mean,std,max,sum).npy'
+            print('writing files: ',file, '_(mean,std,max,sum).npy')
             #np.savez(file,mean=self.mean,stddev=self.stddev,max=self.maximum)
             np.save(file+"_mean",self.mean)
             np.save(file+"_std",self.stddev)
@@ -109,15 +101,13 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-if rank == 0: print "GP: ", args
-
 if args.localCalib: setOption('psana.calib-dir', './calib')
 
 ds = DataSource(args.exprun+':idx')
 env = ds.env()
 
 # set this to sys.maxint to analyze all events
-maxevents = sys.maxint
+maxevents = sys.maxsize
 
 detname = args.detList[0] #['Camp.0:pnCCD.0']#,'Camp.0:pnCCD.1']
 detlist = [Detector(s, env) for s in detname]
@@ -148,18 +138,18 @@ for run in ds.runs():
     for d in detlist:
         d.stats = Stats(env.experiment(), runnumber, d.detname)
         for i,time in enumerate(ind):
-            if i%100==0 and i > 99: print 'Rank',rank,'processing event', i,'of',len(mytimes)
+            if i%100==0 and i > 99: print('Rank',rank,'processing event', i,'of',len(mytimes))
             evt = run.event(mytimes[i])
             try:
                 detarr = d.calib(evt)
             except ValueError:
                 id = evt.get(EventId)
-                print 'Value Error!'
-                print id
-                print id.time(),id.fiducials()
+                print('Value Error!')
+                print(id)
+                print(id.time(),id.fiducials())
                 continue
             if detarr is None:
-                print '*** failed to get detarr'
+                print('*** failed to get detarr')
                 continue
             if args.threshold is not None:
                 detarr[detarr < args.threshold] = 0

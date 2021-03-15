@@ -25,6 +25,32 @@ def getMyUnfairShare(numJobs, numWorkers, rank):
     myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
     return myJobs
 
+def batchSubmit(cmd, queue, cores, log='%j.log', jobName=None, batchType='slurm'):
+    """
+    Simplify batch jobs submission for lsf & slurm
+    :param cmd: command to be executed as batch job
+    :param queue: name of batch queue
+    :param cores: number of cores
+    :param log: log file
+    :param batchType: lsf or slurm
+    :return: commandline string
+    """
+    if batchType == "lsf":
+        _cmd = "bsub -q " + queue + \
+               " -n " + str(cores) + \
+               " -o " + log
+        if jobName:
+            _cmd += " -J " + jobName
+        _cmd += cmd
+    elif batchType == "slurm":
+        _cmd = "sbatch --partition=" + queue + \
+               " --ntasks=" + str(cores) + \
+               " --output=" + log
+        if jobName:
+            _cmd += " --job-name=" + jobName
+        _cmd += " --wrap=\"" + cmd + "\""
+    return _cmd
+
 def highlight(string, status='k', bold=0):
     attr = []
     if sys.stdout.isatty():

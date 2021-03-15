@@ -42,6 +42,8 @@ parser.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
 parser.add_argument("-m","--mode", default="lite", type=str,
                     help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}")
+parser.add_argument("-b","--batch", default="slurm", type=str,
+                    help="Batch system: lsf or slurm")
 # LCLS specific
 parser.add_argument("-a","--access", default="ana", type=str,
                     help="Set data node access: {ana,ffb}")
@@ -118,6 +120,13 @@ class MainFrame(QtGui.QWidget):
         self.eventNumber = int(args.evt)
         self.inputImages = args.inputImages
         self.mode = args.mode
+        self.batch = args.batch.lower()
+        print("\n################################################################")
+        if self.batch == "lsf":
+            print("Using LSF for batch jobs. Use -b to set batch preference.")
+        else:
+            print("Using SLURM for batch jobs. Use -b to set batch preference.")
+        print("################################################################")
 
         # Directories
         self.psocakeDir = None

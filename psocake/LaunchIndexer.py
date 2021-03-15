@@ -87,6 +87,7 @@ class LaunchIndexer(QtCore.QThread):
             if self.parent.index.extra:
                 cmd += " --extra [" + self.parent.index.extra + "]"
             if self.parent.index.condition: cmd += " --condition " + '"'+self.parent.index.condition+'"'
+            cmd += " --batch " + self.parent.batch
             cmd += " --run " + str(run)
             # Check cxi file exists for this run
             runDir = self.parent.index.outDir + "/r" + str(run).zfill(4)

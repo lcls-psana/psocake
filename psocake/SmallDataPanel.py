@@ -189,10 +189,10 @@ class SmallData(object):
                 else:
                     _fname += "_" + str(c) + ".cxi"
                 exists = os.path.exists(_fname)
-                print(_fname, exists)
                 if not exists: break
                 c += 1
             cmd = "peakogram -i " + fname + " -n " + str(c)
             if self.parent.pk.tag: cmd += " -t " + self.parent.pk.tag
             print("Running: ", cmd)
             subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            print("Peakogram plot for the peak finding results for this run will pop up soon")

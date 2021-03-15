@@ -57,7 +57,6 @@ else:
         fname = args.i + "_" + str(i)
         if args.t: fname += "_"+args.t
         fname += ".cxi"
-        print fname
         f = h5py.File(fname, 'r')
         if i == 0:
             x = f['entry_1/result_1/peakRadius'][()]
@@ -66,7 +65,6 @@ else:
             x = np.append(x,f['entry_1/result_1/peakRadius'][()],axis=0)
             y = np.append(y,f['entry_1/result_1/peakMaxIntensity'][()],axis=0)
         f.close()
-        print x.shape
 
 xmin = np.min(x[x > 0])
 xmax = np.max(x)

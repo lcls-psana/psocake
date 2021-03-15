@@ -68,7 +68,7 @@ class HitFinder_chiSquared:
         counter = 0
         for t in range(self.buffer_max_len):
             evt = self.run.event(t)
-            print "Rank %d digested %d of %d frames" % (self.rank, counter, self.buffer_max_len)
+            print("Rank %d digested %d of %d frames" % (self.rank, counter, self.buffer_max_len))
             # Create masked calib
             calib = myDetList[detNum].calib_data(evt)
             if calib is None:
@@ -77,7 +77,7 @@ class HitFinder_chiSquared:
             self.bg_buffer[detNum].append(calib.copy())
             counter += 1
 
-        print "Rank %d has %d total frames" % (self.rank, counter)
+        print("Rank %d has %d total frames" % (self.rank, counter))
 
     def findHits(self, calib, evt):
         if self.streakMask_on: # make new streak mask

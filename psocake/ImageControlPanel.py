@@ -153,16 +153,19 @@ class ImageControl(object):
 
     def load(self):
         fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)')[0])
-        if fname.split('.')[-1] in '.npz':
-            temp = np.load(fname)
-            self.parent.calib = temp['max']
+        if fname:
+            if '.npz' in str(fname.split('.')[-1]):
+                temp = np.load(fname)
+                self.parent.calib = temp['max']
+            else:
+                self.parent.calib = np.load(fname)
+            self.parent.firstUpdate = True
+            self.parent.img.updateImage(self.parent.calib)
+            self.parent.pk.updateClassification()
+            if 'label' in self.parent.args.mode:
+                self.parent.label.updateText()
         else:
-            self.parent.calib = np.load(fname)
-        self.parent.firstUpdate = True
-        self.parent.img.updateImage(self.parent.calib)
-        self.parent.pk.updateClassification()
-        if 'label' in self.parent.args.mode:
-            self.parent.label.updateText()
+            print("No such file or directory")
 
 
 

@@ -3,9 +3,8 @@ import h5py, os, time, json
 import argparse
 import subprocess
 import numpy as np
-import glob
+from utils import batchSubmit
 
-if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")
 parser.add_argument("-e","--exp", help="Experiment name (e.g. cxis0813 ). This option is ignored if expRun option is used.", default="", type=str)
@@ -39,10 +38,8 @@ parser.add_argument("--keepData", help="", default=False, type=str)
 parser.add_argument("-v", help="verbosity level, default=0",default=0, type=int)
 parser.add_argument("--likelihood", help="index hits with likelihood higher than this value", default=0, type=float)
 parser.add_argument("--condition", help="logic condition", default='', type=str)
+parser.add_argument("--batch", help="batch type: lsf or slurm",default="slurm", type=str)
 args = parser.parse_args()
-
-facility = 'LCLS'
-import psanaWhisperer, psana
 
 def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
@@ -78,6 +75,7 @@ clenEpics = args.clenEpics
 logger = args.logger
 hitParam_threshold = args.hitParam_threshold
 keepData = str2bool(args.keepData)
+batch = args.batch
 
 runDir = outDir + "/r" + str(runNumber).zfill(4)
 peakFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4)
@@ -226,8 +224,8 @@ for ind in range(numSize):
     hf = h5py.File(pFile, 'r')
     icondition = args.condition
     iposition = [ipos for ipos, ichar in enumerate(icondition) if ichar == '#']
-    print('##################')
-    print('original condition = ', icondition)
+    #print('##################')
+    #print('original condition = ', icondition)
     istart = iposition[0::2]
     iend = iposition[1::2]
     assert (len(istart) == len(iend))
@@ -238,18 +236,17 @@ for ind in range(numSize):
         assert(hf.visit(getpath))
         ifullpath.append("hf['"+hf.visit(getpath)+"'][ival]")
         icondition = icondition.replace('#'+iname[idx]+'#', ifullpath[-1])
-    print('modified condition = ', icondition, '\n')
-    print('##################')
+    #print('modified condition = ', icondition, '\n')
+    #print('##################')
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     try:
-        if facility == 'LCLS':
-            f = h5py.File(pFile, 'r')
-            hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'][()] == 'success'
-            minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
-            maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
-            minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
-            f.close()
+        f = h5py.File(pFile, 'r')
+        hasData = '/entry_1/instrument_1/detector_1/data' in f and 'success' in str(f['/status/findPeaks'][()])
+        minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
+        maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
+        minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
+        f.close()
     except:
         print("Error while reading: ", pFile)
         print("Note that peak finding has to finish before launching indexing jobs")
@@ -266,14 +263,13 @@ for ind in range(numSize):
                 pass
         # Launch indexing
         try:
-            if facility == 'LCLS':
-                print("Reading images from: ", pFile)
-                f = h5py.File(pFile, 'r')
-                eventList = f['/LCLS/eventNumber'][()]
-                if args.likelihood > 0:
-                    likelihood = f['/entry_1/result_1/likelihood'][()]
-                numEvents = len(eventList)
-                f.close()
+            print("Reading images from: ", pFile)
+            f = h5py.File(pFile, 'r')
+            eventList = f['/LCLS/eventNumber'][()]
+            if args.likelihood > 0:
+                likelihood = f['/entry_1/result_1/likelihood'][()]
+            numEvents = len(eventList)
+            f.close()
         except:
             print("Couldn't read file: ", pFile)
 
@@ -282,7 +278,6 @@ for ind in range(numSize):
 totalNumEvents = np.sum(numEventsArr)
 # Split into chunks for faster indexing
 numWorkers = int(np.ceil(totalNumEvents*1./chunkSize))
-
 myLogList = []
 myJobList = []
 myStreamList = []
@@ -317,33 +312,46 @@ for rank in range(numWorkers):
     isat_event = []
 
     # Submit job
-    cmd = "bsub -q " + queue + " -o " + runDir + "/.%J.log -J " + jobName + " -n 1 -x"
-    cmd += " indexamajig -i " + myList
+    cmd = " indexamajig -i " + myList
     if args.likelihood > 0 and checkEnoughLikes > 0 and checkEnoughLikes <= 16:
         cmd += " -j 1"
     else:
         cmd += " -j '`nproc`'"
     cmd += " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
-           " --indexing=" + indexingMethod + " -o " + myStream + \
-           " --temp-dir=/scratch" + \
-           " --tolerance=" + tolerance + \
+           " --indexing=" + indexingMethod + " -o " + myStream
+    if batch == "lsf":
+        cmd += " --temp-dir=/scratch"
+    else:
+        cmd += " --temp-dir=/u1"
+    cmd += " --tolerance=" + tolerance + \
            " --no-revalidate --multi --profile"
     if pdb: cmd += " --pdb=" + pdb
     if extra: cmd += " " + extra
+
+    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch)
+
+    print("Note: Indexing will use the mask saved in the cxi file (/entry_1/data_1/mask) for Bragg integration")
     print("Submitting job: ", cmd)
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = process.communicate()
     # Keep list
-    jobID = str(out).split("<")[1].split(">")[0]
-    myLog = runDir + "/." + jobID + ".log"
+    if batch == "lsf":
+        jobID = out.decode("utf-8").split("<")[1].split(">")[0]
+    else:
+        jobID = out.decode("utf-8").split("job ")[1].split("\n")[0]
+    myLog = runDir + "/" + jobID + ".log"
     myJobList.append(jobID)
     myLogList.append(myLog)
-    print("bsub log filename: ", myLog)
+    print("log filename: ", myLog)
 
 ##############################################################
 
-myKeyString = "The output (if any) is above this job summary."
-mySuccessString = "Successfully completed."
+if batch == "lsf":
+    myKeyString = "The output (if any) is above this job summary."
+    mySuccessString = "Successfully completed."
+else:
+    myKeyString = "Final: "
+    mySuccessString = "Final: "
 Done = 0
 haveFinished = np.zeros((numWorkers,))
 try:
@@ -358,7 +366,7 @@ except:
     with open(fname) as infile:
         d = json.load(infile)
         numEvents = int(d['numHits'])
-
+        
 while Done == 0:
     for i, myLog in enumerate(myLogList):
         if os.path.isfile(myLog):  # log file exists

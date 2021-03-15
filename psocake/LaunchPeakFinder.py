@@ -63,9 +63,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 shutil.copyfile(src, dst)
 
             if self.parent.facility == self.parent.facilityLCLS:
-                cmd = "bsub -q "+self.parent.pk.hitParam_queue + \
-                      " -n "+str(self.parent.pk.hitParam_cpus) + \
-                      " -o "+runDir+"/.%J.log mpirun --mca btl ^openib findPeaksTurbo -e "+self.experimentName+\
+                cmd = "mpirun --mca btl ^openib findPeaksTurbo -e "+self.experimentName+\
                       " -d "+self.detInfo+\
                       " --outDir "+runDir+\
                       " --algorithm "+str(self.parent.pk.algorithm)
@@ -152,6 +150,8 @@ class LaunchPeakFinder(QtCore.QThread):
                     cmd += " --cm3 " + str(self.parent.exp.commonModeParams[3])
 
                 cmd += " -r " + str(run)
+                cmd = batchSubmit(cmd, self.parent.pk.hitParam_queue, self.parent.pk.hitParam_cpus, runDir + "/%J.log",
+                                  "peaks" + str(run), self.parent.batch)
                 # Launch peak finding
                 print("Submitting batch job: ", cmd)
 

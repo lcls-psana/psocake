@@ -69,7 +69,7 @@ if rank == 0:
     myHdf5['/status/findHits'] = 'fail'
     dt = h5py.special_dtype(vlen=bytes)
     myInput = ""
-    for key,value in vars(args).iteritems():
+    for key,value in vars(args).items():
         myInput += key
         myInput += " "
         myInput += str(value)

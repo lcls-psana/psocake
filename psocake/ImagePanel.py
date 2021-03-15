@@ -100,6 +100,14 @@ class ImageViewer(object):
         self.peak_feature.setData([], [], pxMode=False)
         if self.parent.args.v >= 1: print("Done clearPeakMessage")
 
+    def clearIndexingMessage(self):
+        self.win.getView().removeItem(self.abc_text)
+        self.indexedPeak_feature.setData([], [], pxMode=False)
+        if self.parent.args.v >= 1: print("Done clearIndexingMessage")
+
+    def updateIndexingMessage(self, abc_text):
+        self.win.getView().addItem(abc_text)
+
     def drawLabCoordinates(self):
         (cenX,cenY) = (-20,-20) # no offset
         # Draw xy arrows

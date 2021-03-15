@@ -2,6 +2,7 @@ from pyqtgraph.Qt import QtCore
 import subprocess
 import os
 import numpy as np
+from utils import batchSubmit
 
 class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):
@@ -44,8 +45,7 @@ class PowderProducer(QtCore.QThread):
                 if os.path.exists(runDir) is False: os.makedirs(runDir, 0o0774)
 
                 # Command for submitting to batch
-                cmd = "bsub -q "+self.parent.mk.powder_queue+" -n "+str(self.parent.mk.powder_cpus)+\
-                      " -o "+runDir+"/.%J.log mpirun generatePowder exp="+self.experimentName+\
+                cmd = "mpirun generatePowder exp="+self.experimentName+\
                       ":run="+str(run)+" -d "+self.detInfo+\
                       " -o "+runDir
                 if self.parent.mk.powder_noe > 0:
@@ -54,11 +54,17 @@ class PowderProducer(QtCore.QThread):
                     cmd += " -t " + str(self.parent.mk.powder_threshold)
                 if self.parent.args.localCalib:
                     cmd += " --localCalib"
+
+                cmd = batchSubmit(cmd, self.parent.mk.powder_queue, self.parent.mk.powder_cpus,
+                                  runDir + "/%J.log", "powder" + str(run), self.parent.batch)
                 print("Submitting batch job: ", cmd)
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
-                jobid = out.split("<")[1].split(">")[0]
-                myLog = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-                if self.parent.args.v >= 1: print("bsub log filename: ", myLog)
+                if self.parent.batch == "lsf":
+                    jobID = out.decode("utf-8").split("<")[1].split(">")[0]
+                else:
+                    jobID = out.decode("utf-8").split("job ")[1].split("\n")[0]
+                myLog = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)+"/"+jobID+".log"
+                if self.parent.args.v >= 1: print("log filename: ", myLog)
             except:
                 print("No write access to: ", runDir)

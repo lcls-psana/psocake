@@ -95,7 +95,7 @@ if args.tag:
 else:
     filename = args.inDir + "/" + args.exp + "_" + runStr + ".cxi"
 
-print "Reading file: %s" % (filename)
+print("Reading file: %s" % (filename))
 if mode == 'sfx':
     statusFname = args.inDir+'/status_index.txt'
 elif mode == 'spi':
@@ -104,7 +104,7 @@ elif mode == 'spi':
 if rank == 0:
     try:
         d = {"message": "#CXIDB"}
-        print statusFname
+        print(statusFname)
         writeStatus(statusFname, d)
     except:
         pass
@@ -131,8 +131,8 @@ while notDone:
         f.close()
         notDone = 0
     except:
-        print "Couldn't read h5 file: ", filename
-        print "Number of tries: ", notDone
+        print("Couldn't read h5 file: ", filename)
+        print("Number of tries: ", notDone)
         notDone += 1
         if notDone >= 10: exit()
         time.sleep(10)
@@ -411,7 +411,7 @@ comm.Barrier()
 # All workers get the to-do list
 ###################################################
 
-f = h5py.File(filename, "r+", driver='mpio', comm=MPI.COMM_WORLD)
+f = h5py.File(filename, "r+")#, driver='mpio', comm=MPI.COMM_WORLD)
 myJobs = getMyUnfairShare(numHits,size,rank)
 
 myHitInd = hitInd[myJobs]
@@ -625,7 +625,7 @@ for i,val in enumerate(myHitInd):
     t8 = time.time()
     #f.flush()
     t9 = time.time()
-    if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+    if i%100 == 0: print("Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs)))
 
     if rank == 0 and i%10 == 0:
         try:
@@ -657,4 +657,4 @@ if rank == 0:
         f.attrs["/entry_1/result_1/nHits"] = numHits
     f.close()
     toc = time.time()
-    print "time taken: ", toc-tic
+    print("time taken: ", toc-tic)
