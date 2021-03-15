@@ -8,11 +8,12 @@ Psocake (v1.0.15 or higher) with psana (ana-4.0.14-py3 or higher) should be used
 Note that psocake has moved to python3 (and python2 is deprecated).
 
 For older experiments with horizontal polarization (before 2020), use Psocake version v0.6.X with psana (ana-3.0.2 or lower):
-source /cds/sw/ds/ana/conda/manage/bin/psconda.sh
-export PATH=/reg/data/ana03/scratch/yoon82/Software/py2/psocake/app:$PATH
-export PYTHONPATH=/reg/data/ana03/scratch/yoon82/Software/py2/psocake:$PYTHONPATH
-# CrystFEL compatible version
-source /reg/g/cfel/crystfel/crystfel-0.8.0/setup-sh
+```
+    source /cds/sw/ds/ana/conda/manage/bin/psconda.sh
+    export PATH=/reg/data/ana03/scratch/yoon82/Software/py2/psocake/app:$PATH  
+    export PYTHONPATH=/reg/data/ana03/scratch/yoon82/Software/py2/psocake:$PYTHONPATH  
+    source /reg/g/cfel/crystfel/crystfel-0.8.0/setup-sh # CrystFEL compatible version  
+```
 
 ## Installation
 
