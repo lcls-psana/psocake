@@ -64,7 +64,7 @@ def highlight(string, status='k', bold=0):
 def getNoe(args, facility):
     runStr = "%04d" % args.run
     access = "exp=" + args.exp + ":run=" + runStr + ':idx'
-    if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+    if 'ffb' in args.access.lower(): access += ':dir=/cds/data/drpsrcf/' + args.exp[:3] + '/' + args.exp + '/xtc'
     ds = psana.DataSource(access)
     run = next(ds.runs())
     times = run.times()
@@ -80,6 +80,16 @@ def writeStatus(fname, d):
     json.dump(d, open(fname, 'w'))
 
 # Cheetah-related
+def readMask(fname):
+    # fname: full path to hdf5 static cheetah-shaped mask in /entry_1/data_1/mask
+    mask = None
+    if fname is not None:
+        f = h5py.File(fname, 'r')
+        mask = f['/entry_1/data_1/mask'][()]
+        f.close()
+        mask = -1*(mask-1)
+    return mask
+
 def getCheetahDim(detInfo):
     if 'cspad' in detInfo.lower():
         dim0 = 8 * 185

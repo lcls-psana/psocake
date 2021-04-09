@@ -1,9 +1,10 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
-import colorScheme as color
 from pyqtgraph.Qt import QtCore, QtGui
 from random import shuffle
 import os
+
+import psocake.colorScheme as color
 
 try:
     from PyQt5.QtWidgets import *

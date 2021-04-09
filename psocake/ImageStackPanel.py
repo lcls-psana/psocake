@@ -9,7 +9,7 @@ except ImportError:
     using_pyqt4 = True
     pass
 
-import LaunchStackProducer
+from psocake import LaunchStackProducer
 
 class ImageStack(object):
     def __init__(self, parent = None):

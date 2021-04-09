@@ -1,5 +1,5 @@
 import numpy as np
-import myskbeam
+from psocake import myskbeam
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")

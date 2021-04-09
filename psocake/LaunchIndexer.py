@@ -2,7 +2,7 @@ from pyqtgraph.Qt import QtCore
 import subprocess
 import os, shlex
 import numpy as np
-import utils
+from psocake import utils
 
 class LaunchIndexer(QtCore.QThread):
     def __init__(self, parent = None):

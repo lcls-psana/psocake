@@ -2,7 +2,6 @@ import numpy as np
 import subprocess
 import os
 import glob
-import utils
 try:
     logbook_present = True
     from LogBook.runtables import RunTables
@@ -15,6 +14,7 @@ from pyqtgraph.parametertree import Parameter, ParameterTree
 import psana
 import Detector.PyDetector
 import PSCalib.GlobalUtils as gu
+from psocake import utils
 
 class ExperimentInfo(object):
     def __init__(self, parent = None):
@@ -759,7 +759,7 @@ class ExperimentInfo(object):
         if self.parent.facility == self.parent.facilityLCLS:
             try:
                 access = 'exp=' + str(self.parent.experimentName) + ':run=' + str(self.parent.runNumber) + ':idx'
-                if 'ffb' in self.parent.access: access += ':dir=/reg/d/ffb/' + self.parent.experimentName[:3] + \
+                if 'ffb' in self.parent.access: access += ':dir=/cds/data/drpsrcf/' + self.parent.experimentName[:3] + \
                                                           '/' + self.parent.experimentName + '/xtc'
                 self.ds = psana.DataSource(access)
                 self.run = next(self.ds.runs())

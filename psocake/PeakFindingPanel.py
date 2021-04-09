@@ -4,17 +4,16 @@ import h5py
 from pyqtgraph.dockarea import *
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import LaunchPeakFinder
 import json, os, time
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import subprocess
-import utils
 import skimage.measure as sm
 
-#from ImgAlgos.PyAlgos import PyAlgos # peak finding
 from psalgos.pypsalgos import PyAlgos  # replacement for: from ImgAlgos.PyAlgos import PyAlgos
-import myskbeam
+from psocake import utils
+from psocake import myskbeam
+from psocake import LaunchPeakFinder
 
 class PeakFinding(object):
     def __init__(self, parent = None):
@@ -89,6 +88,13 @@ class PeakFinding(object):
         self.hitParam_psdebugq_str = 'psdebugq'
         self.hitParam_psanagpuq_str = 'psanagpuq'
         self.hitParam_psanaidleq_str = 'psanaidleq'
+        self.hitParam_ffbh1q_str = 'ffbh1q' # on-shift
+        self.hitParam_ffbl1q_str = 'ffbl1q' # off-shift
+        self.hitParam_ffbh2q_str = 'ffbh2q'
+        self.hitParam_ffbl2q_str = 'ffbl2q'
+        self.hitParam_ffbh3q_str = 'ffbh3q'
+        self.hitParam_ffbl3q_str = 'ffbl3q'
+        self.hitParam_anaq_str = 'anaq'  # For the week after the experiment
         self.hitParam_noQueue_str = 'N/A'
         self.hitParam_noe_str = 'Number of events to process'
         self.hitParam_threshold_str = 'Indexable number of peaks'
@@ -195,7 +201,10 @@ class PeakFinding(object):
                                                                              self.hitParam_psanaq_str: 'psanaq',
                                                                              self.hitParam_psdebugq_str: 'psdebugq',
                                                                              self.hitParam_psanagpuq_str: 'psanagpuq',
-                                                                             self.hitParam_psanaidleq_str: 'psanaidleq'},
+                                                                             self.hitParam_psanaidleq_str: 'psanaidleq',
+                                                                             self.hitParam_ffbh2q_str: 'ffbh2q',
+                                                                             self.hitParam_ffbl2q_str: 'ffbl2q',
+                                                                             self.hitParam_anaq_str: 'anaq'},
                  'value': self.hitParam_queue, 'tip': "Choose queue"},
                 {'name': self.hitParam_cpu_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_cpus},
                 {'name': self.hitParam_noe_str, 'type': 'int', 'decimals': 7, 'value': self.hitParam_noe,

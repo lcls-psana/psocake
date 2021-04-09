@@ -8,9 +8,7 @@ import subprocess
 import pyqtgraph as pg
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import LaunchIndexer
 import pandas as pd
-from utils import highlight
 #try:
 #    from PyQt5.QtWidgets import *
 using_pyqt4 = False
@@ -18,6 +16,8 @@ using_pyqt4 = False
 #    using_pyqt4 = True
 #    pass
 from PSCalib.CalibFileFinder import deploy_calib_file
+from psocake.utils import highlight
+from psocake import LaunchIndexer
 
 class CrystalIndexing(object):
     def __init__(self, parent = None):
@@ -56,8 +56,6 @@ class CrystalIndexing(object):
         self.cpu_str = 'CPUs'
         self.keepData_str = 'Keep CXI images'
         self.noe_str = 'Number of events to process'
-        (self.psanaq_str,self.psnehq_str,self.psfehq_str,self.psnehprioq_str,self.psfehprioq_str,self.psnehhiprioq_str,self.psfehhiprioq_str,self.psdebugq_str,self.psanagpuq_str,self.psanaidleq_str) = \
-            ('psanaq','psnehq','psfehq','psnehprioq','psfehprioq','psnehhiprioq','psfehhiprioq','psdebugq','psanagpuq','psanaidleq')
         self.noQueue_str = 'N/A'
 
         self.outDir = self.parent.psocakeDir
@@ -65,7 +63,7 @@ class CrystalIndexing(object):
         self.runs = ''
         self.sample = 'crystal'
         self.tag = ''
-        self.queue = self.psanaq_str
+        self.queue = self.parent.pk.hitParam_psanaq_str
         self.chunkSize = 500
         self.cpu = 12
         self.noe = -1
@@ -114,16 +112,23 @@ class CrystalIndexing(object):
                 {'name': self.runs_str, 'type': 'str', 'value': self.runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
                 {'name': self.sample_str, 'type': 'str', 'value': self.sample, 'tip': "name of the sample saved in the cxidb file, e.g. lysozyme"},
                 {'name': self.tag_str, 'type': 'str', 'value': self.tag, 'tip': "attach tag to stream, e.g. cxitut13_0010_tag.stream"},
-                {'name': self.queue_str, 'type': 'list', 'values': {self.psfehhiprioq_str: self.psfehhiprioq_str,
-                                                               self.psnehhiprioq_str: self.psnehhiprioq_str,
-                                                               self.psfehprioq_str: self.psfehprioq_str,
-                                                               self.psnehprioq_str: self.psnehprioq_str,
-                                                               self.psfehq_str: self.psfehq_str,
-                                                               self.psnehq_str: self.psnehq_str,
-                                                               self.psanaq_str: self.psanaq_str,
-                                                               self.psdebugq_str: self.psdebugq_str,
-                                                               self.psanagpuq_str: self.psanagpuq_str,
-                                                               self.psanaidleq_str: self.psanaidleq_str},
+                {'name': self.queue_str, 'type': 'list', 'values': {self.parent.pk.hitParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                    self.parent.pk.hitParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                    self.parent.pk.hitParam_psfehprioq_str: 'psfehprioq',
+                                                                    self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
+                                                                    self.parent.pk.hitParam_psfehq_str: 'psfehq',
+                                                                    self.parent.pk.hitParam_psnehq_str: 'psnehq',
+                                                                    self.parent.pk.hitParam_psanaq_str: 'psanaq',
+                                                                    self.parent.pk.hitParam_psdebugq_str: 'psdebugq',
+                                                                    self.parent.pk.hitParam_psanagpuq_str: 'psanagpuq',
+                                                                    self.parent.pk.hitParam_psanaidleq_str: 'psanaidleq',
+                                                                    self.parent.pk.hitParam_ffbh1q_str: 'ffbh1q',
+                                                                    self.parent.pk.hitParam_ffbl1q_str: 'ffbl1q',
+                                                                    self.parent.pk.hitParam_ffbh2q_str: 'ffbh2q',
+                                                                    self.parent.pk.hitParam_ffbl2q_str: 'ffbl2q',
+                                                                    self.parent.pk.hitParam_ffbh3q_str: 'ffbh3q',
+                                                                    self.parent.pk.hitParam_ffbl3q_str: 'ffbl3q',
+                                                                    self.parent.pk.hitParam_anaq_str: 'anaq'},
                  'value': self.queue, 'tip': "Choose queue"},
                 {'name': self.chunkSize_str, 'type': 'int', 'value': self.chunkSize, 'tip': "number of patterns to process per worker"},
                 {'name': self.keepData_str, 'type': 'bool', 'value': self.keepData, 'tip': "Do not delete cxidb images in cxi file"},

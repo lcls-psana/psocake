@@ -3,11 +3,13 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import time
-from utils import *
 import PSCalib.GlobalUtils as gu
 import psana
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 from pyimgalgos.MedianFilter import median_filter_ndarr
+
+from psocake.utils import *
+#from utils import *
 
 class FriedelSym(object):
     def __init__(self, dim, centre):

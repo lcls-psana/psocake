@@ -3,9 +3,9 @@ from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
 import json
-import LaunchHitFinder
-import LaunchHitConverter
-import HitFinder as alg
+from psocake import LaunchHitFinder
+from psocake import LaunchHitConverter
+import psocake.HitFinder as alg
 
 def writeStatus(fname, d):
     json.dump(d, open(fname, 'w'))
@@ -38,16 +38,6 @@ class HitFinder(object):
         self.spiParam_runs_str = 'Run(s)'
         self.spiParam_queue_str = 'queue'
         self.spiParam_cpu_str = 'CPUs'
-        self.spiParam_psanaq_str = 'psanaq'
-        self.spiParam_psnehq_str = 'psnehq'
-        self.spiParam_psfehq_str = 'psfehq'
-        self.spiParam_psnehprioq_str = 'psnehprioq'
-        self.spiParam_psfehprioq_str = 'psfehprioq'
-        self.spiParam_psnehhiprioq_str = 'psnehhiprioq'
-        self.spiParam_psfehhiprioq_str = 'psfehhiprioq'
-        self.spiParam_psdebugq_str = 'psdebugq'
-        self.spiParam_psanagpuq_str = 'psanagpuq'
-        self.spiParam_psanaidleq_str = 'psanaidleq'
         self.spiParam_noe_str = 'Number of events to process'
         self.spiParam_launch_str = 'Launch hit finder'
 
@@ -66,7 +56,7 @@ class HitFinder(object):
         self.spiParam_outDir = self.parent.psocakeDir
         self.spiParam_outDir_overridden = False
         self.spiParam_runs = ''
-        self.spiParam_queue = self.spiParam_psanaq_str
+        self.spiParam_queue = self.parent.pk.hitParam_psanaq_str
         self.spiParam_cpus = 24
         self.spiParam_noe = -1
         self.hitParam_hitThresh = '-1'
@@ -90,16 +80,23 @@ class HitFinder(object):
                 ]},
                 {'name': self.spiParam_outDir_str, 'type': 'str', 'value': self.spiParam_outDir},
                 {'name': self.spiParam_runs_str, 'type': 'str', 'value': self.spiParam_runs, 'tip': "comma separated or use colon for a range, e.g. 1,3,5:7 = runs 1,3,5,6,7"},
-                {'name': self.spiParam_queue_str, 'type': 'list', 'values': {self.spiParam_psfehhiprioq_str: 'psfehhiprioq',
-                                                                             self.spiParam_psnehhiprioq_str: 'psnehhiprioq',
-                                                                             self.spiParam_psfehprioq_str: 'psfehprioq',
-                                                                             self.spiParam_psnehprioq_str: 'psnehprioq',
-                                                                             self.spiParam_psfehq_str: 'psfehq',
-                                                                             self.spiParam_psnehq_str: 'psnehq',
-                                                                             self.spiParam_psanaq_str: 'psanaq',
-                                                                             self.spiParam_psdebugq_str: 'psdebugq',
-                                                                             self.spiParam_psanagpuq_str: 'psanagpuq',
-                                                                             self.spiParam_psanaidleq_str: 'psanaidleq'},
+                {'name': self.spiParam_queue_str, 'type': 'list', 'values': {self.parent.pk.hitParam_psfehhiprioq_str: 'psfehhiprioq',
+                                                                           self.parent.pk.hitParam_psnehhiprioq_str: 'psnehhiprioq',
+                                                                           self.parent.pk.hitParam_psfehprioq_str: 'psfehprioq',
+                                                                           self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
+                                                                           self.parent.pk.hitParam_psfehq_str: 'psfehq',
+                                                                           self.parent.pk.hitParam_psnehq_str: 'psnehq',
+                                                                           self.parent.pk.hitParam_psanaq_str: 'psanaq',
+                                                                           self.parent.pk.hitParam_psdebugq_str: 'psdebugq',
+                                                                           self.parent.pk.hitParam_psanagpuq_str: 'psanagpuq',
+                                                                           self.parent.pk.hitParam_psanaidleq_str: 'psanaidleq',
+                                                                           self.parent.pk.hitParam_ffbh1q_str: 'ffbh1q',
+                                                                           self.parent.pk.hitParam_ffbl1q_str: 'ffbl1q',
+                                                                           self.parent.pk.hitParam_ffbh2q_str: 'ffbh2q',
+                                                                           self.parent.pk.hitParam_ffbl2q_str: 'ffbl2q',
+                                                                           self.parent.pk.hitParam_ffbh3q_str: 'ffbh3q',
+                                                                           self.parent.pk.hitParam_ffbl3q_str: 'ffbl3q',
+                                                                           self.parent.pk.hitParam_anaq_str: 'anaq'},
                  'value': self.spiParam_queue, 'tip': "Choose queue"},
                 {'name': self.spiParam_cpu_str, 'type': 'int', 'value': self.spiParam_cpus},
                 {'name': self.spiParam_noe_str, 'type': 'int', 'value': self.spiParam_noe, 'tip': "number of events to process, default=0 means process all events"},

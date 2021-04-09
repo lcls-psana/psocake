@@ -77,7 +77,7 @@ if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 # Get number of events to process all together
 runStr = "%04d" % args.run
 access = "exp="+args.exp+":run="+runStr+':idx'
-if 'ffb' in args.access.lower(): access += ':dir=/reg/d/ffb/' + args.exp[:3] + '/' + args.exp + '/xtc'
+if 'ffb' in args.access.lower(): access += ':dir=/cds/data/drpsrcf/' + args.exp[:3] + '/' + args.exp + '/xtc'
 ds = psana.DataSource(access)
 run = next(ds.runs())
 times = run.times()
@@ -612,6 +612,9 @@ if rank == 0:
         F["/LCLS/eventNumber"].attrs["numCores"] = size # use this to figure out how many files are generated
         F["/entry_1/data_1/powderHits"][...] = powderHits
         F["/entry_1/data_1/powderMisses"][...] = powderMisses
+
+        if args.mask is not None:
+            F['/entry_1/data_1/mask'][:, :] = readMask(args.mask)
         print("Done writing master .cxi")
     hitRate = numHits * 100. / numProcessed
 

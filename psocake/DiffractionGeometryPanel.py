@@ -10,17 +10,16 @@ from pyqtgraph.Qt import QtCore, QtGui
 import subprocess
 import scipy.spatial.distance as sd
 import glob
-from utils import highlight
 try:
     from PyQt5.QtWidgets import *
     using_pyqt4 = False
 except ImportError:
     using_pyqt4 = True
     pass
-
 import Detector.PyDetector
 import PSCalib.GlobalUtils as gu
 from PSCalib.CalibFileFinder import deploy_calib_file
+from psocake.utils import highlight
 
 # Return two equal sized halves of the input image
 # If axis is None, halve along the first axis

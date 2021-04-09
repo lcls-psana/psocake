@@ -1,6 +1,6 @@
 from pyqtgraph.Qt import QtCore
 import numpy as np
-from utils import *
+from psocake.utils import *
 
 class LaunchPeakFinder(QtCore.QThread):
     def __init__(self, parent = None):

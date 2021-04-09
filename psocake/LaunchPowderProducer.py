@@ -2,7 +2,7 @@ from pyqtgraph.Qt import QtCore
 import subprocess
 import os
 import numpy as np
-from utils import batchSubmit
+from psocake.utils import batchSubmit
 
 class PowderProducer(QtCore.QThread):
     def __init__(self, parent = None):

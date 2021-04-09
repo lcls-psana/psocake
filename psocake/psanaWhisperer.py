@@ -19,7 +19,7 @@ class psanaWhisperer():
 
     def setupExperiment(self):
         access = 'exp=' + str(self.experimentName) + ':run=' + str(self.runNumber) + ':idx'
-        if 'ffb' in self.access.lower(): access += ':dir=/reg/d/ffb/' + self.experimentName[:3] + \
+        if 'ffb' in self.access.lower(): access += ':dir=/cds/data/drpsrcf/' + self.experimentName[:3] + \
                                                    '/' + self.experimentName + '/xtc'
         self.ds = psana.DataSource(access)
         self.run = next(self.ds.runs())

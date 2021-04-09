@@ -131,7 +131,7 @@ class PeakFinder:
 
     def setupExperiment(self):
         access = 'exp=' + str(self.exp) + ':run=' + str(self.run) + ':idx'
-        if 'ffb' in self.access.lower(): access += ':dir=/reg/d/ffb/' + self.exp[:3] + '/' + self.exp + '/xtc'
+        if 'ffb' in self.access.lower(): access += ':dir=/cds/data/drpsrcf/' + self.exp[:3] + '/' + self.exp + '/xtc'
         self.ds = psana.DataSource(access)
         self.run = next(self.ds.runs())
         self.times = self.run.times()

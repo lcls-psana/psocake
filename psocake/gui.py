@@ -11,14 +11,14 @@ from pyqtgraph.dockarea.Dock import DockLabel
 import sys
 
 # Panel modules
-import MousePanel, ImagePanel, ImageStackPanel
-import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
-import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
-import SmallDataPanel, ImageControlPanel
-import HitFinderPanel
-import version
-import colorScheme as color
-from version import __version__
+import psocake.colorScheme as color
+from psocake import MousePanel, ImagePanel, ImageStackPanel
+from psocake import ExperimentPanel, DiffractionGeometryPanel, RoiPanel
+from psocake import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
+from psocake import SmallDataPanel, ImageControlPanel
+from psocake import HitFinderPanel
+from psocake import version
+#from version import __version__
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
@@ -39,7 +39,7 @@ parser.add_argument("-o","--outDir", default=None, type=str,
 parser.add_argument("-v", default=0, type=int,
                     help="verbosity level, default=0")
 parser.add_argument('--version', action='version',
-                    version='%(prog)s {version}'.format(version=__version__))
+                    version='%(prog)s {version}'.format(version=version.__version__))
 parser.add_argument("-m","--mode", default="lite", type=str,
                     help="Mode sets the combination of panels available on the GUI, options: {lite,sfx,spi,all}")
 parser.add_argument("-b","--batch", default="slurm", type=str,
@@ -137,8 +137,8 @@ class MainFrame(QtGui.QWidget):
         self.access = args.access.lower()
         if 'ffb' in self.access:
             print("################################################################")
-            print("Remember only psfeh(hi)prioq/psneh(hi)prioq can access FFB nodes")
-            print("FFB node is here: /reg/d/ffb/")
+            print("Remember only psffb can access FFB nodes")
+            print("FFB data is here: /cds/data/drpsrcf/")
             print("################################################################")
 
 

@@ -1,19 +1,16 @@
 import numpy as np
-import time
-import os
 import PeakFinder as pf
 import h5py
 from utils import *
 import PSCalib.GlobalUtils as gu
-
-facility = 'LCLS'
 import psana
-from numba import jit
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
+
+facility = 'LCLS'
 
 def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
     try:
@@ -47,17 +44,18 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         _data = pct(args.det, detarr)
         #t7 = time.time()
         myHdf5['/entry_1/data_1/data'][nHits,:,:] = _data
+        # https://confluence.slac.stanford.edu/display/PSDM/Hit+and+Peak+Finding+Algorithms#HitandPeakFindingAlgorithms-Peakfinders
         segs = d.peakFinder.peaks[:,0]
         rows = d.peakFinder.peaks[:,1]
         cols = d.peakFinder.peaks[:,2]
         amaxs = d.peakFinder.peaks[:,4]
         atots = d.peakFinder.peaks[:,5]
-        rcentT = d.peakFinder.peaks[:,6]
-        ccentT = d.peakFinder.peaks[:,7]
-        rminT = d.peakFinder.peaks[:,10]
-        rmaxT = d.peakFinder.peaks[:,11]
-        cminT = d.peakFinder.peaks[:,12]
-        cmaxT = d.peakFinder.peaks[:,13]
+        rcentT = d.peakFinder.peaks[:,6] # row center of gravity
+        ccentT = d.peakFinder.peaks[:,7] # col center of gravity
+        rminT = d.peakFinder.peaks[:,10] # minimal row of pixel group accounted in the peak
+        rmaxT = d.peakFinder.peaks[:,11] # maximal row "
+        cminT = d.peakFinder.peaks[:,12] # minimal col "
+        cmaxT = d.peakFinder.peaks[:,13] # maximal col "
         #t9 = time.time()
         cheetahRows, cheetahCols = convert_peaks_to_cheetah(args.det, segs, rows, cols) #, 
         #t10 = time.time()
@@ -94,17 +92,8 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         #myHdf5.flush()
     return nHits
 
-def readMask(args):
-    # Init mask
-    mask = None
-    if args.mask is not None:
-        f = h5py.File(args.mask, 'r')
-        mask = f['/entry_1/data_1/mask'][()]
-        f.close()
-        mask = -1*(mask-1)
-    return mask
-
 def runclient(args,ds,run,times,det,numEvents):
+    i0 = time.time()
     numHits = 0
     myJobs = getMyUnfairShare(numEvents, size, rank)
     numJobs = len(myJobs) # events per rank
@@ -115,12 +104,15 @@ def runclient(args,ds,run,times,det,numEvents):
     if args.tag: fname += '_' + args.tag
     fname += ".cxi"
     myHdf5 = h5py.File(fname,"r+")
+    i1 = time.time()
+    print("init runclient (rank,time): ", rank, i1-i0)
 
     for i, nevent in enumerate(myJobs):
-        #s0 = time.time()
+        s0 = time.time()
         if i % reportFreq == 0 and i > 0 and rank % 10: print("rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs)
         evt = run.event(times[nevent])
-        #s1 = time.time()
+        s1 = time.time()
+        print("get evt (rank,time): ", rank, s1-s0)
         if evt is None: continue
 
         if not args.inputImages:
@@ -220,6 +212,7 @@ def runclient(args,ds,run,times,det,numEvents):
                                                   cframe=gu.CFRAME_PSANA, fract=True)
             except AttributeError:
                 det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
+        print("Done init peakFinder", rank)
         numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
         #s4 = time.time()
         #print "time per event (rank, det.evt, det.calib, init, calcPeaks, total): ", rank, s1-s0, s2-s1, s3-s2, s4-s3, s4-s0
@@ -306,9 +299,8 @@ def runclient(args,ds,run,times,det,numEvents):
 
     # TODO: add mask
     if args.mask is not None:
-        myHdf5['/entry_1/data_1/mask'][:,:] = readMask(args)
+        myHdf5['/entry_1/data_1/mask'][:,:] = readMask(args.mask)
 
     if '/status/findPeaks' in myHdf5: del myHdf5['/status/findPeaks']
     myHdf5['/status/findPeaks'] = 'success'
-    #myHdf5.flush()
     myHdf5.close()

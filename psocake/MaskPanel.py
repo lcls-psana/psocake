@@ -1,5 +1,4 @@
 import numpy as np
-import myskbeam
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui
 import h5py
@@ -9,13 +8,14 @@ try:
 except ImportError:
     using_pyqt4 = True
     pass
-
-from PSCalib.GeometryObject import two2x1ToData2x2
-import colorScheme as color
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
-import LaunchPowderProducer
-import utils
+
+from PSCalib.GeometryObject import two2x1ToData2x2
+import psocake.colorScheme as color
+from psocake import LaunchPowderProducer
+from psocake import utils
+from psocake import myskbeam
 
 class MaskMaker(object):
     def __init__(self, parent = None):
@@ -152,7 +152,15 @@ class MaskMaker(object):
                                                                            self.parent.pk.hitParam_psanaq_str: 'psanaq',
                                                                            self.parent.pk.hitParam_psdebugq_str: 'psdebugq',
                                                                            self.parent.pk.hitParam_psanagpuq_str: 'psanagpuq',
-                                                                           self.parent.pk.hitParam_psanaidleq_str: 'psanaidleq'},
+                                                                           self.parent.pk.hitParam_psanaidleq_str: 'psanaidleq',
+                                                                           self.parent.pk.hitParam_ffbh1q_str: 'ffbh1q',
+                                                                           self.parent.pk.hitParam_ffbl1q_str: 'ffbl1q',
+                                                                           self.parent.pk.hitParam_ffbh2q_str: 'ffbh2q',
+                                                                           self.parent.pk.hitParam_ffbl2q_str: 'ffbl2q',
+                                                                           self.parent.pk.hitParam_ffbh3q_str: 'ffbh3q',
+                                                                           self.parent.pk.hitParam_ffbl3q_str: 'ffbl3q',
+                                                                           self.parent.pk.hitParam_anaq_str: 'anaq'
+                                                                           },
                  'value': self.powder_queue, 'tip': "Choose queue"},
                 {'name': self.powder_cpu_str, 'type': 'int', 'value': self.powder_cpus, 'tip': "number of cpus to use per run"},
                 {'name': self.powder_threshold_str, 'type': 'float', 'value': self.powder_threshold, 'tip': "ignore pixels below ADU threshold, default=-1 means no threshold"},
