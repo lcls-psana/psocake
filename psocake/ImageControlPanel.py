@@ -81,11 +81,12 @@ class ImageControl(object):
         np.save(str(outputAssem), self.parent.det.image(self.parent.evt, self.parent.calib))
 
     def load(self):
-        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)'))
+        fname, _ = QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)')
         if fname.split('.')[-1] in '.npz':
             temp = np.load(fname)
             self.parent.calib = temp['max']
         else:
+
             self.parent.calib = np.load(fname)
         self.parent.firstUpdate = True
         #self.parent.pk.userUpdate = None

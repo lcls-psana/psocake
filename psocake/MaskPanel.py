@@ -764,8 +764,8 @@ class MaskMaker(object):
             fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
                                                           'ndarray image (*.npy *.npz)'))
         else:
-            fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
-                                                          'ndarray image (*.npy *.npz)'))[0]
+            fname, _ = QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
+                                                          'ndarray image (*.npy *.npz)')
         self.initMask()
         self.userMask = np.load(fname)
         if self.userMask.shape != self.parent.calib.shape:
