@@ -42,6 +42,7 @@ class SmallData(object):
         self.quantifier_sort = False
         self.quantifierFileOpen = False
         self.quantifierHasData = False
+        self.quantifierEvent = None
 
         self.params = [
             {'name': self.quantifier_grp, 'type': 'group', 'children': [
@@ -169,7 +170,8 @@ class SmallData(object):
             if self.parent.args.v >= 1: print("x,y: ", indX, indY)
             if self.quantifier_sort:
                 ind = self.quantifierIndSorted[ind]
-
+            if self.quantifierEvent is None:
+                self.quantifierEvent = np.arange(self.parent.exp.eventTotal)
             if self.parent.eventNumber != self.quantifierEvent[ind]:
                 self.parent.eventNumber = self.quantifierEvent[ind]
                 self.parent.calib, self.parent.data = self.parent.img.getDetImage(self.parent.eventNumber)
