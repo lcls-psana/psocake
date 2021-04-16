@@ -3,7 +3,7 @@ import h5py, os, time, json
 import argparse
 import subprocess
 import numpy as np
-from utils import batchSubmit
+from psocake.utils import batchSubmit
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None, help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). This option trumps -e and -r options.")

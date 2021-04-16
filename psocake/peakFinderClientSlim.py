@@ -1,9 +1,9 @@
 import numpy as np
-import PeakFinder as pf
 import h5py
-from utils import *
 import PSCalib.GlobalUtils as gu
 import psana
+import psocake.PeakFinder as pf
+from psocake.utils import *
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD

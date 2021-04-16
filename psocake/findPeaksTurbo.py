@@ -1,11 +1,11 @@
 # Find Bragg peaks
-from peakFinderClientSlim import runclient
-from utils import *
 import h5py
 import numpy as np
 from mpi4py import MPI
 import os, time
 import psana
+from psocake.peakFinderClientSlim import runclient
+from psocake.utils import *
 
 facility = 'LCLS'
 
