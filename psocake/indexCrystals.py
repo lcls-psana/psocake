@@ -83,13 +83,27 @@ if args.pkTag: peakFile += '_'+args.pkTag
 peakFile += '.cxi'
 
 def checkJobExit(jobID):
-    cmd = "bjobs -d | grep " + str(jobID)
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    out, err = process.communicate()
-    if "EXIT" in str(out):
-        "*********** NODE FAILURE ************ ", jobID
-        return 1
-    else:
+    if args.batch == 'lsf':
+        cmd = "bjobs -d | grep " + str(jobID)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        if "EXIT" in str(out):
+            "*********** NODE FAILURE ************ ", jobID
+            return 1
+        else:
+            return 0
+    elif args.batch == 'slurm':
+        cmd = "sacct --jobs="+str(jobID)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        out = out.decode('utf-8')
+        for line in out.split('\n'):
+            tok = line.split()
+            if len(tok) > 0:
+                # ['JobID', 'JobName', 'Partition', 'Account', 'AllocCPUS', 'State', 'ExitCode']
+                if tok[0] == str(jobID):
+                    if "CANCELLED" in tok[4] or "FAILED" in tok[4]:
+                        return 1
         return 0
 
 def getMyChunkSize(numJobs, numWorkers, chunkSize, rank):
@@ -238,7 +252,6 @@ for ind in range(numSize):
         icondition = icondition.replace('#'+iname[idx]+'#', ifullpath[-1])
     #print('modified condition = ', icondition, '\n')
     #print('##################')
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     try:
         f = h5py.File(pFile, 'r')
@@ -285,9 +298,9 @@ myLists = []
 for rank in range(numWorkers):
     myJobs = getMyChunkSize(totalNumEvents, numWorkers, chunkSize, rank)
     if tag is '':
-        jobName = experimentName + "_" + str(runNumber) + "_" + str(rank)
+        jobName = str(runNumber) + "_" + str(rank)
     else:
-        jobName = experimentName + "_" + str(runNumber) + "_" + str(rank) + "_" + tag
+        jobName = str(runNumber) + "_" + str(rank) + "_" + tag
     myList = runDir + "/temp_" + jobName + ".lst"
     myStream = runDir + "/temp_" + jobName + ".stream"
     myStreamList.append(myStream)
@@ -316,7 +329,10 @@ for rank in range(numWorkers):
     if args.likelihood > 0 and checkEnoughLikes > 0 and checkEnoughLikes <= 16:
         cmd += " -j 1"
     else:
-        cmd += " -j '`nproc`'"
+        if "ffb" in args.queue or args.queue == "anaq": # limit cores for ffb
+            cmd += " -j 12"
+        else:
+            cmd += " -j '`nproc`'"
     cmd += " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
            " --indexing=" + indexingMethod + " -o " + myStream
     if batch == "lsf":
@@ -349,19 +365,21 @@ for rank in range(numWorkers):
 if batch == "lsf":
     myKeyString = "The output (if any) is above this job summary."
     mySuccessString = "Successfully completed."
-else:
+else: # slurm
     myKeyString = "Final: "
     mySuccessString = "Final: "
+    myCancelString = "CANCELLED"
 Done = 0
 haveFinished = np.zeros((numWorkers,))
 try:
-    f = h5py.File(peakFile, 'r')
-    hitEvents = f['/entry_1/result_1/nPeaksAll'][()]
-    numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
-    f.close()
+    with h5py.File(peakFile, 'r') as f:
+        hitEvents = f['/entry_1/result_1/nPeaksAll'][()]
+        numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
 except:
     print("Couldn't read file: ", peakFile)
-    fname = runDir + '/status_peaks.txt'
+    fname = runDir + '/status_peaks'
+    if args.pkTag: fname += '_' + args.pkTag
+    fname += '.txt'
     print("Try reading file: ", fname)
     with open(fname) as infile:
         d = json.load(infile)
@@ -391,6 +409,17 @@ while Done == 0:
                         if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
                             print("Done indexing")
                             Done = -1
+                # check for job cancellation
+                p = subprocess.Popen(["grep", myCancelString, myLog], stdout=subprocess.PIPE)
+                output = p.communicate()[0]
+                p.stdout.close()
+                if myCancelString in str(output):  # job has been cancelled
+                    print("cancelled job", runNumber, myLog)
+                    haveFinished[i] = -1
+                    if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
+                        print("Done indexing")
+                        Done = -1
+
                 else:  # job is still going, update indexing rate
                     if args.v >= 1: print("indexing hasn't finished yet: ", runNumber, myJobList, haveFinished)
                     indexedPeaks = None#, numProcessed = getIndexedPeaks()
@@ -416,11 +445,11 @@ while Done == 0:
                     else:
                         pass #print "getIndexedPeaks returned None"
                     time.sleep(30)
-        else:
+        else: # log file does not exist
             if args.v >= 1: print("no such file yet: ", runNumber, myLog)
-            nodeFailed = checkJobExit(myJobList[i])
-            if nodeFailed == 1:
-                if args.v >= 0: print("indexing job node failure: ", myLog)
+            jobKilled = checkJobExit(myJobList[i])
+            if jobKilled == 1:
+                if args.v >= 0: print("indexing job failure: ", myLog)
                 haveFinished[i] = -1
                 if args.v >= 0: print("Error: exit indexing crystals")
                 exit()
@@ -472,5 +501,4 @@ while Done == 0:
                 print("Couldn't remove {}".format(fname))
 hf.close()
 print("Done indexing run: ", runNumber)
-
 

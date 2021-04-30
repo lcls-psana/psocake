@@ -105,14 +105,14 @@ def runclient(args,ds,run,times,det,numEvents):
     fname += ".cxi"
     myHdf5 = h5py.File(fname,"r+")
     i1 = time.time()
-    print("init runclient (rank,time): ", rank, i1-i0)
+    #print("init runclient (rank,time): ", rank, i1-i0)
 
     for i, nevent in enumerate(myJobs):
         s0 = time.time()
-        if i % reportFreq == 0 and i > 0 and rank % 10: print("rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs)
+        #if i % reportFreq == 0 and i > 0 and rank % 10: print("rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs)
         evt = run.event(times[nevent])
         s1 = time.time()
-        print("get evt (rank,time): ", rank, s1-s0)
+        #print("get evt (rank,time): ", rank, s1-s0)
         if evt is None: continue
 
         if not args.inputImages:
@@ -124,7 +124,7 @@ def runclient(args,ds,run,times,det,numEvents):
             else:
                 tic = time.time()
                 detarr = det.calib(evt)
-                if i % reportFreq == 0 and rank % 10: print("det.calib (rank, time): ", rank, time.time() - tic)
+                #if i % reportFreq == 0 and rank % 10: print("det.calib (rank, time): ", rank, time.time() - tic)
         else:
             f = h5py.File(args.inputImages)
             ind = np.where(f['eventNumber'][()] == nevent)[0][0]
@@ -212,7 +212,7 @@ def runclient(args,ds,run,times,det,numEvents):
                                                   cframe=gu.CFRAME_PSANA, fract=True)
             except AttributeError:
                 det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
-        print("Done init peakFinder", rank)
+        #print("Done init peakFinder", rank)
         numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
         #s4 = time.time()
         #print "time per event (rank, det.evt, det.calib, init, calcPeaks, total): ", rank, s1-s0, s2-s1, s3-s2, s4-s3, s4-s0

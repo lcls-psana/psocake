@@ -493,7 +493,7 @@ class ExperimentInfo(object):
                 process = subprocess.Popen('chgrp -R ' + self.parent.experimentName + ' ' + self.parent.elogDir, stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
-                process = subprocess.Popen('chmod -R u+rwx,g+rws,o+rx ' + self.parent.elogDir, stdout=subprocess.PIPE,
+                process = subprocess.Popen('chmod -R u+rwx,g+rwxs,o+rx ' + self.parent.elogDir, stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
 

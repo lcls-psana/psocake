@@ -448,6 +448,11 @@ class PeakFinding(object):
         if self.parent.args.v >= 1: print("##### Done updateAlgorithm: ", self.algorithm)
 
     def updateTag(self, data):
+        # tag can not have underscore
+        if "_" in data:
+            print(utils.highlight("Tag can not have underscore(s). Removing underscore(s).",status="r"))
+            data = data.replace('_', '')
+            self.p3.param(self.hitParam_grp, self.tag_str).setValue(data)
         if self.tag:
             fname = self.parent.small.quantifier_filename.split("_"+self.tag+".cxi")[0]
         else:

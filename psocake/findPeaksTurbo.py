@@ -567,14 +567,14 @@ if rank == 0:
     createCxi(fnameAll)
 
 toc = time.time()
-print("h5 setup (rank, time): ", rank, toc-tic)
+if rank == 0: print("h5 setup (rank, time): ", rank, toc-tic)
 
 tic = time.time()
 
 runclient(args,ds,run,times,det,numJobs)
 
 toc = time.time()
-print("compute time (rank, time): ", rank, toc-tic)
+if rank == 0: print("compute time (rank, time): ", rank, toc-tic)
 
 comm.Barrier()
 

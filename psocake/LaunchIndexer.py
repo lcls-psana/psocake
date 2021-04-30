@@ -98,4 +98,6 @@ class LaunchIndexer(QtCore.QThread):
                 # Launch indexing job
                 print("Launch indexing job: ", cmd)
                 subprocess.Popen(shlex.split(cmd))
-
+            else:
+                print("Could not find: ", peakFile)
+                print("If your cxi file is tagged, please fill in the .cxi tag field in the peakFinding panel.")

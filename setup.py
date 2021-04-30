@@ -12,7 +12,7 @@ except ImportError:
 
 
 setup(name='psocake',
-      version='1.0.17',
+      version='1.0.19',
       author="Chun Hong Yoon",
       author_email="yoon82@slac.stanford.edu",
       description='GUI for FEL analysis',
