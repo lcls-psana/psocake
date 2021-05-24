@@ -147,7 +147,7 @@ class imageRetriever:
                 f1 = h5py.File(filename,'r')
                 numHits = f1['/entry_1/result_1/nHits'].attrs['numEvents']
                 hitInd = np.arange(0,numHits)
-                hitEvent = f1['/LCLS/eventNumber'].value
+                hitEvent = f1['/LCLS/eventNumber'][()]
                 runInd = np.ones((numHits,),dtype=int)*r
 
                 if numHits > 0:
@@ -310,7 +310,7 @@ if __name__ == '__main__':
             try:
                 if oldF[members[j]].shape[0] == numHits:
                     print "+++ Overriding: ", str(members[j])
-                    val = oldF[members[j]].value
+                    val = oldF[members[j]][()]
                     val = val[deleteLocalInd]
                     oldAttr = oldF[str(members[j])].attrs
                     oldChunks = oldF[str(members[j])].chunks

@@ -215,7 +215,7 @@ class ImageViewer(object):
                         calib = self.parent.det.calib(self.parent.evt)
                     else:
                         f = h5py.File(self.parent.inputImages)
-                        ind = np.where(f['eventNumber'].value == evtNumber)[0][0]
+                        ind = np.where(f['eventNumber'][()] == evtNumber)[0][0]
                         if len(f['/data/data'].shape) == 3:
                             calib = ipct(f['data/data'][ind, :, :])
                         else:
@@ -226,9 +226,9 @@ class ImageViewer(object):
             temp = self.parent.rootDir + '/data/r' + str(self.parent.runNumber).zfill(4) + '/*.h5'
             _files = glob.glob(temp)
             f = h5py.File(_files[evtNumber],'r')
-            calib = f['/data'].value
-            #calib = np.rot90(f['/data'].value, -1) # rotate 90
-            #calib = np.rot90(f['/data'].value, 3) # rotate 270
+            calib = f['/data'][()]
+            #calib = np.rot90(f['/data'][()], -1) # rotate 90
+            #calib = np.rot90(f['/data'][()], 3) # rotate 270
             f.close()
             return calib
         else:

@@ -76,7 +76,7 @@ def runmaster(args, nClients):
     mask = None
     if args.mask is not None:
         f = h5py.File(args.mask, 'r')
-        mask = f['/entry_1/data_1/mask'].value
+        mask = f['/entry_1/data_1/mask'][()]
         f.close()
         mask = -1*(mask-1)
 
@@ -88,7 +88,7 @@ def runmaster(args, nClients):
         md.recv()
         if md.small.endrun:
             nClients -= 1
-        elif hasattr(md.small, 'powder') and md.small.powder == 1:
+        elif hasattr(md.small, 'powder') and md.small.powder == 1 and hasattr(md, "powderHits"):
             if powderHits is None:
                 powderHits = md.powderHits
                 powderMisses = md.powderMisses
@@ -102,7 +102,7 @@ def runmaster(args, nClients):
 
                 # FIXME
                 if facility == 'LCLS' and numHits > 0:
-                    alreadyDone = len(np.where(myHdf5["/LCLS/eventNumber"].value[:numHits] == md.small.eventNum)[0])
+                    alreadyDone = len(np.where(myHdf5["/LCLS/eventNumber"][:numHits] == md.small.eventNum)[0])
                     if alreadyDone >= 1: continue
 
                 if args.profile:
@@ -111,8 +111,9 @@ def runmaster(args, nClients):
                     totalTime = md.small.totalTime
                     rankID = md.small.rankID
             except:
-                myHdf5[grpName + dset_nPeaks][md.small.eventNum] = -2
-                numLeft = len(np.where(myHdf5[grpName + dset_nPeaks].value == -1)[0])
+                if hasattr(md.small, "eventNum"):
+                    myHdf5[grpName + dset_nPeaks][md.small.eventNum] = -2
+                numLeft = len(np.where(myHdf5[grpName + dset_nPeaks][()] == -1)[0])
                 continue
 
             if nPeaks > args.maxPeaks: # only save upto maxNumPeaks
@@ -149,7 +150,7 @@ def runmaster(args, nClients):
             myHdf5[grpName+dset_nPeaks][md.small.eventNum] = nPeaks
             myHdf5[grpName+dset_maxRes][md.small.eventNum] = maxRes
 
-            numLeft = len(np.where(myHdf5[grpName + dset_nPeaks].value == -1)[0])
+            numLeft = len(np.where(myHdf5[grpName + dset_nPeaks][()] == -1)[0])
 
             likelihood = md.small.likelihood
             myHdf5[grpName + dset_likelihood][md.small.eventNum] = likelihood

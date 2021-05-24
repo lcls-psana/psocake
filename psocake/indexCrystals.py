@@ -133,9 +133,9 @@ def getIndexedPeaks():
         f = h5py.File(peakFile, 'r')
         totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
         if facility == 'LCLS':
-            hitEvents = f['/LCLS/eventNumber'].value
+            hitEvents = f['/LCLS/eventNumber'][()]
         elif facility == 'PAL':
-            hitEvents = f['/PAL/eventNumber'].value
+            hitEvents = f['/PAL/eventNumber'][()]
         f.close()
         # Add indexed peaks
         fstream = open(totalStream, 'r')
@@ -185,7 +185,7 @@ fnameIndex += ".txt"
 def getpath(cxi_name):
     global search_name, hf
     if cxi_name.endswith(search_name):
-        try: hf[cxi_name].value
+        try: hf[cxi_name][()]
         except Exception: return None
         return cxi_name
 
@@ -227,14 +227,14 @@ if facility == 'PAL':
 try:
     if facility == 'LCLS':
         f = h5py.File(peakFile, 'r')
-        hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'].value == 'success'
+        hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'][()] == 'success'
         minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
         maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
         minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
         f.close()
     elif facility == 'PAL':
         f = h5py.File(peakFile, 'r')
-        hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'].value == 'success'
+        hasData = '/entry_1/instrument_1/detector_1/data' in f and f['/status/findPeaks'][()] == 'success'
         minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
         maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
         minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
@@ -258,14 +258,14 @@ if hasData:
         if facility == 'LCLS':
             print "Reading images from: ", peakFile
             f = h5py.File(peakFile, 'r')
-            eventList = f['/LCLS/eventNumber'].value
+            eventList = f['/LCLS/eventNumber'][()]
             if args.likelihood > 0:
-                likelihood = f['/entry_1/result_1/likelihood'].value
+                likelihood = f['/entry_1/result_1/likelihood'][()]
             numEvents = len(eventList)
             f.close()
         elif facility == 'PAL':
             f = h5py.File(peakFile, 'r')
-            eventList = f['/PAL/eventNumber'].value
+            eventList = f['/PAL/eventNumber'][()]
             numEvents = len(eventList)
             f.close()
     except:
@@ -384,7 +384,7 @@ if hasData:
         haveFinished = np.zeros((numWorkers,))
         try:
             f = h5py.File(peakFile, 'r')
-            hitEvents = f['/entry_1/result_1/nPeaksAll'].value
+            hitEvents = f['/entry_1/result_1/nPeaksAll'][()]
             numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
             f.close()
         except:
@@ -451,7 +451,7 @@ if hasData:
     elif facility == 'PAL':
         try:
             f = h5py.File(peakFile, 'r')
-            hitEvents = f['/entry_1/result_1/nPeaksAll'].value
+            hitEvents = f['/entry_1/result_1/nPeaksAll'][()]
             numHits = len(np.where(hitEvents >= hitParam_threshold)[0])
             f.close()
         except:

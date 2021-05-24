@@ -101,13 +101,13 @@ class SmallData(object):
         if os.path.isfile(self.quantifier_filename):
             try:
                 self.quantifierFile = h5py.File(self.quantifier_filename, 'r')
-                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset].value
+                self.quantifierMetric = self.quantifierFile[self.quantifier_dataset][()]
                 try:
                     if self.quantifier_dataset[0] == '/':  # dataset starts with "/"
                         self.quantifier_eventDataset = self.quantifier_dataset.split("/")[1] + "/event"
                     else:  # dataset does not start with "/"
                         self.quantifier_eventDataset = "/" + self.quantifier_dataset.split("/")[0] + "/event"
-                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset].value
+                    self.quantifierEvent = self.quantifierFile[self.quantifier_eventDataset][()]
                 except:
                     if self.parent.args.v >= 1: print "Couldn't find /event dataset"
                     self.quantifierEvent = np.arange(len(self.quantifierMetric))

@@ -97,6 +97,9 @@ class CrystalIndexing(object):
             self.extra = ''
             self.condition = ''
             self.keepData = True
+            self.indexCounter = 0
+            self.threadpool = []
+            self.workerpool = []
         elif self.parent.facility == self.parent.facilityPAL:
             self.showIndexedPeaks = False
             self.indexedPeaks = None
@@ -340,15 +343,58 @@ class CrystalIndexing(object):
         self.updateIndex()
 
     def updateIndex(self):
+        """
+        Crystal indexing is usually a long running task (unlike peak finding)
+        Hence a thread is used to indexing in the background
+        """
         if self.indexingOn:
+            self.indexCounter += 1
             if self.parent.pk.peaks is None:
                 self.parent.index.clearIndexedPeaks()
             else:
-                self.indexer = IndexHandler(parent=self.parent)
-                self.indexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
-                                          self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                          self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
-                                          self.tolerance, self.extra, self.outDir, queue=None)
+                if self.parent.pk.numPeaksFound >= self.parent.pk.minPeaks and \
+                   self.parent.pk.numPeaksFound <= self.parent.pk.maxPeaks and \
+                   self.parent.pk.peaksMaxRes >= self.parent.pk.minRes:
+                    print("OK, I'll index this pattern now")
+
+                    if self.parent.args.v >= 1: print("Running indexing!!!!!!!!!!!!")
+                    # Running indexing ...
+                    self.parent.index.numIndexedPeaksFound = 0
+                    self.parent.index.indexedPeaks = None
+                    self.parent.index.clearIndexedPeaks()
+                    self.parent.index.displayWaiting()
+
+                    # Write list of files to index
+                    with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
+                        text_file.write("{} //0".format(self.parent.index.hiddenCXI))
+
+                    # Generate a static mask of bad pixels for indexing
+                    self.parent.mk.saveCheetahStaticMask()
+
+                    # Step 2: Create a QThread object
+
+                    thread = QtCore.QThread()
+                    self.threadpool.append(thread)
+                    # Step 3: Create a worker object
+                    worker = IndexWorker()
+                    self.workerpool.append(worker)
+                    self.workerpool[-1].setup(self.indexCounter, self.parent.index.hiddenCrystfelList, self.geom, self.peakMethod,
+                                      self.intRadius, self.pdb, self.indexingMethod,
+                                      self.parent.index.hiddenCrystfelStream, self.extra,
+                                      self.parent.runNumber, self.parent.eventNumber, self.tolerance, self.outDir)
+                    # Step 4: Move worker to the thread
+                    self.workerpool[-1].moveToThread(self.threadpool[-1])
+                    # Step 5: Connect signals and slots
+                    self.threadpool[-1].started.connect(self.workerpool[-1].run)
+                    self.workerpool[-1].finished.connect(self.threadpool[-1].quit)
+                    self.workerpool[-1].finished.connect(self.workerpool[-1].deleteLater)
+                    self.threadpool[-1].finished.connect(self.threadpool[-1].deleteLater)
+                    self.workerpool[-1].progress.connect(self.reportProgress)
+                    # Step 6: Start the thread
+                    self.threadpool[-1].start()
+
+                    # Final resets
+                    self.workerpool[-1].finished.connect(self.reportResults)
         else:
             # do not display predicted spots
             self.parent.index.clearIndexedPeaks()
@@ -478,278 +524,132 @@ class CrystalIndexing(object):
             self.parent.img.abc_text.setPos(0, 0)
         if self.parent.args.v >= 1: print "Done drawIndexedPeaks"
 
-    # This function probably doesn't get called
-    def launchIndexing(self, requestRun=None):
-        self.batchIndexer = IndexHandler(parent=self.parent)
-        if requestRun is None:
-            self.batchIndexer.computeIndex(self.parent.experimentName, self.parent.runNumber, self.parent.detInfo,
-                                  self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
-                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.tag, self.queue, self.chunkSize, self.noe)
-        else:
-            self.batchIndexer.computeIndex(self.parent.experimentName, requestRun, self.parent.detInfo,
-                                  self.parent.eventNumber, self.geom, self.peakMethod, self.intRadius, self.pdb,
-                                       self.indexingMethod, self.parent.pk.minPeaks, self.parent.pk.maxPeaks, self.parent.pk.minRes,
-                                           self.tolerance, self.extra, self.outDir, self.runs, self.sample, self.tag, self.queue, self.chunkSize, self.noe)
-        if self.parent.args.v >= 1: print "Done updateIndex"
+    def reportProgress(self, n):
+        self.clearIndexedPeaks()
+        myMessage = '<div style="text-align: center"><span style="color: #FF00FF; font-size: 12pt;">Indexing...</span></div>'
+        self.parent.img.abc_text = pg.TextItem(html=myMessage, anchor=(0, 0))
+        self.parent.img.win.getView().addItem(self.parent.img.abc_text)
+        self.parent.img.abc_text.setPos(0, 0)
 
-class IndexHandler(QtCore.QThread):
-    def __init__(self, parent = None):
-        QtCore.QThread.__init__(self, parent)
-        self.parent = parent
-        self.experimentName = None
-        self.runNumber = None
-        self.detInfo = None
-        self.eventNumber = None
-        self.geom = None
-        self.peakMethod = None
-        self.intRadius = None
-        self.pdb = None
-        self.indexingMethod = None
-        self.latticeType = None
-        self.centering = None
-        self.uniqueAxis = None
-        self.numSaturatedPeaks = None
-        self.unitCell = None
-        self.minPeaks = None
-        self.maxPeaks = None
-        self.minRes = None
-        # batch
-        self.outDir = None
-        self.runs = None
-        self.sample = None
-        self.tag = None
-        self.queue = None
-        self.chunkSize = None
-        self.cpu = None
-        self.noe = None
-
-    def __del__(self):
-        if self.parent.args.v >= 1: print "del IndexHandler"
-        self.exiting = True
-        self.wait()
-
-    def computeIndex(self, experimentName, runNumber, detInfo, eventNumber, geom, peakMethod, intRadius, pdb, indexingMethod,
-                     minPeaks, maxPeaks, minRes, tolerance, extra, outDir=None, runs=None, sample=None, tag=None, queue=None,
-                     chunkSize=None, cpu=None, noe=None):
-        self.experimentName = experimentName
-        self.runNumber = runNumber
-        self.detInfo = detInfo
-        self.eventNumber = eventNumber
-        self.geom = geom
-        self.peakMethod = peakMethod
-        self.intRadius = intRadius
-        self.pdb = pdb
-        self.indexingMethod = indexingMethod
-        self.minPeaks = minPeaks
-        self.maxPeaks = maxPeaks
-        self.minRes = minRes
-        self.tolerance = tolerance
-        self.extra = extra
-        # batch
-        self.outDir = outDir
-        self.runs = runs
-        self.sample = sample
-        self.tag = tag
-        self.queue = queue
-        self.chunkSize = chunkSize
-        self.cpu = cpu
-        self.noe = noe
-
-        if self.geom is not '':
-            self.start()
-
-    def getMyUnfairShare(self, numJobs, numWorkers, rank):
-        """Returns number of events assigned to the slave calling this function."""
-        assert(numJobs >= numWorkers)
-        allJobs = np.arange(numJobs)
-        jobChunks = np.array_split(allJobs,numWorkers)
-        myChunk = jobChunks[rank]
-        myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
-        return myJobs
-
-    def getIndexedPeaks(self):
-        # Merge all stream files into one
-        totalStream = self.outDir+"/r"+str(self.runNumber).zfill(4)+"/"+self.experimentName+"_"+str(self.runNumber).zfill(4)+".stream"
-        with open(totalStream, 'w') as outfile:
-            for fname in self.myStreamList:
-                try:
-                    with open(fname) as infile:
-                        outfile.write(infile.read())
-                except: # file may not exist yet
-                    continue
-
-        # Add indexed peaks and remove images in hdf5
-        f = h5py.File(self.peakFile,'r')
-        totalEvents = len(f['/entry_1/result_1/nPeaksAll'])
-        hitEvents = f['/LCLS/eventNumber'].value
-        f.close()
-        # Add indexed peaks
-        fstream = open(totalStream,'r')
-        content=fstream.readlines()
-        fstream.close()
-        indexedPeaks = np.zeros((totalEvents,),dtype=int)
-        numProcessed = 0
-        for i,val in enumerate(content):
-            if "Event: //" in val:
-                _evt = int(val.split("Event: //")[-1].strip())
-            if "indexed_by =" in val:
-                _ind = val.split("indexed_by =")[-1].strip()
-            if "num_peaks =" in val:
-                _num = val.split("num_peaks =")[-1].strip()
-                numProcessed += 1
-                if 'none' in _ind:
-                    continue
-                else:
-                    indexedPeaks[hitEvents[_evt]] = _num
-        return indexedPeaks, numProcessed
-
-    def checkJobExit(self, jobID):
-        cmd = "bjobs -d | grep "+str(jobID)
+    def getSuccessStr(self):
+        # Check indexamajig version
+        cmd = 'indexamajig --version'
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = process.communicate()
-        if "EXIT" in out:
-            "*********** NODE FAILURE ************ ", jobID
-            return 1
+        #(major,minor,patch) = str(out).split('\\n')[0].split(': ')[-1].split('.')
+        (major,minor,patch) = out.split('\n')[0].split(': ')[-1].split('.')
+        if int(major) == 0 and int(minor) < 8:
+            mySuccessString = "1 had crystals" # changed from crystfel v0.8
         else:
-            return 0
+            mySuccessString = "1 crystals"
+        return mySuccessString
 
-    def run(self):
-        if self.queue is None: # interactive indexing
-            # Check if requirements are met for indexing
-            if self.parent.pk.numPeaksFound >= self.minPeaks and \
-                self.parent.pk.numPeaksFound <= self.maxPeaks and \
-                self.parent.pk.peaksMaxRes >= self.minRes:
-                print "OK, I'll index this pattern now"
+    def reportResults(self, id, eventNumber, out, err):
 
-                if self.parent.args.v >= 1: print "Running indexing!!!!!!!!!!!!"
-                # Running indexing ...
-                self.parent.index.numIndexedPeaksFound = 0
-                self.parent.index.indexedPeaks = None
-                self.parent.index.clearIndexedPeaks()
-                self.parent.index.displayWaiting()
+        if 'command not found' in err:
+            print("######################################################################")
+            print(highlight("FATAL ERROR: I can't find indexamajig on this machine. Refer to:      ", 'r', 1))
+            print(highlight("https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial", 'r', 1))
+            print("######################################################################")
 
-                # Write list of files to index
-                with open(self.parent.index.hiddenCrystfelList, "w") as text_file:
-                    text_file.write("{} //0".format(self.parent.index.hiddenCXI))
+        if self.indexCounter == id: # only report results if id matches current index counter
+            mySuccessString = self.getSuccessStr()
 
-                # Generate a static mask of bad pixels for indexing
-                self.parent.mk.saveCheetahStaticMask()
+            # Read CrystFEL geometry in stream
+            if mySuccessString in err:  # success
+                if self.parent.args.v >= 1: print("Indexing successful!")
+                # Munging geometry file
+                f = open(self.parent.index.hiddenCrystfelStream)
+                content = f.readlines()
+                try:
+                    for i, val in enumerate(content):
+                        if '----- Begin geometry file -----' in val:
+                            startLine = i
+                        elif '----- End geometry file -----' in val:
+                            endLine = i
+                            break
+                    geom = content[startLine:endLine]
+                    numLines = endLine - startLine
+                except:
+                    geom = content[0]  # This shouldn't happen
+                    numLines = 0
+                # Remove comments
+                for i in np.arange(numLines - 1, -1, -1):  # Start from bottom
+                    if ';' in geom[i].lstrip(' ')[0]: geom.pop(i)
 
-                # Check indexamajig version
-                cmd = 'indexamajig --version'
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                out, err = process.communicate()
-                (major,minor,patch) = out.split('\n')[0].split(': ')[-1].split('.')
-                if int(minor) >= 8:
-                    mySuccessString = "1 crystals"
-                else:
-                    mySuccessString = "1 had crystals"
-
-                # FIXME: convert psana geom to crystfel geom
-                cmd = "indexamajig -j 1 -i " + self.parent.index.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
-                      " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
-                      " -o " + self.parent.index.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(
-                      self.runNumber).zfill(4) + " --tolerance=" + str(self.tolerance)
-                if self.pdb: cmd += " --pdb=" + self.pdb
-                if self.extra:
-                    _extra = self.extra.replace(",", " ")
-                    cmd += " " + _extra
-
-                print "cmd: ", cmd
-                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                out, err = process.communicate()
-                if 'command not found' in err:
-                    print "######################################################################"
-                    print highlight("FATAL ERROR: I can't find indexamajig on this machine. Refer to:      ",'r',1)
-                    print highlight("https://confluence.slac.stanford.edu/display/PSDM/Psocake+SFX+tutorial",'r',1)
-                    print "######################################################################"
-
-                # Read CrystFEL geometry in stream
-                if mySuccessString in err:  # success
-                    if self.parent.args.v >= 1: print "Indexing successful!"
-                    # print "Munging geometry file"
-                    f = open(self.parent.index.hiddenCrystfelStream)
-                    content = f.readlines()
-                    try:
-                        for i, val in enumerate(content):
-                            if '----- Begin geometry file -----' in val:
-                                startLine = i
-                            elif '----- End geometry file -----' in val:
-                                endLine = i
-                                break
-                        geom = content[startLine:endLine]
-                        numLines = endLine - startLine
-                    except:
-                        geom = content[0] # This shouldn't happen
-                        numLines = 0
-                    # Remove comments
-                    for i in np.arange(numLines - 1, -1, -1):  # Start from bottom
-                        if ';' in geom[i].lstrip(' ')[0]: geom.pop(i)
-
-                    columns = ['min_fs', 'min_ss', 'max_fs', 'max_ss', 'res', 'fs', 'ss', 'corner_x', 'corner_y']
-                    columnsScan = ['fsx', 'fsy', 'ssx', 'ssy']
-                    indexScan = []
-                    if self.parent.facility == self.parent.facilityLCLS:
-                        if 'cspad' in self.parent.detInfo.lower():
-                            numQuads = 4
-                            numAsics = 16
-                            for i in np.arange(numQuads):
-                                for j in np.arange(numAsics):
-                                    indexScan.append('q' + str(i) + 'a' + str(j))
-                        elif 'rayonix' in self.parent.detInfo.lower():
-                            numQuads = 1
-                            numAsics = 1
-                            for i in np.arange(numQuads):
-                                    indexScan.append('p' + str(i))
-                    elif self.parent.facility == self.parent.facilityPAL:
-                        numQuads = 1
-                        numAsics = 1
-                        for i in np.arange(numQuads):
-                            indexScan.append('p' + str(i))
-
-                    dfGeom = pd.DataFrame(np.empty((numQuads * numAsics, len(columns))), index=indexScan,
-                                          columns=columns)
-                    dfScan = pd.DataFrame(np.empty((numQuads * numAsics, len(columnsScan))), index=indexScan,
-                                          columns=columnsScan)
-                    counter = 0
+                columns = ['min_fs', 'min_ss', 'max_fs', 'max_ss', 'res', 'fs', 'ss', 'corner_x', 'corner_y']
+                columnsScan = ['fsx', 'fsy', 'ssx', 'ssy']
+                indexScan = []
+                if 'cspad' in self.parent.detInfo.lower():
+                    numQuads = 4
+                    numAsics = 16
                     for i in np.arange(numQuads):
                         for j in np.arange(numAsics):
-                            myAsic = indexScan[counter]
-                            for k in columns:
-                                myLine = [s for s in geom if myAsic + '/' + k in s]
-                                if myLine:  # sometimes elements in columns can be missing
-                                    myVal = myLine[-1].split('=')[-1].rstrip().lstrip()
-                                    if k == 'fs' or k == 'ss':
-                                        dfGeom.loc[myAsic, k] = myVal
-                                    else:
-                                        dfGeom.loc[myAsic, k] = float(myVal)
-                                    if k == 'fs':
-                                        fsx = float(myVal.split('x')[0])
-                                        fsy = float(myVal.split('x')[-1].split('y')[0])
-                                        dfScan.loc[myAsic, 'fsx'] = fsx
-                                        dfScan.loc[myAsic, 'fsy'] = fsy
-                                    elif k == 'ss':
-                                        ssx = float(myVal.split('x')[0])
-                                        ssy = float(myVal.split('x')[-1].split('y')[0])
-                                        dfScan.loc[myAsic, 'ssx'] = ssx
-                                        dfScan.loc[myAsic, 'ssy'] = ssy
-                                else:
-                                    if self.parent.args.v >= 1: print myAsic + '/' + k + " doesn't exist"
-                            counter += 1
-                    f.close()
-                else:
-                    if self.parent.args.v >= 1: print "Indexing failed"
-                    self.parent.index.drawIndexedPeaks()
+                            indexScan.append('q' + str(i) + 'a' + str(j))
+                elif 'rayonix' in self.parent.detInfo.lower():
+                    numQuads = 1
+                    numAsics = 1
+                    for i in np.arange(numQuads):
+                        for j in np.arange(numAsics):
+                            indexScan.append('p' + str(i) + 'a' + str(j))
+                elif 'epix10k' in self.parent.detInfo.lower() and '2m' in self.parent.detInfo.lower():
+                    numQuads = 16
+                    numAsics = 4
+                    for i in np.arange(numQuads):
+                        for j in np.arange(numAsics):
+                            indexScan.append('p' + str(i) + 'a' + str(j))
+                elif 'jungfrau4m' in self.parent.detInfo.lower():
+                    numQuads = 8
+                    numAsics = 8
+                    for i in np.arange(numQuads):
+                        for j in np.arange(numAsics):
+                            indexScan.append('p' + str(i) + 'a' + str(j))
 
-                # Read CrystFEL indexed peaks
-                if mySuccessString in err:  # success
-                    f = open(self.parent.index.hiddenCrystfelStream)
+                dfGeom = pd.DataFrame(np.empty((numQuads * numAsics, len(columns))), index=indexScan,
+                                      columns=columns)
+                dfScan = pd.DataFrame(np.empty((numQuads * numAsics, len(columnsScan))), index=indexScan,
+                                      columns=columnsScan)
+                counter = 0
+                for i in np.arange(numQuads):
+                    for j in np.arange(numAsics):
+                        myAsic = indexScan[counter]
+                        for k in columns:
+                            myLine = [s for s in geom if myAsic + '/' + k in s]
+                            if myLine:  # sometimes elements in columns can be missing
+                                myVal = myLine[-1].split('=')[-1].rstrip().lstrip()
+                                if k == 'fs' or k == 'ss':
+                                    dfGeom.loc[myAsic, k] = myVal
+                                else:
+                                    dfGeom.loc[myAsic, k] = float(myVal)
+                                if k == 'fs':
+                                    fsx = float(myVal.split('x')[0])
+                                    fsy = float(myVal.split('x')[-1].split('y')[0])
+                                    dfScan.loc[myAsic, 'fsx'] = fsx
+                                    dfScan.loc[myAsic, 'fsy'] = fsy
+                                elif k == 'ss':
+                                    ssx = float(myVal.split('x')[0])
+                                    ssy = float(myVal.split('x')[-1].split('y')[0])
+                                    dfScan.loc[myAsic, 'ssx'] = ssx
+                                    dfScan.loc[myAsic, 'ssy'] = ssy
+                            else:
+                                if self.parent.args.v >= 1: print(myAsic + '/' + k + " doesn't exist")
+                        counter += 1
+                f.close()
+            else:
+                if eventNumber == self.parent.eventNumber: # if user is still on the same event
+                    print("Indexing failed")
+                    self.drawIndexedPeaks()
+
+            # Read CrystFEL indexed peaks
+            if mySuccessString in str(err):  # success
+                with open(self.parent.index.hiddenCrystfelStream) as f:
                     content = f.readlines()
                     for i, val in enumerate(content):
                         if 'End of peak list' in val:
-                            endLine = i-1
-                        elif 'num_saturated_peaks =' in val:
+                            endLine = i - 1
+                        elif 'indexed_by =' in val:
+                            self.indexingAlg = val.split('=')[-1]
+                        elif 'num_saturated_reflections =' in val:
                             self.numSaturatedPeaks = int(val.split('=')[-1])
                         elif 'lattice_type =' in val:
                             self.latticeType = val.split('=')[-1]
@@ -763,13 +663,13 @@ class IndexHandler(QtCore.QThread):
                             (_, _, a, b, c, _, al, be, ga, _) = val.split()
                             self.unitCell = (a, b, c, al, be, ga)
                         elif 'diffraction_resolution_limit =' in val:
-                            (_, _, _, _, _, resLim, _) = val.split() # Angstrom
+                            (_, _, _, _, _, resLim, _) = val.split()  # Angstrom
                         elif 'End of reflections' in val:
-                            endReflectionLine = i-1
+                            endReflectionLine = i - 1
                         elif '   h    k    l          I   sigma(I)       peak background  fs/px  ss/px panel' in val:
-                            startReflectionLine = i+1
-                    numPeaks = endLine-startLine
-                    numReflections = endReflectionLine-startReflectionLine
+                            startReflectionLine = i + 1
+                    numPeaks = endLine - startLine
+                    numReflections = endReflectionLine - startReflectionLine
 
                     columns = ['fs', 'ss', 'res', 'intensity', 'asic']
                     peaks = content[startLine:endLine + 1]
@@ -784,56 +684,82 @@ class IndexHandler(QtCore.QThread):
                         for line in reflections:
                             myReflections.append(line.split())
                         dfRefl = pd.DataFrame(myReflections, columns=columns, dtype=float)
-                    f.close()
 
-                    # Convert predicted spots to CrystFEL coordinates
-                    if self.parent.facility == self.parent.facilityLCLS:
-                        columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
-                        dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
-                        for i in np.arange(numReflections):
-                            myAsic = dfRefl['panel'][i].strip()
-                            x = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + \
-                                (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssx']
-                            x += dfGeom.loc[myAsic, 'corner_x']
-                            y = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + \
-                                (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssy']
-                            y += dfGeom.loc[myAsic, 'corner_y']
-                            dfPeaks['x'][i] = x
-                            dfPeaks['y'][i] = y
-                        # Convert to psocake coordinates
-                        for i in np.arange(numReflections):
-                            dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
-                            dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
-                    elif self.parent.facility == self.parent.facilityPAL:
-                        columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
-                        dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
-                        # Convert to psocake coordinates
-                        for i in np.arange(numReflections):
-                            dfPeaks['psocakeX'][i] = dfRefl['ss'][i]
-                            dfPeaks['psocakeY'][i] = dfRefl['fs'][i]
-                    if self.parent.index.showIndexedPeaks and self.eventNumber == self.parent.eventNumber:
-                        self.parent.index.numIndexedPeaksFound = numReflections
-                        self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].as_matrix()
-                        self.parent.index.drawIndexedPeaks(self.latticeType, self.centering, self.unitCell) #FIXME: segfaults when indexing twice
-                        try:
-                            print "####################"
-                            print "lattice_type = ", str(self.latticeType.strip())
-                            print "centering = ", str(self.centering.strip())
-                            print "unique_axis = ", str(self.uniqueAxis.strip())
-                            print "a = ", str(round(float(self.unitCell[0])*10, 2)), " A"
-                            print "b = ", str(round(float(self.unitCell[1])*10, 2)), " A"
-                            print "c = ", str(round(float(self.unitCell[2])*10, 2)), " A"
-                            print "al = ", str(round(float(self.unitCell[3]), 2)), " deg"
-                            print "be = ", str(round(float(self.unitCell[4]), 2)), " deg"
-                            print "ga = ", str(round(float(self.unitCell[5]), 2)), " deg"
-                            print "####################"
-                        except:
-                            print "Could not print unit cell"
-            else:
-                print "Indexing requirement not met."
-                if self.parent.pk.numPeaksFound < self.minPeaks: print "Decrease minimum number of peaks"
-                if self.parent.pk.numPeaksFound > self.maxPeaks: print "Increase maximum number of peaks"
-                if self.parent.pk.peaksMaxRes < self.minRes: print "Decrease minimum resolution"
+                # Convert predicted spots to CrystFEL coordinates
+                columnsPeaks = ['x', 'y', 'psocakeX', 'psocakeY']
+                dfPeaks = pd.DataFrame(np.empty((numReflections, len(columnsPeaks))), columns=columnsPeaks)
+                for i in np.arange(numReflections):
+                    myAsic = dfRefl['panel'][i].strip()
+                    x = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsx'] + \
+                        (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssx']
+                    x += dfGeom.loc[myAsic, 'corner_x']
+                    y = (dfRefl['fs'][i] - dfGeom.loc[myAsic, 'min_fs']) * dfScan.loc[myAsic, 'fsy'] + \
+                        (dfRefl['ss'][i] - dfGeom.loc[myAsic, 'min_ss']) * dfScan.loc[myAsic, 'ssy']
+                    y += dfGeom.loc[myAsic, 'corner_y']
+                    dfPeaks['x'][i] = x
+                    dfPeaks['y'][i] = y
+                # Convert to psocake coordinates
+                for i in np.arange(numReflections):
+                    dfPeaks['psocakeX'][i] = self.parent.cx - dfPeaks['x'][i]
+                    dfPeaks['psocakeY'][i] = self.parent.cy + dfPeaks['y'][i]
 
+                if self.parent.index.showIndexedPeaks and eventNumber == self.parent.eventNumber:
+                    self.parent.index.numIndexedPeaksFound = numReflections
+                    self.parent.index.indexedPeaks = dfPeaks[['psocakeX', 'psocakeY']].to_numpy()
+                    self.parent.index.drawIndexedPeaks(self.latticeType, self.centering, self.unitCell)
+                    try:
+                        print("Indexed_by = {}".format(self.indexingAlg.strip()))
+                        print("####################")
+                        print("lattice_type = {}".format(self.latticeType.strip()))
+                        print("centering = {}".format(self.centering.strip()))
+                        print("unique_axis = {}".format(self.uniqueAxis.strip()))
+                        print("a = {} A".format(round(float(self.unitCell[0]) * 10, 2)))
+                        print("b = {} A".format(round(float(self.unitCell[1]) * 10, 2)))
+                        print("c = {} A".format(round(float(self.unitCell[2]) * 10, 2)))
+                        print("al = {} deg".format(round(float(self.unitCell[3]), 2)))
+                        print("be = {} deg".format(round(float(self.unitCell[4]), 2)))
+                        print("ga = {} deg".format(round(float(self.unitCell[5]), 2)))
+                        print("####################")
+                    except:
+                        print("Could not print unit cell")
+        else:
+            print("stale indexing results: ", self.indexCounter , id)
 
+class IndexWorker(QtCore.QObject):
+    finished = QtCore.pyqtSignal([int, int, str,str])
+    progress = QtCore.pyqtSignal(int)
+
+    def setup(self, id, hiddenCrystfelList, geom, peakMethod, intRadius, pdb, indexingMethod, hiddenCrystfelStream, extra,
+            runNumber, eventNumber, tolerance, outDir):
+        self.id = id
+        self.hiddenCrystfelList = hiddenCrystfelList
+        self.geom = geom
+        self.peakMethod = peakMethod
+        self.intRadius = intRadius
+        self.pdb = pdb
+        self.indexingMethod = indexingMethod
+        self.hiddenCrystfelStream = hiddenCrystfelStream
+        self.extra = extra
+        self.runNumber = runNumber
+        self.eventNumber = eventNumber
+        self.tolerance = tolerance
+        self.outDir = outDir
+
+    def run(self):
+        cmd = "indexamajig -j 1 -i " + self.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
+              " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
+              " -o " + self.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(self.runNumber).zfill(4) + \
+              " --tolerance=" + str(self.tolerance)
+        if self.pdb: cmd += " --pdb=" + self.pdb
+        if self.extra:
+            _extra = self.extra.replace(",", " ")
+            cmd += " " + _extra
+
+        print("cmd: ", cmd)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = process.communicate()
+        self.out = str(out)
+        self.err = str(err)
+
+        self.finished.emit(self.id, self.eventNumber, self.out, self.err)
 

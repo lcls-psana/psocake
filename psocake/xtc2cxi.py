@@ -111,16 +111,16 @@ while notDone:
     try:
         f = h5py.File(filename, "r")
         if mode == 'sfx':
-            nPeaks = f["/entry_1/result_1/nPeaksAll"].value
-            maxRes = f["/entry_1/result_1/maxResAll"].value
-            posX = f["/entry_1/result_1/peakXPosRawAll"].value
-            posY = f["/entry_1/result_1/peakYPosRawAll"].value
-            atot = f["/entry_1/result_1/peakTotalIntensityAll"].value
-            maxRes = f["/entry_1/result_1/maxResAll"].value
+            nPeaks = f["/entry_1/result_1/nPeaksAll"][()]
+            maxRes = f["/entry_1/result_1/maxResAll"][()]
+            posX = f["/entry_1/result_1/peakXPosRawAll"][()]
+            posY = f["/entry_1/result_1/peakYPosRawAll"][()]
+            atot = f["/entry_1/result_1/peakTotalIntensityAll"][()]
+            maxRes = f["/entry_1/result_1/maxResAll"][()]
             hitInd = ((nPeaks >= args.minPeaks) & (nPeaks <= args.maxPeaks) & (maxRes >= args.minRes)).nonzero()[0]
             numHits = len(hitInd)
         elif mode == 'spi':
-            nHits = f["/entry_1/result_1/nHitsAll"].value
+            nHits = f["/entry_1/result_1/nHitsAll"][()]
             hitInd = ((nHits >= hitThreshMin) & (nHits <= hitThreshMax)).nonzero()[0]
             if backgroundThreshMax > -1:
                 missInd = ((nHits >= backgroundThreshMin) & (nHits <= backgroundThreshMax)).nonzero()[0]

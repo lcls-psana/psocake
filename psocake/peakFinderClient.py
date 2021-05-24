@@ -68,7 +68,7 @@ def runclient(args):
             #run = evt.run()
         elif facility == 'PAL':
             f = h5py.File(_files[nevent], 'r')
-            detarr = f['/data'].value
+            detarr = f['/data'][()]
             f.close()
             exp = args.exp
             run = args.run

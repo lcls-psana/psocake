@@ -124,7 +124,7 @@ if rank == 0:
                '/data/r' + str(args.run).zfill(4) + '/*.h5'
         _files = glob.glob(temp)
         f = h5py.File(_files[0], 'r')
-        img = f['/data'].value
+        img = f['/data'][()]
         f.close()
         numEvents = len(_files)
     (dim0, dim1) = img.shape

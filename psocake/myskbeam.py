@@ -379,28 +379,31 @@ class StreakMask:
         self.width = width
         self.sigma = sigma
         calib = det.calib(evt)
-        self.calibShape = calib.shape
-        self.calibSize = calib.size
-        # Edge pixels
-        edgePixels = np.zeros_like(calib)
-        for i in range(edgePixels.shape[0]):
-            edgePixels[i,0,:] = 1
-            edgePixels[i,-1,:] = 1
-            edgePixels[i,:,0] = 1
-            edgePixels[i,:,-1] = 1
-        imgEdges = det.image(evt,edgePixels)
-        # Centre of image
-        (self.ix,self.iy) = det.point_indexes(evt)
-        if self.ix is not None:
-            self.halfWidth = int(width/2) # pixels
-            self.imgEdges = imgEdges[self.ix-self.halfWidth:self.ix+self.halfWidth,self.iy-self.halfWidth:self.iy+self.halfWidth]
-            self.myInd = np.where(self.imgEdges==1)
-            # Pixel indices
-            a=np.arange(calib.size)+1
-            a=a.reshape(calib.shape)
-            self.assem=det.image(evt,a)
-        else:
+        if calib is None:
             self.assem = None
+        else:
+            self.calibShape = calib.shape
+            self.calibSize = calib.size
+            # Edge pixels
+            edgePixels = np.zeros_like(calib)
+            for i in range(edgePixels.shape[0]):
+                edgePixels[i,0,:] = 1
+                edgePixels[i,-1,:] = 1
+                edgePixels[i,:,0] = 1
+                edgePixels[i,:,-1] = 1
+            imgEdges = det.image(evt,edgePixels)
+            # Centre of image
+            (self.ix,self.iy) = det.point_indexes(evt)
+            if self.ix is not None:
+                self.halfWidth = int(width/2) # pixels
+                self.imgEdges = imgEdges[self.ix-self.halfWidth:self.ix+self.halfWidth,self.iy-self.halfWidth:self.iy+self.halfWidth]
+                self.myInd = np.where(self.imgEdges==1)
+                # Pixel indices
+                a=np.arange(calib.size)+1
+                a=a.reshape(calib.shape)
+                self.assem=det.image(evt,a)
+            else:
+                self.assem = None
 
     def getStreakMaskCalib(self, evt, calib=None):
         if self.assem is not None:
