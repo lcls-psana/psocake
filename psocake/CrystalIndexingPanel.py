@@ -64,7 +64,7 @@ class CrystalIndexing(object):
         self.sample = 'crystal'
         self.tag = ''
         self.queue = self.parent.pk.hitParam_psanaq_str
-        self.chunkSize = 500
+        self.chunkSize = 30
         self.cpu = 12
         self.noe = -1
 

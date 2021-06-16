@@ -25,7 +25,7 @@ def getMyUnfairShare(numJobs, numWorkers, rank):
     myJobs = allJobs[myChunk[0]:myChunk[-1]+1]
     return myJobs
 
-def batchSubmit(cmd, queue, cores, log='%j.log', jobName=None, batchType='slurm'):
+def batchSubmit(cmd, queue, cores, log='%j.log', jobName=None, batchType='slurm', params=None):
     """
     Simplify batch jobs submission for lsf & slurm
     :param cmd: command to be executed as batch job
@@ -44,8 +44,12 @@ def batchSubmit(cmd, queue, cores, log='%j.log', jobName=None, batchType='slurm'
         _cmd += cmd
     elif batchType == "slurm":
         _cmd = "sbatch --partition=" + queue + \
-               " --ntasks=" + str(cores) + \
                " --output=" + log
+        if params is not None:
+            for key, value in params.items():
+                _cmd += " "+key+"="+str(value)
+        else:
+            _cmd += " --ntasks=" + str(cores)
         if jobName:
             _cmd += " --job-name=" + jobName
         _cmd += " --wrap=\"" + cmd + "\""
@@ -105,7 +109,7 @@ def getCheetahDim(detInfo):
         dim1 = 1 * 1024
     else:
         print("detector type not implemented")
-        exit()
+        sys.exit()
     return dim0, dim1
 
 def saveCheetahFormatMask(outDir, run=None, detInfo=None, combinedMask=None):
@@ -151,7 +155,7 @@ def convert_peaks_to_cheetah(detname, s, r, c) :
         col2d = c
     else:
         print("Error: This detector is not supported")
-        exit()
+        sys.exit()
     return row2d, col2d
 
 def convert_peaks_to_psana(detname, row2d, col2d) :
@@ -182,7 +186,7 @@ def convert_peaks_to_psana(detname, row2d, col2d) :
         c = col2d
     else:
         print("Error: This detector is not supported")
-        exit()
+        sys.exit()
     return s, r, c
 
 def pct(detname, unassembled):
@@ -219,7 +223,7 @@ def pct(detname, unassembled):
             dim1 = col * y
         else:
             print("Error: This detector is not supported")
-            exit()
+            sys.exit()
 
         counter = 0
         #t1 = time.time()
@@ -262,7 +266,7 @@ def ipct(detname, tile):
         return calib
     else:
         print("Error: This detector is not supported")
-        exit()
+        sys.exit()
     # Convert calib image to cheetah image
     calib = np.zeros((numQuad*numAsicsPerQuad,asicRows,asicCols))
     counter = 0

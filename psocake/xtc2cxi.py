@@ -4,7 +4,7 @@ import numpy as np
 import psana
 import time
 import argparse
-import os, json
+import os, json, sys
 
 import psanaWhisperer
 
@@ -134,9 +134,9 @@ while notDone:
         print("Couldn't read h5 file: ", filename)
         print("Number of tries: ", notDone)
         notDone += 1
-        if notDone >= 10: exit()
+        if notDone >= 10: sys.exit()
         time.sleep(10)
-    if numHits == 0: exit()
+    if numHits == 0: sys.exit()
 
 if mode == 'sfx' and instrumentName == 'cxi':
     # Get image shape

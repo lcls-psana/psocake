@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import h5py, os, time, json
+import h5py, os, time, json, sys
 import argparse
 import subprocess
 import numpy as np
@@ -40,6 +40,8 @@ parser.add_argument("--likelihood", help="index hits with likelihood higher than
 parser.add_argument("--condition", help="logic condition", default='', type=str)
 parser.add_argument("--batch", help="batch type: lsf or slurm",default="slurm", type=str)
 args = parser.parse_args()
+
+tic = time.time()
 
 def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
 
@@ -127,7 +129,7 @@ def getIndexedPeaks():
         totalStream = runDir + "/" + experimentName + "_" + str(runNumber).zfill(4) + "_" + tag + ".stream"
     with open(totalStream, 'w') as outfile:
         for fname in myStreamList:
-            print("Reading: ", fname)
+            #print("Reading: ", fname)
             try:
                 with open(fname) as infile:
                     outfile.write(infile.read())
@@ -227,14 +229,14 @@ def findSize(runDir,experimentName,runNumber,pkTag):
 numSize = findSize(runDir,experimentName,runNumber,args.pkTag)
 if numSize is None: 
     print("Error: Could not find cxi files in: ", runDir)
-    exit()
+    sys.exit()
 numEventsArr = np.zeros((numSize,),dtype=int)
 
 for ind in range(numSize):
     pFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '_' + str(ind)
     if args.pkTag: pFile += '_'+args.pkTag
     pFile += '.cxi'
-
+    print("#### pFile: ", pFile)
     hf = h5py.File(pFile, 'r')
     icondition = args.condition
     iposition = [ipos for ipos, ichar in enumerate(icondition) if ichar == '#']
@@ -243,7 +245,9 @@ for ind in range(numSize):
     istart = iposition[0::2]
     iend = iposition[1::2]
     assert (len(istart) == len(iend))
+    print("#### istart: ", istart,iend)
     iname = [icondition[(istart[i]+1):iend[i]] for i in range(len(istart))]
+    print("#### iname: ", iname)
     ifullpath = []
     for idx in range(len(istart)): 
         search_name = iname[idx]
@@ -252,18 +256,23 @@ for ind in range(numSize):
         icondition = icondition.replace('#'+iname[idx]+'#', ifullpath[-1])
     #print('modified condition = ', icondition, '\n')
     #print('##################')
-
     try:
         f = h5py.File(pFile, 'r')
-        hasData = '/entry_1/instrument_1/detector_1/data' in f and 'success' in str(f['/status/findPeaks'][()])
+        if '/LCLS/eventNumber' in f:
+            eventList = f['/LCLS/eventNumber'][()]
+            numEvents = len(eventList)
+        else:
+            numEvents = 0
+        hasData = (numEvents > 0) and '/entry_1/instrument_1/detector_1/data' in f and 'success' in str(f['/status/findPeaks'][()])
         minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
         maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
         minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
         f.close()
+        print("#### hasData: ", hasData)
     except:
         print("Error while reading: ", pFile)
         print("Note that peak finding has to finish before launching indexing jobs")
-        exit()
+        sys.exit()
 
     if hasData:
         # Update elog
@@ -283,10 +292,16 @@ for ind in range(numSize):
                 likelihood = f['/entry_1/result_1/likelihood'][()]
             numEvents = len(eventList)
             f.close()
+            if numEvents == 0:
+                print("No events to process. Exiting.")
+                sys.exit()
         except:
             print("Couldn't read file: ", pFile)
 
         numEventsArr[ind] = numEvents
+    else:
+        print("No data found. Exiting.")
+        sys.exit()
 
 totalNumEvents = np.sum(numEventsArr)
 # Split into chunks for faster indexing
@@ -330,9 +345,9 @@ for rank in range(numWorkers):
         cmd += " -j 1"
     else:
         if "ffb" in args.queue or args.queue == "anaq": # limit cores for ffb
-            cmd += " -j 12"
+            cmd += " -j 1"
         else:
-            cmd += " -j '`nproc`'"
+            cmd += " -j 1"#'`nproc`'"
     cmd += " -g " + geom + " --peaks=" + peakMethod + " --int-radius=" + integrationRadius + \
            " --indexing=" + indexingMethod + " -o " + myStream
     if batch == "lsf":
@@ -343,9 +358,12 @@ for rank in range(numWorkers):
            " --no-revalidate --multi --profile"
     if pdb: cmd += " --pdb=" + pdb
     if extra: cmd += " " + extra
-
+    #if "slurm" in args.batch:
+    #    slurmParams = {"--cpus-per-task": 3}#"--ntasks-per-node": 3}
+    #    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch, slurmParams)
+    #else:
+    #    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch)
     cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch)
-
     print("Note: Indexing will use the mask saved in the cxi file (/entry_1/data_1/mask) for Bragg integration")
     print("Submitting job: ", cmd)
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -388,8 +406,9 @@ except:
 while Done == 0:
     for i, myLog in enumerate(myLogList):
         if os.path.isfile(myLog):  # log file exists
-            if haveFinished[i] == 0:  # job has not finished
-                p = subprocess.Popen(["grep", myKeyString, myLog], stdout=subprocess.PIPE)
+            if haveFinished[i] == 0:  # i^th job is still running
+                # check if job has finished
+                p = subprocess.Popen(["grep", "-E", myKeyString+"|"+myCancelString, myLog], stdout=subprocess.PIPE)
                 output = p.communicate()[0]
                 p.stdout.close()
                 if myKeyString in str(output):  # job has completely finished
@@ -409,18 +428,13 @@ while Done == 0:
                         if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
                             print("Done indexing")
                             Done = -1
-                # check for job cancellation
-                p = subprocess.Popen(["grep", myCancelString, myLog], stdout=subprocess.PIPE)
-                output = p.communicate()[0]
-                p.stdout.close()
-                if myCancelString in str(output):  # job has been cancelled
+                elif myCancelString in str(output): # job has been cancelled
                     print("cancelled job", runNumber, myLog)
                     haveFinished[i] = -1
                     if len(np.where(abs(haveFinished) == 1)[0]) == numWorkers:
                         print("Done indexing")
                         Done = -1
-
-                else:  # job is still going, update indexing rate
+                else: # job is still going, update indexing rate
                     if args.v >= 1: print("indexing hasn't finished yet: ", runNumber, myJobList, haveFinished)
                     indexedPeaks = None#, numProcessed = getIndexedPeaks()
 
@@ -444,7 +458,7 @@ while Done == 0:
                             pass
                     else:
                         pass #print "getIndexedPeaks returned None"
-                    time.sleep(30)
+                    time.sleep(10)
         else: # log file does not exist
             if args.v >= 1: print("no such file yet: ", runNumber, myLog)
             jobKilled = checkJobExit(myJobList[i])
@@ -452,7 +466,7 @@ while Done == 0:
                 if args.v >= 0: print("indexing job failure: ", myLog)
                 haveFinished[i] = -1
                 if args.v >= 0: print("Error: exit indexing crystals")
-                exit()
+                sys.exit()
             time.sleep(10)
 
     if abs(Done) == 1:
@@ -500,5 +514,5 @@ while Done == 0:
             except:
                 print("Couldn't remove {}".format(fname))
 hf.close()
-print("Done indexing run: ", runNumber)
+print("Done indexing run (time elapsed): ", runNumber, time.time()-tic)
 

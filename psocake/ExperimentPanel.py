@@ -1,6 +1,6 @@
 import numpy as np
 import subprocess
-import os
+import os, sys
 import glob
 try:
     logbook_present = True
@@ -636,14 +636,14 @@ class ExperimentInfo(object):
                     self.readEpicsClen()
                 else:
                     print("Couldn't handle detector clen. Try using the full detector name.")
-                    exit()
+                    sys.exit()
         elif 'jungfrau4m' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
             try:
                 self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV') # FIXME: need to read in full name and determine DS1 or DS2 etc
                 self.readEpicsClen()
             except:
                 print("Couldn't handle detector clen. Jungfrau epics variable names may not be supported.")
-                exit()
+                sys.exit()
         elif ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
              ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
              ('epix10k' in self.parent.detInfo.lower() and '2m' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
@@ -753,7 +753,7 @@ class ExperimentInfo(object):
                     if self.parent.args.v >= 1: print("Using local calib directory")
                 else:
                     print("./calib directory does not exist in the present working directory")
-                    exit()
+                    sys.exit()
 
     def getDatasource(self):
         if self.parent.facility == self.parent.facilityLCLS:
