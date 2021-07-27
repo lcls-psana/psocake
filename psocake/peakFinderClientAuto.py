@@ -432,7 +432,23 @@ def runclient(args):
             elif args.algorithm == 4:
                 print "Peak with PeakNet..."
                 d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
-                                             args.algorithm)
+                                             args.algorithm,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None,
+                                             None)
             ix = d.indexes_x(evt)
             iy = d.indexes_y(evt)
             d.iX = np.array(ix, dtype=np.int64)
