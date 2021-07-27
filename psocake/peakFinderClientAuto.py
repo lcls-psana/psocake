@@ -398,7 +398,7 @@ def runclient(args):
                                               clen=args.clen,
                                               localCalib=args.localCalib,
                                               geom=_geom)
-            elif args.algorithm >= 2:
+            elif args.algorithm == 2 or args.algorithm == 3:
                 d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
                                              args.algorithm, args.alg_npix_min,
                                              args.alg_npix_max, args.alg_amax_thr,
@@ -429,6 +429,10 @@ def runclient(args):
                                              clen=args.clen,
                                              localCalib=args.localCalib,
                                              access=args.access)
+            elif args.algorithm == 4:
+                print "Peak with PeakNet..."
+                d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
+                                             args.algorithm)
             ix = d.indexes_x(evt)
             iy = d.indexes_y(evt)
             d.iX = np.array(ix, dtype=np.int64)

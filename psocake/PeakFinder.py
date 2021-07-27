@@ -90,12 +90,14 @@ class PeakFinder:
             self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
-        elif algorithm >= 2:
+        elif algorithm == 2 or algorithm == 3:
             self.hitParam_alg1_thr_low = kwargs["alg1_thr_low"]
             self.hitParam_alg1_thr_high = kwargs["alg1_thr_high"]
             self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
+        elif algorithm == 4:
+            print "Initializing parameters for PeakNet..."
 
         if facility == 'LCLS':
             self.access = kwargs["access"]
@@ -106,13 +108,15 @@ class PeakFinder:
                                                  amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
                                                  son_min=self.son_min)
                 #self.alg = myskbeam.DropletA(self.peakRadius, self.peakRadius+self.hitParam_alg1_dr) #PyAlgos(windows=self.windows, mask=None, pbits=0)
-            elif self.algorithm >= 2:
+            elif self.algorithm == 2 or self.algorithm == 3:
                 # set peak-selector parameters:
                 self.alg = PyAlgos(mask=None, pbits=0)
                 self.peakRadius = int(self.hitParam_alg1_radius)
                 self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
                                                  amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
                                                  son_min=self.son_min)
+            elif self.algorithm == 4:
+                print "More initialization of PeakNet..."
         elif facility == 'PAL':
             self.peakRadius = int(self.hitParam_alg1_radius)
             self.alg = myskbeam.DropletA(self.peakRadius, self.hitParam_alg1_dr)
@@ -287,6 +291,11 @@ class PeakFinder:
                                                        r0=self.peakRadius, dr=self.hitParam_alg1_dr,
                                                        nsigm=self.son_min,
                                                        mask=self.combinedMask.astype(np.uint16))
+
+        elif self.algorithm == 4:
+            if facility == 'LCLS':
+                print "Running PeakNet..."
+                self.peaks = []
 
         self.numPeaksFound = self.peaks.shape[0]
 
