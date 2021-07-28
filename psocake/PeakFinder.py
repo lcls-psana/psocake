@@ -96,8 +96,6 @@ class PeakFinder:
             self.hitParam_alg1_rank = int(kwargs["alg1_rank"])
             self.hitParam_alg1_radius = int(kwargs["alg1_radius"])
             self.hitParam_alg1_dr = kwargs["alg1_dr"]
-        elif algorithm == 4:
-            print "Initializing parameters for PeakNet..."
 
         if facility == 'LCLS':
             self.access = kwargs["access"]
@@ -115,8 +113,6 @@ class PeakFinder:
                 self.alg.set_peak_selection_pars(npix_min=self.npix_min, npix_max=self.npix_max, \
                                                  amax_thr=self.amax_thr, atot_thr=self.atot_thr, \
                                                  son_min=self.son_min)
-            elif self.algorithm == 4:
-                print "More initialization of PeakNet..."
         elif facility == 'PAL':
             self.peakRadius = int(self.hitParam_alg1_radius)
             self.alg = myskbeam.DropletA(self.peakRadius, self.hitParam_alg1_dr)
@@ -291,11 +287,6 @@ class PeakFinder:
                                                        r0=self.peakRadius, dr=self.hitParam_alg1_dr,
                                                        nsigm=self.son_min,
                                                        mask=self.combinedMask.astype(np.uint16))
-
-        elif self.algorithm == 4:
-            if facility == 'LCLS':
-                print "Running PeakNet..."
-                self.peaks = []
 
         self.numPeaksFound = self.peaks.shape[0]
 

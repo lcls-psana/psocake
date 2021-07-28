@@ -3,6 +3,7 @@ from mpidata import mpidata
 import time
 import os
 import PeakFinder as pf
+import PeakFinderPeaknet as pfn
 from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import h5py
@@ -430,25 +431,8 @@ def runclient(args):
                                              localCalib=args.localCalib,
                                              access=args.access)
             elif args.algorithm == 4:
-                print "Peak with PeakNet..."
-                d.peakFinder = pf.PeakFinder(exp, args.run, args.det, evt, d,
-                                             args.algorithm,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None,
-                                             None)
+                print "Creating peak finder with PeakNet..."
+                d.peakFinder = pfn.PeakFinderPeaknet(exp, args.run, args.detname, d)
             ix = d.indexes_x(evt)
             iy = d.indexes_y(evt)
             d.iX = np.array(ix, dtype=np.int64)
