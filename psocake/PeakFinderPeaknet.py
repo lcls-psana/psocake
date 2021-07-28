@@ -13,7 +13,8 @@ class PeakFinderPeaknet:
 
         if model_path is None:
             # default location of the model
-            model_path = '/cds/home/a/axlevy/peaknet2020/peaknet/debug/my_model.pt'
+            default_model = 'my_model'
+            model_path = '/cds/home/a/axlevy/peaknet2020/peaknet/debug/' + default_model + '/model.pt'
 
         model = torch.load(model_path)
 
