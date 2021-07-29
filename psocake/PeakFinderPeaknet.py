@@ -37,6 +37,8 @@ class PeakFinderPeaknet:
         # self.params["n_per_run"] = n_per_run
         # self.params["batch_size"] = batch_size
         # self.params["num_workers"] = num_workers
+        
+        self.maxRes = np.inf
 
         self.model.eval()
 
