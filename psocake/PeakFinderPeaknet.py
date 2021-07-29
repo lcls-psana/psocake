@@ -59,8 +59,6 @@ class PeakFinderPeaknet:
         return img_tensor.view(1, -1, h, w)
 
     def findPeaks(self, calib, evt):
-        print "Finding peaks with PeakNet..."
-
         self.calib = calib
 
         x = self._load_img(calib)
@@ -72,7 +70,6 @@ class PeakFinderPeaknet:
             self.peaks = np.array(np.argwhere(scores[:, 0] > self.params["cutoff_eval"]))
 
         npeaks = self.peaks.shape[0]
-        print("Number of found peaks: " + str(npeaks))
 
         # Put zeros in all unknown parameters for now
         additional_zeros = np.zeros((npeaks, 14), dtype=int)
