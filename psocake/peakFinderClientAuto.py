@@ -45,8 +45,6 @@ def calcPeaksGPU(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, e
         tac = time.time()
         print('seen : {:8} | {:6.2f} msec per event'.format(nevent, (tac - tic) * 1e3 / float(args.batch_size)))
 
-
-
 def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1, tic):
     d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
     processPeaks(args, d.peakFinder.peaks, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1,
@@ -88,7 +86,7 @@ def processPeaks(args, peaks, evt, d, ps, detectorDistance, nevent, ebeamDet, ev
         pairsFoundPerSpot = 0.0
 
     md = mpidata()
-    md.addarray('peaks', d.peakFinder.peaks)
+    md.addarray('peaks', peaks)
     md.addarray('radius', radius)
     md.small.eventNum = nevent
     md.small.maxRes = d.peakFinder.maxRes
