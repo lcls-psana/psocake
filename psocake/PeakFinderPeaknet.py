@@ -2,9 +2,7 @@ import torch
 import numpy as np
 
 class PeakFinderPeaknet:
-    def __init__(self, exp, run, detname, detector, batch_size, model_path=None, gpu=0, cutoff_eval=0.5,
-                 print_every=10, normalize=True, upload_every=1, save_name=None, n_experiments=-1, n_per_run=-1,
-                 batch_size=5, num_workers=0):
+    def __init__(self, exp, run, detname, detector, batch_size, model_path=None, gpu=0, cutoff_eval=0.5, normalize=True):
         print "Initializing parameters for PeakNet..."
         self.exp = exp
         self.run = run
@@ -29,14 +27,7 @@ class PeakFinderPeaknet:
 
         self.params = {}
         self.params["cutoff_eval"] = cutoff_eval
-        # self.params["print_every"] = print_every
         self.params["normalize"] = normalize
-        # self.params["upload_every"] = upload_every
-        # self.params["save_name"] = save_name
-        # self.params["n_experiments"] = n_experiments
-        # self.params["n_per_run"] = n_per_run
-        # self.params["batch_size"] = batch_size
-        # self.params["num_workers"] = num_workers
 
         self.maxRes = np.inf
 
