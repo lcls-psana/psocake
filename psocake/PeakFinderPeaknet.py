@@ -68,6 +68,7 @@ class PeakFinderPeaknet:
             scores = self.model(x)
             scores = torch.nn.Sigmoid()(scores).cpu().numpy()
             self.peaks = np.array(np.argwhere(scores[:, 0] > self.params["cutoff_eval"]))
+            # maybe invert row and cols?
 
         npeaks = self.peaks.shape[0]
 
