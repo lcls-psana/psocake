@@ -40,7 +40,7 @@ class PeakFinderPeaknet:
         # PUSH AND CHECK INITIALIZATION
 
     def findPeaks(self, calib, evt):
-        print "Finding peaks with PeakNet"
+        print "Finding peaks with PeakNet..."
 
         self.calib = calib
 

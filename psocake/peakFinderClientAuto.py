@@ -32,6 +32,7 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
 
 def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
     d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
+    print("Shape" + str(d.peakFinder.peaks.shape))
     # Likelihood
     numPeaksFound = d.peakFinder.peaks.shape[0]
     radius = np.zeros((1,1))
