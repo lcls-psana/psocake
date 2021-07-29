@@ -36,7 +36,7 @@ def calcPeaksGPU(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, e
     d.peakFinder.add_to_batch(detarr, evt)
     if d.peakFinder.seen_events % args.batch_size == 0:
         # accumulate
-        d.peakFinder.batched_peak_finding(detarr)
+        d.peakFinder.batched_peak_finding()
 
         for i in range(args.bathc_size):
             processPeaks(args, d.peakFinder.peaks_batch[i], d.peakFinder.evt_batch[i], d, ps, detectorDistance, nevent,

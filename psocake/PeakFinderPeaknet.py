@@ -67,12 +67,12 @@ class PeakFinderPeaknet:
         if self.batch is None:
             self.batch = x
         else:
-            self.batch = torch.cat((self.batch, x), 1)
+            self.batch = torch.cat((self.batch, x), 0)
 
-    def batched_peak_finding(self, calib):
+    def batched_peak_finding(self):
         h = self.batch.shape[2]
         w = self.batch.shape[3]
-        with torch.no_grad()
+        with torch.no_grad():
             print("Shape " + str(self.model(self.batch).shape))
             scores = self.model(self.batch).view(self.batch_size, -1, h, w)
             scores = torch.nn.Sigmoid()(scores).cpu().numpy()
