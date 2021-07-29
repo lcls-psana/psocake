@@ -54,7 +54,7 @@ class PeakFinderPeaknet:
         img_tensor = torch.zeros(img.shape[0], h, w)
         img_tensor[:, 0:img.shape[1], 0:img.shape[2]] = torch.from_numpy(img)
 
-        return img_tensor
+        return img_tensor.view(1, -1, h, w)
 
     def findPeaks(self, calib, evt):
         print "Finding peaks with PeakNet..."
@@ -70,6 +70,6 @@ class PeakFinderPeaknet:
         npeaks = self.peaks.shape[0]
         print("Number of found peaks: " + str(npeaks))
 
-        # Put zeros in all inkown paramters for now
+        # Put zeros in all unknown parameters for now
         additional_zeros = np.zeros((npeaks, 14), dtype=int)
         self.peaks = np.concatenate((self.peaks, additional_zeros), axis=1)
