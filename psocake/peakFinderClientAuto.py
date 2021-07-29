@@ -31,22 +31,41 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
         value = exceptReturn
     return value
 
-def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
-    tic = time.time()
+def calcPeaksGPU(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1, tic):
+    # PeakNet version of peak finding
+    d.peakFinder.add_to_batch(detarr, evt)
+    if d.peakFinder.seen_events % args.batch_size == 0:
+        # accumulate
+        d.peakFinder.batched_peak_finding(detarr)
+
+        for i in range(args.bathc_size):
+            processPeaks(args, d.peakFinder.peaks_batch[i], d.peakFinder.evt_batch[i], d, ps, detectorDistance, nevent,
+                         ebeamDet, evr0, evr1, d.peakFinder.calib_batch[i])
+        d.peakFinder.clean_batch()
+        tac = time.time()
+        print('seen : {:8} | {0:5.2f} msec per event'.format(nevent, (tac - tic) * 1e3 / float(args.batch_size)))
+
+
+
+def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1, tic):
     d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
+    processPeaks(args, d.peakFinder.peaks, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1,
+                 d.peakFinder.calib)
     tac = time.time()
-    numPeaksFound = d.peakFinder.peaks.shape[0]
-    print('image {:8} | {:5} peaks | {0:5.2f} msec'.format(nevent, numPeaksFound, (tac - tic) * 1e3))
+    print('seen : {:8} | {0:5.2f} msec per event'.format(nevent, (tac - tic) * 1e3))
+
+def processPeaks(args, peaks, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1, calib):
+    numPeaksFound = peaks.shape[0]
     radius = np.zeros((1,1))
     if numPeaksFound >= args.minPeaks and \
        numPeaksFound <= args.maxPeaks and \
        d.peakFinder.maxRes >= args.minRes:
-        cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
-        cenY = d.iY[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
-                    np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
+        cenX = d.iX[np.array(peaks[:, 0], dtype=np.int64),
+                    np.array(peaks[:, 1], dtype=np.int64),
+                    np.array(peaks[:, 2], dtype=np.int64)] + 0.5
+        cenY = d.iY[np.array(peaks[:, 0], dtype=np.int64),
+                    np.array(peaks[:, 1], dtype=np.int64),
+                    np.array(peaks[:, 2], dtype=np.int64)] + 0.5
 
         x = cenX - d.ipx  # args.center[0]
         y = cenY - d.ipy  # args.center[1]
@@ -79,7 +98,6 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     if args.profile:
         md.small.calibTime = calibTime
         md.small.peakTime = peakTime
-
     
     if facility == 'LCLS':
         # other cxidb data
@@ -166,7 +184,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
            d.peakFinder.maxRes >= args.minRes:
            #and pairsFoundPerSpot >= likelihoodThresh:
            # Write image in cheetah format
-            img = ps.getCheetahImg(d.peakFinder.calib)
+            img = ps.getCheetahImg(calib)
             if img is not None:
                 md.addarray('data', img)
 
@@ -240,8 +258,9 @@ def runclient(args):
                 detectorDistance = 0
         elif hasDetectorDistance:
             detectorDistance = args.detectorDistance
-    
+
     for nevent in np.arange(len(times)):
+        tic = time.time()
         if nevent == args.noe : break
         if nevent%(size-1) != rank-1: continue # different ranks look at different events
 
@@ -435,14 +454,18 @@ def runclient(args):
                                              access=args.access)
             elif args.algorithm == 4:
                 print "Creating peak finder with PeakNet..."
-                d.peakFinder = pfn.PeakFinderPeaknet(exp, args.run, args.det, d)
+                d.peakFinder = pfn.PeakFinderPeaknet(exp, args.run, args.det, d, args.batch_size)
             ix = d.indexes_x(evt)
             iy = d.indexes_y(evt)
             d.iX = np.array(ix, dtype=np.int64)
             d.iY = np.array(iy, dtype=np.int64)
             d.ipx, d.ipy = d.point_indexes(evt, pxy_um=(0, 0))
 
-        calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1)
+        if args.algorithm == 4:
+            calcPeaksGPU(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1, tic)
+        else:
+            calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1, tic)
+
 
     ###############################
     # Help your neighbor find peaks

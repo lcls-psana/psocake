@@ -68,6 +68,8 @@ parser.add_argument("-i","--inputImages", default="", type=str, help="full path 
 # PAL specific
 parser.add_argument("--dir", help="PAL directory where the detector images (hdf5) are stored", default=None, type=str)
 parser.add_argument("--currentRun", help="current run number", type=int)
+# GPU specific
+parser.add_argument("--batch_size", help="batch size", type=int, default=1)
 args = parser.parse_args()
 
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():

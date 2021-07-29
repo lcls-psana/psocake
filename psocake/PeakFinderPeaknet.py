@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 class PeakFinderPeaknet:
-    def __init__(self, exp, run, detname, detector, model_path=None, gpu=0, cutoff_eval=0.5,
+    def __init__(self, exp, run, detname, detector, batch_size, model_path=None, gpu=0, cutoff_eval=0.5,
                  print_every=10, normalize=True, upload_every=1, save_name=None, n_experiments=-1, n_per_run=-1,
                  batch_size=5, num_workers=0):
         print "Initializing parameters for PeakNet..."
@@ -40,6 +40,13 @@ class PeakFinderPeaknet:
 
         self.maxRes = np.inf
 
+        self.seen_events = 0
+        self.batch = None
+        self.batch_size = batch_size
+        self.calibs_batch = []
+        self.evt_batch = []
+        self.peaks_batch = []
+
         self.model.eval()
 
     def _load_img(self, calib):
@@ -58,20 +65,36 @@ class PeakFinderPeaknet:
 
         return img_tensor.view(1, -1, h, w)
 
-    def findPeaks(self, calib, evt):
-        self.calib = calib
+    def add_to_batch(self, calib, evt):
+        self.seen_events += 1
+        self.calibs_batch.append(calib)
+        self.evt_batch.append(evt)
 
         x = self._load_img(calib)
         x = x.to(self.device)
 
+        if self.batch is None:
+            self.batch = x
+        else:
+            self.batch = torch.cat((self.batch, x), 1)
+
+    def batched_peak_finding(self, calib):
+        h = self.batch.shape[2]
+        w = self.batch.shape[3]
         with torch.no_grad():
-            scores = self.model(x)
+            scores = self.model(self.batch).view(self.batch_size, -1, h, w)
             scores = torch.nn.Sigmoid()(scores).cpu().numpy()
-            self.peaks = np.array(np.argwhere(scores[:, 0] > self.params["cutoff_eval"]))
-            # maybe invert row and cols?
 
-        npeaks = self.peaks.shape[0]
+        for i in range(self.batch_size):
+            peaks = np.array(np.argwhere(scores[i] > self.params["cutoff_eval"])) # maybe invert row and cols?
+            npeaks = peaks.shape[0]
+            # Put zeros in all unknown parameters for now
+            additional_zeros = np.zeros((npeaks, 14), dtype=int)
+            peaks = np.concatenate((peaks, additional_zeros), axis=1)
+            self.peaks_batch.append(peaks)
 
-        # Put zeros in all unknown parameters for now
-        additional_zeros = np.zeros((npeaks, 14), dtype=int)
-        self.peaks = np.concatenate((self.peaks, additional_zeros), axis=1)
+    def clean_batch(self):
+        self.batch = None
+        self.calibs_batch = []
+        self.evt_batch = []
+        self.peaks_batch = []
