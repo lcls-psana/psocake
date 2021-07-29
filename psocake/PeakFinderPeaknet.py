@@ -16,6 +16,7 @@ class PeakFinderPeaknet:
             default_model = 'my_model'
             model_path = '/cds/home/a/axlevy/peaknet2020/peaknet/debug/' + default_model + '/model.pt'
 
+        print "Loading model..."
         model = torch.load(model_path)
 
         if torch.cuda.is_available():
@@ -38,7 +39,7 @@ class PeakFinderPeaknet:
 
         # PUSH AND CHECK INITIALIZATION
 
-    def findPeaks(self, calib):
+    def findPeaks(self, calib, evt):
         print "Finding peaks with PeakNet"
 
         self.calib = calib
