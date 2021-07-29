@@ -70,7 +70,6 @@ class PeakFinderPeaknet:
 
     def batched_peak_finding(self):
         with torch.no_grad():
-            print("Shape " + str(self.model(self.batch).shape))
             scores = self.model(self.batch)
             scores = scores.view(self.batch_size, -1, scores.shape[2], scores.shape[3])
             scores = torch.nn.Sigmoid()(scores).cpu().numpy()
