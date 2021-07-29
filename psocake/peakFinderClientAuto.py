@@ -36,7 +36,7 @@ def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0
     d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
     tac = time.time()
     numPeaksFound = d.peakFinder.peaks.shape[0]
-    print('{:6} iterations | {:5} peaks | {:3.1} msec'.format(nevent, numPeaksFound, (tac - tic) * 1e3))
+    print('image {:8} | {:5} peaks | {0:5.2f} msec'.format(nevent, numPeaksFound, (tac - tic) * 1e3))
     radius = np.zeros((1,1))
     if numPeaksFound >= args.minPeaks and \
        numPeaksFound <= args.maxPeaks and \
