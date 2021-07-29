@@ -51,8 +51,7 @@ class PeakFinderPeaknet:
         h = img.shape[1]
         w = img.shape[2]
 
-        img_tensor = torch.zeros(img.shape[0], h, w)
-        img_tensor[:, 0:img.shape[1], 0:img.shape[2]] = torch.from_numpy(img)
+        img_tensor = torch.from_numpy(img)
 
         return img_tensor.view(1, -1, h, w)
 
@@ -70,15 +69,16 @@ class PeakFinderPeaknet:
             self.batch = torch.cat((self.batch, x), 0)
 
     def batched_peak_finding(self):
-        h = self.batch.shape[2]
-        w = self.batch.shape[3]
         with torch.no_grad():
             print("Shape " + str(self.model(self.batch).shape))
-            scores = self.model(self.batch).view(self.batch_size, -1, h, w)
+            scores = self.model(self.batch)
+            scores = scores.view(self.batch_size, -1, scores.shape[2], scores.shape[3])
             scores = torch.nn.Sigmoid()(scores).cpu().numpy()
 
         for i in range(self.batch_size):
             peaks = np.array(np.argwhere(scores[i] > self.params["cutoff_eval"])) # maybe invert row and cols?
+            peaks[:, 1] = peaks[:, 1] * self.model.downsample
+            peaks[:, 2] = peaks[:, 2] * self.model.downsample
             npeaks = peaks.shape[0]
             # Put zeros in all unknown parameters for now
             additional_zeros = np.zeros((npeaks, 14), dtype=int)
