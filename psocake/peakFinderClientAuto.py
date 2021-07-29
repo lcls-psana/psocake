@@ -8,6 +8,7 @@ from scipy.spatial.distance import cdist
 from scipy.spatial import distance
 import h5py
 from utils import *
+import time
 
 if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS' # Default facility
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
@@ -31,8 +32,10 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
     return value
 
 def calcPeaks(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, evr0, evr1):
+    tic = time.time()
     d.peakFinder.findPeaks(detarr, evt) # this will perform background subtraction on detarr
-    print("Shape" + str(d.peakFinder.peaks.shape))
+    tac = time.time()
+    print("1 image processed in " + str(tac - tic) + "s")
     # Likelihood
     numPeaksFound = d.peakFinder.peaks.shape[0]
     radius = np.zeros((1,1))
