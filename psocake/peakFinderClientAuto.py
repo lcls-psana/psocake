@@ -39,8 +39,8 @@ def calcPeaksGPU(args, detarr, evt, d, ps, detectorDistance, nevent, ebeamDet, e
         d.peakFinder.batched_peak_finding()
 
         for i in range(args.batch_size):
-            processPeaks(args, d.peakFinder.peaks_batch[i], d.peakFinder.evt_batch[i], d, ps, detectorDistance, nevent,
-                         ebeamDet, evr0, evr1, d.peakFinder.calib_batch[i])
+            processPeaks(args, d.peakFinder.peaks_batch[i], d.peakFinder.evts_batch[i], d, ps, detectorDistance, nevent,
+                         ebeamDet, evr0, evr1, d.peakFinder.calibs_batch[i])
         d.peakFinder.clean_batch()
         tac = time.time()
         print('seen : {:8} | {:6.2f} msec per event'.format(nevent, (tac - tic) * 1e3 / float(args.batch_size)))

@@ -35,7 +35,7 @@ class PeakFinderPeaknet:
         self.batch = None
         self.batch_size = batch_size
         self.calibs_batch = []
-        self.evt_batch = []
+        self.evts_batch = []
         self.peaks_batch = []
 
         self.model.eval()
@@ -58,7 +58,7 @@ class PeakFinderPeaknet:
     def add_to_batch(self, calib, evt):
         self.seen_events += 1
         self.calibs_batch.append(calib)
-        self.evt_batch.append(evt)
+        self.evts_batch.append(evt)
 
         x = self._load_img(calib)
         x = x.to(self.device)
@@ -87,5 +87,5 @@ class PeakFinderPeaknet:
     def clean_batch(self):
         self.batch = None
         self.calibs_batch = []
-        self.evt_batch = []
+        self.evts_batch = []
         self.peaks_batch = []
