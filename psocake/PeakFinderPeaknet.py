@@ -37,7 +37,7 @@ class PeakFinderPeaknet:
         # self.params["n_per_run"] = n_per_run
         # self.params["batch_size"] = batch_size
         # self.params["num_workers"] = num_workers
-        
+
         self.maxRes = np.inf
 
         self.model.eval()
@@ -60,6 +60,8 @@ class PeakFinderPeaknet:
 
     def findPeaks(self, calib, evt):
         print "Finding peaks with PeakNet..."
+
+        self.calib = calib
 
         x = self._load_img(calib)
         x = x.to(self.device)
