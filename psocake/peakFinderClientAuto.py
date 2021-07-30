@@ -177,8 +177,8 @@ def processPeaks(args, peaks, evt, d, ps, detectorDistance, nevent, ebeamDet, ev
         md.small.nsec = evtId.time()[1]
         md.small.fid = evtId.fiducials()
 
-        if len(d.peakFinder.peaks) >= args.minPeaks and \
-           len(d.peakFinder.peaks) <= args.maxPeaks and \
+        if len(peaks) >= args.minPeaks and \
+           len(peaks) <= args.maxPeaks and \
            d.peakFinder.maxRes >= args.minRes:
            #and pairsFoundPerSpot >= likelihoodThresh:
            # Write image in cheetah format
