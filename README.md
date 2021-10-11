@@ -1,4 +1,4 @@
-# Psocake
+# Psocake (py2/py3)
 
 Making Data Analysis for Free-Electron Lasers a piece of cake
 
