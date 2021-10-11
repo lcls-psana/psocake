@@ -231,6 +231,7 @@ if numSize is None:
     print("Error: Could not find cxi files in: ", runDir)
     sys.exit()
 numEventsArr = np.zeros((numSize,),dtype=int)
+totalHits = 0
 
 for ind in range(numSize):
     pFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '_' + str(ind)
@@ -263,12 +264,12 @@ for ind in range(numSize):
             numEvents = len(eventList)
         else:
             numEvents = 0
-        hasData = (numEvents > 0) and '/entry_1/instrument_1/detector_1/data' in f and 'success' in str(f['/status/findPeaks'][()])
+        totalHits += numEvents
+        hasData = '/entry_1/instrument_1/detector_1/data' in f and 'success' in str(f['/status/findPeaks'][()])
         minPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['minPeaks']
         maxPeaksUsed = f["entry_1/result_1/nPeaks"].attrs['maxPeaks']
         minResUsed = f["entry_1/result_1/nPeaks"].attrs['minRes']
         f.close()
-        print("#### hasData: ", hasData)
     except:
         print("Error while reading: ", pFile)
         print("Note that peak finding has to finish before launching indexing jobs")
@@ -292,9 +293,6 @@ for ind in range(numSize):
                 likelihood = f['/entry_1/result_1/likelihood'][()]
             numEvents = len(eventList)
             f.close()
-            if numEvents == 0:
-                print("No events to process. Exiting.")
-                sys.exit()
         except:
             print("Couldn't read file: ", pFile)
 
@@ -302,6 +300,10 @@ for ind in range(numSize):
     else:
         print("No data found. Exiting.")
         sys.exit()
+
+if totalHits == 0: 
+    print("No events to process. Exiting.")
+    sys.exit()
 
 totalNumEvents = np.sum(numEventsArr)
 # Split into chunks for faster indexing
