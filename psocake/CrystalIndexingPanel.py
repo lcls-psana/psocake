@@ -514,7 +514,7 @@ class CrystalIndexing(object):
                     for i in np.arange(numQuads):
                         for j in np.arange(numAsics):
                             indexScan.append('p' + str(i) + 'a' + str(j))
-                elif 'jungfrau4m' in self.parent.detInfo.lower():
+                elif 'jungfrau4m' in self.parent.detInfo.lower() or 'jungfrau4m' in self.parent.detPsocake:
                     numQuads = 8
                     numAsics = 8
                     for i in np.arange(numQuads):

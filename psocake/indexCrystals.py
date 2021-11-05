@@ -225,6 +225,7 @@ def findSize(runDir,experimentName,runNumber,pkTag):
     return numSize
 
 numSize = findSize(runDir,experimentName,runNumber,args.pkTag)
+print("Found {} cxi files".format(numSize))
 if numSize is None: 
     print("Error: Could not find cxi files in: ", runDir)
     sys.exit()
