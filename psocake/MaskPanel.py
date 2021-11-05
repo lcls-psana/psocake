@@ -602,7 +602,7 @@ class MaskMaker(object):
         return _tag
 
     def saveCheetahStaticMask(self):
-        dim0,dim1 = utils.getCheetahDim(self.parent.detInfo)
+        dim0,dim1 = self.parent.detDesc.tileDim
         _tag = self.parseMaskTag()
         fname = self.parent.psocakeRunDir + "/staticMask"+_tag+".h5"
         print("Saving Cheetah static mask in: ", fname)
@@ -613,7 +613,7 @@ class MaskMaker(object):
         if self.parent.mk.combinedMask is None:
             img = np.ones((dim0, dim1))
         else:
-            img = utils.pct(self.parent.detInfo, self.parent.mk.combinedMask)
+            img = self.parent.detDesc.pct(self.parent.mk.combinedMask)
         dset[:, :] = img
         myHdf5.close()
 

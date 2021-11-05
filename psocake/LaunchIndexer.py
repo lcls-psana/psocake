@@ -3,6 +3,7 @@ import subprocess
 import os, shlex
 import numpy as np
 from psocake import utils
+from psocake.cheetahUtils import saveCheetahFormatMask
 
 class LaunchIndexer(QtCore.QThread):
     def __init__(self, parent = None):
@@ -35,6 +36,23 @@ class LaunchIndexer(QtCore.QThread):
                 runsToDo.append(int(temp[0]))
         return runsToDo
 
+    def insertMaskFileInGeom(self, runDir, run, geom):
+        peakFile = runDir + '/' + self.parent.experimentName + '_' + str(run).zfill(4)
+        if self.parent.pk.tag: peakFile += '_'+self.parent.pk.tag
+        peakFile += '.cxi'
+
+        with open(geom, 'r') as f: 
+            lines = f.readlines()
+        newGeom = []
+        for line in lines: # replace peakFile in 'mask_file'
+            if 'mask_file' in line:
+                _line = 'mask_file = ' + peakFile + "\n"
+                newGeom.append(_line)
+            else:
+                newGeom.append(line)
+        with open(geom, 'w') as f:
+            f.writelines(newGeom)
+
     def run(self):
         # Digest the run list
         runsToDo = self.digestRunList(self.parent.index.runs)
@@ -48,7 +66,10 @@ class LaunchIndexer(QtCore.QThread):
                 print("No write access to: ", runDir)
 
             # Generate Cheetah mask
-            utils.saveCheetahFormatMask(self.parent.index.outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
+            saveCheetahFormatMask(self.parent.index.outDir, self.parent.detDesc, run, self.parent.mk.combinedMask)
+
+            # Insert cxi filename in geom
+            self.insertMaskFileInGeom(runDir, run, self.parent.index.geom)
 
             # Update elog
             try:

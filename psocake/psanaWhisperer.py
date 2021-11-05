@@ -6,6 +6,7 @@ from PSCalib.GeometryAccess import GeometryAccess
 from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 import Detector.PyDetector
 import utils
+import cheetahUtils
 
 class psanaWhisperer():
     def __init__(self, experimentName, runNumber, detInfo, clen='', aduPerPhoton=1, localCalib=False, access='ana'):
@@ -31,6 +32,8 @@ class psanaWhisperer():
         self.det.do_reshape_2d_to_3d(flag=True)
         self.getDetInfoList()
         self.detAlias = self.getDetectorAlias(str(self.detInfo))
+        self.detPsocake = cheetahUtils.SupportedDetectors().parseDetectorName(self.detInfo)
+        self.detDesc = getattr(cheetahUtils, self.detPsocake)()  # instantiate detector descriptor class
         self.updateClen() # Get epics variable, clen
 
     def updateClen(self):
@@ -80,9 +83,9 @@ class psanaWhisperer():
                 if _calib is None:
                     return None
                 else:
-                    img = utils.pct(self.detInfo, _calib)
+                    img = self.detDesc.pct(_calib)
             else:
-                img = utils.pct(self.detInfo, calib)
+                img = self.detDesc.pct(calib)
         return img
 
     def getCleanAssembledImg(self, backgroundEvent):

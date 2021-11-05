@@ -2,20 +2,17 @@ import numpy as np
 import pyqtgraph as pg
 import h5py
 from pyqtgraph.dockarea import *
-from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import json, os, time
-from scipy.spatial.distance import cdist
+import json, os
 from scipy.spatial import distance
 import subprocess
 import skimage.measure as sm
 
 from psalgos.pypsalgos import PyAlgos  # replacement for: from ImgAlgos.PyAlgos import PyAlgos
 from psocake import utils
-from psocake import myskbeam
 from psocake import LaunchPeakFinder
 
-class PeakFinding(object):
+class PeakFinding:
     def __init__(self, parent = None):
         self.parent = parent
 
@@ -23,12 +20,6 @@ class PeakFinding(object):
         self.dock = Dock("Peak Finder", size=(1, 1))
         self.win = ParameterTree()
         self.dock.addWidget(self.win)
-        #self.w11 = pg.LayoutWidget()
-        #self.generatePowderBtn = QtGui.QPushButton('Generate Powder')
-        #self.launchBtn = QtGui.QPushButton('Launch peak finder')
-        #self.w11.addWidget(self.launchBtn, row=0,col=0)
-        #self.w11.addWidget(self.generatePowderBtn, row=0, col=0)
-        #self.dock.addWidget(self.w11)
 
         self.userUpdate = None
         self.doingUpdate = False
@@ -466,7 +457,7 @@ class PeakFinding(object):
         self.parent.small.reloadQuantifier()
 
     def saveCheetahFormat(self, arg):
-        dim0, dim1 = utils.getCheetahDim(self.parent.detInfo)
+        dim0, dim1 = self.parent.detDesc.tileDim
 
         if dim0 > 0:
             maxNumPeaks = 2048
@@ -491,8 +482,8 @@ class PeakFinding(object):
                 dsetM = myHdf5.create_dataset("/entry_1/data_1/mask", (dim0, dim1), dtype='int')
 
                 # Convert calib image to cheetah image
-                img = utils.pct(self.parent.detInfo, self.parent.calib)
-                mask = utils.pct(self.parent.detInfo, self.parent.mk.combinedMask)
+                img = self.parent.detDesc.pct(self.parent.calib)
+                mask = self.parent.detDesc.pct(self.parent.mk.combinedMask)
                 dset[0, :, :] = img
                 dsetM[:, :] = mask
 
@@ -507,16 +498,10 @@ class PeakFinding(object):
                 rows = peaks[:, 1]
                 cols = peaks[:, 2]
                 atots = peaks[:, 5]
-                cheetahRows, cheetahCols = utils.convert_peaks_to_cheetah(self.parent.detInfo, segs, rows, cols)
+                cheetahRows, cheetahCols = self.parent.detDesc.convert_peaks_to_cheetah(segs, rows, cols)
                 myHdf5[grpName + dset_posX][0, :nPeaks] = cheetahCols
                 myHdf5[grpName + dset_posY][0, :nPeaks] = cheetahRows
                 myHdf5[grpName + dset_atot][0, :nPeaks] = atots
-                #for i, peak in enumerate(peaks):
-                #    seg, row, col, npix, amax, atot, rcent, ccent, rsigma, csigma, rmin, rmax, cmin, cmax, bkgd, rms, son = peak[0:17]
-                #    cheetahRow, cheetahCol = utils.convert_peaks_to_cheetah(self.parent.detInfo, seg, row, col)
-                #    myHdf5[grpName + dset_posX][0, i] = cheetahCol
-                #    myHdf5[grpName + dset_posY][0, i] = cheetahRow
-                #    myHdf5[grpName + dset_atot][0, i] = atot
                 myHdf5[grpName + dset_nPeaks][0] = nPeaks
 
                 if self.parent.args.v >= 1: print("hiddenCXI clen (mm): ", self.parent.clen * 1000.)
@@ -831,7 +816,7 @@ class PeakFinding(object):
             col2d = f['/entry_1/result_1/peakXPosRawAll'][self.parent.eventNumber, :npeaks]
             f.close()
             # Convert cheetah peaks to psana peaks
-            s, r, c = utils.convert_peaks_to_psana(self.parent.detInfo, row2d, col2d)
+            s, r, c = self.parent.detDesc.convert_peaks_to_psana(row2d, col2d)
             peaks = np.array([s, r, c]).T
             # Display peaks
             if peaks is not None and len(peaks) > 0:

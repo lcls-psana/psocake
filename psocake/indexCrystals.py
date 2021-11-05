@@ -165,9 +165,7 @@ def getpath(cxi_name):
 
 def condition_check(hf, ival, iicondition):
     if not iicondition: return True
-    exec('itest = ' + iicondition)
-    if itest: return True
-    return False
+    return eval(iicondition)
 
 def getPeakFileIndex(experimentName, runNumber, pkTag, eventSizes, currentInd):
     b = np.cumsum(eventSizes)
@@ -237,26 +235,20 @@ for ind in range(numSize):
     pFile = runDir + '/' + experimentName + '_' + str(runNumber).zfill(4) + '_' + str(ind)
     if args.pkTag: pFile += '_'+args.pkTag
     pFile += '.cxi'
-    print("#### pFile: ", pFile)
     hf = h5py.File(pFile, 'r')
     icondition = args.condition
     iposition = [ipos for ipos, ichar in enumerate(icondition) if ichar == '#']
-    #print('##################')
-    #print('original condition = ', icondition)
     istart = iposition[0::2]
     iend = iposition[1::2]
     assert (len(istart) == len(iend))
-    print("#### istart: ", istart,iend)
     iname = [icondition[(istart[i]+1):iend[i]] for i in range(len(istart))]
-    print("#### iname: ", iname)
     ifullpath = []
     for idx in range(len(istart)): 
         search_name = iname[idx]
         assert(hf.visit(getpath))
         ifullpath.append("hf['"+hf.visit(getpath)+"'][ival]")
         icondition = icondition.replace('#'+iname[idx]+'#', ifullpath[-1])
-    #print('modified condition = ', icondition, '\n')
-    #print('##################')
+    print('modified condition = ', icondition, '\n')
     try:
         f = h5py.File(pFile, 'r')
         if '/LCLS/eventNumber' in f:

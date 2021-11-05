@@ -9,7 +9,6 @@ from pyimgalgos.RadialBkgd import RadialBkgd, polarization_factor
 from pyimgalgos.MedianFilter import median_filter_ndarr
 
 from psocake.utils import *
-#from utils import *
 
 class FriedelSym(object):
     def __init__(self, dim, centre):
@@ -216,7 +215,7 @@ class ImageViewer(object):
                     f = h5py.File(self.parent.inputImages)
                     ind = np.where(f['eventNumber'][()] == evtNumber)[0][0]
                     if len(f['/data/data'].shape) == 3:
-                        calib = ipct(self.parent.detInfo, f['data/data'][ind, :, :])
+                        calib = self.parent.detDesc.ipct(f['data/data'][ind, :, :])
                     else:
                         calib = f['data/data'][ind, :, :, :]
                     f.close()

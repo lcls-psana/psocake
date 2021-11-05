@@ -4,6 +4,7 @@ import PSCalib.GlobalUtils as gu
 import psana
 import psocake.PeakFinder as pf
 from psocake.utils import *
+from psocake.cheetahUtils import readMask
 
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
@@ -21,28 +22,20 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
     return value
 
 
-def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
-    #tic = time.time()
+def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent, detDesc, es, evr0, evr1, evr2):
+    """ Find peaks and writes to cxi file """
     d.peakFinder.findPeaks(detarr, evt, args.minPeaks) # this will perform background subtraction on detarr
-    #toc = time.time()
     myHdf5["/entry_1/result_1/nPeaksAll"][nevent] = len(d.peakFinder.peaks)
-    #t0 = time.time()-toc
+    
     if len(d.peakFinder.peaks) >= args.minPeaks and \
        len(d.peakFinder.peaks) <= args.maxPeaks and \
        d.peakFinder.maxRes >= args.minRes:
-        #t1 = time.time()
         evtId = evt.get(psana.EventId)
-        #t2 = time.time()
         myHdf5['/LCLS/eventNumber'][nHits] = nevent
-        #t3 = time.time()
         myHdf5['/LCLS/machineTime'][nHits] = evtId.time()[0]
-        #t4 = time.time()
         myHdf5['/LCLS/machineTimeNanoSeconds'][nHits] = evtId.time()[1]
-        #t5 = time.time()
         myHdf5['/LCLS/fiducial'][nHits] = evtId.fiducials()
-        #t6 = time.time()
-        _data = pct(args.det, detarr)
-        #t7 = time.time()
+        _data = detDesc.pct(detarr)
         myHdf5['/entry_1/data_1/data'][nHits,:,:] = _data
         # https://confluence.slac.stanford.edu/display/PSDM/Hit+and+Peak+Finding+Algorithms#HitandPeakFindingAlgorithms-Peakfinders
         segs = d.peakFinder.peaks[:,0]
@@ -56,24 +49,21 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         rmaxT = d.peakFinder.peaks[:,11] # maximal row "
         cminT = d.peakFinder.peaks[:,12] # minimal col "
         cmaxT = d.peakFinder.peaks[:,13] # maximal col "
-        #t9 = time.time()
-        cheetahRows, cheetahCols = convert_peaks_to_cheetah(args.det, segs, rows, cols) #, 
-        #t10 = time.time()
+        cheetahRows, cheetahCols = detDesc.convert_peaks_to_cheetah(segs, rows, cols) #,
         myHdf5["/entry_1/result_1/nPeaks"][nHits] = len(d.peakFinder.peaks)
         myHdf5["/entry_1/result_1/peakXPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahCols.astype('int')
         myHdf5["/entry_1/result_1/peakYPosRaw"][nHits, :len(d.peakFinder.peaks)] = cheetahRows.astype('int')
 
-        myHdf5["/entry_1/result_1/peak1"][nHits, :len(d.peakFinder.peaks)] = rcentT
-        myHdf5["/entry_1/result_1/peak2"][nHits, :len(d.peakFinder.peaks)] = ccentT
-        myHdf5["/entry_1/result_1/peak3"][nHits, :len(d.peakFinder.peaks)] = rminT
-        myHdf5["/entry_1/result_1/peak4"][nHits, :len(d.peakFinder.peaks)] = rmaxT
-        myHdf5["/entry_1/result_1/peak5"][nHits, :len(d.peakFinder.peaks)] = cminT
-        myHdf5["/entry_1/result_1/peak6"][nHits, :len(d.peakFinder.peaks)] = cmaxT
+        myHdf5["/entry_1/result_1/rcent"][nHits, :len(d.peakFinder.peaks)] = rcentT
+        myHdf5["/entry_1/result_1/ccent"][nHits, :len(d.peakFinder.peaks)] = ccentT
+        myHdf5["/entry_1/result_1/rmin"][nHits, :len(d.peakFinder.peaks)] = rminT
+        myHdf5["/entry_1/result_1/rmax"][nHits, :len(d.peakFinder.peaks)] = rmaxT
+        myHdf5["/entry_1/result_1/cmin"][nHits, :len(d.peakFinder.peaks)] = cminT
+        myHdf5["/entry_1/result_1/cmax"][nHits, :len(d.peakFinder.peaks)] = cmaxT
 
         myHdf5["/entry_1/result_1/peakTotalIntensity"][nHits, :len(d.peakFinder.peaks)] = atots
         myHdf5["/entry_1/result_1/peakMaxIntensity"][nHits, :len(d.peakFinder.peaks)] = amaxs
 
-        tic = time.time()
         cenX = d.iX[np.array(d.peakFinder.peaks[:, 0], dtype=np.int64),
                     np.array(d.peakFinder.peaks[:, 1], dtype=np.int64),
                     np.array(d.peakFinder.peaks[:, 2], dtype=np.int64)] + 0.5
@@ -84,35 +74,160 @@ def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent):
         y = cenY - d.ipy
         radius = np.sqrt((x ** 2) + (y ** 2))
         myHdf5["/entry_1/result_1/peakRadius"][nHits, :len(d.peakFinder.peaks)] = radius
-        #print "radius: ", rank, time.time() - tic
-        #t11 = time.time()
-        #if nHits % 1 == 0:
-        #    print "rank, numPeaks, t_findPeaks, t10: ", rank, len(d.peakFinder.peaks), toc-tic, t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7, t9-t8, t10-t9, t11-t10, t11-tic
+
+        # Save epics variables
+        # FIXME: Timetool variable name change (Nov/2021) TTSPEC -> TIMETOOL
+        instrument = args.instrument.upper()
+        timeToolDelay = get_es_value(es, instrument+':LAS:MMN:04.RBV', NoneCheck=True)
+        laserTimeZero = get_es_value(es, 'LAS:FS5:VIT:FS_TGT_TIME_OFFSET', NoneCheck=True)
+        laserTimeDelay = get_es_value(es, 'LAS:FS5:VIT:FS_TGT_TIME_DIAL', NoneCheck=True)
+        laserTimePhaseLocked = get_es_value(es, 'LAS:FS5:VIT:PHASE_LOCKED', NoneCheck=True)
+        ttspecAmpl = get_es_value(es, instrument+':TIMETOOL:AMPL', NoneCheck=True)
+        ttspecAmplNxt = get_es_value(es, instrument+':TIMETOOL:AMPLNXT', NoneCheck=True)
+        ttspecFltPos = get_es_value(es, instrument+':TIMETOOL:FLTPOS', NoneCheck=True)
+        ttspecFltPosFwhm = get_es_value(es, instrument+':TIMETOOL:FLTPOSFWHM', NoneCheck=True)
+        ttspecFltPosPs = get_es_value(es, instrument+':TIMETOOL:FLTPOS_PS', NoneCheck=True)
+        ttspecRefAmpl = get_es_value(es, instrument+':TIMETOOL:REFAMPL', NoneCheck=True)
+        myHdf5['/entry_1/result_1/timeToolDelay'][nHits] = timeToolDelay
+        myHdf5['/entry_1/result_1/laserTimeZero'][nHits] = laserTimeZero
+        myHdf5['/entry_1/result_1/laserTimeDelay'][nHits] = laserTimeDelay
+        myHdf5['/entry_1/result_1/laserTimePhaseLocked'][nHits] = laserTimePhaseLocked
+        myHdf5['/LCLS/ttspecAmpl'][nHits] = ttspecAmpl
+        myHdf5['/LCLS/ttspecAmplNxt'][nHits] = ttspecAmplNxt
+        myHdf5['/LCLS/ttspecFltPos'][nHits] = ttspecFltPos
+        myHdf5['/LCLS/ttspecFltPosFwhm'][nHits] = ttspecFltPosFwhm
+        myHdf5['/LCLS/ttspecFltPosPs'][nHits] = ttspecFltPosPs
+        myHdf5['/LCLS/ttspecRefAmpl'][nHits] = ttspecRefAmpl
+
+        if evr0:
+            ec = evr0.eventCodes(evt)
+            if ec is None: ec = [-1]
+            myHdf5['/LCLS/detector_1/evr0'][nHits] = np.array(ec)
+        if evr1:
+            ec = evr1.eventCodes(evt)
+            if ec is None: ec = [-1]
+            myHdf5['/LCLS/detector_1/evr1'][nHits] = np.array(ec)
+        if evr2:
+            ec = evr2.eventCodes(evt)
+            if ec is None: ec = [-1]
+            myHdf5['/LCLS/detector_1/evr2'][nHits] = np.array(ec)
         nHits += 1
-        #myHdf5.flush()
+
     return nHits
 
-def runclient(args,ds,run,times,det,numEvents):
-    i0 = time.time()
+def getValidEvent(run, times, myJobs):
+    for i, nevent in enumerate(myJobs):
+        evt = run.event(times[nevent])
+        if evt is None: continue
+        return evt
+
+def runclient(args,ds,run,times,det,numEvents,detDesc):
     numHits = 0
+    es = ds.env().epicsStore()
+    try:
+        evr0 = psana.Detector('evr0')
+    except:
+        evr0 = None
+    try:
+        evr1 = psana.Detector('evr1')
+    except:
+        evr1 = None
+    try:
+        evr2 = psana.Detector('evr2')
+    except:
+        evr2 = None
+
     myJobs = getMyUnfairShare(numEvents, size, rank)
     numJobs = len(myJobs) # events per rank
-    reportFreq = numJobs/2 + 1 
+    reportFreq = numJobs/2 + 1
 
     runStr = "%04d" % args.run
     fname = args.outDir + '/' + args.exp +"_"+ runStr +"_"+str(rank)
     if args.tag: fname += '_' + args.tag
     fname += ".cxi"
     myHdf5 = h5py.File(fname,"r+")
-    i1 = time.time()
-    #print("init runclient (rank,time): ", rank, i1-i0)
+
+    evt = getValidEvent(run, times, myJobs)
+
+    # Initialize hit finding
+    if not hasattr(det,'peakFinder'):
+        if args.algorithm == 1:
+            if facility == 'LCLS':
+                det.peakFinder = pf.PeakFinder(args.exp, args.run, args.det, evt, det,
+                                          args.algorithm, args.alg_npix_min,
+                                          args.alg_npix_max, args.alg_amax_thr,
+                                          args.alg_atot_thr, args.alg_son_min,
+                                          alg1_thr_low=args.alg1_thr_low,
+                                          alg1_thr_high=args.alg1_thr_high,
+                                          alg1_rank=args.alg1_rank,
+                                          alg1_radius=args.alg1_radius,
+                                          alg1_dr=args.alg1_dr,
+                                          streakMask_on=args.streakMask_on,
+                                          streakMask_sigma=args.streakMask_sigma,
+                                          streakMask_width=args.streakMask_width,
+                                          userMask_path=args.userMask_path,
+                                          psanaMask_on=args.psanaMask_on,
+                                          psanaMask_calib=args.psanaMask_calib,
+                                          psanaMask_status=args.psanaMask_status,
+                                          psanaMask_edges=args.psanaMask_edges,
+                                          psanaMask_central=args.psanaMask_central,
+                                          psanaMask_unbond=args.psanaMask_unbond,
+                                          psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                          medianFilterOn=args.medianBackground,
+                                          medianRank=args.medianRank,
+                                          radialFilterOn=args.radialBackground,
+                                          distance=args.detectorDistance,
+                                          minNumPeaks=args.minPeaks,
+                                          maxNumPeaks=args.maxPeaks,
+                                          minResCutoff=args.minRes,
+                                          clen=args.clen,
+                                          localCalib=args.localCalib,
+                                          access=args.access)
+        elif args.algorithm >= 2:
+            det.peakFinder = pf.PeakFinder(args.exp, args.run, args.det, evt, det,
+                                         args.algorithm, args.alg_npix_min,
+                                         args.alg_npix_max, args.alg_amax_thr,
+                                         args.alg_atot_thr, args.alg_son_min,
+                                         alg1_thr_low=args.alg1_thr_low,
+                                         alg1_thr_high=args.alg1_thr_high,
+                                         alg1_rank=args.alg1_rank,
+                                         alg1_radius=args.alg1_radius,
+                                         alg1_dr=args.alg1_dr,
+                                         streakMask_on=args.streakMask_on,
+                                         streakMask_sigma=args.streakMask_sigma,
+                                         streakMask_width=args.streakMask_width,
+                                         userMask_path=args.userMask_path,
+                                         psanaMask_on=args.psanaMask_on,
+                                         psanaMask_calib=args.psanaMask_calib,
+                                         psanaMask_status=args.psanaMask_status,
+                                         psanaMask_edges=args.psanaMask_edges,
+                                         psanaMask_central=args.psanaMask_central,
+                                         psanaMask_unbond=args.psanaMask_unbond,
+                                         psanaMask_unbondnrs=args.psanaMask_unbondnrs,
+                                         medianFilterOn=args.medianBackground,
+                                         medianRank=args.medianRank,
+                                         radialFilterOn=args.radialBackground,
+                                         distance=args.detectorDistance,
+                                         minNumPeaks=args.minPeaks,
+                                         maxNumPeaks=args.maxPeaks,
+                                         minResCutoff=args.minRes,
+                                         clen=args.clen,
+                                         localCalib=args.localCalib,
+                                         access=args.access)
+        ix = det.indexes_x(evt)
+        iy = det.indexes_y(evt)
+        det.iX = np.array(ix, dtype=np.int64)
+        det.iY = np.array(iy, dtype=np.int64)
+        try:
+            det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0),
+                                              pix_scale_size_um=None,
+                                              xy0_off_pix=None,
+                                              cframe=gu.CFRAME_PSANA, fract=True)
+        except AttributeError:
+            det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
 
     for i, nevent in enumerate(myJobs):
-        s0 = time.time()
-        #if i % reportFreq == 0 and i > 0 and rank % 10: print("rank, hits, hit rate, fracDone: ", rank, numHits, numHits*1./i, i*1./numJobs)
         evt = run.event(times[nevent])
-        s1 = time.time()
-        print("get evt (rank,time): ", rank, s1-s0)
         if evt is None: continue
 
         if not args.inputImages:
@@ -127,93 +242,17 @@ def runclient(args,ds,run,times,det,numEvents):
             f = h5py.File(args.inputImages)
             ind = np.where(f['eventNumber'][()] == nevent)[0][0]
             if len(f['/data/data'].shape) == 3:
-                detarr = ipct(args.det, f['data/data'][ind, :, :])
+                detarr = detDesc.ipct(f['data/data'][ind, :, :])
             else:
                 detarr = f['data/data'][ind, :, :, :]
             f.close()
         if detarr is None: continue
 
-        # Initialize hit finding
-        if not hasattr(det,'peakFinder'):
-            if args.algorithm == 1:
-                if facility == 'LCLS':
-                    det.peakFinder = pf.PeakFinder(args.exp, args.run, args.det, evt, det,
-                                              args.algorithm, args.alg_npix_min,
-                                              args.alg_npix_max, args.alg_amax_thr,
-                                              args.alg_atot_thr, args.alg_son_min,
-                                              alg1_thr_low=args.alg1_thr_low,
-                                              alg1_thr_high=args.alg1_thr_high,
-                                              alg1_rank=args.alg1_rank,
-                                              alg1_radius=args.alg1_radius,
-                                              alg1_dr=args.alg1_dr,
-                                              streakMask_on=args.streakMask_on,
-                                              streakMask_sigma=args.streakMask_sigma,
-                                              streakMask_width=args.streakMask_width,
-                                              userMask_path=args.userMask_path,
-                                              psanaMask_on=args.psanaMask_on,
-                                              psanaMask_calib=args.psanaMask_calib,
-                                              psanaMask_status=args.psanaMask_status,
-                                              psanaMask_edges=args.psanaMask_edges,
-                                              psanaMask_central=args.psanaMask_central,
-                                              psanaMask_unbond=args.psanaMask_unbond,
-                                              psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                              medianFilterOn=args.medianBackground,
-                                              medianRank=args.medianRank,
-                                              radialFilterOn=args.radialBackground,
-                                              distance=args.detectorDistance,
-                                              minNumPeaks=args.minPeaks,
-                                              maxNumPeaks=args.maxPeaks,
-                                              minResCutoff=args.minRes,
-                                              clen=args.clen,
-                                              localCalib=args.localCalib,
-                                              access=args.access)
-            elif args.algorithm >= 2:
-                det.peakFinder = pf.PeakFinder(args.exp, args.run, args.det, evt, det,
-                                             args.algorithm, args.alg_npix_min,
-                                             args.alg_npix_max, args.alg_amax_thr,
-                                             args.alg_atot_thr, args.alg_son_min,
-                                             alg1_thr_low=args.alg1_thr_low,
-                                             alg1_thr_high=args.alg1_thr_high,
-                                             alg1_rank=args.alg1_rank,
-                                             alg1_radius=args.alg1_radius,
-                                             alg1_dr=args.alg1_dr,
-                                             streakMask_on=args.streakMask_on,
-                                             streakMask_sigma=args.streakMask_sigma,
-                                             streakMask_width=args.streakMask_width,
-                                             userMask_path=args.userMask_path,
-                                             psanaMask_on=args.psanaMask_on,
-                                             psanaMask_calib=args.psanaMask_calib,
-                                             psanaMask_status=args.psanaMask_status,
-                                             psanaMask_edges=args.psanaMask_edges,
-                                             psanaMask_central=args.psanaMask_central,
-                                             psanaMask_unbond=args.psanaMask_unbond,
-                                             psanaMask_unbondnrs=args.psanaMask_unbondnrs,
-                                             medianFilterOn=args.medianBackground,
-                                             medianRank=args.medianRank,
-                                             radialFilterOn=args.radialBackground,
-                                             distance=args.detectorDistance,
-                                             minNumPeaks=args.minPeaks,
-                                             maxNumPeaks=args.maxPeaks,
-                                             minResCutoff=args.minRes,
-                                             clen=args.clen,
-                                             localCalib=args.localCalib,
-                                             access=args.access)
-            ix = det.indexes_x(evt)
-            iy = det.indexes_y(evt)
-            det.iX = np.array(ix, dtype=np.int64)
-            det.iY = np.array(iy, dtype=np.int64)
-            try:
-                det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0),
-                                                  pix_scale_size_um=None,
-                                                  xy0_off_pix=None,
-                                                  cframe=gu.CFRAME_PSANA, fract=True)
-            except AttributeError:
-                det.ipx, det.ipy = det.point_indexes(evt, pxy_um=(0, 0))
-        numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent)
+        numHits = calcPeaks(args, numHits, myHdf5, detarr, evt, det, nevent, detDesc, es, evr0, evr1, evr2)
+
 
     # Finished with peak finding
     # Fill in clen and photon energy (eV)
-    es = ds.env().epicsStore()
     if 'mfxc00318' in args.exp:
         lclsDet = 303.8794  # mm
     else:
@@ -263,20 +302,20 @@ def runclient(args,ds,run,times,det,numEvents):
     myHdf5["/entry_1/result_1/peakXPosRaw"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakYPosRaw"].resize((numHits,args.maxPeaks))
 
-    myHdf5["/entry_1/result_1/peak1"].resize((numHits, args.maxPeaks))
-    myHdf5["/entry_1/result_1/peak2"].resize((numHits, args.maxPeaks))
-    myHdf5["/entry_1/result_1/peak3"].resize((numHits, args.maxPeaks))
-    myHdf5["/entry_1/result_1/peak4"].resize((numHits, args.maxPeaks))
-    myHdf5["/entry_1/result_1/peak5"].resize((numHits, args.maxPeaks))
-    myHdf5["/entry_1/result_1/peak6"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/rcent"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/ccent"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/rmin"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/rmax"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/cmin"].resize((numHits, args.maxPeaks))
+    myHdf5["/entry_1/result_1/cmax"].resize((numHits, args.maxPeaks))
 
     myHdf5["/entry_1/result_1/peakTotalIntensity"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakMaxIntensity"].resize((numHits,args.maxPeaks))
     myHdf5["/entry_1/result_1/peakRadius"].resize((numHits, args.maxPeaks))
 
     # add powder
-    myHdf5["/entry_1/data_1/powderHits"][...] = pct(args.det, det.peakFinder.powderHits)
-    myHdf5["/entry_1/data_1/powderMisses"][...] = pct(args.det, det.peakFinder.powderMisses)
+    myHdf5["/entry_1/data_1/powderHits"][...] = detDesc.pct(det.peakFinder.powderHits)
+    myHdf5["/entry_1/data_1/powderMisses"][...] = detDesc.pct(det.peakFinder.powderMisses)
 
     runStr = "%04d" % args.run
     fname = args.outDir + '/' + args.exp + "_" + runStr + "_maxHits"

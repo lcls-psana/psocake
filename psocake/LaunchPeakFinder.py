@@ -1,6 +1,7 @@
 from pyqtgraph.Qt import QtCore
 import numpy as np
 from psocake.utils import *
+from psocake.cheetahUtils import saveCheetahFormatMask
 
 class LaunchPeakFinder(QtCore.QThread):
     def __init__(self, parent = None):
@@ -46,7 +47,7 @@ class LaunchPeakFinder(QtCore.QThread):
                 print("No write access to: ", runDir)
 
             # Generate Cheetah mask
-            saveCheetahFormatMask(self.parent.pk.hitParam_outDir, run, self.parent.detInfo, self.parent.mk.combinedMask)
+            saveCheetahFormatMask(self.parent.pk.hitParam_outDir, self.parent.detDesc, run, self.parent.mk.combinedMask)
 
             # Update elog
             try:

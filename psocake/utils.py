@@ -1,12 +1,10 @@
 import json
-import h5py
 import psana
 import sys
 import numpy as np
 from numba import jit
 import subprocess, os
 import string, random
-import time
 
 ansi_cmap = {"k": '0;30',
         "r": '0;31',
@@ -16,6 +14,23 @@ ansi_cmap = {"k": '0;30',
         'p': '0;35',
         'c': '0;36'}
 
+def highlight(string, status='k', bold=0):
+    attr = []
+    if sys.stdout.isatty():
+        attr.append(ansi_cmap[status])
+        if bold:
+            attr.append('1')
+        return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
+    else:
+        return string
+
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
+def writeStatus(fname, d):
+    json.dump(d, open(fname, 'w'))
+
+# Distributed computing-related methods
 def getMyUnfairShare(numJobs, numWorkers, rank):
     """Returns number of events assigned to the workers calling this function."""
     assert(numJobs >= numWorkers)
@@ -55,16 +70,6 @@ def batchSubmit(cmd, queue, cores, log='%j.log', jobName=None, batchType='slurm'
         _cmd += " --wrap=\"" + cmd + "\""
     return _cmd
 
-def highlight(string, status='k', bold=0):
-    attr = []
-    if sys.stdout.isatty():
-        attr.append(ansi_cmap[status])
-        if bold:
-            attr.append('1')
-        return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
-    else:
-        return string
-
 def getNoe(args, facility):
     runStr = "%04d" % args.run
     access = "exp=" + args.exp + ":run=" + runStr + ':idx'
@@ -77,205 +82,6 @@ def getNoe(args, facility):
     if args.noe > -1 and args.noe <= numJobs:
         numJobs = args.noe
     return numJobs
-
-def str2bool(v): return v.lower() in ("yes", "true", "t", "1")
-
-def writeStatus(fname, d):
-    json.dump(d, open(fname, 'w'))
-
-# Cheetah-related
-def readMask(fname):
-    # fname: full path to hdf5 static cheetah-shaped mask in /entry_1/data_1/mask
-    mask = None
-    if fname is not None:
-        f = h5py.File(fname, 'r')
-        mask = f['/entry_1/data_1/mask'][()]
-        f.close()
-        mask = -1*(mask-1)
-    return mask
-
-def getCheetahDim(detInfo):
-    if 'cspad' in detInfo.lower():
-        dim0 = 8 * 185
-        dim1 = 4 * 388
-    elif 'rayonix' in detInfo.lower():
-        dim0 = 1920
-        dim1 = 1920
-    elif 'epix10k' in detInfo.lower() and '2m' in detInfo.lower():
-        dim0 = 16 * 352
-        dim1 = 1 * 384
-    elif 'jungfrau4m' in detInfo.lower():
-        dim0 = 8 * 512
-        dim1 = 1 * 1024
-    else:
-        print("detector type not implemented")
-        sys.exit()
-    return dim0, dim1
-
-def saveCheetahFormatMask(outDir, run=None, detInfo=None, combinedMask=None):
-    dim0, dim1 = getCheetahDim(detInfo)
-    if run is not None:
-        fname = outDir+'/r'+str(run).zfill(4)+'/staticMask.h5'
-    else:
-        fname = outDir + '/staticMask.h5'
-    print("Saving static mask in Cheetah format: ", fname)
-    myHdf5 = h5py.File(fname, 'w')
-    dset = myHdf5.create_dataset('/entry_1/data_1/mask', (dim0, dim1), dtype='int')
-    # Convert calib image to cheetah image
-    # This ensures mask displayed on GUI gets used in peak finding / indexing
-    if combinedMask is None:
-        img = np.ones((dim0, dim1))
-    else:
-        img = pct(detInfo, combinedMask)
-    dset[:,:] = img
-    myHdf5.close()
-
-def convert_peaks_to_cheetah(detname, s, r, c) :
-    """Converts seg, row, col assuming (32,185,388)
-       to cheetah 2-d table row and col (8*185, 4*388)
-    """
-    if isinstance(s, np.ndarray):
-        s = s.astype('int')
-        r = r.astype('int')
-        c = c.astype('int')
-    if "cspad" in detname.lower():
-        segs, rows, cols = (32, 185, 388)
-        row2d = (s % 8) * rows + r  # where s%8 is a segment in quad number [0,7]
-        col2d = (s / 8) * cols + c  # where s/8 is a quad number [0,3]
-    elif "epix10k" in detname.lower() and "2m" in detname.lower():
-        segs, rows, cols = (16, 352, 384)
-        row2d = s * rows + r
-        col2d = c
-    elif "jungfrau4m" in detname.lower():
-        segs, rows, cols = (8,512,1024)
-        row2d = s * rows + r
-        col2d = c
-    elif "rayonix" in detname.lower():
-        row2d = r
-        col2d = c
-    else:
-        print("Error: This detector is not supported")
-        sys.exit()
-    return row2d, col2d
-
-def convert_peaks_to_psana(detname, row2d, col2d) :
-    """Converts cheetah 2-d table row and col (8*185, 4*388)
-       to psana seg, row, col assuming (32,185,388)
-    """
-    if isinstance(row2d, np.ndarray):
-        row2d = row2d.astype('int')
-        col2d = col2d.astype('int')
-    if "cspad" in detname.lower():
-        segs, rows, cols = (32, 185, 388)
-        s = (row2d / rows) + (col2d / cols * 8)
-        r = row2d % rows
-        c = col2d % cols
-    elif "epix10k" in detname.lower() and "2m" in detname.lower():
-        segs, rows, cols = (16, 352, 384)
-        s = (row2d / rows) + (col2d / cols)
-        r = row2d % rows
-        c = col2d % cols
-    elif "jungfrau4m" in detname.lower():
-        segs, rows, cols = (8, 512, 1024)
-        s = (row2d / rows)
-        r = row2d % rows
-        c = col2d
-    elif "rayonix" in detname.lower():
-        s = 0
-        r = row2d
-        c = col2d
-    else:
-        print("Error: This detector is not supported")
-        sys.exit()
-    return s, r, c
-
-def pct(detname, unassembled):
-    """
-    Transform psana unassembled image to cheetah tile
-    :param unassembled: psana unassembled image
-    :return: cheetah tile
-    """
-    #t0 = time.time()
-    if "rayonix" in detname.lower():
-        img = unassembled[:, :] # TODO: express in terms of x,y,dim0,dim1
-        return img
-    else:
-        if "cspad" in detname.lower():
-            row = 8
-            col = 4
-            x = 185
-            y = 388
-            dim0 = row * x
-            dim1 = col * y
-        elif "epix10k" in detname.lower() and "2m" in detname.lower():
-            row = 16
-            col = 1
-            x = 352
-            y = 384
-            dim0 = row * x
-            dim1 = col * y
-        elif "jungfrau4m" in detname.lower():
-            row = 8
-            col = 1
-            x = 512
-            y = 1024
-            dim0 = row * x
-            dim1 = col * y
-        else:
-            print("Error: This detector is not supported")
-            sys.exit()
-
-        counter = 0
-        #t1 = time.time()
-        img = np.zeros((dim0, dim1))
-        #t2 = time.time()
-        for quad in range(col):
-            for seg in range(row):
-                img[seg * x:(seg + 1) * x, quad * y:(quad + 1) * y] = unassembled[counter, :, :]
-                counter += 1
-        #t3 = time.time()
-        #print "pct: ", t1-t0, t2-t1, t3-t2
-    return img
-
-def ipct(detname, tile):
-    """
-    Transform cheetah tile to psana unassembled image
-    :param tile: cheetah tile
-    :return: psana unassembled image
-    """
-    # Save cheetah format mask
-    if "cspad" in detname.lower():
-        numQuad = 4
-        numAsicsPerQuad = 8
-        asicRows = 185
-        asicCols = 388
-    elif "epix10k" in detname.lower() and "2m" in detname.lower():
-        numQuad = 1
-        numAsicsPerQuad = 16
-        asicRows = 352
-        asicCols = 384
-    elif "jungfrau4m" in detname.lower():
-        numQuad = 1
-        numAsicsPerQuad = 8
-        asicRows = 512
-        asicCols = 1024
-    elif "rayonix" in detname.lower():
-        _t = tile.shape
-        calib = np.zeros((1,_t[0],_t[1]),dtype=tile.dtype)
-        calib[0,:,:] = tile
-        return calib
-    else:
-        print("Error: This detector is not supported")
-        sys.exit()
-    # Convert calib image to cheetah image
-    calib = np.zeros((numQuad*numAsicsPerQuad,asicRows,asicCols))
-    counter = 0
-    for quad in range(numQuad):
-        for seg in range(numAsicsPerQuad):
-            calib[counter, :, :] = \
-                tile[seg * asicRows:(seg + 1) * asicRows, quad * asicCols:(quad + 1) * asicCols]
-            counter += 1
-    return calib
 
 # HDF5-related
 
@@ -309,7 +115,7 @@ def upsample(warr, dim, binr, binc):
                 upCalib[k,ix:er,jy:ec] = warr[k,i,j]
     return upCalib
 
-# Compression
+# Compression-related
 
 def randomString(stringLength=10):
     """Generate a random string of fixed length """

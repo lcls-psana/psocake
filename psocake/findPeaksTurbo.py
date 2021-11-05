@@ -6,6 +6,7 @@ import os, time
 import psana
 from psocake.peakFinderClientSlim import runclient
 from psocake.utils import *
+from psocake import cheetahUtils
 
 facility = 'LCLS'
 
@@ -84,6 +85,9 @@ times = run.times()
 env = ds.env()
 det = psana.Detector(args.det)
 det.do_reshape_2d_to_3d(flag=True)
+detPsocake = cheetahUtils.SupportedDetectors().parseDetectorName(args.det)
+detDesc = getattr(cheetahUtils, detPsocake)() # instantiate detector descriptor class
+(dim0, dim1) = detDesc.tileDim
 
 numJobs = 0
 # check if the user requested specific number of events
@@ -107,8 +111,7 @@ if rank == 0:
     if os.path.exists(manualMaskFname):
         combinedMask = combinedMask * np.load(manualMaskFname)
     # outDir already contains runStr, so set run = None
-    saveCheetahFormatMask(args.outDir, None, args.det, combinedMask)
-(dim0, dim1) = getCheetahDim(args.det.lower())
+    cheetahUtils.saveCheetahFormatMask(args.outDir, detDesc, None, combinedMask)
 
 def createCxi(fname):
     # Create hdf5 and save psana input
@@ -238,6 +241,11 @@ def createCxi(fname):
                                                dtype=dti)
     ds_evr1_1.attrs["axes"] = "experiment_identifier"
 
+    ds_evr2_1 = lcls_detector_1.create_dataset("evr2",(numJobs,),
+                                               maxshape=(None,),
+                                               dtype=dti)
+    ds_evr2_1.attrs["axes"] = "experiment_identifier"
+
     ds_ttspecAmpl_1 = lcls_1.create_dataset("ttspecAmpl",(numJobs,),
                                             maxshape=(None,),
                                             dtype=float)
@@ -333,41 +341,41 @@ def createCxi(fname):
                                     dtype=float)
     ds_posY.attrs["axes"] = "experiment_identifier:peaks"
 
-    ds_peak1 = myHdf5.create_dataset("/entry_1/result_1/peak1", (numJobs, args.maxPeaks),
+    ds_rcent = myHdf5.create_dataset("/entry_1/result_1/rcent", (numJobs, args.maxPeaks),
                                      maxshape=(None, args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
                                      dtype=float)
-    ds_peak1.attrs["axes"] = "experiment_identifier:peaks"
+    ds_rcent.attrs["axes"] = "experiment_identifier:peaks"
 
-    ds_peak2 = myHdf5.create_dataset("/entry_1/result_1/peak2", (numJobs, args.maxPeaks),
+    ds_ccent = myHdf5.create_dataset("/entry_1/result_1/ccent", (numJobs, args.maxPeaks),
                                      maxshape=(None, args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
                                      dtype=float)
-    ds_peak2.attrs["axes"] = "experiment_identifier:peaks"
+    ds_ccent.attrs["axes"] = "experiment_identifier:peaks"
 
-    ds_peak3 = myHdf5.create_dataset("/entry_1/result_1/peak3", (numJobs, args.maxPeaks),
+    ds_rmin = myHdf5.create_dataset("/entry_1/result_1/rmin", (numJobs, args.maxPeaks),
                                      maxshape=(None, args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
                                      dtype=float)
-    ds_peak3.attrs["axes"] = "experiment_identifier:peaks"
+    ds_rmin.attrs["axes"] = "experiment_identifier:peaks"
 
-    ds_peak4 = myHdf5.create_dataset("/entry_1/result_1/peak4", (numJobs, args.maxPeaks),
+    ds_rmax = myHdf5.create_dataset("/entry_1/result_1/rmax", (numJobs, args.maxPeaks),
                                      maxshape=(None, args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
                                      dtype=float)
-    ds_peak4.attrs["axes"] = "experiment_identifier:peaks"
+    ds_rmax.attrs["axes"] = "experiment_identifier:peaks"
 
-    ds_peak5 = myHdf5.create_dataset("/entry_1/result_1/peak5", (numJobs, args.maxPeaks),
+    ds_cmin = myHdf5.create_dataset("/entry_1/result_1/cmin", (numJobs, args.maxPeaks),
                                      maxshape=(None, args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
                                      dtype=float)
-    ds_peak5.attrs["axes"] = "experiment_identifier:peaks"
+    ds_cmin.attrs["axes"] = "experiment_identifier:peaks"
 
-    ds_peak6 = myHdf5.create_dataset("/entry_1/result_1/peak6", (numJobs, args.maxPeaks),
+    ds_cmax = myHdf5.create_dataset("/entry_1/result_1/cmax", (numJobs, args.maxPeaks),
                                      maxshape=(None, args.maxPeaks),
                                      chunks=(1, args.maxPeaks),
                                      dtype=float)
-    ds_peak6.attrs["axes"] = "experiment_identifier:peaks"
+    ds_cmax.attrs["axes"] = "experiment_identifier:peaks"
 
     ds_atot = myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensity",(numJobs,args.maxPeaks),
                                     maxshape=(None,args.maxPeaks),
@@ -397,22 +405,22 @@ def createCxi(fname):
                                          dtype=float)
     ds_likelihood.attrs["axes"] = "experiment_identifier"
 
-    ds_timeToolDelay = myHdf5.create_dataset("/entry_1/result_1/timeToolDelay",(0,),
+    ds_timeToolDelay = myHdf5.create_dataset("/entry_1/result_1/timeToolDelay",(numJobs,),
                                              maxshape=(None,),
                                              dtype=float)
     ds_timeToolDelay.attrs["axes"] = "experiment_identifier"
 
-    ds_laserTimeZero = myHdf5.create_dataset("/entry_1/result_1/laserTimeZero",(0,),
+    ds_laserTimeZero = myHdf5.create_dataset("/entry_1/result_1/laserTimeZero",(numJobs,),
                                              maxshape=(None,),
                                              dtype=float)
     ds_laserTimeZero.attrs["axes"] = "experiment_identifier"
 
-    ds_laserTimeDelay = myHdf5.create_dataset("/entry_1/result_1/laserTimeDelay",(0,),
+    ds_laserTimeDelay = myHdf5.create_dataset("/entry_1/result_1/laserTimeDelay",(numJobs,),
                                              maxshape=(None,),
                                              dtype=float)
     ds_laserTimeDelay.attrs["axes"] = "experiment_identifier"
 
-    ds_laserTimePhaseLocked = myHdf5.create_dataset("/entry_1/result_1/laserTimePhaseLocked",(0,),
+    ds_laserTimePhaseLocked = myHdf5.create_dataset("/entry_1/result_1/laserTimePhaseLocked",(numJobs,),
                                                    maxshape=(None,),
                                                    dtype=float)
     ds_laserTimePhaseLocked.attrs["axes"] = "experiment_identifier"
@@ -571,7 +579,7 @@ if rank == 0: print("h5 setup (rank, time): ", rank, toc-tic)
 
 tic = time.time()
 
-runclient(args,ds,run,times,det,numJobs)
+runclient(args,ds,run,times,det,numJobs,detDesc)
 
 toc = time.time()
 if rank == 0: print("compute time (rank, time): ", rank, toc-tic)
@@ -614,7 +622,7 @@ if rank == 0:
         F["/entry_1/data_1/powderMisses"][...] = powderMisses
 
         if args.mask is not None:
-            F['/entry_1/data_1/mask'][:, :] = readMask(args.mask)
+            F['/entry_1/data_1/mask'][:, :] = cheetahUtils.readMask(args.mask)
         print("Done writing master .cxi")
     hitRate = numHits * 100. / numProcessed
 

@@ -18,7 +18,7 @@ from psocake import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 from psocake import SmallDataPanel, ImageControlPanel
 from psocake import HitFinderPanel
 from psocake import version
-#from version import __version__
+from psocake import cheetahUtils
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
@@ -107,6 +107,8 @@ class MainFrame(QtGui.QWidget):
         elif 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
             self.facility = self.facilityLCLS
             self.dir = '/reg/d/psdm'
+            if "ffb" in args.access.lower():
+                self.dir = '/cds/data/drpsrcf'
 
         # Init experiment parameters from args
         if args.expRun is not None and ':run=' in args.expRun:
@@ -115,8 +117,11 @@ class MainFrame(QtGui.QWidget):
         else:
             self.experimentName = args.exp
             self.runNumber = int(args.run)
+
         self.detInfo = args.det
         self.detAlias = None
+        self.detPsocake = cheetahUtils.SupportedDetectors().parseDetectorName(args.det)
+        self.detDesc = getattr(cheetahUtils, self.detPsocake)()  # instantiate detector descriptor class
         self.eventNumber = int(args.evt)
         self.inputImages = args.inputImages
         self.mode = args.mode
@@ -444,8 +449,11 @@ class MainFrame(QtGui.QWidget):
                         else:
                             modeInfo = ""
                         pixelInfo = "<span style='color: " + color.pixelInfo + "; font-size: 18pt;'>x=%0.1f y=%0.1f I=%0.1f </span>"
-                        self.label.setText(
-                            modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexY, indexX]))
+                        try:
+                            self.label.setText(
+                                modeInfo + pixelInfo % (mousePoint.x(), mousePoint.y(), self.data[indexY, indexX]))
+                        except:
+                            pass
 
         def mouseClicked(evt):
             mousePoint = self.vb.mapSceneToView(evt[0].scenePos())

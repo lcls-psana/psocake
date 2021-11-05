@@ -637,9 +637,17 @@ class ExperimentInfo(object):
                 else:
                     print("Couldn't handle detector clen. Try using the full detector name.")
                     sys.exit()
-        elif 'jungfrau4m' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName:
+        elif ('jungfrau4m' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
+             ('cxids1' in self.parent.detInfo.lower() and 'jungfrau' in self.parent.detInfo.lower()):
             try:
                 self.parent.clenEpics = str('CXI:DS1:MMS:06.RBV') # FIXME: need to read in full name and determine DS1 or DS2 etc
+                self.readEpicsClen()
+            except:
+                print("Couldn't handle detector clen. Jungfrau epics variable names may not be supported.")
+                sys.exit()
+        elif ('cxids2' in self.parent.detInfo.lower() and 'jungfrau' in self.parent.detInfo.lower()):
+            try:
+                self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                 self.readEpicsClen()
             except:
                 print("Couldn't handle detector clen. Jungfrau epics variable names may not be supported.")

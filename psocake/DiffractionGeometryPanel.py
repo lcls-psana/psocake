@@ -281,6 +281,14 @@ class DiffractionGeometry(object):
                 for line in lines: # remove commented out lines
                     if '; mask =' in line:
                         newGeom.append(line.split('; ')[-1])
+                        _cxiname = self.parent.psocakeRunDir + '/' \
+                                 + self.parent.experimentName + '_' \
+                                 + str(self.parent.runNumber).zfill(4)
+                        if self.parent.pk.tag:
+                            _cxiname += '_' + self.parent.pk.tag
+                        _cxiname += '.cxi\n'
+                        _line = 'mask_file =' + _cxiname
+                        newGeom.append("; mask_file =\n")
                     elif '; mask_good =' in line:
                         newGeom.append(line.split('; ')[-1])
                     elif '; mask_bad =' in line:
