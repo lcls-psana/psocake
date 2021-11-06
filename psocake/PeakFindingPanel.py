@@ -444,6 +444,10 @@ class PeakFinding:
             print(utils.highlight("Tag can not have underscore(s). Removing underscore(s).",status="r"))
             data = data.replace('_', '')
             self.p3.param(self.hitParam_grp, self.tag_str).setValue(data)
+        if data.isdigit():
+            print(utils.highlight("Tag can not just be a number. Appending a.",status="r"))
+            data = data+"a"
+            self.p3.param(self.hitParam_grp, self.tag_str).setValue(data)
         if self.tag:
             fname = self.parent.small.quantifier_filename.split("_"+self.tag+".cxi")[0]
         else:

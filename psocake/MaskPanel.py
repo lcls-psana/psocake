@@ -615,6 +615,10 @@ class MaskMaker(object):
         else:
             img = self.parent.detDesc.pct(self.parent.mk.combinedMask)
         dset[:, :] = img
+
+        # Set OM compatible dset
+        myHdf5["/data/data"] = h5py.SoftLink("/entry_1/data_1/mask")
+
         myHdf5.close()
 
     def deployMask(self):
