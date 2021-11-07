@@ -375,7 +375,7 @@ if rank == 0:
     #f.flush()
 
     if mode == 'sfx':
-        dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)
+        dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=np.float32)
         dset_1.attrs["axes"] = "experiment_identifier:y:x"
         dset_1.attrs["numEvents"] = numHits
         # Soft links
@@ -386,7 +386,7 @@ if rank == 0:
         source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
     elif mode == 'spi':
         if args.saveADU:
-            dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
+            dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=np.float32)  # ,
             # chunks=(1,dim0,dim1),dtype=float)#,
             # compression='gzip',
             # compression_opts=9)
@@ -443,7 +443,7 @@ ds_fid_1 = f.require_dataset("LCLS/fiducial",(numHits,),dtype=int)
 ds_evtNum_1 = f.require_dataset("LCLS/eventNumber",(numHits,),dtype=int)
 if mode == 'sfx':
     dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
-                               dtype=float)  # ,chunks=(1,dim0,dim1))
+                               dtype=np.float32)  # ,chunks=(1,dim0,dim1))
     ds_nPeaks = f.require_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
     ds_posX = f.require_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
     ds_posY = f.require_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
@@ -452,7 +452,7 @@ if mode == 'sfx':
 elif mode == 'spi':
     if args.saveADU:
         dset_1 = f.require_dataset("entry_1/instrument_1/detector_1/data", (numHits, dim0, dim1),
-                                   dtype=float)  # ,chunks=(1,dim0,dim1))
+                                   dtype=np.float32)  # ,chunks=(1,dim0,dim1))
     if args.savePhot:
         dset_2 = f.require_dataset("entry_1/instrument_1/detector_1/photons", (numHits, dim0, dim1),
                                    dtype=int)

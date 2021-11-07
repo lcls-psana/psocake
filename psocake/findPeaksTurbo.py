@@ -455,7 +455,7 @@ def createCxi(fname):
     ds_data_1 = detector_1.create_dataset("data", (numJobs, dim0, dim1),
                                          chunks=(1, dim0, dim1),
                                          maxshape=(None, dim0, dim1),
-                                         dtype=float)
+                                         dtype=np.float32)
     ds_data_1.attrs["axes"] = "experiment_identifier"
 
     data_1 = entry_1.create_group("data_1")
