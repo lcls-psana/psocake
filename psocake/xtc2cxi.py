@@ -407,11 +407,12 @@ if rank == 0:
     f.close()
 
 comm.Barrier()
+
 ###################################################
 # All workers get the to-do list
 ###################################################
 
-f = h5py.File(filename, "r+")#, driver='mpio', comm=MPI.COMM_WORLD)
+f = h5py.File(filename, "a") #, driver='mpio', comm=MPI.COMM_WORLD)
 myJobs = getMyUnfairShare(numHits,size,rank)
 
 myHitInd = hitInd[myJobs]
@@ -638,6 +639,7 @@ for i,val in enumerate(myHitInd):
     #t10 = time.time()
     #print "hit convert: ", rank, t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t7-t6, t8-t7, t9-t8, t10-t9
 f.close()
+print("DONE: ", comm.rank)
 
 if rank == 0:
     try:
@@ -648,7 +650,7 @@ if rank == 0:
     except:
         pass
 
-    f = h5py.File(filename, "r+")
+    f = h5py.File(filename, "a")
     if "/status/xtc2cxidb" in f:
         del f["/status/xtc2cxidb"]
     f["/status/xtc2cxidb"] = 'success'

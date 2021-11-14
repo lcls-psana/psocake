@@ -1,9 +1,9 @@
 # Find pixels with photons
+import h5py, psana
+import numpy as np
 from hitFinderMaster import runmaster
 from hitFinderClient import runclient
 
-import h5py, psana
-import numpy as np
 from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
