@@ -635,8 +635,9 @@ class ExperimentInfo(object):
                     self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                     self.readEpicsClen()
                 else:
-                    print("Couldn't handle detector clen. Try using the full detector name.")
-                    sys.exit()
+                    print("ERROR: No such epics variable, ", self.parent.clenEpics)
+                    print("ERROR: setting clen to 0.0 metre")
+                    self.parent.clen = 0.0 # metres
         elif ('jungfrau4m' in self.parent.detInfo.lower() and 'cxi' in self.parent.experimentName) or \
              ('cxids1' in self.parent.detInfo.lower() and 'jungfrau' in self.parent.detInfo.lower()):
             try:
@@ -644,14 +645,16 @@ class ExperimentInfo(object):
                 self.readEpicsClen()
             except:
                 print("Couldn't handle detector clen. Jungfrau epics variable names may not be supported.")
-                sys.exit()
+                print("ERROR: setting clen to 0.0 metre")
+                self.parent.clen = 0.0 # metres
         elif ('cxids2' in self.parent.detInfo.lower() and 'jungfrau' in self.parent.detInfo.lower()):
             try:
                 self.parent.clenEpics = str('CXI:DS2:MMS:06.RBV')
                 self.readEpicsClen()
             except:
                 print("Couldn't handle detector clen. Jungfrau epics variable names may not be supported.")
-                sys.exit()
+                print("ERROR: setting clen to 0.0 metre")
+                self.parent.clen = 0.0 # metres
         elif ('rayonix' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
              ('cspad' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName) or \
              ('epix10k' in self.parent.detInfo.lower() and '2m' in self.parent.detInfo.lower() and 'mfx' in self.parent.experimentName):
