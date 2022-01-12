@@ -587,7 +587,7 @@ class PeakFinding(object):
 
                     myHdf5.create_dataset("/LCLS/detector_1/EncoderValue", (1,), dtype=float)
                     myHdf5.create_dataset("/LCLS/photon_energy_eV", (1,), dtype=float)
-                    dset = myHdf5.create_dataset("/entry_1/data_1/data", (1, dim0, dim1), dtype=float)
+                    dset = myHdf5.create_dataset("/entry_1/data_1/data", (1, dim0, dim1), dtype=np.float32) # change to float32
                     dsetM = myHdf5.create_dataset("/entry_1/data_1/mask", (dim0, dim1), dtype='int')
 
                     # Convert calib image to cheetah image

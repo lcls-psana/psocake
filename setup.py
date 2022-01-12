@@ -12,7 +12,7 @@ except ImportError:
 
 
 setup(name='psocake',
-      version='0.6.5',
+      version='0.6.6',
       author="Chun Hong Yoon",
       author_email="yoon82@slac.stanford.edu",
       description='GUI for SFX/SPI',

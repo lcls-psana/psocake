@@ -338,6 +338,14 @@ if rank == 0:
         myHdf5.create_dataset("/entry_1/result_1/peakTotalIntensityAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
         myHdf5.create_dataset("/entry_1/result_1/peakMaxIntensityAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
         myHdf5.create_dataset("/entry_1/result_1/peakRadiusAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        # PeakNet labels
+        myHdf5.create_dataset("/entry_1/result_1/centreRowAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/centreColAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/minPeakRowAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/maxPeakRowAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/minPeakColAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+        myHdf5.create_dataset("/entry_1/result_1/maxPeakColAll", (numJobs,args.maxPeaks), dtype=float, chunks=(1,args.maxPeaks))
+
         myHdf5.create_dataset("/entry_1/result_1/maxResAll", data=np.ones(numJobs,)*-1, dtype=int)
         myHdf5.create_dataset("/entry_1/result_1/likelihoodAll", data=np.ones(numJobs, ) * -1, dtype=float)
 
@@ -403,6 +411,56 @@ if rank == 0:
                                                  dtype=float)
         ds_radius.attrs["axes"] = "experiment_identifier:peaks"
 
+        # PeakNet labels
+        ds_rcentre = myHdf5.create_dataset("/entry_1/result_1/centreRow",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
+                                                 compression='gzip',
+                                                 compression_opts=1,
+                                                 dtype=float)
+        ds_rcentre.attrs["axes"] = "experiment_identifier:peaks"
+
+        ds_ccentre = myHdf5.create_dataset("/entry_1/result_1/centreCol",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
+                                                 compression='gzip',
+                                                 compression_opts=1,
+                                                 dtype=float)
+        ds_ccentre.attrs["axes"] = "experiment_identifier:peaks"
+
+        ds_rminPeak = myHdf5.create_dataset("/entry_1/result_1/minPeakRow",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
+                                                 compression='gzip',
+                                                 compression_opts=1,
+                                                 dtype=float)
+        ds_rminPeak.attrs["axes"] = "experiment_identifier:peaks"
+
+        ds_rmaxPeak = myHdf5.create_dataset("/entry_1/result_1/maxPeakRow",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
+                                                 compression='gzip',
+                                                 compression_opts=1,
+                                                 dtype=float)
+        ds_rmaxPeak.attrs["axes"] = "experiment_identifier:peaks"
+
+        ds_cminPeak = myHdf5.create_dataset("/entry_1/result_1/minPeakCol",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
+                                                 compression='gzip',
+                                                 compression_opts=1,
+                                                 dtype=float)
+        ds_cminPeak.attrs["axes"] = "experiment_identifier:peaks"
+
+        ds_cmaxPeak = myHdf5.create_dataset("/entry_1/result_1/maxPeakCol",(0,args.maxPeaks),
+                                                 maxshape=(None,args.maxPeaks),
+                                                 chunks=(1, args.maxPeaks),
+                                                 compression='gzip',
+                                                 compression_opts=1,
+                                                 dtype=float)
+        ds_cmaxPeak.attrs["axes"] = "experiment_identifier:peaks"
+        # end of PeakNet labels
+
         ds_maxRes = myHdf5.create_dataset("/entry_1/result_1/maxRes",(0,),
                                                  maxshape=(None,),
                                                  dtype=int)
@@ -467,7 +525,7 @@ if rank == 0:
                                     maxshape=(None, dim0, dim1),
                                     compression='gzip',
                                     compression_opts=1,
-                                    dtype=float)
+                                    dtype=np.float32)              #### Change this to float32
         ds_data_1.attrs["axes"] = "experiment_identifier"
 
         data_1 = entry_1.create_group("data_1")
