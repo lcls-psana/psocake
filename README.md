@@ -7,11 +7,11 @@ Making Data Analysis for Free-Electron Lasers a piece of cake
 For **newer experiments with vertical polarization (starting Run 18)**, use Psocake version v1.0.15 or higher with psana (ana-4.0.14-py3 or higher).
 Note that psocake has moved to python3 (and python2 is deprecated).
 ```
-    source /cds/sw/ds/ana/conda1/manage/bin/psconda.sh -py3
+    source /reg/g/psdm/etc/psconda.sh -py3
     source /reg/g/cfel/crystfel/crystfel-dev/setup-sh # CrystFEL compatible version
 ```
 
-For **older experiments with horizontal polarization (before Run 18)**, use Psocake version v0.6.X with psana (ana-3.0.2 or lower).  
+For **older experiments with horizontal polarization (before Run 18)**, use Psocake version v0.6.X. Python2 code is maintained in v00-06-00-branch.  
 For SFX, also source CrystFEL v0.8:
 ```
     source /reg/g/psdm/etc/psconda.sh
