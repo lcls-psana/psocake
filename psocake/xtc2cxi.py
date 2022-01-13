@@ -407,7 +407,7 @@ comm.Barrier()
 # All workers get the to-do list
 ###################################################
 
-f = h5py.File(filename, "r+", driver='mpio', comm=MPI.COMM_WORLD)
+f = h5py.File(filename, "a") 
 myJobs = getMyUnfairShare(numHits,size,rank)
 
 myHitInd = hitInd[myJobs]
