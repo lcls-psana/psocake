@@ -61,7 +61,10 @@ class PowderProducer(QtCore.QThread):
                     print "Submitting batch job: ", cmd
                     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                     out, err = process.communicate()
-                    jobid = out.split("<")[1].split(">")[0]
+                    if self.parent.batch == "lsf":
+                        jobid = out.split("<")[1].split(">")[0]
+                    else:
+                        jobid = out.split("job ")[1].split("\n")[0]
                     myLog = self.parent.mk.powder_outDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
                     if self.parent.args.v >= 1: print "batch log filename: ", myLog
                 elif self.parent.facility == self.parent.facilityPAL:

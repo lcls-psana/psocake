@@ -98,13 +98,12 @@ if mode == 'sfx':
 elif mode == 'spi':
     statusFname = args.inDir+'/status_hits.txt'
 
-if rank == 0:
-    try:
-        d = {"message": "#CXIDB"}
-        print statusFname
-        writeStatus(statusFname, d)
-    except:
-        pass
+try:
+    d = {"message": "#CXIDB"}
+    print statusFname
+    writeStatus(statusFname, d)
+except:
+    pass
 
 notDone = 1
 while notDone:
@@ -158,7 +157,8 @@ elif mode == 'spi':
     img = ps.getAssembledImg()
     (dim0, dim1) = img.shape
 
-if rank == 0: tic = time.time()
+#if rank == 0: 
+tic = time.time()
 
 inDir = args.inDir
 assert os.path.isdir(inDir)
@@ -200,214 +200,210 @@ if hasCoffset:
 elif hasDetectorDistance:
     detectorDistance = args.detectorDistance
 
-if rank == 0:
-    try:
-        d = {"message": "#InitCXIDB"}
-        writeStatus(statusFname, d)
-    except:
-        pass
+try:
+    d = {"message": "#InitCXIDB"}
+    writeStatus(statusFname, d)
+except:
+    pass
 
-    with h5py.File(filename, "r+") as f:
+with h5py.File(filename, "r+") as f:
 
-        if "/status/xtc2cxidb" in f:
-            del f["/status/xtc2cxidb"]
-        f["/status/xtc2cxidb"] = 'fail'
+    if "/status/xtc2cxidb" in f:
+        del f["/status/xtc2cxidb"]
+    f["/status/xtc2cxidb"] = 'fail'
 
-        # open the HDF5 CXI file for writing
-        if "cxi_version" in f:
-            del f["cxi_version"]
-        f.create_dataset("cxi_version",data=args.cxiVersion)
-        f.flush()
+    # open the HDF5 CXI file for writing
+    if "cxi_version" in f:
+        del f["cxi_version"]
+    f.create_dataset("cxi_version",data=args.cxiVersion)
+    f.flush()
 
-        ###################
-        # LCLS
-        ###################
-        if "LCLS" in f:
-            del f["LCLS"]
-        lcls_1 = f.create_group("LCLS")
-        lcls_detector_1 = lcls_1.create_group("detector_1")
-        ds_lclsDet_1 = lcls_detector_1.create_dataset("EncoderValue",(numHits,), dtype=float)
-        ds_lclsDet_1.attrs["axes"] = "experiment_identifier"
-        ds_lclsDet_1.attrs["numEvents"] = numHits
-        ds_ebeamCharge_1 = lcls_1.create_dataset("electronBeamEnergy",(numHits,), dtype=float)
-        ds_ebeamCharge_1.attrs["axes"] = "experiment_identifier"
-        ds_ebeamCharge_1.attrs["numEvents"] = numHits
-        ds_beamRepRate_1 = lcls_1.create_dataset("beamRepRate",(numHits,), dtype=float)
-        ds_beamRepRate_1.attrs["axes"] = "experiment_identifier"
-        ds_beamRepRate_1.attrs["numEvents"] = numHits
-        ds_particleN_electrons_1 = lcls_1.create_dataset("particleN_electrons",(numHits,), dtype=float)
-        ds_particleN_electrons_1.attrs["axes"] = "experiment_identifier"
-        ds_particleN_electrons_1.attrs["numEvents"] = numHits
-        ds_eVernier_1 = lcls_1.create_dataset("eVernier",(numHits,), dtype=float)
-        ds_eVernier_1.attrs["axes"] = "experiment_identifier"
-        ds_eVernier_1.attrs["numEvents"] = numHits
-        ds_charge_1 = lcls_1.create_dataset("charge",(numHits,), dtype=float)
-        ds_charge_1.attrs["axes"] = "experiment_identifier"
-        ds_charge_1.attrs["numEvents"] = numHits
-        ds_peakCurrentAfterSecondBunchCompressor_1 = lcls_1.create_dataset("peakCurrentAfterSecondBunchCompressor",(numHits,), dtype=float)
-        ds_peakCurrentAfterSecondBunchCompressor_1.attrs["axes"] = "experiment_identifier"
-        ds_peakCurrentAfterSecondBunchCompressor_1.attrs["numEvents"] = numHits
-        ds_pulseLength_1 = lcls_1.create_dataset("pulseLength",(numHits,), dtype=float)
-        ds_pulseLength_1.attrs["axes"] = "experiment_identifier"
-        ds_pulseLength_1.attrs["numEvents"] = numHits
-        ds_ebeamEnergyLossConvertedToPhoton_mJ_1 = lcls_1.create_dataset("ebeamEnergyLossConvertedToPhoton_mJ",(numHits,), dtype=float)
-        ds_ebeamEnergyLossConvertedToPhoton_mJ_1.attrs["axes"] = "experiment_identifier"
-        ds_ebeamEnergyLossConvertedToPhoton_mJ_1.attrs["numEvents"] = numHits
-        ds_calculatedNumberOfPhotons_1 = lcls_1.create_dataset("calculatedNumberOfPhotons",(numHits,), dtype=float)
-        ds_calculatedNumberOfPhotons_1.attrs["axes"] = "experiment_identifier"
-        ds_calculatedNumberOfPhotons_1.attrs["numEvents"] = numHits
-        ds_photonBeamEnergy_1 = lcls_1.create_dataset("photonBeamEnergy",(numHits,), dtype=float)
-        ds_photonBeamEnergy_1.attrs["axes"] = "experiment_identifier"
-        ds_photonBeamEnergy_1.attrs["numEvents"] = numHits
-        ds_wavelength_1 = lcls_1.create_dataset("wavelength",(numHits,), dtype=float)
-        ds_wavelength_1.attrs["axes"] = "experiment_identifier"
-        ds_wavelength_1.attrs["numEvents"] = numHits
-        ds_sec_1 = lcls_1.create_dataset("machineTime",(numHits,),dtype=int)
-        ds_sec_1.attrs["axes"] = "experiment_identifier"
-        ds_sec_1.attrs["numEvents"] = numHits
-        ds_nsec_1 = lcls_1.create_dataset("machineTimeNanoSeconds",(numHits,),dtype=int)
-        ds_nsec_1.attrs["axes"] = "experiment_identifier"
-        ds_nsec_1.attrs["numEvents"] = numHits
-        ds_fid_1 = lcls_1.create_dataset("fiducial",(numHits,),dtype=int)
-        ds_fid_1.attrs["axes"] = "experiment_identifier"
-        ds_fid_1.attrs["numEvents"] = numHits
-        ds_photonEnergy_1 = lcls_1.create_dataset("photon_energy_eV", (numHits,), dtype=float) # photon energy in eV
-        ds_photonEnergy_1.attrs["axes"] = "experiment_identifier"
-        ds_photonEnergy_1.attrs["numEvents"] = numHits
-        ds_wavelengthA_1 = lcls_1.create_dataset("photon_wavelength_A",(numHits,), dtype=float)
-        ds_wavelengthA_1.attrs["axes"] = "experiment_identifier"
-        ds_wavelengthA_1.attrs["numEvents"] = numHits
-        #### Datasets not in Cheetah ###
-        ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(numHits,),dtype=int)
-        ds_evtNum_1.attrs["axes"] = "experiment_identifier"
-        ds_evtNum_1.attrs["numEvents"] = numHits
-        f.flush()
-        ###################
-        # entry_1
-        ###################
-        entry_1 = f.require_group("entry_1")
+    ###################
+    # LCLS
+    ###################
+    if "LCLS" in f:
+        del f["LCLS"]
+    lcls_1 = f.create_group("LCLS")
+    lcls_detector_1 = lcls_1.create_group("detector_1")
+    ds_lclsDet_1 = lcls_detector_1.create_dataset("EncoderValue",(numHits,), dtype=float)
+    ds_lclsDet_1.attrs["axes"] = "experiment_identifier"
+    ds_lclsDet_1.attrs["numEvents"] = numHits
+    ds_ebeamCharge_1 = lcls_1.create_dataset("electronBeamEnergy",(numHits,), dtype=float)
+    ds_ebeamCharge_1.attrs["axes"] = "experiment_identifier"
+    ds_ebeamCharge_1.attrs["numEvents"] = numHits
+    ds_beamRepRate_1 = lcls_1.create_dataset("beamRepRate",(numHits,), dtype=float)
+    ds_beamRepRate_1.attrs["axes"] = "experiment_identifier"
+    ds_beamRepRate_1.attrs["numEvents"] = numHits
+    ds_particleN_electrons_1 = lcls_1.create_dataset("particleN_electrons",(numHits,), dtype=float)
+    ds_particleN_electrons_1.attrs["axes"] = "experiment_identifier"
+    ds_particleN_electrons_1.attrs["numEvents"] = numHits
+    ds_eVernier_1 = lcls_1.create_dataset("eVernier",(numHits,), dtype=float)
+    ds_eVernier_1.attrs["axes"] = "experiment_identifier"
+    ds_eVernier_1.attrs["numEvents"] = numHits
+    ds_charge_1 = lcls_1.create_dataset("charge",(numHits,), dtype=float)
+    ds_charge_1.attrs["axes"] = "experiment_identifier"
+    ds_charge_1.attrs["numEvents"] = numHits
+    ds_peakCurrentAfterSecondBunchCompressor_1 = lcls_1.create_dataset("peakCurrentAfterSecondBunchCompressor",(numHits,), dtype=float)
+    ds_peakCurrentAfterSecondBunchCompressor_1.attrs["axes"] = "experiment_identifier"
+    ds_peakCurrentAfterSecondBunchCompressor_1.attrs["numEvents"] = numHits
+    ds_pulseLength_1 = lcls_1.create_dataset("pulseLength",(numHits,), dtype=float)
+    ds_pulseLength_1.attrs["axes"] = "experiment_identifier"
+    ds_pulseLength_1.attrs["numEvents"] = numHits
+    ds_ebeamEnergyLossConvertedToPhoton_mJ_1 = lcls_1.create_dataset("ebeamEnergyLossConvertedToPhoton_mJ",(numHits,), dtype=float)
+    ds_ebeamEnergyLossConvertedToPhoton_mJ_1.attrs["axes"] = "experiment_identifier"
+    ds_ebeamEnergyLossConvertedToPhoton_mJ_1.attrs["numEvents"] = numHits
+    ds_calculatedNumberOfPhotons_1 = lcls_1.create_dataset("calculatedNumberOfPhotons",(numHits,), dtype=float)
+    ds_calculatedNumberOfPhotons_1.attrs["axes"] = "experiment_identifier"
+    ds_calculatedNumberOfPhotons_1.attrs["numEvents"] = numHits
+    ds_photonBeamEnergy_1 = lcls_1.create_dataset("photonBeamEnergy",(numHits,), dtype=float)
+    ds_photonBeamEnergy_1.attrs["axes"] = "experiment_identifier"
+    ds_photonBeamEnergy_1.attrs["numEvents"] = numHits
+    ds_wavelength_1 = lcls_1.create_dataset("wavelength",(numHits,), dtype=float)
+    ds_wavelength_1.attrs["axes"] = "experiment_identifier"
+    ds_wavelength_1.attrs["numEvents"] = numHits
+    ds_sec_1 = lcls_1.create_dataset("machineTime",(numHits,),dtype=int)
+    ds_sec_1.attrs["axes"] = "experiment_identifier"
+    ds_sec_1.attrs["numEvents"] = numHits
+    ds_nsec_1 = lcls_1.create_dataset("machineTimeNanoSeconds",(numHits,),dtype=int)
+    ds_nsec_1.attrs["axes"] = "experiment_identifier"
+    ds_nsec_1.attrs["numEvents"] = numHits
+    ds_fid_1 = lcls_1.create_dataset("fiducial",(numHits,),dtype=int)
+    ds_fid_1.attrs["axes"] = "experiment_identifier"
+    ds_fid_1.attrs["numEvents"] = numHits
+    ds_photonEnergy_1 = lcls_1.create_dataset("photon_energy_eV", (numHits,), dtype=float) # photon energy in eV
+    ds_photonEnergy_1.attrs["axes"] = "experiment_identifier"
+    ds_photonEnergy_1.attrs["numEvents"] = numHits
+    ds_wavelengthA_1 = lcls_1.create_dataset("photon_wavelength_A",(numHits,), dtype=float)
+    ds_wavelengthA_1.attrs["axes"] = "experiment_identifier"
+    ds_wavelengthA_1.attrs["numEvents"] = numHits
+    #### Datasets not in Cheetah ###
+    ds_evtNum_1 = lcls_1.create_dataset("eventNumber",(numHits,),dtype=int)
+    ds_evtNum_1.attrs["axes"] = "experiment_identifier"
+    ds_evtNum_1.attrs["numEvents"] = numHits
+    f.flush()
+    ###################
+    # entry_1
+    ###################
+    entry_1 = f.require_group("entry_1")
 
-        #dt = h5py.special_dtype(vlen=bytes)
-        if "experimental_identifier" in entry_1:
-            del entry_1["experimental_identifier"]
-        ds_expId = entry_1.create_dataset("experimental_identifier",(numHits,),dtype=int)#dt)
-        ds_expId.attrs["axes"] = "experiment_identifier"
-        ds_expId.attrs["numEvents"] = numHits
-        f.flush()
+    #dt = h5py.special_dtype(vlen=bytes)
+    if "experimental_identifier" in entry_1:
+        del entry_1["experimental_identifier"]
+    ds_expId = entry_1.create_dataset("experimental_identifier",(numHits,),dtype=int)#dt)
+    ds_expId.attrs["axes"] = "experiment_identifier"
+    ds_expId.attrs["numEvents"] = numHits
+    f.flush()
 
-        if mode == 'sfx':
-            if "entry_1/result_1/nPeaks" in f:
-                del f["entry_1/result_1/nPeaks"]
-                del f["entry_1/result_1/peakXPosRaw"]
-                del f["entry_1/result_1/peakYPosRaw"]
-                del f["entry_1/result_1/peakTotalIntensity"]
-                del f["entry_1/result_1/maxRes"]
-            ds_nPeaks = f.create_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
-            ds_nPeaks.attrs["axes"] = "experiment_identifier"
-            ds_nPeaks.attrs["numEvents"] = numHits
-            ds_nPeaks.attrs["minPeaks"] = args.minPeaks
-            ds_nPeaks.attrs["maxPeaks"] = args.maxPeaks
-            ds_nPeaks.attrs["minRes"] = args.minRes
-            ds_posX = f.create_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-            ds_posX.attrs["axes"] = "experiment_identifier:peaks"
-            ds_posX.attrs["numEvents"] = numHits
-            ds_posY = f.create_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-            ds_posY.attrs["axes"] = "experiment_identifier:peaks"
-            ds_posY.attrs["numEvents"] = numHits
-            ds_atot = f.create_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
-            ds_atot.attrs["axes"] = "experiment_identifier:peaks"
-            ds_atot.attrs["numEvents"] = numHits
-            ds_maxRes = f.create_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
-            ds_maxRes.attrs["axes"] = "experiment_identifier:peaks"
-            ds_maxRes.attrs["numEvents"] = numHits
-        elif mode == 'spi':
-            if "entry_1/result_1/nHits" in f:
-                del f["entry_1/result_1/nHits"]
-            ds_nHits = f.create_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
-            ds_nHits.attrs["axes"] = "experiment_identifier"
-            ds_nHits.attrs["numEvents"] = numHits
-            ds_nHits.attrs["hitThresh"] = args.hitThresh
-            ds_nHits.attrs["backgroundThreshMin"] = backgroundThreshMin
-            ds_nHits.attrs["backgroundThreshMax"] = backgroundThreshMax
-        f.flush()
+    if mode == 'sfx':
+        if "entry_1/result_1/nPeaks" in f:
+            del f["entry_1/result_1/nPeaks"]
+            del f["entry_1/result_1/peakXPosRaw"]
+            del f["entry_1/result_1/peakYPosRaw"]
+            del f["entry_1/result_1/peakTotalIntensity"]
+            del f["entry_1/result_1/maxRes"]
+        ds_nPeaks = f.create_dataset("/entry_1/result_1/nPeaks", (numHits,), dtype=int)
+        ds_nPeaks.attrs["axes"] = "experiment_identifier"
+        ds_nPeaks.attrs["numEvents"] = numHits
+        ds_nPeaks.attrs["minPeaks"] = args.minPeaks
+        ds_nPeaks.attrs["maxPeaks"] = args.maxPeaks
+        ds_nPeaks.attrs["minRes"] = args.minRes
+        ds_posX = f.create_dataset("/entry_1/result_1/peakXPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+        ds_posX.attrs["axes"] = "experiment_identifier:peaks"
+        ds_posX.attrs["numEvents"] = numHits
+        ds_posY = f.create_dataset("/entry_1/result_1/peakYPosRaw", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+        ds_posY.attrs["axes"] = "experiment_identifier:peaks"
+        ds_posY.attrs["numEvents"] = numHits
+        ds_atot = f.create_dataset("/entry_1/result_1/peakTotalIntensity", (numHits,2048), dtype='float32')#, chunks=(1,2048))
+        ds_atot.attrs["axes"] = "experiment_identifier:peaks"
+        ds_atot.attrs["numEvents"] = numHits
+        ds_maxRes = f.create_dataset("/entry_1/result_1/maxRes", (numHits,), dtype=int)
+        ds_maxRes.attrs["axes"] = "experiment_identifier:peaks"
+        ds_maxRes.attrs["numEvents"] = numHits
+    elif mode == 'spi':
+        if "entry_1/result_1/nHits" in f:
+            del f["entry_1/result_1/nHits"]
+        ds_nHits = f.create_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
+        ds_nHits.attrs["axes"] = "experiment_identifier"
+        ds_nHits.attrs["numEvents"] = numHits
+        ds_nHits.attrs["hitThresh"] = args.hitThresh
+        ds_nHits.attrs["backgroundThreshMin"] = backgroundThreshMin
+        ds_nHits.attrs["backgroundThreshMax"] = backgroundThreshMax
+    f.flush()
 
-        if "start_time" in entry_1:
-            del entry_1["start_time"]
-        entry_1.create_dataset("start_time",data=startTime)
+    if "start_time" in entry_1:
+        del entry_1["start_time"]
+    entry_1.create_dataset("start_time",data=startTime)
 
-        if "sample_1" in entry_1:
-            del entry_1["sample_1"]
-        sample_1 = entry_1.create_group("sample_1")
-        sample_1.create_dataset("name",data=sampleName)
+    if "sample_1" in entry_1:
+        del entry_1["sample_1"]
+    sample_1 = entry_1.create_group("sample_1")
+    sample_1.create_dataset("name",data=sampleName)
 
-        if "instrument_1" in entry_1:
-            del entry_1["instrument_1"]
-        instrument_1 = entry_1.create_group("instrument_1")
-        instrument_1.create_dataset("name",data=instrumentName)
+    if "instrument_1" in entry_1:
+        del entry_1["instrument_1"]
+    instrument_1 = entry_1.create_group("instrument_1")
+    instrument_1.create_dataset("name",data=instrumentName)
 
-        source_1 = instrument_1.create_group("source_1")
-        ds_photonEnergy = source_1.create_dataset("energy", (numHits,), dtype=float) # photon energy in J
-        ds_photonEnergy.attrs["axes"] = "experiment_identifier"
-        ds_photonEnergy.attrs["numEvents"] = numHits
-        ds_pulseEnergy = source_1.create_dataset("pulse_energy", (numHits,), dtype=float) # in J
-        ds_pulseEnergy.attrs["axes"] = "experiment_identifier"
-        ds_pulseEnergy.attrs["numEvents"] = numHits
-        ds_pulseWidth = source_1.create_dataset("pulse_width", (numHits,), dtype=float) # in s
-        ds_pulseWidth.attrs["axes"] = "experiment_identifier"
-        ds_pulseWidth.attrs["numEvents"] = numHits
+    source_1 = instrument_1.create_group("source_1")
+    ds_photonEnergy = source_1.create_dataset("energy", (numHits,), dtype=float) # photon energy in J
+    ds_photonEnergy.attrs["axes"] = "experiment_identifier"
+    ds_photonEnergy.attrs["numEvents"] = numHits
+    ds_pulseEnergy = source_1.create_dataset("pulse_energy", (numHits,), dtype=float) # in J
+    ds_pulseEnergy.attrs["axes"] = "experiment_identifier"
+    ds_pulseEnergy.attrs["numEvents"] = numHits
+    ds_pulseWidth = source_1.create_dataset("pulse_width", (numHits,), dtype=float) # in s
+    ds_pulseWidth.attrs["axes"] = "experiment_identifier"
+    ds_pulseWidth.attrs["numEvents"] = numHits
 
-        detector_1 = instrument_1.create_group("detector_1")
-        ds_dist_1 = detector_1.create_dataset("distance", (numHits,), dtype=float) # in meters
-        ds_dist_1.attrs["axes"] = "experiment_identifier"
-        ds_dist_1.attrs["numEvents"] = numHits
-        ds_x_pixel_size_1 = detector_1.create_dataset("x_pixel_size", (numHits,), dtype=float)
-        ds_x_pixel_size_1.attrs["axes"] = "experiment_identifier"
-        ds_x_pixel_size_1.attrs["numEvents"] = numHits
-        ds_y_pixel_size_1 = detector_1.create_dataset("y_pixel_size", (numHits,), dtype=float)
-        ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
-        ds_y_pixel_size_1.attrs["numEvents"] = numHits
-        detector_1.create_dataset("description",data=detInfo)
-        f.flush()
+    detector_1 = instrument_1.create_group("detector_1")
+    ds_dist_1 = detector_1.create_dataset("distance", (numHits,), dtype=float) # in meters
+    ds_dist_1.attrs["axes"] = "experiment_identifier"
+    ds_dist_1.attrs["numEvents"] = numHits
+    ds_x_pixel_size_1 = detector_1.create_dataset("x_pixel_size", (numHits,), dtype=float)
+    ds_x_pixel_size_1.attrs["axes"] = "experiment_identifier"
+    ds_x_pixel_size_1.attrs["numEvents"] = numHits
+    ds_y_pixel_size_1 = detector_1.create_dataset("y_pixel_size", (numHits,), dtype=float)
+    ds_y_pixel_size_1.attrs["axes"] = "experiment_identifier"
+    ds_y_pixel_size_1.attrs["numEvents"] = numHits
+    detector_1.create_dataset("description",data=detInfo)
+    f.flush()
 
-        if mode == 'sfx':
-            dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)
+    if mode == 'sfx':
+        dset_1 = detector_1.create_dataset("data",(numHits,dim0,dim1),dtype=float)
+        dset_1.attrs["axes"] = "experiment_identifier:y:x"
+        dset_1.attrs["numEvents"] = numHits
+        # Soft links
+        if "data_1" in entry_1:
+            del entry_1["data_1"]
+        data_1 = entry_1.create_group("data_1")
+        data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
+        source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
+    elif mode == 'spi':
+        if args.saveADU:
+            dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
+            # chunks=(1,dim0,dim1),dtype=float)#,
+            # compression='gzip',
+            # compression_opts=9)
             dset_1.attrs["axes"] = "experiment_identifier:y:x"
             dset_1.attrs["numEvents"] = numHits
-            # Soft links
-            if "data_1" in entry_1:
-                del entry_1["data_1"]
+        if args.savePhot:
+            dset_2 = detector_1.create_dataset("photons", (numHits, dim0, dim1), dtype=int)
+            dset_2.attrs["axes"] = "experiment_identifier:y:x"
+            dset_2.attrs["numEvents"] = numHits
+        # Soft links
+        if "data_1" in entry_1:
+            del entry_1["data_1"]
+        if args.saveADU:
             data_1 = entry_1.create_group("data_1")
             data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
-            source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
-        elif mode == 'spi':
-            if args.saveADU:
-                dset_1 = detector_1.create_dataset("data", (numHits, dim0, dim1), dtype=float)  # ,
-                # chunks=(1,dim0,dim1),dtype=float)#,
-                # compression='gzip',
-                # compression_opts=9)
-                dset_1.attrs["axes"] = "experiment_identifier:y:x"
-                dset_1.attrs["numEvents"] = numHits
-            if args.savePhot:
-                dset_2 = detector_1.create_dataset("photons", (numHits, dim0, dim1), dtype=int)
-                dset_2.attrs["axes"] = "experiment_identifier:y:x"
-                dset_2.attrs["numEvents"] = numHits
-            # Soft links
-            if "data_1" in entry_1:
-                del entry_1["data_1"]
-            if args.saveADU:
-                data_1 = entry_1.create_group("data_1")
-                data_1["data"] = h5py.SoftLink('/entry_1/instrument_1/detector_1/data')
-            source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
+        source_1["experimental_identifier"] = h5py.SoftLink('/entry_1/experimental_identifier')
 
-comm.Barrier()
 ###################################################
 # All workers get the to-do list
 ###################################################
-
+ 
 with h5py.File(filename, "a") as f:
     myJobs = getMyUnfairShare(numHits,size,rank)
-
-    myHitInd = hitInd[myJobs]
 
     ds_expId = f.require_dataset("entry_1/experimental_identifier",(numHits,),dtype=int)
     ds_photonEnergy_1 = f.require_dataset("LCLS/photon_energy_eV", (numHits,), dtype=float)
@@ -451,14 +447,13 @@ with h5py.File(filename, "a") as f:
                                        dtype=int)
         ds_nHits = f.require_dataset("/entry_1/result_1/nHits", (numHits,), dtype=int)
 
-    if rank == 0:
-        try:
-            d = {"message": "#StartCXIDB"}
-            writeStatus(statusFname, d)
-        except:
-            pass
+    try:
+        d = {"message": "#StartCXIDB"}
+        writeStatus(statusFname, d)
+    except:
+        pass
 
-    for i,val in enumerate(myHitInd):
+    for i,val in enumerate(hitInd):
         globalInd = myJobs[0]+i
         ds_expId[globalInd] = val
         ps.getEvent(val)
@@ -609,9 +604,11 @@ with h5py.File(filename, "a") as f:
             ds_nHits[globalInd] = nHits[val]
         f.flush()
 
-        if i%100 == 0: print "Rank: "+str(rank)+", Done "+str(i)+" out of "+str(len(myJobs))
+        if i%100 == 0: #print "Rank: "+str(rank)+", 
+            print "Done "+str(i)+" out of "+str(len(myJobs))
 
-        if rank == 0 and i%10 == 0:
+        #if rank == 0 and 
+        if i%10 == 0:
             try:
                 hitRate = numHits*100./numEvents
                 fracDone = i*100./len(myJobs)
@@ -620,21 +617,20 @@ with h5py.File(filename, "a") as f:
             except:
                 pass
 
-if rank == 0:
-    try:
-        hitRate = numHits * 100. / numEvents
-        fracDone = 100.
-        d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
-        writeStatus(statusFname, d)
-    except:
-        pass
+try:
+    hitRate = numHits * 100. / numEvents
+    fracDone = 100.
+    d = {"numHits": numHits, "hitRate": hitRate, "fracDone": fracDone}
+    writeStatus(statusFname, d)
+except:
+    pass
 
-    with h5py.File(filename, "r+") as f:
-        if "/status/xtc2cxidb" in f:
-            del f["/status/xtc2cxidb"]
-        f["/status/xtc2cxidb"] = 'success'
-        # Add attributes
-        if mode == 'spi':
-            f.attrs["/entry_1/result_1/nHits"] = numHits
-    toc = time.time()
-    print "time taken: ", toc-tic
+with h5py.File(filename, "r+") as f:
+    if "/status/xtc2cxidb" in f:
+        del f["/status/xtc2cxidb"]
+    f["/status/xtc2cxidb"] = 'success'
+    # Add attributes
+    if mode == 'spi':
+        f.attrs["/entry_1/result_1/nHits"] = numHits
+toc = time.time()
+print "time taken: ", toc-tic

@@ -67,7 +67,7 @@ class LaunchHitConverter(QtCore.QThread):
                   " --backgroundThresh " + str(self.parent.hf.hitParam_backgroundThresh) + \
                   " --mode spi" + \
                   " --run " + str(run)
-            cmd = batchSubmit(cmd, self.parent.hf.spiParam_queue, self.parent.hf.spiParam_cpus, runDir + "/%J.log",
+            cmd = batchSubmit(cmd, self.parent.hf.spiParam_queue, 1, runDir + "/%J.log",
                               "conv" + str(run), self.parent.batch)
             print "Submitting batch job: ", cmd
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)

@@ -86,8 +86,8 @@ class HitFinder(QtCore.QThread):
                 print "Submitting batch job: ", cmd
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
                 out, err = process.communicate()
-                jobid = out.split("<")[1].split(">")[0]
+                jobid = out.split(" ")[-1].split("\n")[0]
                 myLog = self.parent.psocakeDir+"/r"+str(run).zfill(4)+"/."+jobid+".log"
-                if self.parent.args.v >= 1: print "bsub log filename: ", myLog
+                if self.parent.args.v >= 1: print "log filename: ", myLog
             except:
-                print "No write access to: ", runDir
+                print "LaunchHitFinder No write access to: ", runDir
