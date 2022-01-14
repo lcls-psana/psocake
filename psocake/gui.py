@@ -20,6 +20,11 @@ import PeakFindingPanel, CrystalIndexingPanel, MaskPanel
 import SmallDataPanel, ImageControlPanel
 import HitFinderPanel
 
+# Misc module
+from datetime import datetime
+from shutil import copyfile
+import json
+
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
                     help="Psana-style experiment/run string in the format (e.g. exp=cxi06216:run=22). "
@@ -80,6 +85,58 @@ class Window(QtGui.QMainWindow):
                             ex.labeling.postClassifications(ex.labeling.eventDocument)
                         except IndexError:
                             print("Key %d does not correspond to classification"%(i+1))
+
+        # Label SPI images and export labels to json
+        if args.mode == "json":
+            if type(event) == QtGui.QKeyEvent:
+                # Define keystrokes for classifying SPI image
+                numberKeys = [ QtCore.Qt.Key_4, QtCore.Qt.Key_0, QtCore.Qt.Key_1, 
+                               QtCore.Qt.Key_2, QtCore.Qt.Key_3 ]
+                for i,key in enumerate(numberKeys):
+                    if event.key() == key:
+                        try:
+                            # Read (exp, run, event) as a unique identifer for a diffraction image
+                            experimentName = ex.experimentName
+                            runNumber = ex.runNumber
+                            eventNumber = ex.eventNumber
+                            record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = experimentName,
+                                                                                                  runNumber      = runNumber     ,
+                                                                                                  eventNumber    = eventNumber )
+
+                            # Save or overwrite the (record, key as hit number) pair
+                            hit_category = hit_dict[key]
+                            eventDocument[eventNumber] = hit_category
+                            ## eventDocument[record] = key
+
+                            # Reporting
+                            print("{record} has {hit} hits.".format(record = record, hit = hit_interpret_dict[hit_category]))
+                        except IndexError:
+                            print("Key %d does not correspond to classification"%(i+1))
+
+                # Define keystrokes for saving (experiment name, run, event) to a json file
+                if event.key() == QtCore.Qt.Key_S:
+                    # Check if a file of labels have existed
+                    basename = '{experimentName}.{runNumber:04d}'.format( experimentName = ex.experimentName,
+                                                                          runNumber      = ex.runNumber )
+                    fl_label = '{basename}.label.json'.format( basename = basename )
+                    drc      = args.outDir
+                    drc_job  = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
+                    drc      = os.path.join(drc, drc_job)
+                    path_fl  = os.path.join(drc, fl_label)
+                    if os.path.exists(path_fl):
+                        # Back up the current label.json file with a timestamp
+                        now = datetime.now()
+                        timestamp = now.strftime("%Y%m%d%H%M%S")
+                        fl_dst = '{basename}.{timestamp}.label.json.bak'.format( basename = basename, timestamp = timestamp )
+                        path_dst = os.path.join(drc, fl_dst)
+                        copyfile(path_fl, path_dst)
+                        print("{fl_label} has existed. Backing it to {fl_dst}.".format( fl_label = fl_label,
+                                                                                        fl_dst   = fl_dst))
+
+                    # Write a new json file
+                    with open(path_fl,'w') as fh:
+                        json.dump(eventDocument, fh)
+                        print("{fl_label} has been updated.".format( fl_label = fl_label ))
 
 class MainFrame(QtGui.QWidget):
     """
@@ -360,6 +417,25 @@ class MainFrame(QtGui.QWidget):
             self.area.addDock(self.small.dock, 'right')
             self.area.addDock(self.control.dock, 'right')
             self.area.moveDock(self.small.dock, 'top', self.control.dock)
+        elif args.mode == 'json':
+            self.area.addDock(self.mouse.dock, 'left')
+            self.area.addDock(self.img.dock, 'bottom', self.mouse.dock)
+            self.area.addDock(self.stack.dock, 'bottom', self.mouse.dock)
+            self.area.moveDock(self.img.dock, 'above', self.stack.dock)  ## move imagePanel on top of imageStack
+
+            self.area.addDock(self.exp.dock, 'right')
+            self.area.addDock(self.geom.dock, 'right')
+            self.area.addDock(self.roi.dock, 'right')
+            self.area.moveDock(self.geom.dock, 'above', self.roi.dock)  ## move d6 to stack on top of d4
+            self.area.moveDock(self.exp.dock, 'above', self.geom.dock)
+
+            self.area.addDock(self.hf.dock, 'bottom', self.exp.dock)
+            self.area.addDock(self.mk.dock, 'bottom', self.exp.dock)
+            self.area.moveDock(self.hf.dock, 'above', self.mk.dock)     ## move hf to stack on top of mk
+
+            self.area.addDock(self.small.dock, 'right')
+            self.area.addDock(self.control.dock, 'right')
+            self.area.moveDock(self.small.dock, 'top', self.control.dock)
         else:
             self.area.addDock(self.mouse.dock, 'left')
             self.area.addDock(self.img.dock, 'bottom', self.mouse.dock)
@@ -491,6 +567,20 @@ class MainFrame(QtGui.QWidget):
 
 def main():
     global ex
+    global eventDocument
+    eventDocument = {}
+    global hit_dict
+    hit_dict = { QtCore.Qt.Key_4 : 0,   # No     hit (alias)
+                 QtCore.Qt.Key_0 : 0,   # No     hit
+                 QtCore.Qt.Key_1 : 1,   # Single hit
+                 QtCore.Qt.Key_2 : 2,   # Multi  hit
+                 QtCore.Qt.Key_3 : 3, } # Unknow hit
+    global hit_interpret_dict
+    hit_interpret_dict = { 0 : 'NO',
+                           1 : 'SINGLE',
+                           2 : 'MULTIPLE',
+                           3 : 'UNKNOWN', }
+
     app = QtGui.QApplication(sys.argv)
     win = Window()
     ex = MainFrame(sys.argv)
