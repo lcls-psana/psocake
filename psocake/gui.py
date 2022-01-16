@@ -62,6 +62,7 @@ if 'label' in args.mode: import LabelingPanel
 
 class Window(QtGui.QMainWindow):
     global ex
+    eventDocument = {}
 
     def previewEvent(self, eventNumber):
         ex.eventNumber = eventNumber
@@ -89,30 +90,6 @@ class Window(QtGui.QMainWindow):
         # Label SPI images and export labels to json
         if args.mode == "json":
             if type(event) == QtGui.QKeyEvent:
-                # Define keystrokes for classifying SPI image
-                numberKeys = [ QtCore.Qt.Key_4, QtCore.Qt.Key_0, QtCore.Qt.Key_1, 
-                               QtCore.Qt.Key_2, QtCore.Qt.Key_3 ]
-                for i,key in enumerate(numberKeys):
-                    if event.key() == key:
-                        try:
-                            # Read (exp, run, event) as a unique identifer for a diffraction image
-                            experimentName = ex.experimentName
-                            runNumber = ex.runNumber
-                            eventNumber = ex.eventNumber
-                            record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = experimentName,
-                                                                                                  runNumber      = runNumber     ,
-                                                                                                  eventNumber    = eventNumber )
-
-                            # Save or overwrite the (record, key as hit number) pair
-                            hit_category = hit_dict[key]
-                            eventDocument[eventNumber] = hit_category
-                            ## eventDocument[record] = key
-
-                            # Reporting
-                            print("{record} has {hit} hits.".format(record = record, hit = hit_interpret_dict[hit_category]))
-                        except IndexError:
-                            print("Key %d does not correspond to classification"%(i+1))
-
                 # Define keystrokes for saving (experiment name, run, event) to a json file
                 if event.key() == QtCore.Qt.Key_S:
                     # Check if a file of labels have existed
@@ -135,8 +112,24 @@ class Window(QtGui.QMainWindow):
 
                     # Write a new json file
                     with open(path_fl,'w') as fh:
-                        json.dump(eventDocument, fh)
+                        json.dump(self.eventDocument, fh)
                         print("{fl_label} has been updated.".format( fl_label = fl_label ))
+
+                # Launch a GUI user prompt for labeling
+                if event.key() == QtCore.Qt.Key_L:
+                    # Fetch label from the GUI user prompt
+                    label_str, is_ok = QtGui.QInputDialog.getText(self, "Enter new label", "Enter new label")
+
+                    # Record the label
+                    self.eventDocument[ex.eventNumber] = label_str
+                    print(self.eventDocument)
+
+                    # Report it to terminal
+                    record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = ex.experimentName,
+                                                                                          runNumber      = ex.runNumber     ,
+                                                                                          eventNumber    = ex.eventNumber )
+                    print("{record} has a label: {label_str}.".format(record = record, label_str = label_str))
+
 
 class MainFrame(QtGui.QWidget):
     """
@@ -567,19 +560,6 @@ class MainFrame(QtGui.QWidget):
 
 def main():
     global ex
-    global eventDocument
-    eventDocument = {}
-    global hit_dict
-    hit_dict = { QtCore.Qt.Key_4 : 0,   # No     hit (alias)
-                 QtCore.Qt.Key_0 : 0,   # No     hit
-                 QtCore.Qt.Key_1 : 1,   # Single hit
-                 QtCore.Qt.Key_2 : 2,   # Multi  hit
-                 QtCore.Qt.Key_3 : 3, } # Unknow hit
-    global hit_interpret_dict
-    hit_interpret_dict = { 0 : 'NO',
-                           1 : 'SINGLE',
-                           2 : 'MULTIPLE',
-                           3 : 'UNKNOWN', }
 
     app = QtGui.QApplication(sys.argv)
     win = Window()
