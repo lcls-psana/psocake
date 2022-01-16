@@ -130,6 +130,23 @@ class Window(QtGui.QMainWindow):
                                                                                           eventNumber    = ex.eventNumber )
                     print("{record} has a label: {label_str}.".format(record = record, label_str = label_str))
 
+                # Quick dialog to go to a specific event by event number
+                if event.key() == QtCore.Qt.Key_G:
+                    # Fetch event number from the GUI user prompt
+                    eventNumber, is_ok = QtGui.QInputDialog.getText(self, "Enter new event number", "Enter new event number")
+                    eventNumber = int(eventNumber)
+
+                    # Let event number bound between 0 and event total
+                    eventNumber = min( max( 0, eventNumber ), ex.exp.eventTotal - 1 )
+
+                    # Update image and metadata
+                    ex.calib, ex.data = ex.img.getDetImage(eventNumber)
+                    ex.img.win.setImage(ex.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                    ex.exp.p.param(ex.exp.exp_grp,ex.exp.exp_evt_str).setValue(eventNumber)
+                    if 'label' in ex.args.mode:
+                        ex.labeling.updateText()
+
+
 
 class MainFrame(QtGui.QWidget):
     """
