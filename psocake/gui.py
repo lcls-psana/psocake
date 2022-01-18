@@ -164,11 +164,13 @@ class Window(QtGui.QMainWindow):
                                 end_rght = eventNumberFiltered[-1]
                                 event_filtered_dict[end_left]["prev"] = end_rght
                                 event_filtered_dict[end_rght]["next"] = end_left
+                            else:
+                                print("Warning!!! There is no images with label '{label_str}'.  ".format( label_str = label_str ))
 
-                                self.eventNumberView = eventNumberFiltered
-                                self.event_dict      = event_filtered_dict
+                            self.eventNumberView = eventNumberFiltered
+                            self.event_dict      = event_filtered_dict
                     else:
-                        print("Warning!!! There is no images with label '{label_str}'".format( label_str = label_str ))
+                        print("No label is found.  Please try it again.".format( label_str = label_str ))
 
                 # Define keystrokes for saving (experiment name, run, event) to a json file
                 if event.key() == QtCore.Qt.Key_S:
