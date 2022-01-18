@@ -120,31 +120,37 @@ class Window(QtGui.QMainWindow):
                     # Fetch label from the GUI user prompt
                     label_str, is_ok = QtGui.QInputDialog.getText(self, "Enter new label", "Enter new label")
 
-                    # Record the label
-                    self.eventDocument[ex.eventNumber] = label_str
-                    print(self.eventDocument)
+                    # Process the OK event
+                    if is_ok:
+                        # Record the label
+                        self.eventDocument[ex.eventNumber] = label_str
+                        ## print(self.eventDocument)
 
-                    # Report it to terminal
-                    record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = ex.experimentName,
-                                                                                          runNumber      = ex.runNumber     ,
-                                                                                          eventNumber    = ex.eventNumber )
-                    print("{record} has a label: {label_str}.".format(record = record, label_str = label_str))
+                        # Report it to terminal
+                        record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = ex.experimentName,
+                                                                                              runNumber      = ex.runNumber     ,
+                                                                                              eventNumber    = ex.eventNumber )
+                        print("{record} has a label: {label_str}.".format(record = record, label_str = label_str))
 
                 # Quick dialog to go to a specific event by event number
                 if event.key() == QtCore.Qt.Key_G:
                     # Fetch event number from the GUI user prompt
                     eventNumber, is_ok = QtGui.QInputDialog.getText(self, "Enter new event number", "Enter new event number")
-                    eventNumber = int(eventNumber)
 
-                    # Let event number bound between 0 and event total
-                    eventNumber = min( max( 0, eventNumber ), ex.exp.eventTotal - 1 )
+                    # Process the OK event
+                    if is_ok:
+                        # Format event number into integer
+                        eventNumber = int(eventNumber)
 
-                    # Update image and metadata
-                    ex.calib, ex.data = ex.img.getDetImage(eventNumber)
-                    ex.img.win.setImage(ex.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
-                    ex.exp.p.param(ex.exp.exp_grp,ex.exp.exp_evt_str).setValue(eventNumber)
-                    if 'label' in ex.args.mode:
-                        ex.labeling.updateText()
+                        # Let event number bound between 0 and event total
+                        eventNumber = min(max(0, eventNumber), ex.exp.eventTotal-1)
+
+                        # Update image and metadata
+                        ex.calib, ex.data = ex.img.getDetImage(eventNumber)
+                        ex.img.win.setImage(ex.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                        ex.exp.p.param(ex.exp.exp_grp,ex.exp.exp_evt_str).setValue(eventNumber)
+                        if 'label' in ex.args.mode:
+                            ex.labeling.updateText()
 
 
 
