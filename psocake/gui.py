@@ -24,6 +24,8 @@ import HitFinderPanel
 from datetime import datetime
 from shutil import copyfile
 import json
+import h5py
+import itertools
 
 parser = argparse.ArgumentParser()
 parser.add_argument('expRun', nargs='?', default=None,
@@ -87,8 +89,42 @@ class Window(QtGui.QMainWindow):
                         except IndexError:
                             print("Key %d does not correspond to classification"%(i+1))
 
-        # Label SPI images and export labels to json
+        # Label images and export labels to json
         if args.mode == "json":
+            # Specify the location of `.cxi` files
+            drc_prefix = args.outDir
+            drc_middle  = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
+            drc_output = os.path.join(drc_prefix, drc_middle)
+
+            # Check if `.cxi` file exists
+            fl_cxi = '{experimentName}_{runNumber:04d}.cxi'.format( experimentName = ex.experimentName,
+                                                                    runNumber      = ex.runNumber )
+            path_cxi = os.path.join(drc_output, fl_cxi)
+            is_cxi_avail = os.path.exists(path_cxi)
+
+            # Access thresholded event numbers
+            eventNumberThresholded = []
+            event_dict             = {}
+            goto_dict              = { QtCore.Qt.Key_N : "next", 
+                                       QtCore.Qt.Key_P : "prev", }
+            if is_cxi_avail:
+                data_cxi = h5py.File(path_cxi)
+                h5key     = 'LCLS/eventNumber'
+                if h5key in data_cxi: eventNumberThresholded = data_cxi[h5key][()].tolist()
+
+                # Build up a lookup table for quickly accessing the thresholded next/prev event number
+                for i, v in enumerate(eventNumberThresholded):
+                    event_dict[v] = { "prev" : eventNumberThresholded[max(0, i - 1)],
+                                      "next" : eventNumberThresholded[min(len(eventNumberThresholded) - 1, i + 1)] }
+
+                # Allow rollover on both ends
+                if eventNumberThresholded:
+                    end_left = eventNumberThresholded[0]
+                    end_rght = eventNumberThresholded[-1]
+                    event_dict[end_left]["prev"] = end_rght
+                    event_dict[end_rght]["next"] = end_left
+
+
             if type(event) == QtGui.QKeyEvent:
                 # Define keystrokes for saving (experiment name, run, event) to a json file
                 if event.key() == QtCore.Qt.Key_S:
@@ -96,16 +132,13 @@ class Window(QtGui.QMainWindow):
                     basename = '{experimentName}.{runNumber:04d}'.format( experimentName = ex.experimentName,
                                                                           runNumber      = ex.runNumber )
                     fl_label = '{basename}.label.json'.format( basename = basename )
-                    drc      = args.outDir
-                    drc_job  = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
-                    drc      = os.path.join(drc, drc_job)
-                    path_fl  = os.path.join(drc, fl_label)
+                    path_fl  = os.path.join(drc_output, fl_label)
                     if os.path.exists(path_fl):
                         # Back up the current label.json file with a timestamp
                         now = datetime.now()
                         timestamp = now.strftime("%Y%m%d%H%M%S")
                         fl_dst = '{basename}.{timestamp}.label.json.bak'.format( basename = basename, timestamp = timestamp )
-                        path_dst = os.path.join(drc, fl_dst)
+                        path_dst = os.path.join(drc_output, fl_dst)
                         copyfile(path_fl, path_dst)
                         print("{fl_label} has existed. Backing it to {fl_dst}.".format( fl_label = fl_label,
                                                                                         fl_dst   = fl_dst))
@@ -144,6 +177,7 @@ class Window(QtGui.QMainWindow):
 
                         # Let event number bound between 0 and event total
                         eventNumber = min(max(0, eventNumber), ex.exp.eventTotal-1)
+                        print("Go to event {eventNumber}".format(eventNumber = eventNumber))
 
                         # Update image and metadata
                         ex.calib, ex.data = ex.img.getDetImage(eventNumber)
@@ -152,6 +186,44 @@ class Window(QtGui.QMainWindow):
                         if 'label' in ex.args.mode:
                             ex.labeling.updateText()
 
+                # Enable quickbrowse mode
+                if event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P:
+                    # Record the current event number
+                    eventNumberCurrent = ex.eventNumber
+                    eventNumberNext    = eventNumberCurrent
+                    goto_direction     = goto_dict[event.key()]
+
+                    # Work on thresholded event
+                    if eventNumberCurrent in event_dict:
+                        # Find the next/prev thresholded event
+                        eventNumberNext = event_dict[eventNumberCurrent][goto_direction]
+                        eventNumberNext = int(eventNumberNext)
+
+                    # When event not in the non-empty event_dict
+                    elif event_dict:
+                        try: number_nearest_next = next(itertools.ifilter(lambda x: x > eventNumberCurrent,          eventNumberThresholded ))
+                        except StopIteration: number_nearest_next = eventNumberThresholded[0]
+                        try: number_nearest_prev = next(itertools.ifilter(lambda x: x < eventNumberCurrent, reversed(eventNumberThresholded)))
+                        except StopIteration: number_nearest_prev = eventNumberThresholded[-1]
+                        eventThresholdNearest = { "next" : number_nearest_next,
+                                                  "prev" : number_nearest_prev, }
+                        eventNumberNext = eventThresholdNearest[goto_direction]
+
+                    # When there is no thresholded event
+                    else:
+                        print("There is no thresholded event found.")
+
+                    # Update image only when next event number is found
+                    if eventNumberNext != eventNumberCurrent:
+                        print("Go to event {eventNumberNext}".format(eventNumberNext = eventNumberNext))
+                        ex.calib, ex.data = ex.img.getDetImage(eventNumberNext)
+                        ex.img.win.setImage(ex.data,autoRange=False,autoLevels=False,autoHistogramRange=False)
+                        ex.exp.p.param(ex.exp.exp_grp,ex.exp.exp_evt_str).setValue(eventNumberNext)
+                        if 'label' in ex.args.mode:
+                            ex.labeling.updateText()
+                    else:
+                        print("{eventNumberNext} is the last {goto_direction} event.".format(eventNumberNext = eventNumberNext, 
+                                                                                             goto_direction  = goto_direction))
 
 
 class MainFrame(QtGui.QWidget):
