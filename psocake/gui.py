@@ -64,7 +64,9 @@ if 'label' in args.mode: import LabelingPanel
 
 class Window(QtGui.QMainWindow):
     global ex
-    eventDocument = {}
+    eventDocument   = {}
+    eventNumberView = []
+    event_dict      = {}
 
     def previewEvent(self, eventNumber):
         ex.eventNumber = eventNumber
@@ -93,43 +95,85 @@ class Window(QtGui.QMainWindow):
         if args.mode == "json":
             # Specify the location of `.cxi` files
             drc_prefix = args.outDir
-            drc_middle  = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
+            drc_middle = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
             drc_output = os.path.join(drc_prefix, drc_middle)
-
-            # Check if `.cxi` file exists
-            fl_cxi = '{experimentName}_{runNumber:04d}.cxi'.format( experimentName = ex.experimentName,
-                                                                    runNumber      = ex.runNumber )
-            path_cxi = os.path.join(drc_output, fl_cxi)
-            is_cxi_avail = os.path.exists(path_cxi)
-
-            # Access thresholded event numbers
-            eventNumberThresholded = []
-            event_dict             = {}
-            goto_dict              = { QtCore.Qt.Key_N : "next", 
-                                       QtCore.Qt.Key_P : "prev", }
-            if is_cxi_avail:
-                data_cxi = h5py.File(path_cxi)
-                h5key     = 'LCLS/eventNumber'
-                if h5key in data_cxi: eventNumberThresholded = data_cxi[h5key][()].tolist()
-
-                # Build up a lookup table for quickly accessing the thresholded next/prev event number
-                for i, v in enumerate(eventNumberThresholded):
-                    event_dict[v] = { "prev" : eventNumberThresholded[max(0, i - 1)],
-                                      "next" : eventNumberThresholded[min(len(eventNumberThresholded) - 1, i + 1)] }
-
-                # Allow rollover on both ends
-                if eventNumberThresholded:
-                    end_left = eventNumberThresholded[0]
-                    end_rght = eventNumberThresholded[-1]
-                    event_dict[end_left]["prev"] = end_rght
-                    event_dict[end_rght]["next"] = end_left
-
+            goto_dict  = { QtCore.Qt.Key_N : "next", 
+                           QtCore.Qt.Key_P : "prev", }
 
             if type(event) == QtGui.QKeyEvent:
+                # Enable viewing thresholded event only
+                if event.key() == QtCore.Qt.Key_T:
+                    print("View thresholded images only. Press N(ext) or P(rev) to view images.")
+                    # Check if `.cxi` file exists
+                    fl_cxi = '{experimentName}_{runNumber:04d}.cxi'.format( experimentName = ex.experimentName,
+                                                                            runNumber      = ex.runNumber )
+                    path_cxi     = os.path.join(drc_output, fl_cxi)
+                    is_cxi_avail = os.path.exists(path_cxi)
+
+                    # Access thresholded event numbers
+                    eventNumberThresholded = []
+                    event_thresholded_dict = {}
+                    if is_cxi_avail:
+                        data_cxi = h5py.File(path_cxi)
+                        h5key     = 'LCLS/eventNumber'
+                        if h5key in data_cxi: eventNumberThresholded = sorted( [ int(i) for i in data_cxi[h5key][()].tolist() ] )
+
+                        # Build up a lookup table for quickly accessing the thresholded next/prev event number
+                        for i, v in enumerate(eventNumberThresholded):
+                            event_thresholded_dict[v] = { "prev" : eventNumberThresholded[max(0, i - 1)],
+                                                          "next" : eventNumberThresholded[min(len(eventNumberThresholded) - 1, i + 1)] }
+
+                        # Allow rollover on both ends
+                        if eventNumberThresholded:
+                            end_left = eventNumberThresholded[0]
+                            end_rght = eventNumberThresholded[-1]
+                            event_thresholded_dict[end_left]["prev"] = end_rght
+                            event_thresholded_dict[end_rght]["next"] = end_left
+
+                            self.eventNumberView = eventNumberThresholded
+                            self.event_dict       = event_thresholded_dict
+
+                # Enable filter images by assigned its label
+                if event.key() == QtCore.Qt.Key_F:
+                    # Fetch label from the GUI user prompt
+                    label_str, is_ok = QtGui.QInputDialog.getText(self, "Enter a label to filter", "Enter a label to filter")
+
+                    # Process the OK event
+                    if is_ok:
+                        print("View images with label '{label_str}' only. Press N(ext) or P(rev) to view images.".format( label_str = label_str ))
+                        fl_json = '{experimentName}_{runNumber:04d}.label.json'.format( experimentName = ex.experimentName,
+                                                                                        runNumber      = ex.runNumber )
+                        path_json     = os.path.join(drc_output, fl_json)
+                        is_json_avail = os.path.exists(path_json)
+
+                        # Access filtered event numbers
+                        eventNumberFiltered = []
+                        event_filtered_dict   = {}
+                        if is_json_avail:
+                            with open(path_json,'r') as fh: data_json = json.load(fh)
+                            eventNumberFiltered = sorted([ int(k) for k, v in data_json.items() if v == label_str ])
+
+                            # Build up a lookup table for quickly accessing the filtered next/prev event number
+                            for i, v in enumerate(eventNumberFiltered):
+                                event_filtered_dict[v] = { "prev" : eventNumberFiltered[max(0, i - 1)],
+                                                           "next" : eventNumberFiltered[min(len(eventNumberFiltered) - 1, i + 1)] }
+
+                            # Allow rollover on both ends
+                            if eventNumberFiltered:
+                                end_left = eventNumberFiltered[0]
+                                end_rght = eventNumberFiltered[-1]
+                                event_filtered_dict[end_left]["prev"] = end_rght
+                                event_filtered_dict[end_rght]["next"] = end_left
+
+                                self.eventNumberView = eventNumberFiltered
+                                self.event_dict      = event_filtered_dict
+                    else:
+                        print("Warning!!! There is no images with label '{label_str}'".format( label_str = label_str ))
+
                 # Define keystrokes for saving (experiment name, run, event) to a json file
                 if event.key() == QtCore.Qt.Key_S:
                     # Check if a file of labels have existed
-                    basename = '{experimentName}.{runNumber:04d}'.format( experimentName = ex.experimentName,
+                    basename = '{experimentName}_{runNumber:04d}'.format( experimentName = ex.experimentName,
                                                                           runNumber      = ex.runNumber )
                     fl_label = '{basename}.label.json'.format( basename = basename )
                     path_fl  = os.path.join(drc_output, fl_label)
@@ -156,7 +200,7 @@ class Window(QtGui.QMainWindow):
                     # Process the OK event
                     if is_ok:
                         # Record the label
-                        self.eventDocument[ex.eventNumber] = label_str
+                        self.eventDocument[int(ex.eventNumber)] = label_str
                         ## print(self.eventDocument)
 
                         # Report it to terminal
@@ -189,29 +233,29 @@ class Window(QtGui.QMainWindow):
                 # Enable quickbrowse mode
                 if event.key() == QtCore.Qt.Key_N or event.key() == QtCore.Qt.Key_P:
                     # Record the current event number
-                    eventNumberCurrent = ex.eventNumber
+                    eventNumberCurrent = int(ex.eventNumber)
                     eventNumberNext    = eventNumberCurrent
                     goto_direction     = goto_dict[event.key()]
 
-                    # Work on thresholded event
-                    if eventNumberCurrent in event_dict:
-                        # Find the next/prev thresholded event
-                        eventNumberNext = event_dict[eventNumberCurrent][goto_direction]
-                        eventNumberNext = int(eventNumberNext)
+                    # Work on next event to view
+                    if eventNumberCurrent in self.event_dict:
+                        # Find the next/prev event
+                        eventNumberNext = self.event_dict[eventNumberCurrent][goto_direction]
+                        eventNumberNext = eventNumberNext
 
                     # When event not in the non-empty event_dict
-                    elif event_dict:
-                        try: number_nearest_next = next(itertools.ifilter(lambda x: x > eventNumberCurrent,          eventNumberThresholded ))
-                        except StopIteration: number_nearest_next = eventNumberThresholded[0]
-                        try: number_nearest_prev = next(itertools.ifilter(lambda x: x < eventNumberCurrent, reversed(eventNumberThresholded)))
-                        except StopIteration: number_nearest_prev = eventNumberThresholded[-1]
-                        eventThresholdNearest = { "next" : number_nearest_next,
+                    elif self.event_dict:
+                        try: number_nearest_next = next(itertools.ifilter(lambda x: x > eventNumberCurrent,          self.eventNumberView ))
+                        except StopIteration: number_nearest_next = self.eventNumberView[0]
+                        try: number_nearest_prev = next(itertools.ifilter(lambda x: x < eventNumberCurrent, reversed(self.eventNumberView)))
+                        except StopIteration: number_nearest_prev = self.eventNumberView[-1]
+                        eventViewNearest = { "next" : number_nearest_next,
                                                   "prev" : number_nearest_prev, }
-                        eventNumberNext = eventThresholdNearest[goto_direction]
+                        eventNumberNext = eventViewNearest[goto_direction]
 
-                    # When there is no thresholded event
+                    # When there is no event to view
                     else:
-                        print("There is no thresholded event found.")
+                        print("Warning!!!  There is no event to view.  May you should choose either [T]hreshold view or [F]ilter view???")
 
                     # Update image only when next event number is found
                     if eventNumberNext != eventNumberCurrent:
