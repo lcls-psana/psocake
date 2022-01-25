@@ -100,6 +100,18 @@ class Window(QtGui.QMainWindow):
             goto_dict  = { QtCore.Qt.Key_N : "next", 
                            QtCore.Qt.Key_P : "prev", }
 
+            # Load the existing .label.json
+            # Check if a file of labels have existed
+            basename = '{experimentName}_{runNumber:04d}'.format( experimentName = ex.experimentName,
+                                                                  runNumber      = ex.runNumber )
+            fl_label = '{basename}.label.json'.format( basename = basename )
+            path_fl  = os.path.join(drc_output, fl_label)
+            if not self.eventDocument and os.path.exists(path_fl):
+                print("{path_fl} is loaded. Existing labels can be modified and added. ".format(path_fl = path_fl))
+                with open(path_fl, 'r') as fh:
+                    self.eventDocument = json.load(fh)
+                    print(self.eventDocument)
+
             if type(event) == QtGui.QKeyEvent:
                 # Enable viewing thresholded event only
                 if event.key() == QtCore.Qt.Key_T:
@@ -202,8 +214,7 @@ class Window(QtGui.QMainWindow):
                     # Process the OK event
                     if is_ok:
                         # Record the label
-                        self.eventDocument[int(ex.eventNumber)] = label_str
-                        ## print(self.eventDocument)
+                        self.eventDocument[ex.eventNumber] = label_str
 
                         # Report it to terminal
                         record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = ex.experimentName,
