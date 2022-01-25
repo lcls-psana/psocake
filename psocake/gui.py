@@ -63,10 +63,31 @@ args = parser.parse_args()
 if 'label' in args.mode: import LabelingPanel
 
 class Window(QtGui.QMainWindow):
-    global ex
-    eventDocument   = {}
-    eventNumberView = []
-    event_dict      = {}
+    def __init__(self):
+        super(Window, self).__init__()
+        global ex
+        self.eventDocument   = {}
+        self.eventNumberView = []
+        self.event_dict      = {}
+
+        # Specify the location of `.cxi` files
+        drc_prefix = args.outDir
+        drc_middle = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
+        self.drc_output = os.path.join(drc_prefix, drc_middle)
+        self.goto_dict  = { QtCore.Qt.Key_N : "next", 
+                       QtCore.Qt.Key_P : "prev", }
+
+        # Load the existing .label.json
+        # Check if a file of labels have existed
+        self.basename = '{experimentName}_{runNumber:04d}'.format( experimentName = ex.experimentName,
+                                                                   runNumber      = ex.runNumber )
+        fl_label = '{basename}.label.json'.format( basename = self.basename )
+        path_fl  = os.path.join(self.drc_output, fl_label)
+        if not self.eventDocument and os.path.exists(path_fl):
+            print("{path_fl} is loaded. Existing labels can be modified and added. ".format(path_fl = path_fl))
+            with open(path_fl, 'r') as fh:
+                self.eventDocument = json.load(fh)
+
 
     def previewEvent(self, eventNumber):
         ex.eventNumber = eventNumber
@@ -93,28 +114,10 @@ class Window(QtGui.QMainWindow):
 
         # Label images and export labels to json
         if args.mode == "json":
-            # Specify the location of `.cxi` files
-            drc_prefix = args.outDir
-            drc_middle = os.path.join( ex.experimentName, ex.username, 'psocake', 'r{runNumber:04d}'.format( runNumber = ex.runNumber ) )
-            drc_output = os.path.join(drc_prefix, drc_middle)
-            goto_dict  = { QtCore.Qt.Key_N : "next", 
-                           QtCore.Qt.Key_P : "prev", }
-
-            # Load the existing .label.json
-            # Check if a file of labels have existed
-            basename = '{experimentName}_{runNumber:04d}'.format( experimentName = ex.experimentName,
-                                                                  runNumber      = ex.runNumber )
-            fl_label = '{basename}.label.json'.format( basename = basename )
-            path_fl  = os.path.join(drc_output, fl_label)
-            if not self.eventDocument and os.path.exists(path_fl):
-                print("{path_fl} is loaded. Existing labels can be modified and added. ".format(path_fl = path_fl))
-                with open(path_fl, 'r') as fh:
-                    self.eventDocument = json.load(fh)
-                    print(self.eventDocument)
-
             if type(event) == QtGui.QKeyEvent:
                 # Enable viewing thresholded event only
                 if event.key() == QtCore.Qt.Key_T:
+                    drc_output = self.drc_output
                     print("View thresholded images only. Press N(ext) or P(rev) to view images.")
                     # Check if `.cxi` file exists
                     fl_cxi = '{experimentName}_{runNumber:04d}.cxi'.format( experimentName = ex.experimentName,
@@ -147,6 +150,7 @@ class Window(QtGui.QMainWindow):
 
                 # Enable filter images by assigned its label
                 if event.key() == QtCore.Qt.Key_F:
+                    drc_output = self.drc_output
                     # Fetch label from the GUI user prompt
                     label_str, is_ok = QtGui.QInputDialog.getText(self, "Enter a label to filter", "Enter a label to filter")
 
@@ -186,11 +190,10 @@ class Window(QtGui.QMainWindow):
 
                 # Define keystrokes for saving (experiment name, run, event) to a json file
                 if event.key() == QtCore.Qt.Key_S:
-                    # Check if a file of labels have existed
-                    basename = '{experimentName}_{runNumber:04d}'.format( experimentName = ex.experimentName,
-                                                                          runNumber      = ex.runNumber )
-                    fl_label = '{basename}.label.json'.format( basename = basename )
-                    path_fl  = os.path.join(drc_output, fl_label)
+                    drc_output = self.drc_output
+                    basename   = self.basename
+                    fl_label   = '{basename}.label.json'.format( basename = basename )
+                    path_fl    = os.path.join(drc_output, fl_label)
                     if os.path.exists(path_fl):
                         # Back up the current label.json file with a timestamp
                         now = datetime.now()
@@ -214,7 +217,8 @@ class Window(QtGui.QMainWindow):
                     # Process the OK event
                     if is_ok:
                         # Record the label
-                        self.eventDocument[ex.eventNumber] = label_str
+                        eventNumber = str(ex.eventNumber)
+                        self.eventDocument[eventNumber] = label_str
 
                         # Report it to terminal
                         record = "{experimentName}.{runNumber:04d}.{eventNumber:06d}".format( experimentName = ex.experimentName,
@@ -248,7 +252,7 @@ class Window(QtGui.QMainWindow):
                     # Record the current event number
                     eventNumberCurrent = int(ex.eventNumber)
                     eventNumberNext    = eventNumberCurrent
-                    goto_direction     = goto_dict[event.key()]
+                    goto_direction     = self.goto_dict[event.key()]
 
                     # Work on next event to view
                     if eventNumberCurrent in self.event_dict:
@@ -714,8 +718,8 @@ def main():
     global ex
 
     app = QtGui.QApplication(sys.argv)
-    win = Window()
     ex = MainFrame(sys.argv)
+    win = Window()
     win.setCentralWidget(ex.area)
     win.resize(1400,700)
     win.setWindowTitle('PSOCAKE v'+__version__)
