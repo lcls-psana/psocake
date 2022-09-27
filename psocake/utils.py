@@ -102,12 +102,12 @@ def updateHdf5(h5file, dataset, ind, val):
 def upsample(warr, dim, binr, binc):
     upCalib = np.zeros(dim)
     for k in range(dim[0]):
-        for i, ix in enumerate(xrange(0,dim[1],binr)):
+        for i, ix in enumerate(range(0,dim[1],binr)):
             if ix+binr > dim[1]:
                 er = dim[1]+1
             else:
                 er = ix+binr
-            for j, jy in enumerate(xrange(0,dim[2],binc)):
+            for j, jy in enumerate(range(0,dim[2],binc)):
                 if jy+binc > dim[2]:
                     ec = dim[2]+1
                 else:

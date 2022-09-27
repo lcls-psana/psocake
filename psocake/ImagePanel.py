@@ -300,7 +300,7 @@ class ImageViewer(object):
         self.parent.geom.findPsanaGeometry()
         if self.parent.geom.calibFile is not None:
             if self.parent.args.v >= 1: print("calibFile: ", self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
-            self.geo = self.parent.det.geometry(self.parent.runNumber) #self.geo = GeometryAccess(self.parent.geom.calibPath+'/'+self.parent.geom.calibFile)
+            self.geo = self.parent.det.geometry(self.parent.runNumber)
             self.xarr, self.yarr, self.zarr = self.geo.get_pixel_coords()
             self.iX, self.iY = self.geo.get_pixel_coord_indexes()
             self.mask = self.geo.get_pixel_mask(mbits=0o0377)

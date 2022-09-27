@@ -219,8 +219,8 @@ class PeakFinder:
                 # perform binning here
                 binr = 2
                 binc = 2
-                downCalib = sm.block_reduce(calib, block_size=(1, binr, binc), func=np.sum)
-                downWeight = sm.block_reduce(self.combinedMask, block_size=(1, binr, binc), func=np.sum)
+                downCalib = sm.block_reduce(calib, block_size=(1, binr, binc), func=np.max)
+                downWeight = sm.block_reduce(self.combinedMask, block_size=(1, binr, binc), func=np.max)
                 warr = np.zeros_like(downCalib, dtype='float32')
                 ind = np.where(downWeight > 0)
                 warr[ind] = downCalib[ind] / downWeight[ind]

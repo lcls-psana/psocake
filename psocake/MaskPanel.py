@@ -628,6 +628,7 @@ class MaskMaker(object):
 
         if combinedStaticMask is not None:
             _tag = self.parseMaskTag()
+            print(f"Saving mask to {self.parent.psocakeRunDir}")
             print("*** deploy user-defined mask as mask"+_tag+".txt and mask"+_tag+".npy as DAQ shape ***")
             print("*** deploy user-defined mask as mask_natural_shape"+_tag+".npy as natural shape ***")
 

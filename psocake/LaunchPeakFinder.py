@@ -79,7 +79,7 @@ class LaunchPeakFinder(QtCore.QThread):
                            " --alg1_rank " + str(self.parent.pk.hitParam_alg1_rank) + \
                            " --alg1_radius "+str(self.parent.pk.hitParam_alg1_radius)+\
                            " --alg1_dr "+str(self.parent.pk.hitParam_alg1_dr)
-                elif self.parent.pk.algorithm == 2:
+                elif self.parent.pk.algorithm >= 2:
                     cmd += " --alg_npix_min "+str(self.parent.pk.hitParam_alg1_npix_min)+\
                            " --alg_npix_max "+str(self.parent.pk.hitParam_alg1_npix_max)+\
                            " --alg_amax_thr "+str(self.parent.pk.hitParam_alg1_amax_thr)+\

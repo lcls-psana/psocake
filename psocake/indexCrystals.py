@@ -358,7 +358,7 @@ for rank in range(numWorkers):
     #    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch, slurmParams)
     #else:
     #    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch)
-    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J.log", jobName, batch)
+    cmd = batchSubmit(cmd, queue, 1, runDir + "/%J_"+jobName+".log", jobName, batch)
     print("Note: Indexing will use the mask saved in the cxi file (/entry_1/data_1/mask) for Bragg integration")
     print("Submitting job: ", cmd)
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -368,7 +368,7 @@ for rank in range(numWorkers):
         jobID = out.decode("utf-8").split("<")[1].split(">")[0]
     else:
         jobID = out.decode("utf-8").split("job ")[1].split("\n")[0]
-    myLog = runDir + "/" + jobID + ".log"
+    myLog = runDir + "/" + jobID + "_" + jobName + ".log"
     myJobList.append(jobID)
     myLogList.append(myLog)
     print("log filename: ", myLog)

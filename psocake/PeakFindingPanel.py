@@ -144,7 +144,9 @@ class PeakFinding:
                  'tip': "Show peaks found shot-to-shot"},
                 #{'name': self.hitParam_autoPeaks_str, 'type': 'bool', 'value': self.turnOnAutoPeaks,
                 # 'tip': "Automatically find peaks"},
-                {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm2_str: 2,
+                {'name': self.hitParam_algorithm_str, 'type': 'list', 'values': {self.hitParam_algorithm3_str: 3,
+
+self.hitParam_algorithm2_str: 2,
                                                                                  self.hitParam_algorithm1_str: 1,
                                                                                  self.hitParam_algorithm0_str: 0},
                  'value': self.algorithm},
@@ -680,8 +682,8 @@ class PeakFinding:
                     # perform binning here
                     binr = 2
                     binc = 2
-                    downCalib = sm.block_reduce(self.parent.calib, block_size=(1, binr, binc), func=np.sum)
-                    downWeight = sm.block_reduce(self.parent.mk.combinedMask, block_size=(1, binr, binc), func=np.sum)
+                    downCalib = sm.block_reduce(self.parent.calib, block_size=(1, binr, binc), func=np.max)
+                    downWeight = sm.block_reduce(self.parent.mk.combinedMask, block_size=(1, binr, binc), func=np.max)
                     warr = np.zeros_like(downCalib, dtype='float32')
                     ind = np.where(downWeight > 0)
                     warr[ind] = downCalib[ind] / downWeight[ind]
