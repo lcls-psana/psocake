@@ -441,7 +441,7 @@ class StreakMask:
             mask[self.myInd[0].ravel(),self.myInd[1].ravel()] = 1
 
             # Connected components
-            myLabel = label(mask, neighbors=4, connectivity=1, background=0)
+            myLabel = label(mask, connectivity=1, background=0)
             # All pixels connected to edge pixels is masked out
             myMask = np.ones_like(mask)
             myParts = np.unique(myLabel[self.myInd])
@@ -514,7 +514,7 @@ def getStreakMaskCalib(det,evt,width=300,sigma=1):
     tic6 = time.time()
 
     # Connected components
-    myLabel = label(mask, neighbors=4, connectivity=1, background=0)
+    myLabel = label(mask, connectivity=1, background=0)
     # All pixels connected to edge pixels is masked out
     myMask = np.ones_like(mask)
     myParts = np.unique(myLabel[myInd])
