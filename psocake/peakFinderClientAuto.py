@@ -522,6 +522,7 @@ def runclient(args):
 def calculate_likelihood(qPeaks):
 
     nPeaks = int(qPeaks.shape[1])
+    if nPeaks <= 1: return [0, 0]
     selfD = distance.cdist(qPeaks.transpose(), qPeaks.transpose(), 'euclidean')
     sortedSelfD = np.sort(selfD)
     closestNeighborDist = sortedSelfD[:, 1]
