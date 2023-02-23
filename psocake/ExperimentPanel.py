@@ -17,6 +17,7 @@ import time
 if 'LCLS' in os.environ['PSOCAKE_FACILITY'].upper():
     import psana
     import Detector.PyDetector
+    psana.setOption("allow-corrupt-epics", True)
 elif 'PAL' in os.environ['PSOCAKE_FACILITY'].upper():
     pass
 
