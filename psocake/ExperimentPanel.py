@@ -893,6 +893,8 @@ class ExperimentInfo(object):
                     try:
                         if Detector.PyDetector.dettype(str(k[0]), self.env) == Detector.AreaDetector.AreaDetector:
                             myAreaDetectors.append(k)
+                    except KeyError:
+                        continue
                     except ValueError:
                         continue
                 self.parent.detInfoList = list(set(myAreaDetectors))
