@@ -5,6 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', "--binSize", type=int, help="bin Size", default = 2)
 parser.add_argument('-r', "--roiWindowSize", type=int, help="ROI window Size", default = 9)
 parser.add_argument('-e', "--absError", type=float, help="absolute Error bound", default = 9)
+parser.add_argument('-f', "--json_file", type=str, help="json file name", default = 'sz.json')
 
 args = parser.parse_args()
 
@@ -16,7 +17,7 @@ absError = args.absError
 #if type(args.binSize)!=type(None):
 
 
-fopts = 'pf_compressor_fopts.json'
+fopts = 'sz.json'
 
 lp_json={
 	    "compressor_id": "pressio",

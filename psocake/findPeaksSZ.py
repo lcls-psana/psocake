@@ -76,8 +76,9 @@ parser.add_argument("--cm1", help="Psana common mode correction parameter 1",def
 parser.add_argument("--cm2", help="Psana common mode correction parameter 2",default=0, type=int)
 parser.add_argument("--cm3", help="Psana common mode correction parameter 3",default=0, type=int)
 # Roibin-SZ specific
-parser.add_argument("--binSize", help="roibin-SZ background binning", default=1, type=int)
-parser.add_argument("--absErrorBound", help="roibin-SZ error bound after binning", default=10., type=float)
+parser.add_argument("--szfile", help="sz json file", default="sz.json", type=str)
+
+
 args = parser.parse_args()
 if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 
@@ -585,9 +586,7 @@ if rank == 0: print("h5 setup (rank, time): ", rank, toc-tic)
 
 tic = time.time()
 
-runclient(args,ds,run,times,det,numJobs,detDesc)
-
-#runclient(args,ds,run,times,det,numJobs,detDesc,args.binSize,args.absErrorBound)
+runclient(args,ds,run,times,det,numJobs,detDesc, fopts)
 
 toc = time.time()
 if rank == 0: print("compute time (rank, time): ", rank, toc-tic)

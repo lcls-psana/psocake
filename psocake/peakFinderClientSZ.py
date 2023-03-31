@@ -19,7 +19,7 @@ size = comm.Get_size()
 
 facility = 'LCLS'
 
-fopts = 'pf_compressor_fopts.json'
+#fopts = 'sz.json'
 
 
 
@@ -34,7 +34,7 @@ def get_es_value(es, name, NoneCheck=False, exceptReturn=0):
 
 
 # read from fopts
-def setup_compressor_args( mask ):
+def setup_compressor_args(fopts, mask ):
     fargs = json.load(open(fopts,'r'))
 
     if type(mask) != type(None):
@@ -61,15 +61,7 @@ def make_compressor(peaks , fargs):
 
 def calcPeaks(args, nHits, myHdf5, detarr, evt, d, nevent, detDesc, es, evr0, evr1, evr2, fargs):
 
-    binSize = fargs["compressor_config"]["pressio"]["roibin"]["background"]["mask_binning:shape"][0]
-    absErrorBound = fargs["compressor_config"]["pressio"]["roibin"]["background"]["pressio"]["pressio:abs"]
-    #roiWindowSize = 2 * d.peakFinder.hitParam_alg1_rank + 1 # 2 * 3 + 1 = 7 pixels
-    #fargs["compressor_config"]["pressio"]["roibin"]["roibin:roi_size"]= [roiWindowSize, roiWindowSize, 0] 
 
-
-    """ Find peaks and writes to cxi file 
-    Roibin-SZ specific arguments: binSize, absErrorBound
-    """
     d.peakFinder.findPeaks(detarr, evt, args.minPeaks) # this will perform background subtraction on detarr
     myHdf5["/entry_1/result_1/nPeaksAll"][nevent] = len(d.peakFinder.peaks)
     
@@ -185,7 +177,7 @@ def getValidEvent(run, times, myJobs):
         if evt is None: continue
         return evt
 
-def runclient(args,ds,run,times,det,numEvents,detDesc):
+def runclient(args,ds,run,times,det,numEvents,detDesc, fopts = 'sz.json'):
     numHits = 0
     es = ds.env().epicsStore()
     try:
@@ -293,7 +285,7 @@ def runclient(args,ds,run,times,det,numEvents,detDesc):
 
     pressio_mask = det.peakFinder.userPsanaMask
 
-    fargs = setup_compressor_args(pressio_mask)
+    fargs = setup_compressor_args(fopts, pressio_mask)
 
     for i, nevent in enumerate(myJobs):
         evt = run.event(times[nevent])
@@ -395,6 +387,12 @@ def runclient(args,ds,run,times,det,numEvents,detDesc):
     if args.tag: fname += '_' + args.tag
     fname += ".npy"
     np.save(fname, det.peakFinder.powderMisses)
+
+    fname = args.outDir + '/' + args.exp + "_" + runStr + "_sz"
+    if args.tag: fname += '_' + args.tag
+    fname += ".npy"
+    np.save(fname, json.load(open(fopts,'r')))
+
 
     # attach attr
     myHdf5["/LCLS/eventNumber"].attrs["numEvents"] = numJobs
