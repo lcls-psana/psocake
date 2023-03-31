@@ -18,7 +18,6 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 assert size>1, 'At least 2 MPI ranks required'
 
-fopts = 'pf_compressor_fopts.json'
 
 import argparse
 parser = argparse.ArgumentParser()

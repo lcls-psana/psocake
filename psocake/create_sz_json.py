@@ -17,7 +17,7 @@ absError = args.absError
 #if type(args.binSize)!=type(None):
 
 
-fopts = 'sz.json'
+fopts = args.json_file
 
 lp_json={
 	    "compressor_id": "pressio",
