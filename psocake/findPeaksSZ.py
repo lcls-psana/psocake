@@ -79,6 +79,8 @@ parser.add_argument("--szfile", help="sz json file", default="sz.json", type=str
 
 
 args = parser.parse_args()
+fopts = args.szfile
+
 if args.localCalib: psana.setOption('psana.calib-dir','./calib')
 
 # Get number of events to process all together

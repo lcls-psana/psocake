@@ -5,7 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-b', "--binSize", type=int, help="bin Size", default = 2)
 parser.add_argument('-r', "--roiWindowSize", type=int, help="ROI window Size", default = 9)
 parser.add_argument('-e', "--absError", type=float, help="absolute Error bound", default = 10)
-parser.add_argument('-f', "--json_file", type=str, help="json file name", default = 'sz.json')
+parser.add_argument('-f', "--json_file", type=str, help="json file name", default = 'qoz.json')
 
 args = parser.parse_args()
 
@@ -31,7 +31,7 @@ lp_json={
 		        "background": {
 		            "binning:compressor": "pressio",
 		            "mask_binning:compressor": "pressio",
-		            "pressio": {"pressio:compressor": "sz3"},
+		            "pressio": {"pressio:compressor": "qoz"},
 		        },
 		        "composite": {"composite:plugins": ["size", "time", "input_stats", "error_stat"]},
 		    },
@@ -49,7 +49,7 @@ lp_json={
 		            "mask_binning:shape": [binSize, binSize, 1],
 		            "mask_binning:nthreads": 4,
 		            "pressio": {"pressio:abs": absError, 
-		                        #"qoz":{'qoz:stride': 8}
+		                        "qoz":{'qoz:stride': 8}
 		                        #"sz3":{"sz3:stride": 8, 
 		                        #       'sz3:pred_dim': 3}
 		                       },
