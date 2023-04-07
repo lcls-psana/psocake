@@ -1,7 +1,7 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 import os
 
 from PSCalib.GeometryObject import data2x2ToTwo2x1, two2x1ToData2x2
@@ -11,10 +11,10 @@ class ImageControl(object):
         self.parent = parent
 
         ## Dock: Image Control
-        self.nextBtn = QtGui.QPushButton('Next evt')
-        self.prevBtn = QtGui.QPushButton('Prev evt')
-        self.saveBtn = QtGui.QPushButton('Save evt')
-        self.loadBtn = QtGui.QPushButton('Load image')
+        self.nextBtn = QtWidgets.QPushButton('Next evt')
+        self.prevBtn = QtWidgets.QPushButton('Prev evt')
+        self.saveBtn = QtWidgets.QPushButton('Save evt')
+        self.loadBtn = QtWidgets.QPushButton('Load image')
 
         #############################
         # Dock: Image Control
@@ -152,7 +152,7 @@ class ImageControl(object):
             plt.savefig(outputName, dpi=300)
 
     def load(self):
-        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)')[0])
+        fname = str(QtWidgets.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir, 'ndarray image (*.npy *.npz)')[0])
         if fname:
             if '.npz' in str(fname.split('.')[-1]):
                 temp = np.load(fname)

@@ -1,6 +1,6 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
 import time
 import PSCalib.GlobalUtils as gu

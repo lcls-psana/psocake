@@ -1,7 +1,7 @@
 import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.dockarea import *
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 from pyqtgraph.parametertree import Parameter, ParameterTree
 import LaunchPeakFinder
 import json, os, time

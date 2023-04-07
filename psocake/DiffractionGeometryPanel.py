@@ -6,7 +6,7 @@ import h5py
 import os
 from pyqtgraph.dockarea import *
 from pyqtgraph.parametertree import Parameter, ParameterTree
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 import subprocess
 import scipy.spatial.distance as sd
 import glob
@@ -109,9 +109,9 @@ class DiffractionGeometry(object):
         self.win.setWindowTitle('Diffraction geometry')
         self.dock.addWidget(self.win)
         self.winL = pg.LayoutWidget()
-        self.deployGeomBtn = QtGui.QPushButton('Deploy manually centred geometry')
+        self.deployGeomBtn = QtWidgets.QPushButton('Deploy manually centred geometry')
         self.winL.addWidget(self.deployGeomBtn, row=0, col=0)
-        self.deployAutoGeomBtn = QtGui.QPushButton('Deploy automatically centred geometry')
+        self.deployAutoGeomBtn = QtWidgets.QPushButton('Deploy automatically centred geometry')
         self.winL.addWidget(self.deployAutoGeomBtn, row=1, col=0)
         self.dock.addWidget(self.winL)
 

@@ -1,6 +1,6 @@
 import numpy as np
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 import h5py
 try:
     from PyQt5.QtWidgets import *
@@ -26,23 +26,23 @@ class MaskMaker(object):
         self.win = ParameterTree()
         self.dock.addWidget(self.win)
         self.winL = pg.LayoutWidget()
-        self.maskRectBtn = QtGui.QPushButton('Stamp rectangular mask')
+        self.maskRectBtn = QtWidgets.QPushButton('Stamp rectangular mask')
         self.winL.addWidget(self.maskRectBtn, row=0, col=0)#, colspan=2)
-        self.maskCircleBtn = QtGui.QPushButton('Stamp circular mask')
+        self.maskCircleBtn = QtWidgets.QPushButton('Stamp circular mask')
         self.winL.addWidget(self.maskCircleBtn, row=0, col=1)#, colspan=2)
-        self.maskThreshBtn = QtGui.QPushButton('Mask outside histogram')
+        self.maskThreshBtn = QtWidgets.QPushButton('Mask outside histogram')
         self.winL.addWidget(self.maskThreshBtn, row=1, col=1)#, colspan=2)
-        self.maskPolyBtn = QtGui.QPushButton('Stamp polygon mask')
+        self.maskPolyBtn = QtWidgets.QPushButton('Stamp polygon mask')
         self.winL.addWidget(self.maskPolyBtn, row=1, col=0)#, colspan=2)
-        self.deployMaskBtn = QtGui.QPushButton()
+        self.deployMaskBtn = QtWidgets.QPushButton()
         self.deployMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.deployMaskBtn.setText('Save static mask')
         self.winL.addWidget(self.deployMaskBtn, row=2, col=0)
-        self.loadMaskBtn = QtGui.QPushButton()
+        self.loadMaskBtn = QtWidgets.QPushButton()
         self.loadMaskBtn.setStyleSheet('QPushButton {background-color: #A3C1DA; color: red;}')
         self.loadMaskBtn.setText('Load mask')
         self.winL.addWidget(self.loadMaskBtn, row=2, col=1)
-        self.generatePowderBtn = QtGui.QPushButton('Generate Average Image')
+        self.generatePowderBtn = QtWidgets.QPushButton('Generate Average Image')
         self.winL.addWidget(self.generatePowderBtn, row=3, col=0, colspan=2)
         # Connect listeners to functions
         self.dock.addWidget(self.winL)
@@ -646,7 +646,7 @@ class MaskMaker(object):
             self.saveCheetahStaticMask()
 
     def loadMask(self):
-        fname = str(QtGui.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
+        fname = str(QtWidgets.QFileDialog.getOpenFileName(self.parent, 'Open file', self.parent.psocakeRunDir,
                                                           'ndarray image (*.npy *.npz)')[0])
         self.initMask()
         self.userMask = np.load(fname)
