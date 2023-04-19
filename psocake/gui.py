@@ -3,7 +3,7 @@ if 'PSOCAKE_FACILITY' not in os.environ: os.environ['PSOCAKE_FACILITY'] = 'LCLS'
 
 # Import the rest of the packages
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
 from pyqtgraph.dockarea import *
 import argparse
@@ -53,7 +53,7 @@ args = parser.parse_args()
 
 if 'label' in args.mode: import LabelingPanel
 
-class Window(QtGui.QMainWindow):
+class Window(QtWidgets.QMainWindow):
     global ex
 
     def previewEvent(self, eventNumber):
@@ -65,7 +65,7 @@ class Window(QtGui.QMainWindow):
     def keyPressEvent(self, event):
         super(Window, self).keyPressEvent(event)
         if args.mode == "label":
-            if type(event) == QtGui.QKeyEvent:
+            if type(event) == QtWidgets.QKeyEvent:
                 numberKeys = [QtCore.Qt.Key_1, QtCore.Qt.Key_2, QtCore.Qt.Key_3,
                               QtCore.Qt.Key_4, QtCore.Qt.Key_5, QtCore.Qt.Key_6, 
                               QtCore.Qt.Key_7, QtCore.Qt.Key_8, QtCore.Qt.Key_9]
@@ -79,7 +79,7 @@ class Window(QtGui.QMainWindow):
                         except IndexError:
                             print("Key %d does not correspond to classification"%(i+1))
 
-class MainFrame(QtGui.QWidget):
+class MainFrame(QtWidgets.QWidget):
     """
     The main frame of the application
     """
@@ -491,7 +491,7 @@ class MainFrame(QtGui.QWidget):
 
 def main():
     global ex
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     win = Window()
     ex = MainFrame(sys.argv)
     win.resize(1400,700)

@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 import psana
-from PyQt4 import QtGui, QtCore
-from PyQt4.QtGui import *
+from PyQt4 import QtWidgets, QtCore
+from PyQt4.QtWidgets import *
 import sys
 import pyqtgraph as pg
 from matplotlib.widgets import Button
@@ -51,18 +51,18 @@ except AttributeError:
         return s
 
 try:
-    _encoding = QtGui.QApplication.UnicodeUTF8
+    _encoding = QtWidgets.QApplication.UnicodeUTF8
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+        return QtWidgets.QApplication.translate(context, text, disambig, _encoding)
 except AttributeError:
     def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
+        return QtWidgets.QApplication.translate(context, text, disambig)
 
 # Scroll area
-class Scroll(QtGui.QScrollArea):
+class Scroll(QtWidgets.QScrollArea):
 
     def __init__(self, w, parent=None):
-        QtGui.QScrollArea.__init__(self,parent)
+        QtWidgets.QScrollArea.__init__(self,parent)
         self.setWidget(w)
         self.setGeometry(0,0,w.width(),600)
         self.window = w
@@ -73,12 +73,12 @@ class Scroll(QtGui.QScrollArea):
         #self.window.gridLayout.setGeometry(self.window.gridLayoutWidget.geometry())
         self.window.setGeometry(self.window.x(), self.window.y(), self.width(), self.window.gridLayoutWidget.height()+30*self.window.gridLayout.rowCount())
         self.window.centralwidget.setGeometry(self.window.geometry())
-        #QtGui.QMessageBox.information(self,"Information!","Window has been resized...")
+        #QtWidgets.QMessageBox.information(self,"Information!","Window has been resized...")
 
-class Window(QtGui.QWidget):
+class Window(QtWidgets.QWidget):
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self,parent)
-        self.centralwidget = QtGui.QWidget(self)
+        QtWidgets.QWidget.__init__(self,parent)
+        self.centralwidget = QtWidgets.QWidget(self)
         # Read label types
         labelTypesFile = args.filepath+'/labels.txt'
         try:
@@ -89,67 +89,67 @@ class Window(QtGui.QWidget):
         py = 10
         dh = 25
         # Min text
-        self.l1 = QtGui.QLabel(self)
+        self.l1 = QtWidgets.QLabel(self)
         self.l1.setText("Min:")
         self.l1.setGeometry(QtCore.QRect(10, py, 30, dh))
         self.l1.setObjectName(_fromUtf8("l1"))
         # Min 
-        self.lineEdit_2 = QtGui.QLineEdit(self.centralwidget)
+        self.lineEdit_2 = QtWidgets.QLineEdit(self.centralwidget)
         self.lineEdit_2.setGeometry(QtCore.QRect(40, py, 60, dh))
         self.lineEdit_2.setObjectName(_fromUtf8("lineEdit_2"))
         self.lineEdit_2.setText(minIntensity)
         self.lineEdit_2.textChanged[str].connect(self.onMinChanged)
         # Max text
-        self.l2 = QtGui.QLabel(self)
+        self.l2 = QtWidgets.QLabel(self)
         self.l2.setText("Max:")
         self.l2.setGeometry(QtCore.QRect(110, py, 30, dh))
         self.l2.setObjectName(_fromUtf8("l2"))
         # Max
-        self.lineEdit_3 = QtGui.QLineEdit(self.centralwidget)
+        self.lineEdit_3 = QtWidgets.QLineEdit(self.centralwidget)
         self.lineEdit_3.setGeometry(QtCore.QRect(140, py, 60, dh))
         self.lineEdit_3.setObjectName(_fromUtf8("lineEdit_3"))
         self.lineEdit_3.setText(maxIntensity)
         self.lineEdit_3.textChanged[str].connect(self.onMaxChanged)
         # Change contrast button
-        self.pushButton = QtGui.QPushButton(self.centralwidget)
+        self.pushButton = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton.setGeometry(QtCore.QRect(210, py, 120, dh))
         self.pushButton.setObjectName(_fromUtf8("pushButton"))
         self.pushButton.clicked.connect(self.adjust)
         # Selection
-        self.comboBox = QtGui.QComboBox(self.centralwidget)
+        self.comboBox = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox.setGeometry(QtCore.QRect(400, py, 120, dh))
-        self.comboBox.setInsertPolicy(QtGui.QComboBox.NoInsert)
+        self.comboBox.setInsertPolicy(QtWidgets.QComboBox.NoInsert)
         self.comboBox.setObjectName(_fromUtf8("comboBox"))
         for i in range(self.numLabelTypes):
             self.comboBox.addItem(_fromUtf8(""))
         # Save label
-        self.pushButton_2 = QtGui.QPushButton(self.centralwidget)
+        self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_2.setGeometry(QtCore.QRect(530, py, 100, dh))
         self.pushButton_2.setObjectName(_fromUtf8("pushButton_2"))
         self.pushButton_2.clicked.connect(self.updateLabels)
         # Unselect
-        self.pushButton_3 = QtGui.QPushButton(self.centralwidget)
+        self.pushButton_3 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_3.setGeometry(QtCore.QRect(640, py, 100, dh))
         self.pushButton_3.setObjectName(_fromUtf8("pushButton_3"))
         self.pushButton_3.clicked.connect(self.unselectAll)
         # Select
-        self.pushButton_4 = QtGui.QPushButton(self.centralwidget)
+        self.pushButton_4 = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton_4.setGeometry(QtCore.QRect(750, py, 100, dh))
         self.pushButton_4.setObjectName(_fromUtf8("pushButton_4"))
         self.pushButton_4.clicked.connect(self.selectAll)
         # Maximum events text
-        self.l3 = QtGui.QLabel(self)
+        self.l3 = QtWidgets.QLabel(self)
         self.l3.setText("Max. Events:")
         self.l3.setGeometry(QtCore.QRect(1000, py, 80, dh))
         self.l3.setObjectName(_fromUtf8("l3"))
         # Maximum events to display
-        self.lineEdit_4 = QtGui.QLineEdit(self.centralwidget)
+        self.lineEdit_4 = QtWidgets.QLineEdit(self.centralwidget)
         self.lineEdit_4.setGeometry(QtCore.QRect(1080, py, 80, dh))
         self.lineEdit_4.setObjectName(_fromUtf8("lineEdit_4"))
         self.lineEdit_4.setText(maxEvents)
         self.lineEdit_4.textChanged[str].connect(self.onChanged)
         # Auto propagate
-        self.cb = QtGui.QCheckBox('Auto propagate', self)
+        self.cb = QtWidgets.QCheckBox('Auto propagate', self)
         self.cb.stateChanged.connect(self.changeTitle)
         if autoPropagate: self.cb.toggle()
         self.cb.setGeometry(QtCore.QRect(1170, py, 80, dh))
@@ -299,10 +299,10 @@ class Window(QtGui.QWidget):
                 img.setLevels([float(self.lineEdit_2.text()), float(self.lineEdit_3.text())])
 
     def pop(self, arr, h, w, ind):
-        self.gridLayoutWidget = QtGui.QWidget(self.centralwidget)
+        self.gridLayoutWidget = QtWidgets.QWidget(self.centralwidget)
         self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 39, h, w))
         self.gridLayoutWidget.setObjectName(_fromUtf8("gridLayoutWidget"))
-        self.gridLayout = QtGui.QGridLayout(self.gridLayoutWidget)
+        self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
         self.gridLayout.setMargin(0)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.ind = ind
@@ -383,10 +383,10 @@ class Window(QtGui.QWidget):
         self.pushButton_3.setText(_translate("MainWindow", "Unselect all", None))
         self.pushButton_4.setText(_translate("MainWindow", "Select all", None))
 
-class Dialog(QtGui.QDialog):
+class Dialog(QtWidgets.QDialog):
     def __init__(self, num, col, images, ind, parent=None):
         global dialogVisible
-        QtGui.QDialog.__init__(self,parent)
+        QtWidgets.QDialog.__init__(self,parent)
         self.w = Window(self)
         self.w.retranslateUi(self.w)
         self.w.setGeometry(0, 300, col, num*400)
@@ -420,9 +420,9 @@ class Dialog(QtGui.QDialog):
         global dialogVisible
         dialogVisible = False
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
-        QtGui.QMainWindow.__init__(self)
+        QtWidgets.QMainWindow.__init__(self)
         self.d = Dialog(2, 1600, [],[])
         self.d.show()
 
@@ -960,7 +960,7 @@ propLabels = np.copy(userLabels)
 P,_ = diffusionKernel(X, eps=eps, knn=len(propLabels))
 
 # Launch GUI app
-app = QtGui.QApplication(sys.argv)
+app = QtWidgets.QApplication(sys.argv)
 win = MainWindow()
 fig = plt.figure()
 canvas = FigureCanvas(fig)

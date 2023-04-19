@@ -1,7 +1,7 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 try:
     from PyQt5.QtWidgets import *
     using_pyqt4 = False
@@ -26,13 +26,13 @@ class ImageStack(object):
         self.win.getView().invertY(False)
         self.scroll = np.random.random((5, 10, 10))
         self.win.setImage(self.scroll, xvals=np.linspace(0., self.scroll.shape[0] - 1, self.scroll.shape[0]))
-        self.spinBox = QtGui.QSpinBox()
+        self.spinBox = QtWidgets.QSpinBox()
         self.spinBox.setValue(0)
-        self.label = QtGui.QLabel("Event Number:")
-        self.stackSizeBox = QtGui.QSpinBox()
+        self.label = QtWidgets.QLabel("Event Number:")
+        self.stackSizeBox = QtWidgets.QSpinBox()
         self.stackSizeBox.setMaximum(self.stackSizeMax)
         self.stackSizeBox.setValue(self.stackSize)
-        self.startBtn = QtGui.QPushButton("&Load image stack")
+        self.startBtn = QtWidgets.QPushButton("&Load image stack")
         # Connect listeners to functions
         self.winL.addWidget(self.win, row=0, colspan=4)
         self.winL.addWidget(self.label, 1, 0)

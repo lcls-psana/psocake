@@ -1,7 +1,7 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
 import numpy as np
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 
 class RoiHistogram(object):
     def __init__(self, parent = None):
@@ -15,7 +15,7 @@ class RoiHistogram(object):
         hist, bin = np.histogram(np.random.random(1000), bins=1000)
         self.win.plot(bin, hist, stepMode=True, fillLevel=0, brush=(0, 0, 255, 150), clear=True)
         self.dock.addWidget(self.win)
-        self.roiCheckbox = QtGui.QCheckBox('Update ROI')
+        self.roiCheckbox = QtWidgets.QCheckBox('Update ROI')
         self.roiCheckbox.setCheckState(True)
         self.roiCheckbox.setTristate(False)
         self.roiCheckbox.stateChanged.connect(self.updateRoiStatus)

@@ -3,7 +3,7 @@
 # Batch mode: Creates a CXIDB file containing hits, turbo index the file, save single stream and delete CXIDB
 # TODO: special display for systematic absences given spacegroup (to check peak finding parameters produce zero)
 import numpy as np
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 import subprocess
 import pyqtgraph as pg
 from pyqtgraph.dockarea import *
@@ -29,9 +29,9 @@ class CrystalIndexing(object):
         #self.win.setWindowTitle('Indexing')
         self.dock.addWidget(self.win)
         self.winL = pg.LayoutWidget()
-        self.launchIndexBtn = QtGui.QPushButton('Launch indexing')
+        self.launchIndexBtn = QtWidgets.QPushButton('Launch indexing')
         self.winL.addWidget(self.launchIndexBtn, row=0, col=0)
-        self.synchBtn = QtGui.QPushButton('Deploy CrystFEL geometry')
+        self.synchBtn = QtWidgets.QPushButton('Deploy CrystFEL geometry')
         self.winL.addWidget(self.synchBtn, row=1, col=0)
         self.dock.addWidget(self.winL)
 

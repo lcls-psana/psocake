@@ -1,7 +1,7 @@
 import numpy as np
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from pyqtgraph.dockarea import *
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 try:
     from PyQt5.QtWidgets import *
     using_pyqt4 = False
@@ -21,9 +21,9 @@ class SmallData(object):
         self.win = ParameterTree()
         self.dock.addWidget(self.win)
         self.winL = pg.LayoutWidget()
-        self.refreshBtn = QtGui.QPushButton('Refresh')
+        self.refreshBtn = QtWidgets.QPushButton('Refresh')
         self.winL.addWidget(self.refreshBtn, row=0, col=0)
-        self.peakogramBtn = QtGui.QPushButton('Peakogram')
+        self.peakogramBtn = QtWidgets.QPushButton('Peakogram')
         self.winL.addWidget(self.peakogramBtn, row=0, col=1)
         self.dock.addWidget(self.winL)
         # Add plot

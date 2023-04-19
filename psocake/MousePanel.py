@@ -1,6 +1,6 @@
 from pyqtgraph.dockarea import *
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtWidgets
 from random import shuffle
 import os
 
@@ -31,9 +31,9 @@ except ImportError:
 #             print("Error: Couldn't find graphics folder")
 #             exit()
 
-class Mouse(QtGui.QWidget):
+class Mouse(QtWidgets.QWidget):
     def __init__(self, parent = None):
-        QtGui.QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
         self.parent = parent
         ## Dock 1 - mouse intensity display
@@ -61,29 +61,29 @@ class Mouse(QtGui.QWidget):
     #     self.index += 1
     #     if self.movie is None:
     #         # get a frame to get image size
-    #         self.movie = QtGui.QMovie(fname, QtCore.QByteArray(), self)
+    #         self.movie = QtWidgets.QMovie(fname, QtCore.QByteArray(), self)
     #         self.movie.jumpToFrame(0)
     #         movie_size = self.movie.currentImage().size()
     #         movie_aspect = movie_size.width() * 1.0 / movie_size.height()
     #         # create a new movie with correct aspect ratio
-    #         self.movie = QtGui.QMovie(fname, QtCore.QByteArray(), self)
+    #         self.movie = QtWidgets.QMovie(fname, QtCore.QByteArray(), self)
     #         size = self.movie.scaledSize()
     #         self.setGeometry(100, 100, size.width(), size.height())
     #         self.movie.setScaledSize(QtCore.QSize(int(150*movie_aspect),150)) # pixels
     #
     #         # Create the layout
     #         if self.layout is None:
-    #             main_layout = QtGui.QVBoxLayout()
+    #             main_layout = QtWidgets.QVBoxLayout()
     #             self.setLayout(main_layout)
     #
-    #         self.movie_screen = QtGui.QLabel()
+    #         self.movie_screen = QtWidgets.QLabel()
     #         # Make label fit the gif
-    #         self.movie_screen.setSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+    #         self.movie_screen.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
     #         self.movie_screen.setAlignment(QtCore.Qt.AlignCenter)
     #         self.dock.addWidget(self.movie_screen)
     #
     #         # Add the QMovie object to the label
-    #         self.movie.setCacheMode(QtGui.QMovie.CacheAll)
+    #         self.movie.setCacheMode(QtWidgets.QMovie.CacheAll)
     #         self.movie.setSpeed(self.speed)
     #         self.movie_screen.setMovie(self.movie)
     #         self.movie.start()
