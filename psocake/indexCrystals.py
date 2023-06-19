@@ -348,7 +348,7 @@ for rank in range(numWorkers):
     if batch == "lsf":
         cmd += " --temp-dir=/scratch"
     else:
-        cmd += " --temp-dir=/u1"
+        cmd += " --temp-dir=tmp"
     cmd += " --tolerance=" + tolerance + \
            " --no-revalidate --multi --profile"
     if pdb: cmd += " --pdb=" + pdb

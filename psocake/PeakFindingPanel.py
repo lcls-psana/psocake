@@ -69,7 +69,7 @@ class PeakFinding:
         self.hitParam_runs_str = 'Run(s)'
         self.hitParam_queue_str = 'queue'
         self.hitParam_cpu_str = 'CPUs'
-        self.hitParam_psanaq_str = 'psanaq'
+        self.hitParam_psanaq_str = 'milano'
         self.hitParam_psnehq_str = 'psnehq'
         self.hitParam_psfehq_str = 'psfehq'
         self.hitParam_psnehprioq_str = 'psnehprioq'
@@ -191,7 +191,7 @@ self.hitParam_algorithm2_str: 2,
                                                                              self.hitParam_psnehprioq_str: 'psnehprioq',
                                                                              self.hitParam_psfehq_str: 'psfehq',
                                                                              self.hitParam_psnehq_str: 'psnehq',
-                                                                             self.hitParam_psanaq_str: 'psanaq',
+                                                                             self.hitParam_psanaq_str: 'milano',
                                                                              self.hitParam_psdebugq_str: 'psdebugq',
                                                                              self.hitParam_psanagpuq_str: 'psanagpuq',
                                                                              self.hitParam_psanaidleq_str: 'psanaidleq',

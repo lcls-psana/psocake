@@ -109,6 +109,11 @@ class MainFrame(QtWidgets.QWidget):
             self.dir = '/reg/d/psdm'
             if "ffb" in args.access.lower():
                 self.dir = '/cds/data/drpsrcf'
+        elif 'S3DF' in os.environ['PSOCAKE_FACILITY'].upper():
+            self.facility = self.facilityLCLS
+            self.dir = '/sdf/data/lcls/ds/'
+            if "ffb" in args.access.lower():
+                self.dir = '/sdf/data/lcls/drpsrcf'
 
         # Init experiment parameters from args
         if args.expRun is not None and ':run=' in args.expRun:

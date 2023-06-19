@@ -118,7 +118,7 @@ class CrystalIndexing(object):
                                                                     self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
                                                                     self.parent.pk.hitParam_psfehq_str: 'psfehq',
                                                                     self.parent.pk.hitParam_psnehq_str: 'psnehq',
-                                                                    self.parent.pk.hitParam_psanaq_str: 'psanaq',
+                                                                    self.parent.pk.hitParam_psanaq_str: 'milano',
                                                                     self.parent.pk.hitParam_psdebugq_str: 'psdebugq',
                                                                     self.parent.pk.hitParam_psanagpuq_str: 'psanagpuq',
                                                                     self.parent.pk.hitParam_psanaidleq_str: 'psanaidleq',
