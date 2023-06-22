@@ -777,6 +777,7 @@ self.hitParam_algorithm2_str: 2,
         if len(self.iX.shape) == 2:
             self.iX = np.expand_dims(self.iX, axis=0)
             self.iY = np.expand_dims(self.iY, axis=0)
+
         cenX = self.iX[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
             peaks[:, 2], dtype=np.int64)] + 0.5
         cenY = self.iY[np.array(peaks[:, 0], dtype=np.int64), np.array(peaks[:, 1], dtype=np.int64), np.array(
@@ -823,6 +824,7 @@ self.hitParam_algorithm2_str: 2,
             f.close()
             # Convert cheetah peaks to psana peaks
             s, r, c = self.parent.detDesc.convert_peaks_to_psana(row2d, col2d)
+            if not isinstance(s, list): s = np.full(len(r), s)
             peaks = np.array([s, r, c]).T
             # Display peaks
             if peaks is not None and len(peaks) > 0:
