@@ -3,6 +3,7 @@
 # Batch mode: Creates a CXIDB file containing hits, turbo index the file, save single stream and delete CXIDB
 # TODO: special display for systematic absences given spacegroup (to check peak finding parameters produce zero)
 import numpy as np
+import os
 from pyqtgraph.Qt import QtCore, QtWidgets
 import subprocess
 import pyqtgraph as pg
@@ -320,6 +321,10 @@ class CrystalIndexing(object):
 
                     # Generate a static mask of bad pixels for indexing
                     self.parent.mk.saveCheetahStaticMask()
+
+                    # Remove existing stream file
+                    if os.path.exists(self.hiddenCrystfelStream):
+                        os.remove(self.hiddenCrystfelStream)
 
                     # Step 2: Create a QThread object
 

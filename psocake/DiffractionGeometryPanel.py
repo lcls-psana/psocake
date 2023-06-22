@@ -287,8 +287,7 @@ class DiffractionGeometry(object):
                         if self.parent.pk.tag:
                             _cxiname += '_' + self.parent.pk.tag
                         _cxiname += '.cxi\n'
-                        _line = 'mask_file =' + _cxiname
-                        newGeom.append("; mask_file =\n")
+                        newGeom.append(f"mask_file = {_cxiname}\n")
                     elif '; mask_good =' in line:
                         newGeom.append(line.split('; ')[-1])
                     elif '; mask_bad =' in line:
@@ -371,16 +370,16 @@ class DiffractionGeometry(object):
             # Replace coffset value in geometry file
             if '.temp.geom' in self.parent.index.geom and os.path.exists(self.parent.index.geom):
                 for line in fileinput.FileInput(self.parent.index.geom, inplace=True):
-                    if 'coffset' in line and line.strip()[0] is not ';':
+                    if 'coffset' in line and line.strip()[0] != ';':
                         coffsetStr = line.split('=')[0]+"= "+str(coffset)+"\n"
                         print(coffsetStr.rstrip()) # FIXME: check whether comma is required
-                    elif 'clen' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
+                    elif 'clen' in line and line.strip()[0] == ';': #FIXME: hack for mfxc00318
                         _c =  line.split('; ')[-1]
                         print(_c.rstrip())  # comma is required
-                    elif 'photon_energy' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
+                    elif 'photon_energy' in line and line.strip()[0] == ';': #FIXME: hack for mfxc00318
                         _c =  line.split('; ')[-1]
                         print(_c.rstrip())  # comma is required
-                    elif 'adu_per_eV' in line and line.strip()[0] is ';': #FIXME: hack for mfxc00318
+                    elif 'adu_per_eV' in line and line.strip()[0] == ';': #FIXME: hack for mfxc00318
                         _c =  line.split('; ')[-1]
                         print(_c.rstrip())  # comma is required
                     else:
