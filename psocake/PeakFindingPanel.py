@@ -69,7 +69,8 @@ class PeakFinding:
         self.hitParam_runs_str = 'Run(s)'
         self.hitParam_queue_str = 'queue'
         self.hitParam_cpu_str = 'CPUs'
-        self.hitParam_psanaq_str = 'milano'
+        self.hitParam_milano_str = 'milano'
+        self.hitParam_psanaq_str = 'psanaq'
         self.hitParam_psnehq_str = 'psnehq'
         self.hitParam_psfehq_str = 'psfehq'
         self.hitParam_psnehprioq_str = 'psnehprioq'
@@ -127,8 +128,8 @@ class PeakFinding:
         self.hitParam_outDir = self.parent.psocakeDir
         self.hitParam_outDir_overridden = False
         self.hitParam_runs = ''
-        self.hitParam_queue = self.hitParam_psanaq_str
-        self.hitParam_cpus = 24
+        self.hitParam_queue = self.hitParam_milano_str
+        self.hitParam_cpus = 16 # milano has 128 cores per node
         self.hitParam_noe = -1
         self.hitParam_threshold = 15 # usually crystals with less than 15 peaks are not indexable
         self.minPeaks = 10
@@ -191,10 +192,11 @@ self.hitParam_algorithm2_str: 2,
                                                                              self.hitParam_psnehprioq_str: 'psnehprioq',
                                                                              self.hitParam_psfehq_str: 'psfehq',
                                                                              self.hitParam_psnehq_str: 'psnehq',
-                                                                             self.hitParam_psanaq_str: 'milano',
+                                                                             self.hitParam_psanaq_str: 'psanaq',
                                                                              self.hitParam_psdebugq_str: 'psdebugq',
                                                                              self.hitParam_psanagpuq_str: 'psanagpuq',
                                                                              self.hitParam_psanaidleq_str: 'psanaidleq',
+                                                                             self.hitParam_milano_str: 'milano',
                                                                              self.hitParam_ffbh1q_str: 'ffbh1q',
                                                                              self.hitParam_ffbl1q_str: 'ffbl1q',
                                                                              self.hitParam_ffbh2q_str: 'ffbh2q',

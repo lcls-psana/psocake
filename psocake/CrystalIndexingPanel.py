@@ -64,9 +64,9 @@ class CrystalIndexing(object):
         self.runs = ''
         self.sample = 'crystal'
         self.tag = ''
-        self.queue = self.parent.pk.hitParam_psanaq_str
-        self.chunkSize = 30
-        self.cpu = 12
+        self.queue = self.parent.pk.hitParam_milano_str
+        self.chunkSize = 100
+        self.cpu = 16
         self.noe = -1
 
         # Indexing
@@ -119,10 +119,11 @@ class CrystalIndexing(object):
                                                                     self.parent.pk.hitParam_psnehprioq_str: 'psnehprioq',
                                                                     self.parent.pk.hitParam_psfehq_str: 'psfehq',
                                                                     self.parent.pk.hitParam_psnehq_str: 'psnehq',
-                                                                    self.parent.pk.hitParam_psanaq_str: 'milano',
+                                                                    self.parent.pk.hitParam_psanaq_str: 'psanaq',
                                                                     self.parent.pk.hitParam_psdebugq_str: 'psdebugq',
                                                                     self.parent.pk.hitParam_psanagpuq_str: 'psanagpuq',
                                                                     self.parent.pk.hitParam_psanaidleq_str: 'psanaidleq',
+                                                                    self.parent.pk.hitParam_milano_str: 'milano',
                                                                     self.parent.pk.hitParam_ffbh1q_str: 'ffbh1q',
                                                                     self.parent.pk.hitParam_ffbl1q_str: 'ffbl1q',
                                                                     self.parent.pk.hitParam_ffbh2q_str: 'ffbh2q',
@@ -321,10 +322,6 @@ class CrystalIndexing(object):
 
                     # Generate a static mask of bad pixels for indexing
                     self.parent.mk.saveCheetahStaticMask()
-
-                    # Remove existing stream file
-                    if os.path.exists(self.hiddenCrystfelStream):
-                        os.remove(self.hiddenCrystfelStream)
 
                     # Step 2: Create a QThread object
 
@@ -669,6 +666,9 @@ class IndexWorker(QtCore.QObject):
         self.outDir = outDir
 
     def run(self):
+        if os.path.exists(self.hiddenCrystfelStream):
+            os.remove(self.hiddenCrystfelStream)
+
         cmd = "indexamajig -j 1 -i " + self.hiddenCrystfelList + " -g " + self.geom + " --peaks=" + self.peakMethod + \
               " --int-radius=" + self.intRadius + " --indexing=" + self.indexingMethod + \
               " -o " + self.hiddenCrystfelStream + " --temp-dir=" + self.outDir + "/r" + str(self.runNumber).zfill(4) + \
