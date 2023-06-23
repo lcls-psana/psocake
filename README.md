@@ -1,3 +1,6 @@
+## Note: this s3df branch was created to run on s3df using python3 only. It was tested with a new branch of psgeom to reflect the latest crystfel geom format:
+https://github.com/slaclab/psgeom/tree/new_crystfel_format
+
 # Psocake (py2/py3)
 
 Making Data Analysis for Free-Electron Lasers a piece of cake
